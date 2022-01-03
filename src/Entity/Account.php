@@ -14,14 +14,24 @@ use Doctrine\ORM\PersistentCollection;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
+use ApiPlatform\Core\Annotation\ApiResource;
+
 
 /**
+ * @ApiResource(
+ *     collectionOperations={"get"={"normalization_context"={"groups"="account:list"}}},
+ *     itemOperations={},
+ *     order={"updatedAt"="DESC"},
+ *     paginationEnabled=false
+ * )
+ *
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass=AccountRepository::class)
  * @ORM\InheritanceType("SINGLE_TABLE")
  * @ORM\DiscriminatorColumn(name="type", type="string")
  * @ORM\DiscriminatorMap({"basic" = "Account", "bank" = "BankCardAccount", "internet" = "InternetAccount", "cash" = "CashAccount"})
  */
+#[ApiResource]
 class Account implements OwnableInterface, ValuableInterface
 {
     public const CURRENCIES = [
@@ -55,7 +65,7 @@ class Account implements OwnableInterface, ValuableInterface
     use TimestampableEntity, OwnableValuableEntity;
 
     /**
-     * @Groups({"typeahead", "account_list", "account_detail_view", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
+     * @Groups({"account:typeahead", "account:list", "account_detail_view", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -85,21 +95,21 @@ class Account implements OwnableInterface, ValuableInterface
     protected ?DateTimeInterface $updatedAt;
 
     /**
-     * @Groups({"typeahead", "account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
+     * @Groups({"account:typeahead", "account:list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="string", length=255)
      */
     private string $name;
 
     /**
-     * @Groups({"account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
+     * @Groups({"account:list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="string", length=3)
      */
     private ?string $currency;
 
     /**
-     * @Groups({"account_list", "account_detail_view"})
+     * @Groups({"account:list", "account_detail_view"})
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
@@ -112,14 +122,14 @@ class Account implements OwnableInterface, ValuableInterface
     private null|array|ArrayCollection|PersistentCollection $transactions;
 
     /**
-     * @Groups({"account_list", "account_detail_view"})
+     * @Groups({"account:list", "account_detail_view"})
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
     private ?DateTimeInterface $archivedAt;
 
     /**
-     * @Groups({"account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
+     * @Groups({"account:list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="string", length=30)
      */
@@ -263,7 +273,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * @Groups({"account_list"})
+     * @Groups({"account:list"})
      */
     public function getValues(): array
     {
@@ -271,7 +281,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * @Groups({"account_list"})
+     * @Groups({"account:list"})
      */
     public function getValue(): float
     {
@@ -279,7 +289,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * @Groups({"account_list", "account_detail_view", "typeahead"})
+     * @Groups({"account:list", "account_detail_view", "account:typeahead"})
      */
     public function getLastTransactionAt()
     {
@@ -291,7 +301,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * @Groups({"account_list", "account_detail_view", "transaction_list", "transfer_list", "debt_list"})
+     * @Groups({"account:list", "account_detail_view", "transaction_list", "transfer_list", "debt_list"})
      */
     #[Pure] public function getIcon(): string
     {

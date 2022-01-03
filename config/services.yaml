@@ -23,6 +23,14 @@ services:
             - '../src/Kernel.php'
             - '../src/Tests/'
 
-    get_set_method_normalizer:
-        class: Symfony\Component\Serializer\Normalizer\GetSetMethodNormalizer
-        tags: [ serializer.normalizer ]
+    security.user_password_hasher:
+        class: Symfony\Component\PasswordHasher\Hasher\UserPasswordHasher
+        public: true
+        arguments:
+          [ '@security.password_hasher_factory' ]
+
+    App\OpenApi\JwtDecorator:
+        decorates: 'api_platform.openapi.factory'
+        arguments: [ '@.inner' ]
+        autoconfigure: false
+        decoration_priority: 1000

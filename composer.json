@@ -39,8 +39,16 @@
         "symfony/yaml": "5.4.*"
     },
     "require-dev": {
+        "hautelook/alice-bundle": "^2.10",
+        "justinrainbow/json-schema": "^5.2",
+        "phpunit/phpunit": "^9.5",
+        "roave/security-advisories": "dev-latest",
+        "symfony/browser-kit": "5.4.*",
+        "symfony/css-selector": "5.4.*",
         "symfony/debug-bundle": "5.4.*",
+        "symfony/http-client": "5.4.*",
         "symfony/maker-bundle": "^1.36",
+        "symfony/phpunit-bridge": "^6.0",
         "symfony/stopwatch": "5.4.*",
         "symfony/web-profiler-bundle": "5.4.*"
     },
