@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
  * @ORM\HasLifecycleCallbacks()
@@ -22,7 +23,7 @@ class ExpenseCategory extends Category
     public const CATEGORY_SHOPPING = 'Shopping';
 
     /**
-     * #[Groups(["category_list", "category_tree_list"])]
+     * @Groups({"category_list", "category_tree_list"})
      *
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */

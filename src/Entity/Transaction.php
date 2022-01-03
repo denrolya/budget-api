@@ -29,7 +29,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "transfer_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -38,7 +38,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     protected ?int $id;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "transfer_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\ManyToOne(targetEntity="Account", inversedBy="transactions")
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
@@ -46,7 +46,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     protected Account $account;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "transfer_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
@@ -54,21 +54,21 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
 
     /**
      * // TODO: getValues
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
      *
      * @ORM\Column(type="json", nullable=false)
      */
     protected ?array $convertedValues = [];
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
      *
      * @ORM\Column(type="text", nullable=true)
      */
     protected ?string $note;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
@@ -82,7 +82,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     protected ?DateTimeInterface $createdAt;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
      *
      * @ORM\ManyToOne(targetEntity="Category", inversedBy="transactions", cascade={"persist"})
      * @ORM\JoinColumn(name="category_id", referencedColumnName="id", nullable=false)
@@ -90,14 +90,14 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     private ?Category $category;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
     private ?DateTimeInterface $canceledAt = null;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view"])]
+     * @Groups({"transaction_list", "account_detail_view"})
      *
      * @ORM\Column(type="boolean", nullable=false)
      */

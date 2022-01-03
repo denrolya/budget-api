@@ -23,7 +23,7 @@ class Transfer implements OwnableInterface
     use TimestampableEntity, OwnableEntity, ExecutableEntity;
 
     /**
-     * #[Groups(["transfer_list"])]
+     * @Groups({"transfer_list"})
      *
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -32,7 +32,7 @@ class Transfer implements OwnableInterface
     private ?int $id;
 
     /**
-     * #[Groups(["transfer_list"])]
+     * @Groups({"transfer_list"})
      *
      * @ORM\ManyToOne(targetEntity="Account")
      * @ORM\JoinColumn(name="from_id", referencedColumnName="id")
@@ -40,7 +40,7 @@ class Transfer implements OwnableInterface
     private ?Account $from;
 
     /**
-     * #[Groups(["transfer_list"])]
+     * @Groups({"transfer_list"})
      *
      * @ORM\ManyToOne(targetEntity="Account")
      * @ORM\JoinColumn(name="to_id", referencedColumnName="id")
@@ -60,14 +60,14 @@ class Transfer implements OwnableInterface
     private ?Income $toIncome;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "transfer_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
     private float $amount;
 
     /**
-     * #[Groups(["transfer_list"])]
+     * @Groups({"transfer_list"})
      *
      * @ORM\Column(type="decimal", precision=15, scale=5, nullable=false)
      */
@@ -79,7 +79,7 @@ class Transfer implements OwnableInterface
     private float $fee = 0;
 
     /**
-     * #[Groups(["transfer_list"])]
+     * @Groups({"transfer_list"})
      *
      * @ORM\OneToOne(targetEntity="Expense", cascade={"persist", "remove"}, orphanRemoval=true)
      * @ORM\JoinColumn(name="fee_expense_id", referencedColumnName="id", onDelete="CASCADE")
@@ -87,14 +87,14 @@ class Transfer implements OwnableInterface
     private ?Expense $feeExpense;
 
     /**
-     * #[Groups(["transfer_list"])]
+     * @Groups({"transfer_list"})
      *
      * @ORM\Column(type="text", nullable=true)
      */
     private ?string $note;
 
     /**
-     * #[Groups(["transfer_list"])]
+     * @Groups({"transfer_list"})
      *
      * @ORM\Column(type="datetime", nullable=true)
      */

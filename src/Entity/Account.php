@@ -55,7 +55,7 @@ class Account implements OwnableInterface, ValuableInterface
     use TimestampableEntity, OwnableValuableEntity;
 
     /**
-     * #[Groups(["typeahead", "account_list", "account_detail_view", "transaction_list", "account_detail_view", "debt_list", "transfer_list"])]
+     * @Groups({"typeahead", "account_list", "account_detail_view", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -69,7 +69,7 @@ class Account implements OwnableInterface, ValuableInterface
     protected ?array $convertedValues = [];
 
     /**
-     * #[Groups(["account_detail_view"])]
+     * @Groups({"account_detail_view"})
      *
      * @Gedmo\Timestampable(on="create")
      *
@@ -85,21 +85,21 @@ class Account implements OwnableInterface, ValuableInterface
     protected ?DateTimeInterface $updatedAt;
 
     /**
-     * #[Groups(["typeahead", "account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"])]
+     * @Groups({"typeahead", "account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="string", length=255)
      */
     private string $name;
 
     /**
-     * #[Groups(["account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"])]
+     * @Groups({"account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="string", length=3)
      */
     private ?string $currency;
 
     /**
-     * #[Groups(["account_list", "account_detail_view"])]
+     * @Groups({"account_list", "account_detail_view"})
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
@@ -112,14 +112,14 @@ class Account implements OwnableInterface, ValuableInterface
     private null|array|ArrayCollection|PersistentCollection $transactions;
 
     /**
-     * #[Groups(["account_list", "account_detail_view"])]
+     * @Groups({"account_list", "account_detail_view"})
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
     private ?DateTimeInterface $archivedAt;
 
     /**
-     * #[Groups(["account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"])]
+     * @Groups({"account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="string", length=30)
      */
@@ -263,7 +263,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * #[Groups(["account_list"])]
+     * @Groups({"account_list"})
      */
     public function getValues(): array
     {
@@ -271,7 +271,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * #[Groups(["account_list"])]
+     * @Groups({"account_list"})
      */
     public function getValue(): float
     {
@@ -279,7 +279,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * #[Groups(["account_list", "account_detail_view", "typeahead"])]
+     * @Groups({"account_list", "account_detail_view", "typeahead"})
      */
     public function getLastTransactionAt()
     {
@@ -291,7 +291,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * #[Groups(["account_list", "account_detail_view", "transaction_list", "transfer_list", "debt_list"])]
+     * @Groups({"account_list", "account_detail_view", "transaction_list", "transfer_list", "debt_list"})
      */
     #[Pure] public function getIcon(): string
     {
@@ -306,7 +306,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * #[Groups(["account_detail_view"])]
+     * @Groups({"account_detail_view"})
      */
     public function getNumberOfTransactions(): int
     {
@@ -339,7 +339,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * #[Groups(["account_detail_view"])]
+     * @Groups({"account_detail_view"})
      */
     public function getLatestTransactions(int $numberOfItems = 10): array
     {
@@ -347,7 +347,7 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * #[Groups(["account_detail_view"])]
+     * @Groups({"account_detail_view"})
      */
     public function getLogsWithinDateRange(?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {

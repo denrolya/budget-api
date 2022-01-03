@@ -24,7 +24,7 @@ class Debt implements OwnableInterface, ValuableInterface
     use TimestampableEntity, OwnableValuableEntity;
 
     /**
-     * #[Groups(["debt_list"])]
+     * @Groups({"debt_list"})
      *
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -34,21 +34,21 @@ class Debt implements OwnableInterface, ValuableInterface
 
     /**
      * // TODO: getValues
-     * #[Groups(["debt_list"])]
+     * @Groups({"debt_list"})
      *
      * @ORM\Column(type="json", nullable=false)
      */
     protected ?array $convertedValues = [];
 
     /**
-     * #[Groups(["debt_list"])]
+     * @Groups({"debt_list"})
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
     protected ?DateTimeInterface $createdAt;
 
     /**
-     * #[Groups(["debt_list"])]
+     * @Groups({"debt_list"})
      * @ORM\Column(type="text", nullable=true)
      */
     protected ?string $note;
@@ -56,7 +56,7 @@ class Debt implements OwnableInterface, ValuableInterface
     /**
      * A debtor is an entity that owes a debt to another entity
      *
-     * #[Groups(["debt_list"])]
+     * @Groups({"debt_list"})
      *
      * @ORM\Column(type="string", length=255)
      */
@@ -64,21 +64,21 @@ class Debt implements OwnableInterface, ValuableInterface
 
 
     /**
-     * #[Groups({"debt_list"})]
+     * @Groups({"debt_list"})]
      *
      * @ORM\Column(type="string", length=3)
      */
     private ?string $currency;
 
     /**
-     * #[Groups(["debt_list"])]
+     * @Groups({"debt_list"})
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
     private float $balance = 0;
 
     /**
-     * #[Groups(["debt_list"])]
+     * @Groups({"debt_list"})
      *
      * @ORM\ManyToMany(targetEntity="Transaction")
      * @ORM\JoinTable(name="debt_transactions",
@@ -89,7 +89,7 @@ class Debt implements OwnableInterface, ValuableInterface
     private array|ArrayCollection $transactions;
 
     /**
-     * #[Groups(["debt_list"])]
+     * @Groups({"debt_list"})
      *
      * @ORM\Column(type="datetime", nullable=true)
      */

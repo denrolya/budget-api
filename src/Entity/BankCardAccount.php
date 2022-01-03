@@ -12,21 +12,21 @@ use Symfony\Component\Serializer\Annotation\Groups;
 class BankCardAccount extends Account
 {
     /**
-     * #[Groups(["account_detail_view"])]
+     * @Groups({"account_detail_view"})
      *
      * @ORM\Column(type="string", length=16, nullable=true)
      */
     private ?string $cardNumber;
 
     /**
-     * #[Groups(["account_detail_view"])]
+     * @Groups({"account_detail_view"})
      *
      * @ORM\Column(type="string", length=34, nullable=true)
      */
     private ?string $iban;
 
     /**
-     * #[Groups(["account_detail_view"])]
+     * @Groups({"account_detail_view"})
      *
      * @ORM\Column(type="string", length=150, nullable=true)
      */

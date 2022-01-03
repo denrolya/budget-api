@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
 use JetBrains\PhpStorm\Pure;
 
 /**
@@ -13,7 +14,7 @@ use JetBrains\PhpStorm\Pure;
 class Expense extends Transaction
 {
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
      *
      * @ORM\OneToMany(targetEntity="App\Entity\Income", mappedBy="originalExpense", cascade={"persist"})
      */

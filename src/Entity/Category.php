@@ -38,7 +38,7 @@ abstract class Category
     public const CATEGORY_GROCERIES = 'Groceries';
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"})
      *
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -47,7 +47,7 @@ abstract class Category
     private ?int $id;
 
     /**
-     * #[Groups(["category_list", "category_tree_list"])]
+     * @Groups({"category_list", "category_tree_list"})
      *
      * @Gedmo\Timestampable(on="create")
      *
@@ -63,7 +63,7 @@ abstract class Category
     protected ?DateTimeInterface $updatedAt;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list", "expense_category_list", "income_category_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list", "expense_category_list", "income_category_list"})
      *
      * @ORM\Column(type="string", length=255)
      */
@@ -75,7 +75,7 @@ abstract class Category
     private ?DateTimeInterface $removedAt;
 
     /**
-     * #[Groups(["category_list", "category_tree_list"])]
+     * @Groups({"category_list", "category_tree_list"})
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
     private bool $isTechnical = false;
@@ -83,7 +83,7 @@ abstract class Category
     /**
      * @var null|array|ArrayCollection|Category[]
      *
-     * #[Groups(["category_tree_list"])]
+     * @Groups({"category_tree_list"})
      *
      * @ORM\OneToMany(targetEntity="Category", mappedBy="parent", cascade={"remove"})
      */
@@ -112,20 +112,20 @@ abstract class Category
     private array|null|ArrayCollection $transactions;
 
     /**
-     * #[Groups(["category_list", "category_tree_list"])]
+     * @Groups({"category_list", "category_tree_list"})
      * @ORM\Column(type="boolean", nullable=false)
      */
     private bool $isAffectingProfit = true;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"})
      *
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     private ?string $frontendIconClass;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"})
      *
      * @ORM\Column(type="string", length=150, nullable=true)
      */
@@ -134,7 +134,7 @@ abstract class Category
     /**
      * @var null|array|ArrayCollection|CategoryTag[]
      *
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"})
      *
      * @ORM\ManyToMany(targetEntity="App\Entity\CategoryTag", cascade={"persist"}, inversedBy="categories")
      * @ORM\JoinTable(name="categories_tags")
@@ -156,7 +156,7 @@ abstract class Category
     }
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
      */
     public function getFullPath(): array
     {
@@ -228,7 +228,7 @@ abstract class Category
     }
 
     /**
-     * #[Groups(["category_tree_list"])]
+     * @Groups({"category_tree_list"})
      */
     public function getTransactionsCount(bool $withChildren = true): int
     {

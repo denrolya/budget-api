@@ -24,7 +24,7 @@ class CategoryTag implements OwnableInterface
     protected ?int $id;
 
     /**
-     * #[Groups(["transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"])]
+     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"})
      *
      * @ORM\Column(type="string", length=100)
      */
