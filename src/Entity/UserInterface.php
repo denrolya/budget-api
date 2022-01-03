@@ -65,5 +65,5 @@ interface UserInterface
 
     public function getSettings(): UserSettings;
 
-    public function setSettings(UserSettings $settings): static;
+    public function setSettings(UserSettings $settings): self;
 }

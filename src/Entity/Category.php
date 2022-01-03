@@ -141,11 +141,6 @@ abstract class Category
      */
     private $tags;
 
-    /**
-     * @ORM\ManyToMany(targetEntity=BudgetGoal::class, mappedBy="category")
-     */
-    private $budgetGoals;
-
     public function __construct(string $name = null, bool $isTechnical = false)
     {
         $this->name = $name;
@@ -153,7 +148,6 @@ abstract class Category
         $this->children = new ArrayCollection();
         $this->tags = new ArrayCollection();
         $this->isTechnical = $isTechnical;
-        $this->budgetGoals = new ArrayCollection();
     }
 
     public function __toString(): string
@@ -180,7 +174,7 @@ abstract class Category
         return $this->name;
     }
 
-    public function setName(string $name): static
+    public function setName(string $name): self
     {
         $this->name = $name;
 
@@ -197,7 +191,7 @@ abstract class Category
         return $this->root ?? $this;
     }
 
-    public function setRoot(?Category $category): static
+    public function setRoot(?Category $category): self
     {
         $this->root = $category;
 
@@ -220,7 +214,7 @@ abstract class Category
         return $this->parent;
     }
 
-    public function setParent(?Category $parent): static
+    public function setParent(?Category $parent): self
     {
         $this->parent = $parent;
 
@@ -260,7 +254,7 @@ abstract class Category
         return $this->removedAt;
     }
 
-    public function setRemovedAt(CarbonInterface $removedAt): static
+    public function setRemovedAt(CarbonInterface $removedAt): self
     {
         $this->removedAt = $removedAt;
 
@@ -272,14 +266,14 @@ abstract class Category
         return $this->isTechnical;
     }
 
-    public function setIsTechnical(bool $isTechnical): static
+    public function setIsTechnical(bool $isTechnical): self
     {
         $this->isTechnical = $isTechnical;
 
         return $this;
     }
 
-    public function addTransaction(TransactionInterface $transaction): static
+    public function addTransaction(TransactionInterface $transaction): self
     {
         if(!$this->transactions->contains($transaction)) {
             $this->transactions->add($transaction);
@@ -288,7 +282,7 @@ abstract class Category
         return $this;
     }
 
-    public function removeTransaction(TransactionInterface $transaction): static
+    public function removeTransaction(TransactionInterface $transaction): self
     {
         if($this->transactions->contains($transaction)) {
             $this->transactions->removeElement($transaction);
@@ -323,7 +317,7 @@ abstract class Category
         return new ArrayCollection($transactions);
     }
 
-    public function addChildren(Category $category): static
+    public function addChildren(Category $category): self
     {
         if(!$this->children->contains($category)) {
             $this->children->add($category);
@@ -332,7 +326,7 @@ abstract class Category
         return $this;
     }
 
-    public function removeChildren(Category $category): static
+    public function removeChildren(Category $category): self
     {
         if($this->children->contains($category)) {
             $this->children->removeElement($category);
@@ -346,7 +340,7 @@ abstract class Category
         return $this->isAffectingProfit;
     }
 
-    public function setIsAffectingProfit(bool $isAffectingProfit): static
+    public function setIsAffectingProfit(bool $isAffectingProfit): self
     {
         $this->isAffectingProfit = $isAffectingProfit;
 
@@ -358,7 +352,7 @@ abstract class Category
         return $this->frontendIconClass;
     }
 
-    public function setFrontendIconClass(?string $frontendIconClass): static
+    public function setFrontendIconClass(?string $frontendIconClass): self
     {
         $this->frontendIconClass = $frontendIconClass;
 
@@ -370,7 +364,7 @@ abstract class Category
         return $this->frontendColor;
     }
 
-    public function setFrontendColor(?string $frontendColor): static
+    public function setFrontendColor(?string $frontendColor): self
     {
         $this->frontendColor = $frontendColor;
 
@@ -460,7 +454,7 @@ abstract class Category
         return !$this->children->isEmpty();
     }
 
-    public function addTag(CategoryTag ...$tags): static
+    public function addTag(CategoryTag ...$tags): self
     {
         foreach($tags as $tag) {
             if(!$this->tags->contains($tag)) {
@@ -471,7 +465,7 @@ abstract class Category
         return $this;
     }
 
-    public function removeTag(CategoryTag $tag): static
+    public function removeTag(CategoryTag $tag): self
     {
         $this->tags->removeElement($tag);
 
@@ -481,32 +475,5 @@ abstract class Category
     public function getTags(): Collection
     {
         return $this->tags;
-    }
-
-    /**
-     * @return Collection|BudgetGoal[]
-     */
-    public function getBudgetGoals(): Collection
-    {
-        return $this->budgetGoals;
-    }
-
-    public function addBudgetGoal(BudgetGoal $budgetGoal): static
-    {
-        if (!$this->budgetGoals->contains($budgetGoal)) {
-            $this->budgetGoals[] = $budgetGoal;
-            $budgetGoal->addCategory($this);
-        }
-
-        return $this;
-    }
-
-    public function removeBudgetGoal(BudgetGoal $budgetGoal): static
-    {
-        if ($this->budgetGoals->removeElement($budgetGoal)) {
-            $budgetGoal->removeCategory($this);
-        }
-
-        return $this;
     }
 }

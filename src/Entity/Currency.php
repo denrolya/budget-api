@@ -55,7 +55,7 @@ class Currency
         return $this->name;
     }
 
-    public function setName(string $name): static
+    public function setName(string $name): self
     {
         $this->name = $name;
 
@@ -67,7 +67,7 @@ class Currency
         return $this->code;
     }
 
-    public function setCode(string $code): static
+    public function setCode(string $code): self
     {
         $this->code = $code;
 
@@ -79,7 +79,7 @@ class Currency
         return $this->symbol;
     }
 
-    public function setSymbol(string $symbol): static
+    public function setSymbol(string $symbol): self
     {
         $this->symbol = $symbol;
 

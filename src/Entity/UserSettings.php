@@ -10,26 +10,19 @@ use Doctrine\ORM\Mapping as ORM;
 class UserSettings
 {
     /**
-     * Stored as string cause Symfony doesn't support relations in Embedded
-     * @var string
-     *
      * @ORM\Column(type="string", length=5, nullable=false)
      */
-    private $baseCurrency = 'EUR';
+    private string $baseCurrency = 'EUR';
 
     /**
-     * @var string
-     *
      * @ORM\Column(type="string", length=10, nullable=true)
      */
-    private $uiTheme = 'primary';
+    private ?string $uiTheme = 'primary';
 
     /**
-     * @var array
-     *
-     * @ORM\Column(type="json_array")
+     * @ORM\Column(type="json")
      */
-    private $dashboardStatistics;
+    private ?array $dashboardStatistics;
 
     public function __construct()
     {
@@ -45,7 +38,7 @@ class UserSettings
         return $this->baseCurrency;
     }
 
-    public function setBaseCurrency(string $currencyCode): static
+    public function setBaseCurrency(string $currencyCode): self
     {
         $this->baseCurrency = $currencyCode;
 

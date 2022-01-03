@@ -60,7 +60,7 @@ class Expense extends Transaction
         return !$this->compensations->isEmpty();
     }
 
-    public function addCompensation(Income $income): static
+    public function addCompensation(Income $income): self
     {
         if (!$this->compensations->contains($income)) {
             $this->compensations->add($income);
@@ -70,7 +70,7 @@ class Expense extends Transaction
         return $this;
     }
 
-    public function removeCompensation(Income $income): static
+    public function removeCompensation(Income $income): self
     {
         if ($this->compensations->contains($income)) {
             $this->compensations->removeElement($income);

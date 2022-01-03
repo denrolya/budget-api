@@ -21,7 +21,7 @@ interface TransactionInterface
 
     public function getAccount(): ?Account;
 
-    public function getCurrencyCode(): string;
+    public function getCurrency(): string;
 
     public function setAccount(Account $account): TransactionInterface;
 
@@ -39,7 +39,7 @@ interface TransactionInterface
 
     public function getExecutedAt(): CarbonInterface|DateTimeInterface;
 
-    public function setExecutedAt(DateTimeInterface $executedAt): static;
+    public function setExecutedAt(DateTimeInterface $executedAt): self;
 
     public function getCanceledAt(): CarbonInterface|DateTimeInterface;
 

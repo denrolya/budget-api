@@ -16,9 +16,9 @@ interface ValuableInterface
 
     public function getConvertedValues(): array;
 
-    public function setConvertedValues(array $convertedValues): static;
+    public function setConvertedValues(array $convertedValues): self;
 
     public function getValuableField(): string;
 
-    public function getCurrencyCode(): string;
+    public function getCurrency(): string;
 }

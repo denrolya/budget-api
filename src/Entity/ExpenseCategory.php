@@ -33,7 +33,7 @@ class ExpenseCategory extends Category
         return $this->isFixed;
     }
 
-    public function setIsFixed(bool $isFixed): static
+    public function setIsFixed(bool $isFixed): self
     {
         $this->isFixed = $isFixed;
 

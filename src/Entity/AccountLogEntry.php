@@ -64,7 +64,7 @@ class AccountLogEntry
         return $this->account;
     }
 
-    public function setAccount(?Account $account): static
+    public function setAccount(?Account $account): self
     {
         $this->account = $account;
 
@@ -76,7 +76,7 @@ class AccountLogEntry
         return $this->balance;
     }
 
-    public function setBalance(?string $balance): static
+    public function setBalance(?string $balance): self
     {
         $this->balance = $balance;
 
@@ -93,7 +93,7 @@ class AccountLogEntry
         return $this->convertedValues[$code];
     }
 
-    public function setConvertedValues(?array $convertedValues): static
+    public function setConvertedValues(?array $convertedValues): self
     {
         $this->convertedValues = $convertedValues;
 
@@ -117,7 +117,7 @@ class AccountLogEntry
         return $this->getCreatedAt()->timestamp;
     }
 
-    public function setCreatedAt(CarbonInterface $createdAt): static
+    public function setCreatedAt(CarbonInterface $createdAt): self
     {
         $this->createdAt = $createdAt;
 

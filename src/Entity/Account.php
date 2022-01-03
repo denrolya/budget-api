@@ -10,18 +10,43 @@ use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\ORM\PersistentCollection;
 use Gedmo\Mapping\Annotation as Gedmo;
+use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
  * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass="AccountRepository::class")
+ * @ORM\Entity(repositoryClass=AccountRepository::class)
  * @ORM\InheritanceType("SINGLE_TABLE")
  * @ORM\DiscriminatorColumn(name="type", type="string")
  * @ORM\DiscriminatorMap({"basic" = "Account", "bank" = "BankCardAccount", "internet" = "InternetAccount", "cash" = "CashAccount"})
  */
 class Account implements OwnableInterface, ValuableInterface
 {
+    public const CURRENCIES = [
+        'EUR' => [
+            'name' => 'Euro',
+            'code' => 'EUR',
+            'symbol' => '€',
+        ],
+        'USD' => [
+            'name' => 'US Dollar',
+            'code' => 'USD',
+            'symbol' => '$',
+        ],
+        'UAH' => [
+            'name' => 'Ukrainian Hryvnia',
+            'code' => 'UAH',
+            'symbol' => '₴',
+        ],
+        'HUF' => [
+            'name' => 'Hungarian Forint',
+            'code' => 'HUF',
+            'symbol' => 'Ft.',
+        ],
+    ];
+
     public const ACCOUNT_TYPE_BASIC = 'basic';
     public const ACCOUNT_TYPE_CASH = 'cash';
     public const ACCOUNT_TYPE_INTERNET = 'internet';
@@ -69,10 +94,9 @@ class Account implements OwnableInterface, ValuableInterface
     /**
      * #[Groups(["account_list", "transaction_list", "account_detail_view", "debt_list", "transfer_list"])]
      *
-     * @ORM\ManyToOne(targetEntity="Currency")
-     * @ORM\JoinColumn(name="currency_id", referencedColumnName="id", nullable=false)
+     * @ORM\Column(type="string", length=3)
      */
-    private ?Currency $currency;
+    private ?string $currency;
 
     /**
      * #[Groups(["account_list", "account_detail_view"])]
@@ -82,12 +106,10 @@ class Account implements OwnableInterface, ValuableInterface
     private float $balance = 0;
 
     /**
-     * @var null|array|ArrayCollection|Transaction[]
-     *
      * @ORM\OneToMany(targetEntity="Transaction", mappedBy="account", cascade={"remove"}, orphanRemoval=true)
      * @ORM\OrderBy({"executedAt" = "ASC"})
      */
-    private $transactions;
+    private null|array|ArrayCollection|PersistentCollection $transactions;
 
     /**
      * #[Groups(["account_list", "account_detail_view"])]
@@ -104,12 +126,10 @@ class Account implements OwnableInterface, ValuableInterface
     private string $color;
 
     /**
-     * @var null|array|ArrayCollection|AccountLogEntry[]
-     *
      * @ORM\OneToMany(targetEntity=AccountLogEntry::class, mappedBy="account", orphanRemoval=true)
      * @ORM\OrderBy({"createdAt" = "ASC"})
      */
-    private $logs;
+    private null|array|ArrayCollection|PersistentCollection $logs;
 
     public function __construct()
     {
@@ -122,7 +142,7 @@ class Account implements OwnableInterface, ValuableInterface
         $this->logs = new ArrayCollection();
     }
 
-    public function __toString(): string
+    #[Pure] public function __toString(): string
     {
         return $this->getName() ?: 'New Account';
     }
@@ -132,7 +152,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this->name;
     }
 
-    public function setName(string $name): static
+    public function setName(string $name): self
     {
         $this->name = $name;
 
@@ -144,12 +164,12 @@ class Account implements OwnableInterface, ValuableInterface
         return $this->id;
     }
 
-    public function getCurrency(): ?Currency
+    public function getCurrency(): string
     {
         return $this->currency;
     }
 
-    public function setCurrency(Currency $currency): static
+    public function setCurrency(string $currency): self
     {
         $this->currency = $currency;
 
@@ -161,29 +181,29 @@ class Account implements OwnableInterface, ValuableInterface
         return $this->balance;
     }
 
-    public function setBalance(float $balance): static
+    public function setBalance(float $balance): self
     {
         $this->balance = $balance;
 
         return $this;
     }
 
-    public function updateBalanceBy(float $amount): static
+    public function updateBalanceBy(float $amount): self
     {
         return $this->setBalance($this->balance + $amount);
     }
 
-    public function increaseBalance(float $amount): static
+    public function increaseBalance(float $amount): self
     {
         return $this->setBalance($this->balance + $amount);
     }
 
-    public function decreaseBalance(float $amount): static
+    public function decreaseBalance(float $amount): self
     {
         return $this->setBalance($this->balance - $amount);
     }
 
-    public function addTransaction(Transaction $transaction): static
+    public function addTransaction(Transaction $transaction): self
     {
         if(!$this->transactions->contains($transaction)) {
             $this->transactions->add($transaction);
@@ -192,7 +212,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    public function removeTransaction(Transaction $transaction): static
+    public function removeTransaction(Transaction $transaction): self
     {
         if($this->transactions->contains($transaction)) {
             $this->transactions->removeElement($transaction);
@@ -201,7 +221,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    public function getTransactions()
+    public function getTransactions(): ArrayCollection|PersistentCollection|array|null
     {
         return $this->transactions;
     }
@@ -211,14 +231,14 @@ class Account implements OwnableInterface, ValuableInterface
         return $this->archivedAt ? new CarbonImmutable($this->archivedAt->getTimestamp(), $this->archivedAt->getTimezone()) : null;
     }
 
-    public function setArchivedAt(CarbonInterface $archivedAt): static
+    public function setArchivedAt(CarbonInterface $archivedAt): self
     {
         $this->archivedAt = $archivedAt;
 
         return $this;
     }
 
-    public function toggleArchived(): static
+    public function toggleArchived(): self
     {
         $this->archivedAt = $this->archivedAt === null ? CarbonImmutable::now() : null;
 
@@ -230,7 +250,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this->color;
     }
 
-    public function setColor(string $color): static
+    public function setColor(string $color): self
     {
         $this->color = $color;
 
@@ -240,11 +260,6 @@ class Account implements OwnableInterface, ValuableInterface
     public function getValuableField(): string
     {
         return 'balance';
-    }
-
-    public function getCurrencyCode(): string
-    {
-        return $this->currency->getCode();
     }
 
     /**
@@ -276,9 +291,9 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     /**
-     * #[Groups(["account_list", "account_detail_view", "transaction_list", "transfer_list", "deb_list"])]
+     * #[Groups(["account_list", "account_detail_view", "transaction_list", "transfer_list", "debt_list"])]
      */
-    public function getIcon(): string
+    #[Pure] public function getIcon(): string
     {
         $icons = [
             self::ACCOUNT_TYPE_CASH => 'ion-ios-cash',
@@ -298,20 +313,12 @@ class Account implements OwnableInterface, ValuableInterface
         return count($this->transactions);
     }
 
-    /**
-     * @ORM\PrePersist()
-     */
-    public function combineNameWithCurrency(): void
-    {
-        $this->name .= " ({$this->currency->getSymbol()})";
-    }
-
     public function getLogs(): Collection
     {
         return $this->logs;
     }
 
-    public function addLog(AccountLogEntry $log): static
+    public function addLog(AccountLogEntry $log): self
     {
         if(!$this->logs->contains($log)) {
             $this->logs[] = $log;
@@ -321,7 +328,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    public function removeLog(AccountLogEntry $log): static
+    public function removeLog(AccountLogEntry $log): self
     {
         // set the owning side to null (unless already changed)
         if($this->logs->removeElement($log) && $log->getAccount() === $this) {
@@ -342,9 +349,16 @@ class Account implements OwnableInterface, ValuableInterface
     /**
      * #[Groups(["account_detail_view"])]
      */
-    public function getLatestLogs(int $numberOfItems = 80): array
+    public function getLogsWithinDateRange(?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        return array_slice($this->logs->toArray(), -$numberOfItems, $numberOfItems);
+        if(!$from && !$to) {
+            $to = CarbonImmutable::now();
+            $from = $to->sub('months', 6)->startOf('day');
+        }
+
+        return array_values($this->logs->filter(static function (AccountLogEntry $log) use ($from, $to) {
+            return $log->getCreatedAt()->isBetween($from, $to);
+        })->toArray());
     }
 
     public function getLatestLogEntry(): bool|AccountLogEntry

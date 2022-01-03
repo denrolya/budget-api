@@ -45,7 +45,7 @@ class CategoryTag implements OwnableInterface
         return $this->getName() ?: 'New category tag';
     }
 
-    public function setName(string $name): static
+    public function setName(string $name): self
     {
         $this->name = $name;
 

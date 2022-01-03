@@ -9,5 +9,5 @@ interface ExecutableInterface
 {
     public function getExecutedAt(): CarbonInterface|DateTimeInterface;
 
-    public function setExecutedAt(DateTimeInterface $executedAt): static;
+    public function setExecutedAt(DateTimeInterface $executedAt): self;
 }

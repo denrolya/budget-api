@@ -34,7 +34,7 @@ class Income extends Transaction
         return $this->originalExpense;
     }
 
-    public function setOriginalExpense(Expense $expense): static
+    public function setOriginalExpense(Expense $expense): self
     {
         $this->originalExpense = $expense;
 

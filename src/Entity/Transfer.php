@@ -115,7 +115,7 @@ class Transfer implements OwnableInterface
         return $this->from;
     }
 
-    public function setFrom(Account $fromAccount): static
+    public function setFrom(Account $fromAccount): self
     {
         $this->from = $fromAccount;
 
@@ -127,7 +127,7 @@ class Transfer implements OwnableInterface
         return $this->to;
     }
 
-    public function setTo(Account $toAccount): static
+    public function setTo(Account $toAccount): self
     {
         $this->to = $toAccount;
 
@@ -139,7 +139,7 @@ class Transfer implements OwnableInterface
         return $this->fromExpense;
     }
 
-    public function setFromExpense(Expense $fromExpense): static
+    public function setFromExpense(Expense $fromExpense): self
     {
         $this->fromExpense = $fromExpense;
 
@@ -151,7 +151,7 @@ class Transfer implements OwnableInterface
         return $this->toIncome;
     }
 
-    public function setToIncome(Income $toIncome): static
+    public function setToIncome(Income $toIncome): self
     {
         $this->toIncome = $toIncome;
 
@@ -163,7 +163,7 @@ class Transfer implements OwnableInterface
         return $this->amount;
     }
 
-    public function setAmount(float $amount): static
+    public function setAmount(float $amount): self
     {
         $this->amount = $amount;
 
@@ -175,7 +175,7 @@ class Transfer implements OwnableInterface
         return $this->rate;
     }
 
-    public function setRate(float $rate): static
+    public function setRate(float $rate): self
     {
         $this->rate = $rate;
 
@@ -187,7 +187,7 @@ class Transfer implements OwnableInterface
         return $this->fee;
     }
 
-    public function setFee(float $fee): static
+    public function setFee(float $fee): self
     {
         $this->fee = $fee;
 
@@ -199,7 +199,7 @@ class Transfer implements OwnableInterface
         return $this->feeExpense;
     }
 
-    public function setFeeExpense(Expense $expense): static
+    public function setFeeExpense(Expense $expense): self
     {
         $this->feeExpense = $expense;
 
@@ -211,7 +211,7 @@ class Transfer implements OwnableInterface
         return $this->note;
     }
 
-    public function setNote(?string $note): static
+    public function setNote(?string $note): self
     {
         $this->note = $note;
 
@@ -227,14 +227,14 @@ class Transfer implements OwnableInterface
         return $this->canceledAt;
     }
 
-    public function setCanceledAt(?DateTimeInterface $canceledAt): static
+    public function setCanceledAt(?DateTimeInterface $canceledAt): self
     {
         $this->canceledAt = $canceledAt;
 
         return $this;
     }
 
-    public function cancel(): static
+    public function cancel(): self
     {
         return $this->setCanceledAt(CarbonImmutable::now());
     }

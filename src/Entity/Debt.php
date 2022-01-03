@@ -62,13 +62,13 @@ class Debt implements OwnableInterface, ValuableInterface
      */
     private ?string $debtor;
 
+
     /**
-     * #[Groups(["debt_list"])]
+     * #[Groups({"debt_list"})]
      *
-     * @ORM\ManyToOne(targetEntity="Currency")
-     * @ORM\JoinColumn(name="currency_id", referencedColumnName="id", nullable=false)
+     * @ORM\Column(type="string", length=3)
      */
-    private ?Currency $currency;
+    private ?string $currency;
 
     /**
      * #[Groups(["debt_list"])]
@@ -111,19 +111,19 @@ class Debt implements OwnableInterface, ValuableInterface
         return $this->debtor;
     }
 
-    public function setDebtor(string $debtor): static
+    public function setDebtor(string $debtor): self
     {
         $this->debtor = $debtor;
 
         return $this;
     }
 
-    public function getCurrency(): ?Currency
+    public function getCurrency(): string
     {
         return $this->currency;
     }
 
-    public function setCurrency(Currency $currency): static
+    public function setCurrency(string $currency): self
     {
         $this->currency = $currency;
 
@@ -135,28 +135,28 @@ class Debt implements OwnableInterface, ValuableInterface
         return $this->balance;
     }
 
-    public function setBalance(float $balance): static
+    public function setBalance(float $balance): self
     {
         $this->balance = $balance;
 
         return $this;
     }
 
-    public function increaseBalance(float $amount): static
+    public function increaseBalance(float $amount): self
     {
         $this->balance += $amount;
 
         return $this;
     }
 
-    public function decreaseBalance(float $amount): static
+    public function decreaseBalance(float $amount): self
     {
         $this->balance -= $amount;
 
         return $this;
     }
 
-    public function addTransaction(Transaction $transaction): static
+    public function addTransaction(Transaction $transaction): self
     {
         if(!$this->transactions->contains($transaction)) {
             $this->transactions->add($transaction);
@@ -165,7 +165,7 @@ class Debt implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    public function removeTransaction(Transaction $transaction): static
+    public function removeTransaction(Transaction $transaction): self
     {
         if($this->transactions->contains($transaction)) {
             $this->transactions->removeElement($transaction);
@@ -202,7 +202,7 @@ class Debt implements OwnableInterface, ValuableInterface
         return $this->closedAt;
     }
 
-    public function setClosedAt(?DateTimeInterface $closedAt = null): static
+    public function setClosedAt(?DateTimeInterface $closedAt = null): self
     {
         $this->closedAt = $closedAt;
 
@@ -219,7 +219,7 @@ class Debt implements OwnableInterface, ValuableInterface
         return $this->note;
     }
 
-    public function setNote(string $note): static
+    public function setNote(string $note): self
     {
         $this->note = $note;
 
@@ -229,10 +229,5 @@ class Debt implements OwnableInterface, ValuableInterface
     public function getValuableField(): string
     {
         return 'balance';
-    }
-
-    #[Pure] public function getCurrencyCode(): string
-    {
-        return $this->currency->getCode();
     }
 }

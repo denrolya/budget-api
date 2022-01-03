@@ -97,11 +97,6 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     private ?DateTimeInterface $canceledAt = null;
 
     /**
-     * @ORM\ManyToMany(targetEntity=BudgetGoal::class, mappedBy="transactions")
-     */
-    private array|null|ArrayCollection $budgetGoals;
-
-    /**
      * #[Groups(["transaction_list", "account_detail_view"])]
      *
      * @ORM\Column(type="boolean", nullable=false)
@@ -111,7 +106,6 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     #[Pure] public function __construct(bool $isDraft = false)
     {
         $this->isDraft = $isDraft;
-        $this->budgetGoals = new ArrayCollection();
     }
 
     public function __toString(): string
@@ -129,9 +123,9 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
         return $this->category->getRoot();
     }
 
-    #[Pure] public function getCurrencyCode(): string
+    #[Pure] public function getCurrency(): string
     {
-        return $this->getAccount()->getCurrency()->getCode();
+        return $this->getAccount()->getCurrency();
     }
 
     public function getAccount(): ?Account
@@ -224,36 +218,12 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
         return 'amount';
     }
 
-    public function getBudgetGoals(): Collection
-    {
-        return $this->budgetGoals;
-    }
-
-    public function addBudgetGoal(BudgetGoal $budgetGoal): static
-    {
-        if(!$this->budgetGoals->contains($budgetGoal)) {
-            $this->budgetGoals[] = $budgetGoal;
-            $budgetGoal->addTransaction($this);
-        }
-
-        return $this;
-    }
-
-    public function removeBudgetGoal(BudgetGoal $budgetGoal): static
-    {
-        if($this->budgetGoals->removeElement($budgetGoal)) {
-            $budgetGoal->removeTransaction($this);
-        }
-
-        return $this;
-    }
-
     public function getIsDraft(): bool
     {
         return $this->isDraft;
     }
 
-    public function setIsDraft(bool $isDraft): static
+    public function setIsDraft(bool $isDraft): self
     {
         $this->isDraft = $isDraft;
 

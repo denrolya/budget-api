@@ -2,7 +2,7 @@
 
 namespace App\Traits;
 
-use App\Entity\UserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 
@@ -27,7 +27,7 @@ trait OwnableValuableEntity
         return $this->owner;
     }
 
-    public function setOwner(UserInterface $user): static
+    public function setOwner(UserInterface $user): self
     {
         $this->owner = $user;
 
@@ -49,7 +49,7 @@ trait OwnableValuableEntity
         return $this->convertedValues;
     }
 
-    public function setConvertedValues(array $convertedValues): static
+    public function setConvertedValues(array $convertedValues): self
     {
         $this->convertedValues = $convertedValues;
 

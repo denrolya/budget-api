@@ -33,8 +33,9 @@ EOF
     public function test(): Response
     {
         $this->serializer->serialize();
+
         return $this->json([
-            'test' => 'api'
+            'test' => 'api',
         ]);
     }
 }

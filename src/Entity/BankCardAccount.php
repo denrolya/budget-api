@@ -37,7 +37,7 @@ class BankCardAccount extends Account
         return $this->cardNumber;
     }
 
-    public function setCardNumber(string $cardNumber): static
+    public function setCardNumber(string $cardNumber): self
     {
         $this->cardNumber = $cardNumber;
 
@@ -49,7 +49,7 @@ class BankCardAccount extends Account
         return $this->iban;
     }
 
-    public function setIban(string $iban): static
+    public function setIban(string $iban): self
     {
         $this->iban = $iban;
 
@@ -61,7 +61,7 @@ class BankCardAccount extends Account
         return $this->monobankId;
     }
 
-    public function setMonobankId(string $monobankId): static
+    public function setMonobankId(string $monobankId): self
     {
         $this->monobankId = $monobankId;
 
