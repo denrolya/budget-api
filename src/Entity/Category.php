@@ -9,6 +9,7 @@ use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\ORM\PersistentCollection;
 use Gedmo\Mapping\Annotation as Gedmo;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -38,7 +39,7 @@ abstract class Category
     public const CATEGORY_GROCERIES = 'Groceries';
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list"})
      *
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -63,7 +64,7 @@ abstract class Category
     protected ?DateTimeInterface $updatedAt;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list", "expense_category_list", "income_category_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list", "expense_category_list", "income_category_list"})
      *
      * @ORM\Column(type="string", length=255)
      */
@@ -105,11 +106,9 @@ abstract class Category
     private ?Category $root;
 
     /**
-     * @var null|array|ArrayCollection|Transaction[]
-     *
      * @ORM\OneToMany(targetEntity="Transaction", mappedBy="category", orphanRemoval=true, cascade={"remove"})
      */
-    private array|null|ArrayCollection $transactions;
+    private array|null|ArrayCollection|PersistentCollection $transactions;
 
     /**
      * @Groups({"category_list", "category_tree_list"})
@@ -118,28 +117,26 @@ abstract class Category
     private bool $isAffectingProfit = true;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list"})
      *
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     private ?string $frontendIconClass;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list"})
      *
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     private ?string $frontendColor;
 
     /**
-     * @var null|array|ArrayCollection|CategoryTag[]
-     *
-     * @Groups({"transaction_list", "account_detail_view", "debt_list", "category_list", "category_tree_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list"})
      *
      * @ORM\ManyToMany(targetEntity="App\Entity\CategoryTag", cascade={"persist"}, inversedBy="categories")
      * @ORM\JoinTable(name="categories_tags")
      */
-    private $tags;
+    private array|null|ArrayCollection|PersistentCollection $tags;
 
     public function __construct(string $name = null, bool $isTechnical = false)
     {
@@ -156,7 +153,7 @@ abstract class Category
     }
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list"})
      */
     public function getFullPath(): array
     {

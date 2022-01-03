@@ -12,6 +12,8 @@ services:
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
         bind:
             $fixerApiKey: "%env(FIXER_API_KEY)%"
+            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
+            $itemDataProvider: '@api_platform.doctrine.orm.default.item_data_provider'
 
     # makes classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -22,6 +24,14 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
             - '../src/Tests/'
+
+    doctrine.filter.configurator:
+        class: App\Filter\Configurator
+        arguments:
+            - '@doctrine.orm.default_entity_manager'
+            - '@security.helper'
+        tags:
+            - { name: kernel.event_listener, event: kernel.request, method: onKernelRequest }
 
     security.user_password_hasher:
         class: Symfony\Component\PasswordHasher\Hasher\UserPasswordHasher

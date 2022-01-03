@@ -4,8 +4,6 @@ namespace App\Service;
 
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Component\Security\Core\Security;
@@ -38,7 +36,6 @@ class FixerService
      * @param string $currencyCode
      * @param CarbonInterface|null $executionDate
      * @return float
-     * @throws GuzzleException
      * @throws InvalidArgumentException
      */
     public function convertToBaseCurrency(float $amount, string $currencyCode, ?CarbonInterface $executionDate = null): float
@@ -53,7 +50,6 @@ class FixerService
      * @param string $from
      * @param CarbonInterface|null $executionDate
      * @return array
-     * @throws GuzzleException
      * @throws InvalidArgumentException
      */
     public function convert(float $amount, string $from, ?CarbonInterface $executionDate = null): array
@@ -83,7 +79,6 @@ class FixerService
      * @param string $to
      * @param CarbonInterface|null $executionDate
      * @return float
-     * @throws GuzzleException
      * @throws InvalidArgumentException
      */
     public function convertTo(float $amount, string $from, string $to, ?CarbonInterface $executionDate = null): float
@@ -105,7 +100,6 @@ class FixerService
      * Get the latest exchange rates and store them in cache
      *
      * @return array
-     * @throws GuzzleException
      * @throws InvalidArgumentException
      */
     public function getLatest(): array
@@ -131,7 +125,6 @@ class FixerService
      *
      * @param CarbonInterface $date
      * @return array|null
-     * @throws GuzzleException
      * @throws InvalidArgumentException
      */
     public function getHistorical(CarbonInterface $date): ?array
@@ -155,7 +148,6 @@ class FixerService
     /**
      * @param CarbonInterface|null $date
      * @return array
-     * @throws GuzzleException
      * @throws InvalidArgumentException
      */
     public function getRates(?CarbonInterface $date = null): array
@@ -170,7 +162,6 @@ class FixerService
      *
      * @param string $currencyCode
      * @return bool
-     * @throws GuzzleException
      * @throws InvalidArgumentException
      */
     public function currencyExists(string $currencyCode): bool

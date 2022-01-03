@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -9,27 +10,25 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\BankCardAccountRepository")
  */
+#[ApiResource]
 class BankCardAccount extends Account
 {
     /**
-     * @Groups({"account_detail_view"})
-     *
      * @ORM\Column(type="string", length=16, nullable=true)
      */
+    #[Groups(["account:details"])]
     private ?string $cardNumber;
 
     /**
-     * @Groups({"account_detail_view"})
-     *
      * @ORM\Column(type="string", length=34, nullable=true)
      */
+    #[Groups(["account:details"])]
     private ?string $iban;
 
     /**
-     * @Groups({"account_detail_view"})
-     *
      * @ORM\Column(type="string", length=150, nullable=true)
      */
+    #[Groups(["account:details"])]
     private ?string $monobankId;
 
     public function getCardNumber(): ?string

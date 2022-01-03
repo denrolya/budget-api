@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\ORM\PersistentCollection;
 use Symfony\Component\Serializer\Annotation\Groups;
 use JetBrains\PhpStorm\Pure;
 
@@ -14,12 +15,12 @@ use JetBrains\PhpStorm\Pure;
 class Expense extends Transaction
 {
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
-     *
-     * @ORM\OneToMany(targetEntity="App\Entity\Income", mappedBy="originalExpense", cascade={"persist"})
+     * @ORM\OneToMany(targetEntity="App\Entity\Income", mappedBy="originalExpense", cascade={"persist"}, fetch="EXTRA_LAZY")
      */
-    private array|null|ArrayCollection $compensations;
+    #[Groups(["transaction_list", "debt_list"])]
+    private array|null|ArrayCollection|PersistentCollection $compensations;
 
+    #[Pure]
     public function __construct(bool $isDraft = false)
     {
         parent::__construct($isDraft);
@@ -31,7 +32,8 @@ class Expense extends Transaction
         return TransactionInterface::EXPENSE;
     }
 
-    #[Pure] public function isLoss(): bool
+    #[Pure]
+    public function isLoss(): bool
     {
         return $this->getCategory()->getIsAffectingProfit();
     }
@@ -51,12 +53,13 @@ class Expense extends Transaction
         return $value;
     }
 
-    public function getCompensations(): ArrayCollection|array|null
+    public function getCompensations(): PersistentCollection|ArrayCollection|array|null
     {
         return $this->compensations;
     }
 
-    #[Pure] public function hasCompensations(): bool
+    #[Pure]
+    public function hasCompensations(): bool
     {
         return !$this->compensations->isEmpty();
     }

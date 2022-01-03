@@ -7,13 +7,11 @@ use Doctrine\ORM\Mapping as ORM;
 trait ValuableEntity
 {
     /**
-     * @var array
-     *
      * @ORM\Column(type="json")
      */
-    protected $convertedValues;
+    protected ?array $convertedValues;
 
-    public function getValue(): float
+    public function getValue(): float|null
     {
         return $this->convertedValue($this->getOwner()->getBaseCurrency());
     }

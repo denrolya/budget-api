@@ -5,7 +5,7 @@ namespace App\Entity;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 
-interface TransactionInterface
+interface TransactionInterface extends ValuableInterface
 {
     public const INCOME = 'income';
     public const REVENUE = 'revenue';
@@ -29,10 +29,6 @@ interface TransactionInterface
 
     public function setAmount(float $amount): TransactionInterface;
 
-    public function getConvertedValue(string $currencyCode): float;
-
-    public function getValue(): float;
-
     public function getNote(): ?string;
 
     public function setNote(string $note): TransactionInterface;
@@ -41,7 +37,7 @@ interface TransactionInterface
 
     public function setExecutedAt(DateTimeInterface $executedAt): self;
 
-    public function getCanceledAt(): CarbonInterface|DateTimeInterface;
+    public function getCanceledAt(): CarbonInterface|DateTimeInterface|null;
 
     public function setCanceledAt(DateTimeInterface $canceledAt): TransactionInterface;
 

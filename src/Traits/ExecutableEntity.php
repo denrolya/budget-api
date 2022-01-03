@@ -26,7 +26,7 @@ trait ExecutableEntity
         return $this->executedAt;
     }
 
-    public function setExecutedAt(DateTimeInterface $executedAt): static
+    public function setExecutedAt(DateTimeInterface $executedAt): self
     {
         $this->executedAt = $executedAt;
 

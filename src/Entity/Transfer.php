@@ -60,7 +60,7 @@ class Transfer implements OwnableInterface
     private ?Income $toIncome;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list", "transfer_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */

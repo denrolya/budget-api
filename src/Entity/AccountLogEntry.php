@@ -15,7 +15,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 class AccountLogEntry
 {
     /**
-     * @Groups({"account_detail_view"})
+     * @Groups({"account:details"})
      *
      * @ORM\Id
      * @ORM\GeneratedValue
@@ -35,7 +35,7 @@ class AccountLogEntry
     private float $balance;
 
     /**
-     * @Groups({"account_detail_view"})
+     * @Groups({"account:details"})
      *
      * @ORM\Column(type="json", nullable=true)
      */
@@ -110,7 +110,7 @@ class AccountLogEntry
     }
 
     /**
-     * @Groups({"account_detail_view"})
+     * @Groups({"account:details"})
      */
     public function getDate(): float|int|string
     {

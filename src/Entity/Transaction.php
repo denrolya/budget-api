@@ -24,12 +24,12 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * @ORM\DiscriminatorColumn(name="type", type="string")
  * @ORM\DiscriminatorMap({"expense" = "App\Entity\Expense", "income" = "App\Entity\Income"})
  */
-abstract class Transaction implements TransactionInterface, OwnableInterface, ValuableInterface, ExecutableInterface
+abstract class Transaction implements TransactionInterface, OwnableInterface, ExecutableInterface
 {
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list", "transfer_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list", "transfer_list"})
      *
      * @ORM\Id()
      * @ORM\GeneratedValue()
@@ -38,7 +38,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     protected ?int $id;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list", "transfer_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list", "transfer_list"})
      *
      * @ORM\ManyToOne(targetEntity="Account", inversedBy="transactions")
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
@@ -46,7 +46,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     protected Account $account;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list", "transfer_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list", "transfer_list"})
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
@@ -54,21 +54,21 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
 
     /**
      * // TODO: getValues
-     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list"})
      *
      * @ORM\Column(type="json", nullable=false)
      */
     protected ?array $convertedValues = [];
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list"})
      *
      * @ORM\Column(type="text", nullable=true)
      */
     protected ?string $note;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list"})
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
@@ -82,7 +82,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     protected ?DateTimeInterface $createdAt;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list"})
      *
      * @ORM\ManyToOne(targetEntity="Category", inversedBy="transactions", cascade={"persist"})
      * @ORM\JoinColumn(name="category_id", referencedColumnName="id", nullable=false)
@@ -90,20 +90,21 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
     private ?Category $category;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view", "debt_list"})
+     * @Groups({"transaction_list", "account:details", "debt_list"})
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
     private ?DateTimeInterface $canceledAt = null;
 
     /**
-     * @Groups({"transaction_list", "account_detail_view"})
+     * @Groups({"transaction_list", "account:details"})
      *
      * @ORM\Column(type="boolean", nullable=false)
      */
     private bool $isDraft;
 
-    #[Pure] public function __construct(bool $isDraft = false)
+    #[Pure]
+    public function __construct(bool $isDraft = false)
     {
         $this->isDraft = $isDraft;
     }
@@ -118,12 +119,14 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
         return $this->id;
     }
 
-    #[Pure] public function getRootCategory(): Category
+    #[Pure]
+    public function getRootCategory(): Category
     {
         return $this->category->getRoot();
     }
 
-    #[Pure] public function getCurrency(): string
+    #[Pure]
+    public function getCurrency(): string
     {
         return $this->getAccount()->getCurrency();
     }
@@ -164,7 +167,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
         return $this;
     }
 
-    public function getCanceledAt(): CarbonInterface|DateTimeInterface
+    public function getCanceledAt(): CarbonInterface|DateTimeInterface|null
     {
         if($this->canceledAt instanceof DateTimeInterface) {
             return new CarbonImmutable($this->canceledAt->getTimestamp(), $this->canceledAt->getTimezone());
@@ -195,7 +198,8 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Va
         return $this->getType() === self::INCOME;
     }
 
-    #[Pure] public function isDebt(): bool
+    #[Pure]
+    public function isDebt(): bool
     {
         return $this->getCategory()->getName() === Category::CATEGORY_DEBT;
     }
