@@ -8,8 +8,6 @@ use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
@@ -29,49 +27,44 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "transfer_list"})
-     *
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'transfer:list'])]
     protected ?int $id;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "transfer_list"})
-     *
      * @ORM\ManyToOne(targetEntity="Account", inversedBy="transactions")
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'transfer:list'])]
     protected Account $account;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "transfer_list"})
-     *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'transfer:list'])]
     protected float $amount = 0;
 
     /**
-     * // TODO: getValues
-     * @Groups({"transaction_list", "account:details", "debt_list"})
+     * TODO: getValues
      *
      * @ORM\Column(type="json", nullable=false)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
     protected ?array $convertedValues = [];
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list"})
-     *
      * @ORM\Column(type="text", nullable=true)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
     protected ?string $note;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list"})
-     *
      * @ORM\Column(type="datetime", nullable=true)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
     protected ?DateTimeInterface $executedAt;
 
     /**
@@ -82,25 +75,22 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     protected ?DateTimeInterface $createdAt;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list"})
-     *
      * @ORM\ManyToOne(targetEntity="Category", inversedBy="transactions", cascade={"persist"})
      * @ORM\JoinColumn(name="category_id", referencedColumnName="id", nullable=false)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
     private ?Category $category;
 
+    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list"})
-     *
      * @ORM\Column(type="datetime", nullable=true)
      */
     private ?DateTimeInterface $canceledAt = null;
 
     /**
-     * @Groups({"transaction_list", "account:details"})
-     *
      * @ORM\Column(type="boolean", nullable=false)
      */
+    #[Groups(['transaction:list', 'account:details'])]
     private bool $isDraft;
 
     #[Pure]

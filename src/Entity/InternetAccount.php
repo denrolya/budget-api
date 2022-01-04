@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Action\NotFoundAction;
 use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -24,8 +25,9 @@ use Doctrine\ORM\Mapping as ORM;
     ],
     itemOperations: [
         'get' => [
-            'method' => 'GET',
-            'controller' => SomeRandomController::class,
+            'controller' => NotFoundAction::class,
+            'read' => false,
+            'output' => false,
         ],
     ],
 )]

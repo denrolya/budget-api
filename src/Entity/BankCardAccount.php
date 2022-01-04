@@ -5,6 +5,7 @@ namespace App\Entity;
 use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
+use ApiPlatform\Core\Action\NotFoundAction;
 
 /**
  * @ORM\HasLifecycleCallbacks()
@@ -25,8 +26,9 @@ use Symfony\Component\Serializer\Annotation\Groups;
     ],
     itemOperations: [
         'get' => [
-            'method' => 'GET',
-            'controller' => SomeRandomController::class,
+            'controller' => NotFoundAction::class,
+            'read' => false,
+            'output' => false,
         ],
     ],
 )]
@@ -35,19 +37,19 @@ class BankCardAccount extends Account
     /**
      * @ORM\Column(type="string", length=16, nullable=true)
      */
-    #[Groups(["account:details", "account:create"])]
+    #[Groups(['account:details', "account:create"])]
     private ?string $cardNumber;
 
     /**
      * @ORM\Column(type="string", length=34, nullable=true)
      */
-    #[Groups(["account:details", "account:create"])]
+    #[Groups(['account:details', "account:create"])]
     private ?string $iban;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(["account:details", "account:create"])]
+    #[Groups(['account:details', "account:create"])]
     private ?string $monobankId;
 
     public function getCardNumber(): ?string

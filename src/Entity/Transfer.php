@@ -23,28 +23,25 @@ class Transfer implements OwnableInterface
     use TimestampableEntity, OwnableEntity, ExecutableEntity;
 
     /**
-     * @Groups({"transfer_list"})
-     *
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
+    #[Groups(['transfer:list'])]
     private ?int $id;
 
     /**
-     * @Groups({"transfer_list"})
-     *
      * @ORM\ManyToOne(targetEntity="Account")
      * @ORM\JoinColumn(name="from_id", referencedColumnName="id")
      */
+    #[Groups(['transfer:list'])]
     private ?Account $from;
 
     /**
-     * @Groups({"transfer_list"})
-     *
      * @ORM\ManyToOne(targetEntity="Account")
      * @ORM\JoinColumn(name="to_id", referencedColumnName="id")
      */
+    #[Groups(['transfer:list'])]
     private ?Account $to;
 
     /**
@@ -60,17 +57,15 @@ class Transfer implements OwnableInterface
     private ?Income $toIncome;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "transfer_list"})
-     *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'transfer:list'])]
     private float $amount;
 
     /**
-     * @Groups({"transfer_list"})
-     *
      * @ORM\Column(type="decimal", precision=15, scale=5, nullable=false)
      */
+    #[Groups(['transfer:list'])]
     private float $rate = 0;
 
     /**
@@ -79,25 +74,22 @@ class Transfer implements OwnableInterface
     private float $fee = 0;
 
     /**
-     * @Groups({"transfer_list"})
-     *
      * @ORM\OneToOne(targetEntity="Expense", cascade={"persist", "remove"}, orphanRemoval=true)
      * @ORM\JoinColumn(name="fee_expense_id", referencedColumnName="id", onDelete="CASCADE")
      */
+    #[Groups(['transfer:list'])]
     private ?Expense $feeExpense;
 
     /**
-     * @Groups({"transfer_list"})
-     *
      * @ORM\Column(type="text", nullable=true)
      */
+    #[Groups(['transfer:list'])]
     private ?string $note;
 
     /**
-     * @Groups({"transfer_list"})
-     *
      * @ORM\Column(type="datetime", nullable=true)
      */
+    #[Groups(['transfer:list'])]
     protected ?DateTimeInterface $executedAt;
 
     /**

@@ -29,35 +29,46 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
  */
 #[ApiResource(
     collectionOperations: [
-        "list" => [
-            "method" => "GET",
-            "normalization_context" => [
-                "groups" => "account:list",
+        'list' => [
+            'method' => 'GET',
+            'normalization_context' => [
+                'groups' => 'account:list',
             ],
         ],
-        "typeahead" => [
-            "method" => "GET",
-            "path" => "/accounts/typeahead",
-            "normalization_context" => [
-                "groups" => "account:typeahead",
+        'typeahead' => [
+            'method' => 'GET',
+            'path' => '/accounts/typeahead',
+            'normalization_context' => [
+                'groups' => 'account:typeahead',
             ],
         ],
-        "save" => [
-            "method" => "POST",
-            "denormalization_context" => [
-                "groups" => "account:create",
+        'save' => [
+            'method' => 'POST',
+            'denormalization_context' => [
+                "groups" => 'account:create',
             ],
-        ]
+            'normalization_context' => [
+                'groups' => 'account:create',
+            ],
+        ],
     ],
     itemOperations: [
-        "details" => [
-            "method" => "GET",
-            "normalization_context" => [
-                "groups" => "account:details",
+        'details' => [
+            'method' => 'GET',
+            'normalization_context' => [
+                'groups' => 'account:details',
+            ],
+        ],
+        'put' => [
+            'denormalization_context' => [
+                "groups" => 'account:create',
+            ],
+            'normalization_context' => [
+                "groups" => 'account:create',
             ],
         ],
     ],
-    order: ["updatedAt" => "DESC"],
+    order: ['updatedAt' => 'DESC'],
     paginationEnabled: false,
 )]
 class Account implements OwnableInterface, ValuableInterface
@@ -97,7 +108,7 @@ class Account implements OwnableInterface, ValuableInterface
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(["account:typeahead", "account:list", "account:details", "transaction_list", "account:details", "debt_list", "transfer_list"])]
+    #[Groups(['account:typeahead', 'account:list', 'account:details', 'transaction:list', 'account:details', 'debt:list', 'transfer:list'])]
     private ?int $id;
 
     /**
@@ -110,7 +121,7 @@ class Account implements OwnableInterface, ValuableInterface
      *
      * @ORM\Column(type="datetime", nullable=false)
      */
-    #[Groups(["account:details"])]
+    #[Groups(['account:details'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
@@ -118,19 +129,19 @@ class Account implements OwnableInterface, ValuableInterface
      *
      * @ORM\Column(type="datetime", nullable=false)
      */
-    #[Groups(["account:list"])]
+    #[Groups(['account:list'])]
     protected ?DateTimeInterface $updatedAt;
 
     /**
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(["account:list", "account:typeahead", "account:details", "account:create", "transaction_list", "debt_list", "transfer_list"])]
+    #[Groups(['account:list', 'account:typeahead', 'account:details', "account:create", 'transaction:list', 'debt:list', 'transfer:list'])]
     private string $name;
 
     /**
      * @ORM\Column(type="string", length=3)
      */
-    #[Groups(["account:list", "transaction_list", "account:details", "account:create", "debt_list", "transfer_list"])]
+    #[Groups(['account:list', 'transaction:list', 'account:details', "account:create", 'debt:list', 'transfer:list'])]
     #[ApiProperty(
         attributes: [
             "openapi_context" => [
@@ -144,7 +155,7 @@ class Account implements OwnableInterface, ValuableInterface
     /**
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(["account:list", "account:details", "account:create"])]
+    #[Groups(['account:list', 'account:details', "account:create"])]
     private float $balance = 0;
 
     /**
@@ -156,13 +167,13 @@ class Account implements OwnableInterface, ValuableInterface
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(["account:list", "account:details"])]
+    #[Groups(['account:list', 'account:details', 'account:create'])]
     private ?DateTimeInterface $archivedAt;
 
     /**
      * @ORM\Column(type="string", length=30)
      */
-    #[Groups(["account:list", "transaction_list", "account:details", "account:create", "debt_list", "transfer_list"])]
+    #[Groups(['account:list', 'transaction:list', 'account:details', "account:create", 'debt:list', 'transfer:list'])]
     private string $color;
 
     /**
@@ -171,7 +182,7 @@ class Account implements OwnableInterface, ValuableInterface
      */
     private null|array|ArrayCollection|PersistentCollection $logs;
 
-    #[Groups(["account:details"])]
+    #[Groups(['account:details'])]
     #[ApiProperty(
         attributes: [
             "openapi_context" => [
@@ -182,7 +193,7 @@ class Account implements OwnableInterface, ValuableInterface
     )]
     private ?array $topExpenseCategories;
 
-    #[Groups(["account:details"])]
+    #[Groups(['account:details'])]
     #[ApiProperty(
         attributes: [
             "openapi_context" => [
@@ -320,23 +331,23 @@ class Account implements OwnableInterface, ValuableInterface
         return 'balance';
     }
 
-    #[Groups(["account:list"])]
+    #[Groups(['account:list'])]
     public function getValues(): array
     {
         return $this->convertedValues;
     }
 
-    #[Groups(["account:list"])]
+    #[Groups(['account:list'])]
     public function getValue(): float
     {
-        if (empty($this->convertedValues)) {
+        if(empty($this->convertedValues)) {
             return 0;
         }
 
         return $this->convertedValues[$this->getOwner()->getBaseCurrency()];
     }
 
-    #[Groups(["account:list", "account:details", "account:typeahead"])]
+    #[Groups(['account:list', 'account:details', 'account:typeahead'])]
     public function getLastTransactionAt()
     {
         if(!$lastTransaction = $this->transactions->last()) {
@@ -346,7 +357,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $lastTransaction->getCreatedAt();
     }
 
-    #[Groups(["account:list", "account:details", "transaction_list", "transfer_list", "debt_list"])]
+    #[Groups(['account:list', 'account:details', 'transaction:list', 'transfer:list', 'debt:list'])]
     #[Pure] public function getIcon(): string
     {
         $icons = [
@@ -359,7 +370,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $icons[$this->getType()];
     }
 
-    #[Groups(["account:details"])]
+    #[Groups(['account:details'])]
     public function getNumberOfTransactions(): int
     {
         return count($this->transactions);
@@ -390,13 +401,13 @@ class Account implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    #[Groups(["account:details"])]
+    #[Groups(['account:details'])]
     public function getLatestTransactions(int $numberOfItems = 10): array
     {
         return array_slice($this->transactions->toArray(), -$numberOfItems, $numberOfItems);
     }
 
-    #[Groups(["account:details"])]
+    #[Groups(['account:details'])]
     #[SerializedName("logs")]
     public function getLogsWithinDateRange(?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
@@ -417,7 +428,7 @@ class Account implements OwnableInterface, ValuableInterface
 
     public function getTopExpenseCategories(): array
     {
-        if ($this->topExpenseCategories === null) {
+        if($this->topExpenseCategories === null) {
             throw new \LogicException('The isMe field has not been initialized');
         }
 
@@ -433,7 +444,7 @@ class Account implements OwnableInterface, ValuableInterface
 
     public function getTopIncomeCategories(): array
     {
-        if ($this->topIncomeCategories === null) {
+        if($this->topIncomeCategories === null) {
             throw new \LogicException('The isMe field has not been initialized');
         }
 
@@ -447,7 +458,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    #[Groups(["account:details"])]
+    #[Groups(['account:details'])]
     public function getType(): string
     {
         return self::ACCOUNT_TYPE_BASIC;

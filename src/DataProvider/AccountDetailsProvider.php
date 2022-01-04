@@ -52,6 +52,6 @@ class AccountDetailsProvider implements DenormalizedIdentifiersAwareItemDataProv
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Account::class && $context['groups'] === 'account:details';
+        return $resourceClass === Account::class && (array_key_exists('groups', $context) && $context['groups'] === 'account:details');
     }
 }

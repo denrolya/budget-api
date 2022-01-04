@@ -24,10 +24,9 @@ class CategoryTag implements OwnableInterface
     protected ?int $id;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list"})
-     *
      * @ORM\Column(type="string", length=100)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree'])]
     private ?string $name;
 
     /**
@@ -40,7 +39,8 @@ class CategoryTag implements OwnableInterface
         $this->name = $name;
     }
 
-    #[Pure] public function __toString(): string
+    #[Pure]
+    public function __toString(): string
     {
         return $this->getName() ?: 'New category tag';
     }
@@ -59,7 +59,7 @@ class CategoryTag implements OwnableInterface
 
     public function addCategory(Category $category): CategoryTag
     {
-        if (!$this->categories->contains($category)) {
+        if(!$this->categories->contains($category)) {
             $this->categories->add($category);
         }
 
@@ -68,7 +68,7 @@ class CategoryTag implements OwnableInterface
 
     public function removeCategory(Category $category): CategoryTag
     {
-        if ($this->categories->contains($category)) {
+        if($this->categories->contains($category)) {
             $this->categories->removeElement($category);
         }
 

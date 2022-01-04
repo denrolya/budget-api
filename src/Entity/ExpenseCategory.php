@@ -23,10 +23,9 @@ class ExpenseCategory extends Category
     public const CATEGORY_SHOPPING = 'Shopping';
 
     /**
-     * @Groups({"category_list", "category_tree_list"})
-     *
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
+    #[Groups(['category:list', 'category:tree'])]
     private bool $isFixed = false;
 
     public function getIsFixed(): bool

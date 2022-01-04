@@ -39,21 +39,19 @@ abstract class Category
     public const CATEGORY_GROCERIES = 'Groceries';
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list"})
-     *
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree'])]
     private ?int $id;
 
     /**
-     * @Groups({"category_list", "category_tree_list"})
-     *
      * @Gedmo\Timestampable(on="create")
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
+    #[Groups(['category:list', 'category:tree'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
@@ -64,10 +62,9 @@ abstract class Category
     protected ?DateTimeInterface $updatedAt;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list", "expense_category_list", "income_category_list"})
-     *
      * @ORM\Column(type="string", length=255)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', "expense_category_list", "income_category_list"])]
     private ?string $name;
 
     /**
@@ -76,19 +73,16 @@ abstract class Category
     private ?DateTimeInterface $removedAt;
 
     /**
-     * @Groups({"category_list", "category_tree_list"})
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
+    #[Groups(['category:list', 'category:tree'])]
     private bool $isTechnical = false;
 
     /**
-     * @var null|array|ArrayCollection|Category[]
-     *
-     * @Groups({"category_tree_list"})
-     *
      * @ORM\OneToMany(targetEntity="Category", mappedBy="parent", cascade={"remove"})
      */
-    private $children;
+    #[Groups(['category:tree'])]
+    private array|null|ArrayCollection|PersistentCollection $children;
 
     /**
      * Many Categories have One Parent Category.
@@ -111,31 +105,28 @@ abstract class Category
     private array|null|ArrayCollection|PersistentCollection $transactions;
 
     /**
-     * @Groups({"category_list", "category_tree_list"})
      * @ORM\Column(type="boolean", nullable=false)
      */
+    #[Groups(['category:list', 'category:tree'])]
     private bool $isAffectingProfit = true;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list"})
-     *
      * @ORM\Column(type="string", length=150, nullable=true)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree'])]
     private ?string $frontendIconClass;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list"})
-     *
      * @ORM\Column(type="string", length=150, nullable=true)
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree'])]
     private ?string $frontendColor;
 
     /**
-     * @Groups({"transaction_list", "account:details", "debt_list", "category_list", "category_tree_list"})
-     *
      * @ORM\ManyToMany(targetEntity="App\Entity\CategoryTag", cascade={"persist"}, inversedBy="categories")
      * @ORM\JoinTable(name="categories_tags")
      */
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree'])]
     private array|null|ArrayCollection|PersistentCollection $tags;
 
     public function __construct(string $name = null, bool $isTechnical = false)
@@ -152,9 +143,7 @@ abstract class Category
         return $this->name ?: 'New Category';
     }
 
-    /**
-     * @Groups({"transaction_list", "account:details", "debt_list"})
-     */
+    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
     public function getFullPath(): array
     {
         $result = [$this->getName()];
@@ -224,9 +213,7 @@ abstract class Category
         return $this;
     }
 
-    /**
-     * @Groups({"category_tree_list"})
-     */
+    #[Groups(['category_tree_list'])]
     public function getTransactionsCount(bool $withChildren = true): int
     {
         $result = $this->transactions->count();
@@ -422,7 +409,7 @@ abstract class Category
                 'parent' => !$child->isRoot() ? $child->getParent()->getId() : null,
                 'icon' => $child->getFrontendIconClass(),
                 'name' => $child->getName(),
-                'children' => !$this->hasChildren() ? [] : $child->getDescendantsTree()
+                'children' => !$this->hasChildren() ? [] : $child->getDescendantsTree(),
             ];
         }
 

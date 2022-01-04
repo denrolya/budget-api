@@ -15,12 +15,11 @@ use Symfony\Component\Serializer\Annotation\Groups;
 class AccountLogEntry
 {
     /**
-     * @Groups({"account:details"})
-     *
      * @ORM\Id
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
+    #[Groups(['account:details'])]
     private ?int $id;
 
     /**
@@ -35,10 +34,9 @@ class AccountLogEntry
     private float $balance;
 
     /**
-     * @Groups({"account:details"})
-     *
      * @ORM\Column(type="json", nullable=true)
      */
+    #[Groups(['account:details'])]
     private array $convertedValues;
 
     /**
@@ -109,9 +107,7 @@ class AccountLogEntry
         return $this->createdAt;
     }
 
-    /**
-     * @Groups({"account:details"})
-     */
+    #[Groups(['account:details'])]
     public function getDate(): float|int|string
     {
         return $this->getCreatedAt()->timestamp;

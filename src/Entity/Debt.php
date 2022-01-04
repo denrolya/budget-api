@@ -24,78 +24,72 @@ class Debt implements OwnableInterface, ValuableInterface
     use TimestampableEntity, OwnableValuableEntity;
 
     /**
-     * @Groups({"debt_list"})
-     *
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
+    #[Groups(['debt:list'])]
     private ?int $id;
 
     /**
-     * // TODO: getValues
-     * @Groups({"debt_list"})
+     * TODO: getValues
      *
      * @ORM\Column(type="json", nullable=false)
      */
+    #[Groups(['debt:list'])]
     protected ?array $convertedValues = [];
 
     /**
-     * @Groups({"debt_list"})
-     *
      * @ORM\Column(type="datetime", nullable=true)
      */
+    #[Groups(['debt:list'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
-     * @Groups({"debt_list"})
      * @ORM\Column(type="text", nullable=true)
      */
+
     protected ?string $note;
 
     /**
      * A debtor is an entity that owes a debt to another entity
      *
-     * @Groups({"debt_list"})
-     *
      * @ORM\Column(type="string", length=255)
      */
+    #[Groups(['debt:list'])]
     private ?string $debtor;
 
 
     /**
-     * @Groups({"debt_list"})]
-     *
      * @ORM\Column(type="string", length=3)
      */
+    #[Groups(['debt:list'])]
     private ?string $currency;
 
     /**
-     * @Groups({"debt_list"})
-     *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
+    #[Groups(['debt:list'])]
     private float $balance = 0;
 
     /**
-     * @Groups({"debt_list"})
-     *
      * @ORM\ManyToMany(targetEntity="Transaction")
      * @ORM\JoinTable(name="debt_transactions",
      *      joinColumns={@ORM\JoinColumn(name="debt_id", referencedColumnName="id")},
      *      inverseJoinColumns={@ORM\JoinColumn(name="transaction_id", referencedColumnName="id", unique=true)},
      *      )
      */
+    #[Groups(['debt:list'])]
     private array|ArrayCollection $transactions;
 
     /**
-     * @Groups({"debt_list"})
-     *
      * @ORM\Column(type="datetime", nullable=true)
      */
+    #[Groups(['debt:list'])]
     private ?DateTimeInterface $closedAt;
 
-    #[Pure] public function __construct(string $debtor = null)
+    #[Pure]
+    public function __construct(string $debtor = null)
     {
         $this->debtor = $debtor;
         $this->transactions = new ArrayCollection();
