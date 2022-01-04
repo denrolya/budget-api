@@ -21,8 +21,6 @@ use ApiPlatform\Core\Annotation\ApiProperty;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 /**
- * @UniqueEntity("username")
- *
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass=AccountRepository::class)
  * @ORM\InheritanceType("SINGLE_TABLE")
@@ -33,7 +31,6 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
     collectionOperations: [
         "list" => [
             "method" => "GET",
-            "path" => "/accounts",
             "normalization_context" => [
                 "groups" => "account:list",
             ],
@@ -45,6 +42,12 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
                 "groups" => "account:typeahead",
             ],
         ],
+        "save" => [
+            "method" => "POST",
+            "denormalization_context" => [
+                "groups" => "account:create",
+            ],
+        ]
     ],
     itemOperations: [
         "details" => [
@@ -121,13 +124,13 @@ class Account implements OwnableInterface, ValuableInterface
     /**
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(["account:typeahead", "account:list", "transaction_list", "account:details", "debt_list", "transfer_list"])]
+    #[Groups(["account:list", "account:typeahead", "account:details", "account:create", "transaction_list", "debt_list", "transfer_list"])]
     private string $name;
 
     /**
      * @ORM\Column(type="string", length=3)
      */
-    #[Groups(["account:list", "transaction_list", "account:details", "debt_list", "transfer_list"])]
+    #[Groups(["account:list", "transaction_list", "account:details", "account:create", "debt_list", "transfer_list"])]
     #[ApiProperty(
         attributes: [
             "openapi_context" => [
@@ -141,7 +144,7 @@ class Account implements OwnableInterface, ValuableInterface
     /**
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(["account:list", "account:details"])]
+    #[Groups(["account:list", "account:details", "account:create"])]
     private float $balance = 0;
 
     /**
@@ -159,7 +162,7 @@ class Account implements OwnableInterface, ValuableInterface
     /**
      * @ORM\Column(type="string", length=30)
      */
-    #[Groups(["account:list", "transaction_list", "account:details", "debt_list", "transfer_list"])]
+    #[Groups(["account:list", "transaction_list", "account:details", "account:create", "debt_list", "transfer_list"])]
     private string $color;
 
     /**
@@ -193,11 +196,7 @@ class Account implements OwnableInterface, ValuableInterface
     public function __construct()
     {
         $this->transactions = new ArrayCollection();
-
-        $r = random_int(0, 255);
-        $g = random_int(0, 255);
-        $b = random_int(0, 255);
-        $this->color = "rgba($r,$g,$b,1)";
+        $this->color = '#' . str_pad(dechex(random_int(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT);
         $this->logs = new ArrayCollection();
     }
 
@@ -330,6 +329,10 @@ class Account implements OwnableInterface, ValuableInterface
     #[Groups(["account:list"])]
     public function getValue(): float
     {
+        if (empty($this->convertedValues)) {
+            return 0;
+        }
+
         return $this->convertedValues[$this->getOwner()->getBaseCurrency()];
     }
 

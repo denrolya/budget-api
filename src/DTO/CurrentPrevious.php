@@ -10,14 +10,8 @@ class CurrentPrevious
         $this->current = $currentPeriodData;
         $this->previous = $previousPeriodData;
     }
+    
+    public mixed $current;
 
-    /**
-     * @var mixed
-     */
-    public $current;
-
-    /**
-     * @var mixed
-     */
-    public $previous;
+    public mixed $previous;
 }

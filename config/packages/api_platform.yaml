@@ -1,4 +1,7 @@
 api_platform:
+    title: 'Budget Application'
+    description: 'API description'
+    version: '2.0.0'
     path_segment_name_generator: api_platform.path_segment_name_generator.dash
     mapping:
         paths: [ '%kernel.project_dir%/src/Entity' ]

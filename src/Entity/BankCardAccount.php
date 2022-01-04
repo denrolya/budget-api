@@ -10,25 +10,44 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\BankCardAccountRepository")
  */
-#[ApiResource]
+#[ApiResource(
+    collectionOperations: [
+        'create' => [
+            'method' => 'POST',
+            'path' => '/accounts/bank',
+            "denormalization_context" => [
+                "groups" => "account:create",
+            ],
+            "normalization_context" => [
+                "groups" => "account:create",
+            ],
+        ],
+    ],
+    itemOperations: [
+        'get' => [
+            'method' => 'GET',
+            'controller' => SomeRandomController::class,
+        ],
+    ],
+)]
 class BankCardAccount extends Account
 {
     /**
      * @ORM\Column(type="string", length=16, nullable=true)
      */
-    #[Groups(["account:details"])]
+    #[Groups(["account:details", "account:create"])]
     private ?string $cardNumber;
 
     /**
      * @ORM\Column(type="string", length=34, nullable=true)
      */
-    #[Groups(["account:details"])]
+    #[Groups(["account:details", "account:create"])]
     private ?string $iban;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(["account:details"])]
+    #[Groups(["account:details", "account:create"])]
     private ?string $monobankId;
 
     public function getCardNumber(): ?string
