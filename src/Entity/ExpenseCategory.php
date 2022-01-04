@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Action\NotFoundAction;
+use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
@@ -9,6 +11,27 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\ExpenseCategoryRepository")
  */
+#[ApiResource(
+    collectionOperations: [
+        'list' => [
+            'method' => 'GET',
+            'path' => '/categories/expense',
+            'normalization_context' => ['groups' => 'category:list'],
+        ],
+        'post' => [
+            'path' => '/categories/expense',
+            'normalization_context' => ['groups' => 'category:create'],
+            'denormalization_context' => ['groups' => 'category:create'],
+        ],
+    ],
+    itemOperations: [
+        'get' => [
+            'controller' => NotFoundAction::class,
+            'read' => false,
+            'output' => false,
+        ],
+    ],
+)]
 class ExpenseCategory extends Category
 {
     public const CATEGORY_RENT = 'Rent';
@@ -25,7 +48,7 @@ class ExpenseCategory extends Category
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
-    #[Groups(['category:list', 'category:tree'])]
+    #[Groups(['category:list', 'category:tree', 'category:create'])]
     private bool $isFixed = false;
 
     public function getIsFixed(): bool

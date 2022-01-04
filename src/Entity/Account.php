@@ -31,41 +31,29 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
     collectionOperations: [
         'list' => [
             'method' => 'GET',
-            'normalization_context' => [
-                'groups' => 'account:list',
-            ],
+            'normalization_context' => ['groups' => 'account:list'],
         ],
         'typeahead' => [
             'method' => 'GET',
             'path' => '/accounts/typeahead',
-            'normalization_context' => [
-                'groups' => 'account:typeahead',
-            ],
+            'normalization_context' => ['groups' => 'account:typeahead'],
         ],
         'save' => [
             'method' => 'POST',
-            'denormalization_context' => [
-                "groups" => 'account:create',
-            ],
-            'normalization_context' => [
-                'groups' => 'account:create',
-            ],
+            'denormalization_context' => ['groups' => 'account:create'],
+            'normalization_context' => ['groups' => 'account:create'],
         ],
     ],
     itemOperations: [
         'details' => [
             'method' => 'GET',
-            'normalization_context' => [
-                'groups' => 'account:details',
-            ],
+            'requirements' => ['id' => '\d+'],
+            'normalization_context' => ['groups' => 'account:details'],
         ],
         'put' => [
-            'denormalization_context' => [
-                "groups" => 'account:create',
-            ],
-            'normalization_context' => [
-                "groups" => 'account:create',
-            ],
+            'requirements' => ['id' => '\d+'],
+            'denormalization_context' => ['groups' => 'account:create'],
+            'normalization_context' => ['groups' => 'account:create'],
         ],
     ],
     order: ['updatedAt' => 'DESC'],

@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Action\NotFoundAction;
+use ApiPlatform\Core\Annotation\ApiResource;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -11,6 +13,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\ORM\PersistentCollection;
 use Gedmo\Mapping\Annotation as Gedmo;
+use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
@@ -26,6 +29,22 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * @ORM\DiscriminatorColumn(name="type", type="string")
  * @ORM\DiscriminatorMap({"expense" = "App\Entity\ExpenseCategory", "income" = "App\Entity\IncomeCategory"})
  */
+#[ApiResource(
+    collectionOperations: [
+        'list' => [
+            'method' => 'GET',
+            'normalization_context' => ['groups' => 'category:list'],
+        ],
+    ],
+    itemOperations: [
+        'get' => [
+            'requirements' => ['id' => '\d+'],
+            'controller' => NotFoundAction::class,
+            'read' => false,
+            'output' => false,
+        ],
+    ]
+)]
 abstract class Category
 {
     use TimestampableEntity;
@@ -64,7 +83,7 @@ abstract class Category
     /**
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', "expense_category_list", "income_category_list"])]
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', 'category:create'])]
     private ?string $name;
 
     /**
@@ -75,7 +94,7 @@ abstract class Category
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
-    #[Groups(['category:list', 'category:tree'])]
+    #[Groups(['category:list', 'category:tree', 'category:create'])]
     private bool $isTechnical = false;
 
     /**
@@ -107,28 +126,32 @@ abstract class Category
     /**
      * @ORM\Column(type="boolean", nullable=false)
      */
-    #[Groups(['category:list', 'category:tree'])]
+    #[Groups(['category:list', 'category:tree', 'category:create'])]
     private bool $isAffectingProfit = true;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree'])]
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', 'category:create'])]
     private ?string $frontendIconClass;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree'])]
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', 'category:create'])]
     private ?string $frontendColor;
 
     /**
      * @ORM\ManyToMany(targetEntity="App\Entity\CategoryTag", cascade={"persist"}, inversedBy="categories")
      * @ORM\JoinTable(name="categories_tags")
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree'])]
+    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', 'category:create'])]
     private array|null|ArrayCollection|PersistentCollection $tags;
 
+    #[Groups(['category:list'])]
+    abstract public function getType(): string;
+
+    #[Pure]
     public function __construct(string $name = null, bool $isTechnical = false)
     {
         $this->name = $name;
@@ -213,7 +236,7 @@ abstract class Category
         return $this;
     }
 
-    #[Groups(['category_tree_list'])]
+    #[Groups(['category:tree'])]
     public function getTransactionsCount(bool $withChildren = true): int
     {
         $result = $this->transactions->count();
@@ -371,8 +394,6 @@ abstract class Category
     {
         return $this->getType() === self::EXPENSE_CATEGORY_TYPE;
     }
-
-    abstract public function getType(): string;
 
     public function directAncestorInRootCategory(Category $rootCategory)
     {
