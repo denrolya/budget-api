@@ -2,6 +2,9 @@ api_platform:
     title: 'Budget Application'
     description: 'API description'
     version: '2.0.0'
+    show_webby: false
+    # Allow using plain IDs for JSON format.
+    allow_plain_identifiers: true
     path_segment_name_generator: api_platform.path_segment_name_generator.dash
     mapping:
         paths: [ '%kernel.project_dir%/src/Entity' ]

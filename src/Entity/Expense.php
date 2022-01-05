@@ -2,23 +2,48 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Action\NotFoundAction;
+use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use JetBrains\PhpStorm\Pure;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\ExpenseRepository")
  */
+#[ApiResource(
+    collectionOperations: ['post' => [
+        'path' => '/transactions/expense',
+        'normalization_context' => ['groups' => 'transaction:write'],
+    ],],
+    itemOperations: [
+        'get' => [
+            'controller' => NotFoundAction::class,
+            'read' => false,
+            'output' => false,
+        ],
+    ],
+    denormalizationContext: ['groups' => 'transaction:write'],
+)]
 class Expense extends Transaction
 {
     /**
-     * @ORM\OneToMany(targetEntity="App\Entity\Income", mappedBy="originalExpense", cascade={"persist"}, fetch="EXTRA_LAZY")
+     * @ORM\OneToMany(targetEntity=Income::class, mappedBy="originalExpense", cascade={"persist"}, fetch="EXTRA_LAZY")
      */
     #[Groups(['transaction:collection:read', 'debt:collection:read'])]
     private ?Collection $compensations;
+
+    /**
+     * @Assert\IsTrue(message="Invalid category provided")
+     */
+    public function isExpenseCategory(): bool
+    {
+        return get_class($this->category) === ExpenseCategory::class;
+    }
 
     #[Pure]
     public function __construct(bool $isDraft = false)
@@ -45,7 +70,7 @@ class Expense extends Transaction
             return $value;
         }
 
-        $this->compensations->map(function(Income $compensation) use (&$value) {
+        $this->compensations->map(function (Income $compensation) use (&$value) {
             $value -= $compensation->getValue();
         });
 
@@ -64,7 +89,7 @@ class Expense extends Transaction
 
     public function addCompensation(Income $income): self
     {
-        if (!$this->compensations->contains($income)) {
+        if(!$this->compensations->contains($income)) {
             $this->compensations->add($income);
             $income->setOriginalExpense($this);
         }
@@ -74,7 +99,7 @@ class Expense extends Transaction
 
     public function removeCompensation(Income $income): self
     {
-        if ($this->compensations->contains($income)) {
+        if($this->compensations->contains($income)) {
             $this->compensations->removeElement($income);
         }
 

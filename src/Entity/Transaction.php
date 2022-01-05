@@ -2,6 +2,9 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Annotation\ApiFilter;
+use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
@@ -12,6 +15,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @Gedmo\SoftDeleteable(fieldName="canceledAt", timeAware=false, hardDelete=false)
@@ -22,6 +26,28 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * @ORM\DiscriminatorColumn(name="type", type="string")
  * @ORM\DiscriminatorMap({"expense" = "App\Entity\Expense", "income" = "App\Entity\Income"})
  */
+#[ApiResource(
+    collectionOperations: [
+        'get' => [
+            'normalization_context' => ['groups' => 'transaction:collection:read'],
+        ],
+    ],
+    itemOperations: [
+        'get' => [
+            'requirements' => ['id' => '\d+'],
+            'normalization_context' => ['groups' => 'transaction:item:read'],
+        ],
+        'put' => [
+            'requirements' => ['id' => '\d+'],
+        ],
+        'delete' => [
+            'requirements' => ['id' => '\d+'],
+        ],
+    ],
+    denormalizationContext: ['groups' => 'transaction:write'],
+    order: ['executedAt' => 'DESC'],
+)]
+#[ApiFilter(DateFilter::class, properties: ['executedAt'])]
 abstract class Transaction implements TransactionInterface, OwnableInterface, ExecutableInterface
 {
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
@@ -35,21 +61,22 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     protected ?int $id;
 
     /**
-     * @ORM\ManyToOne(targetEntity="Account", inversedBy="transactions")
+     * @Assert\NotBlank()
+     * @ORM\ManyToOne(targetEntity=Account::class, inversedBy="transactions")
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
-    protected Account $account;
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
+    protected ?Account $account;
 
     /**
+     * @Assert\NotBlank()
+     *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
     protected float $amount = 0;
 
     /**
-     * TODO: getValues
-     *
      * @ORM\Column(type="json", nullable=false)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
@@ -58,13 +85,15 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     /**
      * @ORM\Column(type="text", nullable=true)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     protected ?string $note;
 
     /**
+     * @Assert\NotBlank()
+     *
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     protected ?DateTimeInterface $executedAt;
 
     /**
@@ -75,23 +104,28 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     protected ?DateTimeInterface $createdAt;
 
     /**
-     * @ORM\ManyToOne(targetEntity="Category", inversedBy="transactions", cascade={"persist"})
+     * @Assert\NotBlank()
+     *
+     * @ORM\ManyToOne(targetEntity=Category::class, inversedBy="transactions", cascade={"persist"})
      * @ORM\JoinColumn(name="category_id", referencedColumnName="id", nullable=false)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
-    private ?Category $category;
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
+    protected ?Category $category;
 
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     private ?DateTimeInterface $canceledAt = null;
 
     /**
      * @ORM\Column(type="boolean", nullable=false)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read'])]
     private bool $isDraft;
+
+    #[Groups(['transaction:collection:read'])]
+    abstract public function getType(): string;
 
     #[Pure]
     public function __construct(bool $isDraft = false)
@@ -115,7 +149,6 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
         return $this->category->getRoot();
     }
 
-    #[Pure]
     public function getCurrency(): string
     {
         return $this->getAccount()->getCurrency();
@@ -188,7 +221,6 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
         return $this->getType() === self::INCOME;
     }
 
-    #[Pure]
     public function isDebt(): bool
     {
         return $this->getCategory()->getName() === Category::CATEGORY_DEBT;

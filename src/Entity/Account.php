@@ -89,7 +89,7 @@ class Account implements OwnableInterface, ValuableInterface
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
     private ?int $id;
 
     /**
@@ -350,7 +350,8 @@ class Account implements OwnableInterface, ValuableInterface
     }
 
     #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'transfer:list', 'debt:collection:read'])]
-    #[Pure] public function getIcon(): string
+    #[Pure]
+    public function getIcon(): string
     {
         $icons = [
             self::ACCOUNT_TYPE_CASH => 'ion-ios-cash',

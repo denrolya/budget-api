@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use ApiPlatform\Core\Action\NotFoundAction;
+use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
@@ -63,7 +64,8 @@ abstract class Category
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree'])]
+    #[ApiProperty(identifier: false)]
     private ?int $id;
 
     /**
@@ -85,6 +87,7 @@ abstract class Category
      * @ORM\Column(type="string", length=255)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
+    #[ApiProperty(identifier: true)]
     private ?string $name;
 
     /**
@@ -96,7 +99,7 @@ abstract class Category
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
     #[Groups(['category:collection:read', 'category:tree', 'category:write'])]
-    private bool $isTechnical = false;
+    private bool $isTechnical;
 
     /**
      * @ORM\OneToMany(targetEntity="Category", mappedBy="parent", cascade={"remove"})
@@ -140,7 +143,7 @@ abstract class Category
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
     private ?string $frontendColor;
 
     /**
@@ -149,8 +152,8 @@ abstract class Category
      * @ORM\ManyToMany(targetEntity=CategoryTag::class, cascade={"persist"}, inversedBy="categories")
      * @ORM\JoinTable(name="categories_tags")
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
-    private array|null|ArrayCollection|PersistentCollection $tags;
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
+    private ?Collection $tags;
 
     #[Groups(['category:collection:read'])]
     abstract public function getType(): string;

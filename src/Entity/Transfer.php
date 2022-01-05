@@ -59,7 +59,7 @@ class Transfer implements OwnableInterface
     /**
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'transfer:list'])]
     private float $amount;
 
     /**
