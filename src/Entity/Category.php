@@ -28,7 +28,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * )
  * @ORM\InheritanceType("SINGLE_TABLE")
  * @ORM\DiscriminatorColumn(name="type", type="string")
- * @ORM\DiscriminatorMap({"expense" = "App\Entity\ExpenseCategory", "income" = "App\Entity\IncomeCategory"})
+ * @ORM\DiscriminatorMap({"expense" = ExpenseCategory::class, "income" = IncomeCategory::class})
  */
 #[ApiResource(
     collectionOperations: [

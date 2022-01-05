@@ -4,13 +4,13 @@ namespace App\Entity;
 
 use ApiPlatform\Core\Action\NotFoundAction;
 use ApiPlatform\Core\Annotation\ApiResource;
-use App\Repository\ExpenseCategoryRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
-
-#[ORM\HasLifecycleCallbacks]
-#[ORM\Entity(repositoryClass: ExpenseCategoryRepository::class)]
+/**
+ * @ORM\HasLifecycleCallbacks()
+ * @ORM\Entity(repositoryClass="App\Repository\ExpenseCategoryRepository")
+ */
 #[ApiResource(
     collectionOperations: [
         'get' => [
@@ -44,7 +44,9 @@ class ExpenseCategory extends Category
     public const CATEGORY_TAX = 'Tax';
     public const CATEGORY_SHOPPING = 'Shopping';
 
-    #[ORM\Column(type: 'boolean', nullable: false, options: ['default' => false])]
+    /**
+     * @ORM\Column(type="boolean", nullable=false, options={"default": false})
+     */
     #[Groups(['category:collection:read', 'category:tree', 'category:write'])]
     private bool $isFixed = false;
 
