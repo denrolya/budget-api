@@ -50,3 +50,6 @@ services:
         arguments: [ '@.inner' ]
         autoconfigure: false
         decoration_priority: 1001
+
+    'App\DataTransformer\TagInputDataTransformer': ~
+    'App\DataTransformer\TagOutputDataTransformer': ~

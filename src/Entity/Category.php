@@ -15,6 +15,7 @@ use Doctrine\ORM\PersistentCollection;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @Gedmo\SoftDeleteable(fieldName="removedAt", timeAware=false, hardDelete=false)
@@ -31,19 +32,16 @@ use Symfony\Component\Serializer\Annotation\Groups;
  */
 #[ApiResource(
     collectionOperations: [
-        'list' => [
-            'method' => 'GET',
-            'normalization_context' => ['groups' => 'category:list'],
+        'get' => [
+            'normalization_context' => ['groups' => 'category:collection:read'],
         ],
     ],
     itemOperations: [
-        'get' => [
-            'requirements' => ['id' => '\d+'],
-            'controller' => NotFoundAction::class,
-            'read' => false,
-            'output' => false,
+        'put' => [
+            'normalization_context' => ['groups' => 'category:write'],
         ],
-    ]
+    ],
+    denormalizationContext: ['groups' => 'category:write'],
 )]
 abstract class Category
 {
@@ -62,7 +60,7 @@ abstract class Category
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree'])]
     private ?int $id;
 
     /**
@@ -70,7 +68,7 @@ abstract class Category
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['category:list', 'category:tree'])]
+    #[Groups(['category:collection:read', 'category:tree'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
@@ -83,7 +81,7 @@ abstract class Category
     /**
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', 'category:create'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
     private ?string $name;
 
     /**
@@ -94,7 +92,7 @@ abstract class Category
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
-    #[Groups(['category:list', 'category:tree', 'category:create'])]
+    #[Groups(['category:collection:read', 'category:tree', 'category:write'])]
     private bool $isTechnical = false;
 
     /**
@@ -126,29 +124,31 @@ abstract class Category
     /**
      * @ORM\Column(type="boolean", nullable=false)
      */
-    #[Groups(['category:list', 'category:tree', 'category:create'])]
+    #[Groups(['category:collection:read', 'category:tree', 'category:write'])]
     private bool $isAffectingProfit = true;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', 'category:create'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
     private ?string $frontendIconClass;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', 'category:create'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
     private ?string $frontendColor;
 
     /**
-     * @ORM\ManyToMany(targetEntity="App\Entity\CategoryTag", cascade={"persist"}, inversedBy="categories")
+     * @Assert\Valid()
+     *
+     * @ORM\ManyToMany(targetEntity=CategoryTag::class, cascade={"persist"}, inversedBy="categories")
      * @ORM\JoinTable(name="categories_tags")
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:list', 'category:tree', 'category:create'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
     private array|null|ArrayCollection|PersistentCollection $tags;
 
-    #[Groups(['category:list'])]
+    #[Groups(['category:collection:read'])]
     abstract public function getType(): string;
 
     #[Pure]
@@ -166,7 +166,7 @@ abstract class Category
         return $this->name ?: 'New Category';
     }
 
-    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     public function getFullPath(): array
     {
         $result = [$this->getName()];

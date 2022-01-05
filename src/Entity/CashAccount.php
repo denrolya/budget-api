@@ -12,15 +12,9 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ApiResource(
     collectionOperations: [
-        'create' => [
-            'method' => 'POST',
+        'post' => [
             'path' => '/accounts/cash',
-            "denormalization_context" => [
-                "groups" => "account:create",
-            ],
-            "normalization_context" => [
-                "groups" => "account:create",
-            ],
+            'normalization_context' => ['groups' => 'account:write'],
         ],
     ],
     itemOperations: [
@@ -30,6 +24,7 @@ use Doctrine\ORM\Mapping as ORM;
             'output' => false,
         ],
     ],
+    denormalizationContext: ['groups' => 'account:write'],
 )]
 class CashAccount extends Account
 {

@@ -5,15 +5,20 @@ namespace App\Entity;
 use ApiPlatform\Core\Action\NotFoundAction;
 use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
+use App\DTO\TagInput;
+use App\DTO\TagOutput;
 use App\Traits\OwnableEntity;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
 use Doctrine\ORM\PersistentCollection;
 use JetBrains\PhpStorm\Pure;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\Entity()
+ * @UniqueEntity("name")
  */
 #[ApiResource(
     collectionOperations: [],
@@ -24,6 +29,11 @@ use Symfony\Component\Serializer\Annotation\Groups;
             'output' => false,
         ],
     ],
+    shortName: 'tags',
+    denormalizationContext: ['groups' => 'tag:write'],
+    input: TagInput::class,
+    normalizationContext: ['groups' => 'tags:read'],
+    output: TagOutput::class,
 )]
 class CategoryTag implements OwnableInterface
 {
@@ -37,9 +47,9 @@ class CategoryTag implements OwnableInterface
     protected ?int $id;
 
     /**
+     * @Assert\NotBlank()
      * @ORM\Column(type="string", length=100)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'category:create', 'category:list', 'category:tree'])]
     private ?string $name;
 
     /**

@@ -12,10 +12,9 @@ final class FilterPathsDecorator implements OpenApiFactoryInterface
         '/api/cash-accounts/{id}',
         '/api/internet-accounts/{id}',
         '/api/bank-card-accounts/{id}',
-        '/api/categories/{id}',
         '/api/income-categories/{id}',
         '/api/expense-categories/{id}',
-        '/api/category-tags/{id}',
+        '/api/tags/{name}',
     ];
 
     public function __construct(private OpenApiFactoryInterface $decorated)

@@ -28,7 +28,7 @@ class Debt implements OwnableInterface, ValuableInterface
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['debt:list'])]
+    #[Groups(['debt:collection:read'])]
     private ?int $id;
 
     /**
@@ -36,13 +36,13 @@ class Debt implements OwnableInterface, ValuableInterface
      *
      * @ORM\Column(type="json", nullable=false)
      */
-    #[Groups(['debt:list'])]
+    #[Groups(['debt:collection:read'])]
     protected ?array $convertedValues = [];
 
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['debt:list'])]
+    #[Groups(['debt:collection:read'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
@@ -56,20 +56,20 @@ class Debt implements OwnableInterface, ValuableInterface
      *
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(['debt:list'])]
+    #[Groups(['debt:collection:read'])]
     private ?string $debtor;
 
 
     /**
      * @ORM\Column(type="string", length=3)
      */
-    #[Groups(['debt:list'])]
+    #[Groups(['debt:collection:read'])]
     private ?string $currency;
 
     /**
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(['debt:list'])]
+    #[Groups(['debt:collection:read'])]
     private float $balance = 0;
 
     /**
@@ -79,13 +79,13 @@ class Debt implements OwnableInterface, ValuableInterface
      *      inverseJoinColumns={@ORM\JoinColumn(name="transaction_id", referencedColumnName="id", unique=true)},
      *      )
      */
-    #[Groups(['debt:list'])]
+    #[Groups(['debt:collection:read'])]
     private array|ArrayCollection $transactions;
 
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['debt:list'])]
+    #[Groups(['debt:collection:read'])]
     private ?DateTimeInterface $closedAt;
 
     #[Pure]

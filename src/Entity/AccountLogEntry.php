@@ -19,7 +19,7 @@ class AccountLogEntry
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     private ?int $id;
 
     /**
@@ -36,7 +36,7 @@ class AccountLogEntry
     /**
      * @ORM\Column(type="json", nullable=true)
      */
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     private array $convertedValues;
 
     /**
@@ -107,7 +107,7 @@ class AccountLogEntry
         return $this->createdAt;
     }
 
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     public function getDate(): float|int|string
     {
         return $this->getCreatedAt()->timestamp;

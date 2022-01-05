@@ -2,6 +2,8 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Annotation\ApiFilter;
+use ApiPlatform\Core\Serializer\Filter\PropertyFilter;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
@@ -19,6 +21,7 @@ use App\Repository\AccountRepository;
 use Symfony\Component\Serializer\Annotation\SerializedName;
 use ApiPlatform\Core\Annotation\ApiProperty;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\HasLifecycleCallbacks()
@@ -29,36 +32,28 @@ use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
  */
 #[ApiResource(
     collectionOperations: [
-        'list' => [
-            'method' => 'GET',
-            'normalization_context' => ['groups' => 'account:list'],
+        'get' => [
+            'normalization_context' => ['groups' => 'account:collection:read'],
         ],
-        'typeahead' => [
-            'method' => 'GET',
-            'path' => '/accounts/typeahead',
-            'normalization_context' => ['groups' => 'account:typeahead'],
-        ],
-        'save' => [
-            'method' => 'POST',
-            'denormalization_context' => ['groups' => 'account:create'],
-            'normalization_context' => ['groups' => 'account:create'],
+        'post' => [
+            'normalization_context' => ['groups' => 'account:write'],
         ],
     ],
     itemOperations: [
-        'details' => [
-            'method' => 'GET',
+        'get' => [
             'requirements' => ['id' => '\d+'],
-            'normalization_context' => ['groups' => 'account:details'],
+            'normalization_context' => ['groups' => 'account:item:read'],
         ],
         'put' => [
             'requirements' => ['id' => '\d+'],
-            'denormalization_context' => ['groups' => 'account:create'],
-            'normalization_context' => ['groups' => 'account:create'],
+            'normalization_context' => ['groups' => 'account:write'],
         ],
     ],
+    denormalizationContext: ['groups' => 'account:write'],
     order: ['updatedAt' => 'DESC'],
-    paginationEnabled: false,
+    paginationEnabled: false
 )]
+#[ApiFilter(PropertyFilter::class)]
 class Account implements OwnableInterface, ValuableInterface
 {
     public const CURRENCIES = [
@@ -96,7 +91,7 @@ class Account implements OwnableInterface, ValuableInterface
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['account:typeahead', 'account:list', 'account:details', 'transaction:list', 'account:details', 'debt:list', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
     private ?int $id;
 
     /**
@@ -109,7 +104,7 @@ class Account implements OwnableInterface, ValuableInterface
      *
      * @ORM\Column(type="datetime", nullable=false)
      */
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
@@ -117,19 +112,25 @@ class Account implements OwnableInterface, ValuableInterface
      *
      * @ORM\Column(type="datetime", nullable=false)
      */
-    #[Groups(['account:list'])]
+    #[Groups(['account:collection:read'])]
     protected ?DateTimeInterface $updatedAt;
 
     /**
+     * @Assert\NotBlank()
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(['account:list', 'account:typeahead', 'account:details', "account:create", 'transaction:list', 'debt:list', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'account:item:read', "account:write", 'transaction:collection:read', 'debt:collection:read', 'transfer:list'])]
     private string $name;
 
     /**
+     * Currency that account is operating with
+     *
+     * @var ?string
+     *
+     * @Assert\NotBlank()
      * @ORM\Column(type="string", length=3)
      */
-    #[Groups(['account:list', 'transaction:list', 'account:details', "account:create", 'debt:list', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', "account:write", 'debt:collection:read', 'transfer:list'])]
     #[ApiProperty(
         attributes: [
             "openapi_context" => [
@@ -141,9 +142,11 @@ class Account implements OwnableInterface, ValuableInterface
     private ?string $currency;
 
     /**
+     * Initial balance of the account
+     *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(['account:list', 'account:details', "account:create"])]
+    #[Groups(['account:collection:read', 'account:item:read', "account:write"])]
     private float $balance = 0;
 
     /**
@@ -153,15 +156,17 @@ class Account implements OwnableInterface, ValuableInterface
     private null|array|ArrayCollection|PersistentCollection $transactions;
 
     /**
+     * When the account was archived(excluded from lists)
+     *
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['account:list', 'account:details', 'account:create'])]
+    #[Groups(['account:collection:read', 'account:item:read'])]
     private ?DateTimeInterface $archivedAt;
 
     /**
      * @ORM\Column(type="string", length=30)
      */
-    #[Groups(['account:list', 'transaction:list', 'account:details', "account:create", 'debt:list', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', "account:write", 'debt:collection:read', 'transfer:list'])]
     private string $color;
 
     /**
@@ -170,7 +175,7 @@ class Account implements OwnableInterface, ValuableInterface
      */
     private null|array|ArrayCollection|PersistentCollection $logs;
 
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     #[ApiProperty(
         attributes: [
             "openapi_context" => [
@@ -181,7 +186,7 @@ class Account implements OwnableInterface, ValuableInterface
     )]
     private ?array $topExpenseCategories;
 
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     #[ApiProperty(
         attributes: [
             "openapi_context" => [
@@ -319,13 +324,13 @@ class Account implements OwnableInterface, ValuableInterface
         return 'balance';
     }
 
-    #[Groups(['account:list'])]
+    #[Groups(['account:collection:read'])]
     public function getValues(): array
     {
         return $this->convertedValues;
     }
 
-    #[Groups(['account:list'])]
+    #[Groups(['account:collection:read'])]
     public function getValue(): float
     {
         if(empty($this->convertedValues)) {
@@ -335,7 +340,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this->convertedValues[$this->getOwner()->getBaseCurrency()];
     }
 
-    #[Groups(['account:list', 'account:details', 'account:typeahead'])]
+    #[Groups(['account:collection:read', 'account:item:read'])]
     public function getLastTransactionAt()
     {
         if(!$lastTransaction = $this->transactions->last()) {
@@ -345,7 +350,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $lastTransaction->getCreatedAt();
     }
 
-    #[Groups(['account:list', 'account:details', 'transaction:list', 'transfer:list', 'debt:list'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'transfer:list', 'debt:collection:read'])]
     #[Pure] public function getIcon(): string
     {
         $icons = [
@@ -358,7 +363,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $icons[$this->getType()];
     }
 
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     public function getNumberOfTransactions(): int
     {
         return count($this->transactions);
@@ -389,13 +394,13 @@ class Account implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     public function getLatestTransactions(int $numberOfItems = 10): array
     {
         return array_slice($this->transactions->toArray(), -$numberOfItems, $numberOfItems);
     }
 
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     #[SerializedName("logs")]
     public function getLogsWithinDateRange(?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
@@ -446,7 +451,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    #[Groups(['account:details'])]
+    #[Groups(['account:item:read'])]
     public function getType(): string
     {
         return self::ACCOUNT_TYPE_BASIC;

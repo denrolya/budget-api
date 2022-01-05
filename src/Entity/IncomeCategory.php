@@ -4,24 +4,20 @@ namespace App\Entity;
 
 use ApiPlatform\Core\Action\NotFoundAction;
 use ApiPlatform\Core\Annotation\ApiResource;
+use App\Repository\IncomeCategoryRepository;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Annotation\Groups;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass="App\Repository\IncomeCategoryRepository")
- */
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: IncomeCategoryRepository::class)]
 #[ApiResource(
     collectionOperations: [
-        'list' => [
-            'method' => 'GET',
+        'get' => [
             'path' => '/categories/income',
-            'normalization_context' => ['groups' => 'category:list'],
+            'normalization_context' => ['groups' => 'category:collection:read'],
         ],
         'post' => [
             'path' => '/categories/income',
-            'normalization_context' => ['groups' => 'category:create'],
-            'denormalization_context' => ['groups' => 'category:create'],
+            'normalization_context' => ['groups' => 'category:write'],
         ],
     ],
     itemOperations: [
@@ -31,6 +27,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             'output' => false,
         ],
     ],
+    denormalizationContext: ['groups' => 'category:write'],
 )]
 class IncomeCategory extends Category
 {

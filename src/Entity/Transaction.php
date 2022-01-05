@@ -31,20 +31,20 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'transfer:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
     protected ?int $id;
 
     /**
      * @ORM\ManyToOne(targetEntity="Account", inversedBy="transactions")
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'transfer:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
     protected Account $account;
 
     /**
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list', 'transfer:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
     protected float $amount = 0;
 
     /**
@@ -52,19 +52,19 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      *
      * @ORM\Column(type="json", nullable=false)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?array $convertedValues = [];
 
     /**
      * @ORM\Column(type="text", nullable=true)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?string $note;
 
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?DateTimeInterface $executedAt;
 
     /**
@@ -78,10 +78,10 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\ManyToOne(targetEntity="Category", inversedBy="transactions", cascade={"persist"})
      * @ORM\JoinColumn(name="category_id", referencedColumnName="id", nullable=false)
      */
-    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     private ?Category $category;
 
-    #[Groups(['transaction:list', 'account:details', 'debt:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
@@ -90,7 +90,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     /**
      * @ORM\Column(type="boolean", nullable=false)
      */
-    #[Groups(['transaction:list', 'account:details'])]
+    #[Groups(['transaction:collection:read', 'account:item:read'])]
     private bool $isDraft;
 
     #[Pure]

@@ -4,24 +4,22 @@ namespace App\Entity;
 
 use ApiPlatform\Core\Action\NotFoundAction;
 use ApiPlatform\Core\Annotation\ApiResource;
+use App\Repository\ExpenseCategoryRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass="App\Repository\ExpenseCategoryRepository")
- */
+
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: ExpenseCategoryRepository::class)]
 #[ApiResource(
     collectionOperations: [
-        'list' => [
-            'method' => 'GET',
+        'get' => [
             'path' => '/categories/expense',
-            'normalization_context' => ['groups' => 'category:list'],
+            'normalization_context' => ['groups' => 'category:collection:read'],
         ],
         'post' => [
             'path' => '/categories/expense',
-            'normalization_context' => ['groups' => 'category:create'],
-            'denormalization_context' => ['groups' => 'category:create'],
+            'normalization_context' => ['groups' => 'category:write'],
         ],
     ],
     itemOperations: [
@@ -31,6 +29,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             'output' => false,
         ],
     ],
+    denormalizationContext: ['groups' => 'category:write']
 )]
 class ExpenseCategory extends Category
 {
@@ -45,10 +44,8 @@ class ExpenseCategory extends Category
     public const CATEGORY_TAX = 'Tax';
     public const CATEGORY_SHOPPING = 'Shopping';
 
-    /**
-     * @ORM\Column(type="boolean", nullable=false, options={"default": false})
-     */
-    #[Groups(['category:list', 'category:tree', 'category:create'])]
+    #[ORM\Column(type: 'boolean', nullable: false, options: ['default' => false])]
+    #[Groups(['category:collection:read', 'category:tree', 'category:write'])]
     private bool $isFixed = false;
 
     public function getIsFixed(): bool

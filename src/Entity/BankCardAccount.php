@@ -13,15 +13,9 @@ use ApiPlatform\Core\Action\NotFoundAction;
  */
 #[ApiResource(
     collectionOperations: [
-        'create' => [
-            'method' => 'POST',
+        'post' => [
             'path' => '/accounts/bank',
-            "denormalization_context" => [
-                "groups" => "account:create",
-            ],
-            "normalization_context" => [
-                "groups" => "account:create",
-            ],
+            'normalization_context' => ['groups' => 'account:write'],
         ],
     ],
     itemOperations: [
@@ -31,25 +25,26 @@ use ApiPlatform\Core\Action\NotFoundAction;
             'output' => false,
         ],
     ],
+    denormalizationContext: ['groups' => 'account:write'],
 )]
 class BankCardAccount extends Account
 {
     /**
      * @ORM\Column(type="string", length=16, nullable=true)
      */
-    #[Groups(['account:details', "account:create"])]
+    #[Groups(['account:item:read', "account:write"])]
     private ?string $cardNumber;
 
     /**
      * @ORM\Column(type="string", length=34, nullable=true)
      */
-    #[Groups(['account:details', "account:create"])]
+    #[Groups(['account:item:read', "account:write"])]
     private ?string $iban;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['account:details', "account:create"])]
+    #[Groups(['account:item:read', "account:write"])]
     private ?string $monobankId;
 
     public function getCardNumber(): ?string
