@@ -4,7 +4,10 @@ namespace App\Entity;
 
 use ApiPlatform\Core\Annotation\ApiFilter;
 use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
@@ -18,6 +21,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
+ * TODO: Implement <withChildCategories> custom boolean filter
+ *
  * @Gedmo\SoftDeleteable(fieldName="canceledAt", timeAware=false, hardDelete=false)
  *
  * @ORM\HasLifecycleCallbacks()
@@ -48,6 +53,9 @@ use Symfony\Component\Validator\Constraints as Assert;
     order: ['executedAt' => 'DESC'],
 )]
 #[ApiFilter(DateFilter::class, properties: ['executedAt'])]
+#[ApiFilter(SearchFilter::class, properties: ['account' => 'exact', 'category' => 'exact'])]
+#[ApiFilter(RangeFilter::class, properties: ['amount'])]
+#[ApiFilter(BooleanFilter::class, properties: ['isDraft'])]
 abstract class Transaction implements TransactionInterface, OwnableInterface, ExecutableInterface
 {
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
@@ -62,6 +70,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
 
     /**
      * @Assert\NotBlank()
+     *
      * @ORM\ManyToOne(targetEntity=Account::class, inversedBy="transactions")
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
      */
