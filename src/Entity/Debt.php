@@ -2,12 +2,17 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Annotation\ApiFilter;
+use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\ExistsFilter;
+use App\ApiPlatform\WithDeletedFilter;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
@@ -19,6 +24,33 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\DebtRepository")
  */
+#[ApiResource(
+    collectionOperations: [
+        'get' => [
+            'normalization_context' => ['groups' => 'debt:collection:read'],
+        ],
+        'post' => [
+            'normalization_context' => ['groups' => 'debt:write'],
+        ],
+    ],
+    itemOperations: [
+        'get' => [
+            'requirements' => ['id' => '\d+'],
+            'normalization_context' => ['groups' => 'debt:item:read'],
+        ],
+        'put' => [
+            'requirements' => ['id' => '\d+'],
+            'normalization_context' => ['groups' => 'debt:write'],
+        ],
+        'delete' => [
+            'requirements' => ['id' => '\d+'],
+        ]
+    ],
+    denormalizationContext: ['groups' => 'debt:write'],
+    order: ['updatedAt' => 'DESC'],
+    paginationEnabled: false
+)]
+#[ApiFilter(WithDeletedFilter::class)]
 class Debt implements OwnableInterface, ValuableInterface
 {
     use TimestampableEntity, OwnableValuableEntity;
@@ -32,8 +64,6 @@ class Debt implements OwnableInterface, ValuableInterface
     private ?int $id;
 
     /**
-     * TODO: getValues
-     *
      * @ORM\Column(type="json", nullable=false)
      */
     #[Groups(['debt:collection:read'])]
@@ -42,34 +72,33 @@ class Debt implements OwnableInterface, ValuableInterface
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['debt:collection:read'])]
+    #[Groups(['debt:collection:read', 'debt:write'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
      * @ORM\Column(type="text", nullable=true)
      */
-
+    #[Groups(['debt:write'])]
     protected ?string $note;
 
     /**
-     * A debtor is an entity that owes a debt to another entity
+     * A debtor is the one who owes. Or whom do I owe
      *
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(['debt:collection:read'])]
+    #[Groups(['debt:collection:read', 'debt:write'])]
     private ?string $debtor;
-
 
     /**
      * @ORM\Column(type="string", length=3)
      */
-    #[Groups(['debt:collection:read'])]
+    #[Groups(['debt:collection:read', 'debt:write'])]
     private ?string $currency;
 
     /**
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(['debt:collection:read'])]
+    #[Groups(['debt:collection:read', 'debt:write'])]
     private float $balance = 0;
 
     /**
@@ -77,15 +106,15 @@ class Debt implements OwnableInterface, ValuableInterface
      * @ORM\JoinTable(name="debt_transactions",
      *      joinColumns={@ORM\JoinColumn(name="debt_id", referencedColumnName="id")},
      *      inverseJoinColumns={@ORM\JoinColumn(name="transaction_id", referencedColumnName="id", unique=true)},
-     *      )
+     * )
      */
     #[Groups(['debt:collection:read'])]
-    private array|ArrayCollection $transactions;
+    private ?Collection $transactions;
 
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['debt:collection:read'])]
+    #[Groups(['debt:collection:read', 'debt:write'])]
     private ?DateTimeInterface $closedAt;
 
     #[Pure]
@@ -168,29 +197,30 @@ class Debt implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    #[Pure] public function getTransactions(): array
+    #[Pure]
+    public function getTransactions(): Collection
     {
-        return $this->transactions->toArray();
+        return $this->transactions;
     }
 
-    public function getIncomes(): array
+    public function getIncomes(): Collection
     {
         return $this->transactions->filter(function (Transaction $transaction) {
             return $transaction->getType() === TransactionInterface::INCOME;
-        })->toArray();
+        });
     }
 
-    public function getExpenses(): array
+    public function getExpenses(): Collection
     {
         return $this->transactions->filter(function (Transaction $transaction) {
             return $transaction->getType() === TransactionInterface::EXPENSE;
-        })->toArray();
+        });
     }
 
-    public function getClosedAt(): CarbonInterface|DateTimeInterface
+    public function getClosedAt(): CarbonInterface|DateTimeInterface|null
     {
         if($this->closedAt instanceof DateTimeInterface) {
-            return new CarbonImmutable($this->closedAt->getTimestamp(), $this->closedAt->getTimezone());
+            return CarbonImmutable::instance($this->closedAt);
         }
 
         return $this->closedAt;

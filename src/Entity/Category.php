@@ -40,6 +40,9 @@ use Symfony\Component\Validator\Constraints as Assert;
         'put' => [
             'normalization_context' => ['groups' => 'category:write'],
         ],
+        'delete' => [
+            'requirements' => ['id' => '\d+'],
+        ],
     ],
     denormalizationContext: ['groups' => 'category:write'],
 )]
@@ -107,6 +110,7 @@ abstract class Category
      * @ORM\ManyToOne(targetEntity="Category", inversedBy="children")
      * @ORM\JoinColumn(name="parent_id", referencedColumnName="id")
      */
+    #[Groups(['category:write'])]
     private ?Category $parent;
 
     /**

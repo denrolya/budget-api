@@ -10,17 +10,15 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\ORM\PersistentCollection;
 use Gedmo\Mapping\Annotation as Gedmo;
+use Doctrine\Common\Collections\Collection;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
 use ApiPlatform\Core\Annotation\ApiResource;
 use App\Repository\AccountRepository;
 use Symfony\Component\Serializer\Annotation\SerializedName;
 use ApiPlatform\Core\Annotation\ApiProperty;
-use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -119,7 +117,7 @@ class Account implements OwnableInterface, ValuableInterface
      * @Assert\NotBlank()
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(['account:collection:read', 'account:item:read', "account:write", 'transaction:collection:read', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'account:write', 'transaction:collection:read', 'debt:collection:read', 'transfer:list'])]
     private string $name;
 
     /**
@@ -128,9 +126,10 @@ class Account implements OwnableInterface, ValuableInterface
      * @var ?string
      *
      * @Assert\NotBlank()
+     * @Assert\Choice({"EUR", "USD", "UAH", "HUF", "BTC", "ETH"})
      * @ORM\Column(type="string", length=3)
      */
-    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', "account:write", 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:list'])]
     #[ApiProperty(
         attributes: [
             "openapi_context" => [
@@ -146,34 +145,34 @@ class Account implements OwnableInterface, ValuableInterface
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(['account:collection:read', 'account:item:read', "account:write"])]
+    #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
     private float $balance = 0;
 
     /**
      * @ORM\OneToMany(targetEntity="Transaction", mappedBy="account", cascade={"remove"}, orphanRemoval=true)
      * @ORM\OrderBy({"executedAt" = "ASC"})
      */
-    private null|array|ArrayCollection|PersistentCollection $transactions;
+    private ?Collection $transactions;
 
     /**
      * When the account was archived(excluded from lists)
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['account:collection:read', 'account:item:read'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
     private ?DateTimeInterface $archivedAt;
 
     /**
      * @ORM\Column(type="string", length=30)
      */
-    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', "account:write", 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:list'])]
     private string $color;
 
     /**
      * @ORM\OneToMany(targetEntity=AccountLogEntry::class, mappedBy="account", orphanRemoval=true)
      * @ORM\OrderBy({"createdAt" = "ASC"})
      */
-    private null|array|ArrayCollection|PersistentCollection $logs;
+    private ?Collection $logs;
 
     #[Groups(['account:item:read'])]
     #[ApiProperty(
@@ -283,7 +282,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    public function getTransactions(): ArrayCollection|PersistentCollection|array|null
+    public function getTransactions(): Collection
     {
         return $this->transactions;
     }

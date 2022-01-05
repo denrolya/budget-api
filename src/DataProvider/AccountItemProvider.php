@@ -13,9 +13,12 @@ use Carbon\CarbonImmutable;
 /**
  * TODO: Perhaps this thing can use query parameters to specify from/to date to get categories statistics
  */
-class AccountDetailsProvider implements DenormalizedIdentifiersAwareItemDataProviderInterface, RestrictedDataProviderInterface
+class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataProviderInterface, RestrictedDataProviderInterface
 {
-    public function __construct(private AssetsManager $assetsManager, private ItemDataProviderInterface $itemDataProvider)
+    public function __construct(
+        private AssetsManager $assetsManager,
+        private ItemDataProviderInterface $itemDataProvider
+    )
     {
     }
 

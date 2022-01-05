@@ -3,8 +3,8 @@
 namespace App\Entity;
 
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\ORM\PersistentCollection;
 use Symfony\Component\Serializer\Annotation\Groups;
 use JetBrains\PhpStorm\Pure;
 
@@ -18,7 +18,7 @@ class Expense extends Transaction
      * @ORM\OneToMany(targetEntity="App\Entity\Income", mappedBy="originalExpense", cascade={"persist"}, fetch="EXTRA_LAZY")
      */
     #[Groups(['transaction:collection:read', 'debt:collection:read'])]
-    private array|null|ArrayCollection|PersistentCollection $compensations;
+    private ?Collection $compensations;
 
     #[Pure]
     public function __construct(bool $isDraft = false)
@@ -32,7 +32,6 @@ class Expense extends Transaction
         return TransactionInterface::EXPENSE;
     }
 
-    #[Pure]
     public function isLoss(): bool
     {
         return $this->getCategory()->getIsAffectingProfit();
@@ -53,12 +52,11 @@ class Expense extends Transaction
         return $value;
     }
 
-    public function getCompensations(): PersistentCollection|ArrayCollection|array|null
+    public function getCompensations(): Collection
     {
         return $this->compensations;
     }
 
-    #[Pure]
     public function hasCompensations(): bool
     {
         return !$this->compensations->isEmpty();
