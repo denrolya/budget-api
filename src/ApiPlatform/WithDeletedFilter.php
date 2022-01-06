@@ -16,13 +16,20 @@ class WithDeletedFilter extends AbstractFilter
     /**
      * @inheritDoc
      */
-    protected function filterProperty(string $property, $value, QueryBuilder $queryBuilder, QueryNameGeneratorInterface $queryNameGenerator, string $resourceClass, string $operationName = null)
+    protected function filterProperty(
+        string                      $property,
+                                    $value,
+        QueryBuilder                $queryBuilder,
+        QueryNameGeneratorInterface $queryNameGenerator,
+        string                      $resourceClass,
+        string                      $operationName = null
+    ): void
     {
         if($property !== self::PROPERTY_NAME) {
             return;
         }
 
-        if (filter_var(($value??null), FILTER_VALIDATE_BOOLEAN)) {
+        if(filter_var(($value ?? null), FILTER_VALIDATE_BOOLEAN)) {
             $this->disableSoftDeleteable($queryBuilder->getEntityManager());
         }
     }

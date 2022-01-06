@@ -4,9 +4,11 @@ namespace App\Service;
 
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use JetBrains\PhpStorm\ArrayShape;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Component\Security\Core\Security;
+use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 class FixerService
@@ -40,7 +42,12 @@ class FixerService
      */
     public function convertToBaseCurrency(float $amount, string $currencyCode, ?CarbonInterface $executionDate = null): float
     {
-        return $this->convertTo($amount, $currencyCode, $this->security->getUser()->getBaseCurrency(), $executionDate->copy());
+        return $this->convertTo(
+            $amount,
+            $currencyCode,
+            $this->security->getUser()->getBaseCurrency(),
+            $executionDate->copy()
+        );
     }
 
     /**
@@ -91,7 +98,7 @@ class FixerService
             throw new \InvalidArgumentException("Invalid currency code passed as `to` parameter: $to. ");
         }
 
-        $rates = $this->getRates($executionDate ? $executionDate->copy() : null);
+        $rates = $this->getRates($executionDate?->copy());
 
         return $amount / $rates[$from] * $rates[$to];
     }
@@ -106,18 +113,16 @@ class FixerService
     {
         $now = Carbon::now();
         $dateString = $now->toDateString();
-        if(!$this->cache->has("fixer.$dateString")) {
-            $query = self::BASE_URL . 'latest?' . http_build_query($this->getRequestParams());
-            $response = $this->client->get($query)->getBody()->getContents();
+        $requestParams = $this->getRequestParams();
+        $client = $this->client;
 
-            $this->cache->set(
-                "fixer.$dateString",
-                json_decode($response, true)['rates'],
-                self::MONTH_IN_SECONDS,
-            );
-        }
+        return $this->cache->get("fixer.$dateString", static function (ItemInterface $item) use ($requestParams, $client) {
+            $item->expiresAfter(self::MONTH_IN_SECONDS);
+            $query = self::BASE_URL . 'latest?' . http_build_query($requestParams);
+            $response = $client->request('GET', $query)->getContent();
 
-        return $this->cache->get("fixer.$dateString");
+            return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
+        });
     }
 
     /**
@@ -130,19 +135,16 @@ class FixerService
     public function getHistorical(CarbonInterface $date): ?array
     {
         $dateString = $date->toDateString();
+        $requestParams = $this->getRequestParams();
+        $client = $this->client;
 
-        if(!$this->cache->has("fixer.$dateString")) {
-            $query = self::BASE_URL . $dateString . '?' . http_build_query($this->getRequestParams());
-            $response = $this->client->get($query)->getBody()->getContents();
+        return $this->cache->get("fixer.$dateString", static function (ItemInterface $item) use ($requestParams, $client, $dateString) {
+            $item->expiresAfter(self::MONTH_IN_SECONDS);
+            $query = self::BASE_URL . $dateString . '?' . http_build_query($requestParams);
+            $response = $client->request('GET', $query)->getContent();
 
-            $this->cache->set(
-                "fixer.$dateString",
-                json_decode($response, true)['rates'],
-                self::MONTH_IN_SECONDS,
-            );
-        }
-
-        return $this->cache->get("fixer.$dateString");
+            return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
+        });
     }
 
     /**
@@ -171,9 +173,7 @@ class FixerService
         return array_key_exists($currencyCode, $rates);
     }
 
-    /**
-     * @return array
-     */
+    #[ArrayShape(['access_key' => "string", 'base' => "string", 'symbols' => "string"])]
     private function getRequestParams(): array
     {
         return [

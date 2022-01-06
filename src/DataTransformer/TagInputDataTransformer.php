@@ -20,7 +20,7 @@ final class TagInputDataTransformer implements DataTransformerInterface
     #[Pure]
     public function transform($data, string $to, array $context = []): object
     {
-        if(!$tag = $this->em->getRepository(CategoryTag::class)->findOneByName($data->name)) {
+        if(!$tag = $this->em->getRepository(CategoryTag::class)->findOneBy(['name' => $data->name])) {
             $tag = new CategoryTag($data->name);
         }
 
