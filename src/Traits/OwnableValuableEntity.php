@@ -5,6 +5,7 @@ namespace App\Traits;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 trait OwnableValuableEntity
 {
@@ -34,6 +35,7 @@ trait OwnableValuableEntity
         return $this;
     }
 
+    #[Groups(['account:collection:read'])]
     public function getValue(): float
     {
         return $this->convertedValues[$this->getOwner()->getBaseCurrency()];

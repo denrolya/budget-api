@@ -95,6 +95,7 @@ class Account implements OwnableInterface, ValuableInterface
     /**
      * @ORM\Column(type="json", nullable=false)
      */
+    #[Groups(['account:collection:read'])]
     protected ?array $convertedValues = [];
 
     /**
@@ -321,22 +322,6 @@ class Account implements OwnableInterface, ValuableInterface
     public function getValuableField(): string
     {
         return 'balance';
-    }
-
-    #[Groups(['account:collection:read'])]
-    public function getValues(): array
-    {
-        return $this->convertedValues;
-    }
-
-    #[Groups(['account:collection:read'])]
-    public function getValue(): float
-    {
-        if(empty($this->convertedValues)) {
-            return 0;
-        }
-
-        return $this->convertedValues[$this->getOwner()->getBaseCurrency()];
     }
 
     #[Groups(['account:collection:read', 'account:item:read'])]

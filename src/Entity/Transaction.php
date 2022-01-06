@@ -53,7 +53,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     order: ['executedAt' => 'DESC'],
 )]
 #[ApiFilter(DateFilter::class, properties: ['executedAt'])]
-#[ApiFilter(SearchFilter::class, properties: ['account' => 'exact', 'category' => 'exact'])]
+#[ApiFilter(SearchFilter::class, properties: ['note' => 'ipartial', 'account' => 'exact', 'category' => 'exact'])]
 #[ApiFilter(RangeFilter::class, properties: ['amount'])]
 #[ApiFilter(BooleanFilter::class, properties: ['isDraft'])]
 abstract class Transaction implements TransactionInterface, OwnableInterface, ExecutableInterface

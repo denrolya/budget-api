@@ -46,6 +46,8 @@ use Symfony\Component\Validator\Constraints as Assert;
         ],
     ],
     denormalizationContext: ['groups' => 'category:write'],
+    order: ['name' => 'ASC'],
+    paginationEnabled: false,
 )]
 abstract class Category
 {
@@ -73,7 +75,7 @@ abstract class Category
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['category:collection:read', 'category:tree'])]
+    #[Groups(['category:tree'])]
     protected ?DateTimeInterface $createdAt;
 
     /**

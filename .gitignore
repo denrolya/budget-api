@@ -1,5 +1,6 @@
 ###> other ###
 .idea
+*.sql
 ###< other ###
 
 ###> symfony/framework-bundle ###
@@ -15,11 +16,6 @@
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
 ###< lexik/jwt-authentication-bundle ###
-
-###> symfony/phpunit-bridge ###
-.phpunit.result.cache
-/phpunit.xml
-###< symfony/phpunit-bridge ###
 
 ###> phpunit/phpunit ###
 /phpunit.xml
