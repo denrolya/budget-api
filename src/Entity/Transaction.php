@@ -8,6 +8,8 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
+use App\ApiPlatform\IncomeExpenseTypeFilter;
+use App\ApiPlatform\WithDeletedFilter;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
@@ -51,11 +53,20 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     denormalizationContext: ['groups' => 'transaction:write'],
     order: ['executedAt' => 'DESC'],
+    paginationClientItemsPerPage: true,
+    paginationItemsPerPage: 20,
 )]
 #[ApiFilter(DateFilter::class, properties: ['executedAt'])]
 #[ApiFilter(SearchFilter::class, properties: ['note' => 'ipartial', 'account' => 'exact', 'category' => 'exact'])]
 #[ApiFilter(RangeFilter::class, properties: ['amount'])]
 #[ApiFilter(BooleanFilter::class, properties: ['isDraft'])]
+#[ApiFilter(WithDeletedFilter::class)]
+#[ApiFilter(IncomeExpenseTypeFilter::class, arguments: [
+    'types' => [
+        'expense' => Expense::class,
+        'income' => Income::class,
+    ],
+])]
 abstract class Transaction implements TransactionInterface, OwnableInterface, ExecutableInterface
 {
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;

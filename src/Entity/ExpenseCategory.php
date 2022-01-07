@@ -14,13 +14,9 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiResource(
     collectionOperations: [
         'get' => [
-            'path' => '/categories/expense',
-            'normalization_context' => ['groups' => 'category:collection:read'],
-        ],
-        'tree' => [
             'method' => 'GET',
             'force_eager' => false,
-            'path' => '/categories-tree/expense',
+            'path' => '/categories/expense',
             'normalization_context' => ['groups' => 'category:collection:tree'],
         ],
         'post' => [

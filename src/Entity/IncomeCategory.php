@@ -14,12 +14,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ApiResource(
     collectionOperations: [
         'get' => [
-            'path' => '/categories/income',
-            'normalization_context' => ['groups' => 'category:collection:read'],
-        ],
-        'tree' => [
             'method' => 'GET',
-            'path' => '/categories-tree/income',
+            'force_eager' => false,
+            'path' => '/categories/income',
             'normalization_context' => ['groups' => 'category:collection:tree'],
         ],
         'post' => [

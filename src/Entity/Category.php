@@ -2,8 +2,9 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Annotation\ApiProperty;
+use ApiPlatform\Core\Annotation\ApiFilter;
 use ApiPlatform\Core\Annotation\ApiResource;
+use App\ApiPlatform\IncomeExpenseTypeFilter;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -11,7 +12,6 @@ use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\ORM\PersistentCollection;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -49,6 +49,12 @@ use Symfony\Component\Validator\Constraints as Assert;
     order: ['name' => 'ASC'],
     paginationEnabled: false,
 )]
+#[ApiFilter(IncomeExpenseTypeFilter::class, arguments: [
+    'types' => [
+        'expense' => ExpenseCategory::class,
+        'income' => IncomeCategory::class,
+    ],
+])]
 abstract class Category
 {
     use TimestampableEntity;

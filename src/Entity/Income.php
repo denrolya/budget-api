@@ -13,10 +13,12 @@ use Symfony\Component\Validator\Constraints as Assert;
  * @ORM\Entity(repositoryClass="App\Repository\IncomeRepository")
  */
 #[ApiResource(
-    collectionOperations: ['post' => [
-        'path' => '/transactions/income',
-        'normalization_context' => ['groups' => 'transaction:write'],
-    ],],
+    collectionOperations: [
+        'post' => [
+            'path' => '/transactions/income',
+            'normalization_context' => ['groups' => 'transaction:write'],
+        ],
+    ],
     itemOperations: [
         'get' => [
             'controller' => NotFoundAction::class,

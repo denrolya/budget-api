@@ -20,3 +20,9 @@ api_platform:
         contact:
             name: Den Rolya
             email: denrolya@gmail.com
+
+    defaults:
+        pagination_client_items_per_page: true
+    collection:
+        pagination:
+            items_per_page_parameter_name: perPage # Default value
