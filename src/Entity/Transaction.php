@@ -90,6 +90,8 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
 
     /**
      * @Assert\NotBlank()
+     * @Assert\Type("numeric")
+     * @Assert\GreaterThan(value="0")
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */

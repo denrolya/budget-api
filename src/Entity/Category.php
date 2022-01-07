@@ -72,7 +72,7 @@ abstract class Category
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:collection:tree'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:collection:tree', 'transaction:collection:read'])]
     private ?int $id;
 
     /**
