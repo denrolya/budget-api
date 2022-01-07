@@ -13,9 +13,9 @@ final class TagOutputDataTransformer implements DataTransformerInterface
      * {@inheritdoc}
      */
     #[Pure]
-    public function transform($data, string $to, array $context = []): TagOutput
+    public function transform($object, string $to, array $context = []): TagOutput
     {
-        return new TagOutput($data->getName());
+        return new TagOutput($object->getName());
     }
 
     /**

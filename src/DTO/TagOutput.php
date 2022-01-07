@@ -6,7 +6,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 
 final class TagOutput
 {
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:write', 'category:collection:read', 'category:tree', 'tags:read', 'tag:write'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:write', 'category:collection:read', 'category:collection:tree', 'tags:read', 'tag:write'])]
     public string $name;
 
     public function __construct(string $name)

@@ -17,6 +17,12 @@ use Symfony\Component\Serializer\Annotation\Groups;
             'path' => '/categories/expense',
             'normalization_context' => ['groups' => 'category:collection:read'],
         ],
+        'tree' => [
+            'method' => 'GET',
+            'force_eager' => false,
+            'path' => '/categories-tree/expense',
+            'normalization_context' => ['groups' => 'category:collection:tree'],
+        ],
         'post' => [
             'path' => '/categories/expense',
             'normalization_context' => ['groups' => 'category:write'],
@@ -47,7 +53,7 @@ class ExpenseCategory extends Category
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
-    #[Groups(['category:collection:read', 'category:tree', 'category:write'])]
+    #[Groups(['category:collection:read', 'category:collection:tree', 'category:write'])]
     private bool $isFixed = false;
 
     public function getIsFixed(): bool

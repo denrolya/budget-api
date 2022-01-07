@@ -17,6 +17,11 @@ use Doctrine\ORM\Mapping as ORM;
             'path' => '/categories/income',
             'normalization_context' => ['groups' => 'category:collection:read'],
         ],
+        'tree' => [
+            'method' => 'GET',
+            'path' => '/categories-tree/income',
+            'normalization_context' => ['groups' => 'category:collection:tree'],
+        ],
         'post' => [
             'path' => '/categories/income',
             'normalization_context' => ['groups' => 'category:write'],

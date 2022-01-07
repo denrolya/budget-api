@@ -37,7 +37,7 @@ class ExpenseCategoryRepository extends CategoryRepository
 
     /**
      * @param array $tags
-     * @return ExpenseCategory[]|array
+     * @return array
      */
     public function findByTags(array $tags): array
     {

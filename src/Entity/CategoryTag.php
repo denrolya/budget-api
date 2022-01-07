@@ -3,17 +3,15 @@
 namespace App\Entity;
 
 use ApiPlatform\Core\Action\NotFoundAction;
-use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
 use App\DTO\TagInput;
 use App\DTO\TagOutput;
 use App\Traits\OwnableEntity;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Doctrine\ORM\PersistentCollection;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
-use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -53,9 +51,9 @@ class CategoryTag implements OwnableInterface
     private ?string $name;
 
     /**
-     * @ORM\ManyToMany(targetEntity="App\Entity\Category", mappedBy="tags")
+     * @ORM\ManyToMany(targetEntity=Category::class, mappedBy="tags")
      */
-    private null|array|ArrayCollection|PersistentCollection $categories;
+    private Collection $categories;
 
     public function __construct(?string $name = null)
     {

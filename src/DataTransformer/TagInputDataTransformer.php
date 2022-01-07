@@ -32,6 +32,7 @@ final class TagInputDataTransformer implements DataTransformerInterface
      */
     public function supportsTransformation($data, string $to, array $context = []): bool
     {
+        dump($data, $to, $context);
         // in the case of an input, the value given here is an array (the JSON decoded).
         // if it's a book we transformed the data already
         if($data instanceof CategoryTag) {
