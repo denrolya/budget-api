@@ -35,7 +35,7 @@ class CategoryRepository extends ServiceEntityRepository
                 $tree[] = [
                     'root' => $rootCategory->getRoot()->getId(),
                     'parent' => !$rootCategory->isRoot() ? $rootCategory->getParent()->getId() : null,
-                    'icon' => $rootCategory->getFrontendIconClass(),
+                    'icon' => $rootCategory->getIcon(),
                     'name' => $rootCategory->getName(),
                     'children' => !$rootCategory->hasChildren() ? [] : $rootCategory->getDescendantsTree(),
                 ];
@@ -52,10 +52,10 @@ class CategoryRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('c');
 
         if(!empty($types) && count($types) === 1) {
-            if(in_array(Category::EXPENSE_CATEGORY_TYPE, $types)) {
+            if(in_array(Category::EXPENSE_CATEGORY_TYPE, $types, true)) {
                 $qb->andWhere('c INSTANCE OF :expenseType')
                     ->setParameter('expenseType', $this->getEntityManager()->getClassMetadata(Category::class));
-            } elseif(in_array(Category::INCOME_CATEGORY_TYPE, $types)) {
+            } elseif(in_array(Category::INCOME_CATEGORY_TYPE, $types, true)) {
                 $qb->andWhere('c INSTANCE OF :incomeType')
                     ->setParameter('incomeType', $this->getEntityManager()->getClassMetadata(IncomeCategory::class));
             }

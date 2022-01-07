@@ -140,13 +140,13 @@ abstract class Category
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
-    private ?string $frontendIconClass;
+    private ?string $icon;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree', 'category:write'])]
-    private ?string $frontendColor;
+    private ?string $color;
 
     /**
      * @Assert\Valid()
@@ -363,26 +363,26 @@ abstract class Category
         return $this;
     }
 
-    public function getFrontendIconClass(): ?string
+    public function getIcon(): ?string
     {
-        return $this->frontendIconClass;
+        return $this->icon;
     }
 
-    public function setFrontendIconClass(?string $frontendIconClass): self
+    public function setIcon(?string $icon): self
     {
-        $this->frontendIconClass = $frontendIconClass;
+        $this->icon = $icon;
 
         return $this;
     }
 
-    public function getFrontendColor(): ?string
+    public function getColor(): ?string
     {
-        return $this->frontendColor;
+        return $this->color;
     }
 
-    public function setFrontendColor(?string $frontendColor): self
+    public function setColor(?string $color): self
     {
-        $this->frontendColor = $frontendColor;
+        $this->color = $color;
 
         return $this;
     }
@@ -437,7 +437,7 @@ abstract class Category
             $result[] = [
                 'root' => $child->getRoot()->getId(),
                 'parent' => !$child->isRoot() ? $child->getParent()->getId() : null,
-                'icon' => $child->getFrontendIconClass(),
+                'icon' => $child->getIcon(),
                 'name' => $child->getName(),
                 'children' => !$this->hasChildren() ? [] : $child->getDescendantsTree(),
             ];
