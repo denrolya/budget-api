@@ -72,7 +72,7 @@ abstract class Category
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:collection:tree', 'transaction:collection:read'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'transaction:collection:read'])]
     private ?int $id;
 
     /**
@@ -92,7 +92,7 @@ abstract class Category
     /**
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:collection:tree', 'category:write'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
     private ?string $name;
 
     /**
@@ -103,13 +103,12 @@ abstract class Category
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
-    #[Groups(['category:collection:read', 'category:collection:tree', 'category:write'])]
+    #[Groups(['category:collection:read', 'category:write'])]
     private bool $isTechnical;
 
     /**
      * @ORM\OneToMany(targetEntity=Category::class, mappedBy="parent", cascade={"remove"})
      */
-    #[Groups(['category:collection:tree'])]
     private Collection $children;
 
     /**
@@ -118,7 +117,7 @@ abstract class Category
      * @ORM\ManyToOne(targetEntity="Category", inversedBy="children")
      * @ORM\JoinColumn(name="parent_id", referencedColumnName="id")
      */
-    #[Groups(['category:write'])]
+    #[Groups(['category:collection:read', 'category:write'])]
     private ?Category $parent;
 
     /**
@@ -126,6 +125,7 @@ abstract class Category
      * @ORM\ManyToOne(targetEntity="Category")
      * @ORM\JoinColumn(name="root_id", referencedColumnName="id")
      */
+    #[Groups(['category:collection:read'])]
     private ?Category $root;
 
     /**
@@ -136,19 +136,19 @@ abstract class Category
     /**
      * @ORM\Column(type="boolean", nullable=false)
      */
-    #[Groups(['category:collection:read', 'category:collection:tree', 'category:write'])]
+    #[Groups(['category:collection:read', 'category:write'])]
     private bool $isAffectingProfit = true;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:collection:tree', 'category:write'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
     private ?string $icon;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:collection:tree', 'category:write'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
     private ?string $color;
 
     /**
@@ -157,10 +157,10 @@ abstract class Category
      * @ORM\ManyToMany(targetEntity=CategoryTag::class, cascade={"persist"}, inversedBy="categories")
      * @ORM\JoinTable(name="categories_tags")
      */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:collection:tree', 'category:write'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
     private Collection $tags;
 
-    #[Groups(['category:collection:read', 'category:collection:tree'])]
+    #[Groups(['category:collection:read'])]
     abstract public function getType(): string;
 
     #[Pure]
@@ -209,7 +209,7 @@ abstract class Category
 
     public function getRoot(): ?Category
     {
-        return $this->root ?? $this;
+        return $this->root;
     }
 
     public function setRoot(?Category $category): self
@@ -248,7 +248,7 @@ abstract class Category
         return $this;
     }
 
-    #[Groups(['category:collection:tree'])]
+    #[Groups(['category:collection:read'])]
     public function getTransactionsCount(bool $withChildren = true): int
     {
         $result = $this->transactions->count();

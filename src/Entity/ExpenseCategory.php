@@ -13,12 +13,6 @@ use Symfony\Component\Serializer\Annotation\Groups;
  */
 #[ApiResource(
     collectionOperations: [
-        'get' => [
-            'method' => 'GET',
-            'force_eager' => false,
-            'path' => '/categories/expense',
-            'normalization_context' => ['groups' => 'category:collection:tree'],
-        ],
         'post' => [
             'path' => '/categories/expense',
             'normalization_context' => ['groups' => 'category:write'],
@@ -31,7 +25,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
             'output' => false,
         ],
     ],
-    denormalizationContext: ['groups' => 'category:write']
+    denormalizationContext: ['groups' => 'category:write'],
+    paginationEnabled: false,
 )]
 class ExpenseCategory extends Category
 {
@@ -49,7 +44,7 @@ class ExpenseCategory extends Category
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
-    #[Groups(['category:collection:read', 'category:collection:tree', 'category:write'])]
+    #[Groups(['category:collection:read', 'category:write'])]
     private bool $isFixed = false;
 
     public function getIsFixed(): bool

@@ -2,10 +2,7 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Annotation\ApiFilter;
 use ApiPlatform\Core\Annotation\ApiResource;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\ExistsFilter;
-use App\ApiPlatform\WithDeletedFilter;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
@@ -44,13 +41,12 @@ use Symfony\Component\Serializer\Annotation\Groups;
         ],
         'delete' => [
             'requirements' => ['id' => '\d+'],
-        ]
+        ],
     ],
     denormalizationContext: ['groups' => 'debt:write'],
     order: ['updatedAt' => 'DESC'],
     paginationEnabled: false
 )]
-#[ApiFilter(WithDeletedFilter::class)]
 class Debt implements OwnableInterface, ValuableInterface
 {
     use TimestampableEntity, OwnableValuableEntity;

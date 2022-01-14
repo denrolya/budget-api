@@ -13,12 +13,6 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ApiResource(
     collectionOperations: [
-        'get' => [
-            'method' => 'GET',
-            'force_eager' => false,
-            'path' => '/categories/income',
-            'normalization_context' => ['groups' => 'category:collection:tree'],
-        ],
         'post' => [
             'path' => '/categories/income',
             'normalization_context' => ['groups' => 'category:write'],
@@ -32,10 +26,10 @@ use Doctrine\ORM\Mapping as ORM;
         ],
     ],
     denormalizationContext: ['groups' => 'category:write'],
+    paginationEnabled: false,
 )]
 class IncomeCategory extends Category
 {
-
     public function getType(): string
     {
         return Category::INCOME_CATEGORY_TYPE;

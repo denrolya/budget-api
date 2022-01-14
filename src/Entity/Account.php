@@ -293,7 +293,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $this->archivedAt ? new CarbonImmutable($this->archivedAt->getTimestamp(), $this->archivedAt->getTimezone()) : null;
     }
 
-    public function setArchivedAt(CarbonInterface $archivedAt): self
+    public function setArchivedAt(?DateTimeInterface $archivedAt): self
     {
         $this->archivedAt = $archivedAt;
 
