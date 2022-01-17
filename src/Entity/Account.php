@@ -89,7 +89,7 @@ class Account implements OwnableInterface, ValuableInterface
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['account:collection:read', 'account:item:read', 'account:item:read', 'debt:collection:read', 'transfer:list', 'transaction:collection:read'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transaction:collection:read'])]
     private ?int $id;
 
     /**
@@ -118,7 +118,7 @@ class Account implements OwnableInterface, ValuableInterface
      * @Assert\NotBlank()
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(['account:collection:read', 'account:item:read', 'account:write', 'transaction:collection:read', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'account:write', 'transaction:collection:read', 'debt:collection:read', 'transfer:collection:read'])]
     private string $name;
 
     /**
@@ -130,7 +130,7 @@ class Account implements OwnableInterface, ValuableInterface
      * @Assert\Choice({"EUR", "USD", "UAH", "HUF", "BTC", "ETH"})
      * @ORM\Column(type="string", length=3)
      */
-    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:collection:read'])]
     #[ApiProperty(
         attributes: [
             "openapi_context" => [
@@ -166,7 +166,7 @@ class Account implements OwnableInterface, ValuableInterface
     /**
      * @ORM\Column(type="string", length=30)
      */
-    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:collection:read'])]
     private string $color;
 
     /**
@@ -334,7 +334,7 @@ class Account implements OwnableInterface, ValuableInterface
         return $lastTransaction->getCreatedAt();
     }
 
-    #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'transfer:list', 'debt:collection:read'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'transfer:collection:read', 'debt:collection:read'])]
     #[Pure]
     public function getIcon(): string
     {

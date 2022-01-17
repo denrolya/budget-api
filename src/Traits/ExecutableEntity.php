@@ -11,8 +11,6 @@ use Symfony\Component\Serializer\Annotation\Groups;
 trait ExecutableEntity
 {
     /**
-     * #[Groups(["transfer_list"])]
-     *
      * @ORM\Column(type="datetime", nullable=true)
      */
     protected ?DateTimeInterface $executedAt;

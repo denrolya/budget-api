@@ -23,7 +23,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\CategoryRepository")
  * @ORM\Table(
- *     uniqueConstraints={@ORM\UniqueConstraint(name="unique_category", columns={"name", "type"})},
+ *     uniqueConstraints={@ORM\UniqueConstraint(name="unique_category", columns={"name", "type", "removed_at"})},
  *     indexes={@ORM\Index(name="category_name_idx", columns={"name"})}),
  * )
  * @ORM\InheritanceType("SINGLE_TABLE")

@@ -76,7 +76,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     protected ?int $id;
 
     /**
@@ -85,7 +85,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\ManyToOne(targetEntity=Account::class, inversedBy="transactions")
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
      */
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     protected ?Account $account;
 
     /**
@@ -95,7 +95,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      *
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     protected float $amount = 0;
 
     /**

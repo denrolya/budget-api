@@ -2,6 +2,12 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Annotation\ApiFilter;
+use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
+use App\ApiPlatform\WithDeletedFilter;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableEntity;
 use App\Traits\TimestampableEntity;
@@ -18,6 +24,34 @@ use Symfony\Component\Serializer\Annotation\Groups;
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\TransferRepository")
  */
+#[ApiResource(
+    collectionOperations: [
+        'get' => [
+            'normalization_context' => ['groups' => 'transfer:collection:read'],
+        ],
+        'post'
+    ],
+    itemOperations: [
+        'get' => [
+            'requirements' => ['id' => '\d+'],
+            'normalization_context' => ['groups' => 'transfer:item:read'],
+        ],
+        'put' => [
+            'requirements' => ['id' => '\d+'],
+        ],
+        'delete' => [
+            'requirements' => ['id' => '\d+'],
+        ],
+    ],
+    denormalizationContext: ['groups' => 'transfer:write'],
+    order: ['executedAt' => 'DESC'],
+    paginationClientItemsPerPage: true,
+    paginationItemsPerPage: 20,
+)]
+#[ApiFilter(DateFilter::class, properties: ['executedAt'])]
+#[ApiFilter(SearchFilter::class, properties: ['note' => 'ipartial', 'account' => 'exact', 'category' => 'exact'])]
+#[ApiFilter(RangeFilter::class, properties: ['amount'])]
+#[ApiFilter(WithDeletedFilter::class)]
 class Transfer implements OwnableInterface
 {
     use TimestampableEntity, OwnableEntity, ExecutableEntity;
@@ -27,21 +61,21 @@ class Transfer implements OwnableInterface
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['transfer:list'])]
+    #[Groups(['transfer:collection:read'])]
     private ?int $id;
 
     /**
      * @ORM\ManyToOne(targetEntity="Account")
      * @ORM\JoinColumn(name="from_id", referencedColumnName="id")
      */
-    #[Groups(['transfer:list'])]
+    #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?Account $from;
 
     /**
      * @ORM\ManyToOne(targetEntity="Account")
      * @ORM\JoinColumn(name="to_id", referencedColumnName="id")
      */
-    #[Groups(['transfer:list'])]
+    #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?Account $to;
 
     /**
@@ -59,37 +93,41 @@ class Transfer implements OwnableInterface
     /**
      * @ORM\Column(type="decimal", precision=15, scale=5)
      */
-    #[Groups(['account:item:read', 'debt:collection:read', 'transfer:list'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transfer:write'])]
     private float $amount;
 
     /**
      * @ORM\Column(type="decimal", precision=15, scale=5, nullable=false)
      */
-    #[Groups(['transfer:list'])]
+    #[Groups(['transfer:collection:read', 'transfer:write'])]
     private float $rate = 0;
 
     /**
      * @ORM\Column(type="decimal", precision=15, scale=5, nullable=false)
      */
+    #[Groups(['transfer:collection:read', 'transfer:write'])]
     private float $fee = 0;
 
     /**
      * @ORM\OneToOne(targetEntity="Expense", cascade={"persist", "remove"}, orphanRemoval=true)
      * @ORM\JoinColumn(name="fee_expense_id", referencedColumnName="id", onDelete="CASCADE")
      */
-    #[Groups(['transfer:list'])]
+    #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?Expense $feeExpense;
+
+    #[Groups(['transfer:write'])]
+    private ?Account $feeAccount;
 
     /**
      * @ORM\Column(type="text", nullable=true)
      */
-    #[Groups(['transfer:list'])]
+    #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?string $note;
 
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['transfer:list'])]
+    #[Groups(['transfer:collection:read', 'transfer:write'])]
     protected ?DateTimeInterface $executedAt;
 
     /**
@@ -186,14 +224,26 @@ class Transfer implements OwnableInterface
         return $this;
     }
 
-    public function getFeeExpense(): Expense
+    public function getFeeExpense(): ?Expense
     {
         return $this->feeExpense;
     }
 
-    public function setFeeExpense(Expense $expense): self
+    public function setFeeExpense(?Expense $expense): self
     {
         $this->feeExpense = $expense;
+
+        return $this;
+    }
+
+    public function getFeeAccount(): ?Account
+    {
+        return $this->feeAccount;
+    }
+
+    public function setFeeAccount(?Account $account): self
+    {
+        $this->feeAccount = $account;
 
         return $this;
     }
@@ -210,7 +260,7 @@ class Transfer implements OwnableInterface
         return $this;
     }
 
-    public function getCanceledAt(): CarbonInterface|DateTimeInterface
+    public function getCanceledAt(): null|CarbonInterface|DateTimeInterface
     {
         if($this->canceledAt instanceof DateTimeInterface) {
             return new CarbonImmutable($this->canceledAt->getTimestamp(), $this->canceledAt->getTimezone());
