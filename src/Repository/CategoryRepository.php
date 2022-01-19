@@ -32,8 +32,9 @@ class CategoryRepository extends ServiceEntityRepository
             $rootCategories = $this->findBy(['root' => null, 'isTechnical' => false]);
             $tree = [];
             foreach($rootCategories as $rootCategory) {
+                $root = !$rootCategory->isRoot() ? $rootCategory->getRoot() : $rootCategory;
                 $tree[] = [
-                    'root' => $rootCategory->getRoot()->getId(),
+                    'root' => $root->getId(),
                     'parent' => !$rootCategory->isRoot() ? $rootCategory->getParent()->getId() : null,
                     'icon' => $rootCategory->getIcon(),
                     'name' => $rootCategory->getName(),

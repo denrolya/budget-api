@@ -3,6 +3,7 @@
 namespace App\Entity;
 
 use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Core\Annotation\ApiSubresource;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
@@ -27,7 +28,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             'normalization_context' => ['groups' => 'debt:collection:read'],
         ],
         'post' => [
-            'normalization_context' => ['groups' => 'debt:write'],
+            'normalization_context' => ['groups' => 'debt:collection:read'],
         ],
     ],
     itemOperations: [
@@ -37,7 +38,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
         ],
         'put' => [
             'requirements' => ['id' => '\d+'],
-            'normalization_context' => ['groups' => 'debt:write'],
+            'normalization_context' => ['groups' => 'debt:collection:read'],
         ],
         'delete' => [
             'requirements' => ['id' => '\d+'],
@@ -74,7 +75,7 @@ class Debt implements OwnableInterface, ValuableInterface
     /**
      * @ORM\Column(type="text", nullable=true)
      */
-    #[Groups(['debt:write'])]
+    #[Groups(['debt:collection:read', 'debt:write'])]
     protected ?string $note;
 
     /**
@@ -98,16 +99,14 @@ class Debt implements OwnableInterface, ValuableInterface
     private float $balance = 0;
 
     /**
-     * @ORM\ManyToMany(targetEntity="Transaction")
-     * @ORM\JoinTable(name="debt_transactions",
-     *      joinColumns={@ORM\JoinColumn(name="debt_id", referencedColumnName="id")},
-     *      inverseJoinColumns={@ORM\JoinColumn(name="transaction_id", referencedColumnName="id", unique=true)},
-     * )
+     * @ORM\OneToMany(targetEntity=Transaction::class, mappedBy="debt")
      */
     #[Groups(['debt:collection:read'])]
+    #[ApiSubresource]
     private ?Collection $transactions;
 
     /**
+     * @var null|DateTimeInterface
      * @ORM\Column(type="datetime", nullable=true)
      */
     #[Groups(['debt:collection:read', 'debt:write'])]
@@ -222,7 +221,7 @@ class Debt implements OwnableInterface, ValuableInterface
         return $this->closedAt;
     }
 
-    public function setClosedAt(?DateTimeInterface $closedAt = null): self
+    public function setClosedAt(?DateTimeInterface $closedAt): self
     {
         $this->closedAt = $closedAt;
 

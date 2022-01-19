@@ -146,7 +146,14 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read'])]
     private bool $isDraft;
 
-    #[Groups(['transaction:collection:read'])]
+    /**
+     * @ORM\ManyToOne(targetEntity=Debt::class, inversedBy="transactions")
+     * @ORM\JoinColumn(name="debt_id", referencedColumnName="id")
+     */
+    #[Groups(['transaction:write'])]
+    private ?Debt $debt;
+
+    #[Groups(['transaction:collection:read', 'debt:collection:read'])]
     abstract public function getType(): string;
 
     #[Pure]
@@ -168,7 +175,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     #[Pure]
     public function getRootCategory(): Category
     {
-        return $this->category->getRoot();
+        return $this->category->isRoot() ? $this->category : $this->category->getRoot();
     }
 
     public function getCurrency(): string
@@ -274,6 +281,18 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     public function setIsDraft(bool $isDraft): self
     {
         $this->isDraft = $isDraft;
+
+        return $this;
+    }
+
+    public function getDebt(): ?Debt
+    {
+        return $this->debt;
+    }
+
+    public function setDebt(?Debt $debt): self
+    {
+        $this->debt = $debt;
 
         return $this;
     }

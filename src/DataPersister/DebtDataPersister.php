@@ -2,30 +2,33 @@
 
 namespace App\DataPersister;
 
-use ApiPlatform\Core\DataPersister\DataPersisterInterface;
+use ApiPlatform\Core\DataPersister\ContextAwareDataPersisterInterface;
 use App\Entity\Debt;
+use App\Entity\TransactionInterface;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
-class DebtDataPersister implements DataPersisterInterface
+class DebtDataPersister implements ContextAwareDataPersisterInterface
 {
     public function __construct(
-        private DataPersisterInterface $decoratedDataPersister,
-        private EntityManagerInterface $em
+        private ContextAwareDataPersisterInterface $decoratedDataPersister,
+        private EntityManagerInterface             $em
     )
     {
     }
 
-    public function supports($data): bool
+    public function supports($data, array $context = []): bool
     {
-        return $data instanceof Debt;
+        return $data instanceof Debt
+            && array_key_exists('item_operation_name', $context)
+            && $context['item_operation_name'] === 'put';
     }
 
     /**
      * @param Debt $data
      */
-    public function persist($data)
+    public function persist($data, array $context = [])
     {
         /** @var Debt $originalData */
         $originalData = $this->em->getUnitOfWork()->getOriginalEntityData($data);
@@ -39,7 +42,7 @@ class DebtDataPersister implements DataPersisterInterface
         return $this->decoratedDataPersister->persist($data);
     }
 
-    public function remove($data): void
+    public function remove($data, array $context = []): void
     {
         $this->decoratedDataPersister->remove($data);
     }

@@ -36,7 +36,7 @@ class Expense extends Transaction
     /**
      * @ORM\OneToMany(targetEntity=Income::class, mappedBy="originalExpense", cascade={"persist"}, fetch="EXTRA_LAZY")
      */
-    #[Groups(['transaction:collection:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'debt:collection:read'])]
     private ?Collection $compensations;
 
     /**
