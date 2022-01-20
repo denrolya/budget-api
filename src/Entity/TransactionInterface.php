@@ -54,4 +54,12 @@ interface TransactionInterface extends ValuableInterface
     public function updateAccountBalance(): void;
 
     public function restoreAccountBalance(): void;
+
+    public function getIsDraft(): bool;
+
+    public function setIsDraft(bool $isDraft): self;
+
+    public function getDebt(): ?Debt;
+
+    public function setDebt(?Debt $debt): self;
 }

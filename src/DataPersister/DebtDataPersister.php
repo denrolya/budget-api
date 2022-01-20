@@ -9,7 +9,7 @@ use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
-class DebtDataPersister implements ContextAwareDataPersisterInterface
+final class DebtDataPersister implements ContextAwareDataPersisterInterface
 {
     public function __construct(
         private ContextAwareDataPersisterInterface $decoratedDataPersister,
