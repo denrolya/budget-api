@@ -8,7 +8,7 @@ use App\Entity\ExchangeRates;
 use App\Service\FixerService;
 use Carbon\CarbonImmutable;
 
-class ExchangeRatesProvider implements DenormalizedIdentifiersAwareItemDataProviderInterface, RestrictedDataProviderInterface
+final class ExchangeRatesProvider implements DenormalizedIdentifiersAwareItemDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private FixerService $fixer,

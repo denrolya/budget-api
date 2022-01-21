@@ -17,11 +17,10 @@ final class TagInputDataTransformer implements DataTransformerInterface
     /**
      * {@inheritdoc}
      */
-    #[Pure]
-    public function transform($data, string $to, array $context = []): object
+    public function transform($object, string $to, array $context = []): object
     {
-        if(!$tag = $this->em->getRepository(CategoryTag::class)->findOneBy(['name' => $data->name])) {
-            $tag = new CategoryTag($data->name);
+        if(!$tag = $this->em->getRepository(CategoryTag::class)->findOneBy(['name' => $object->name])) {
+            $tag = new CategoryTag($object->name);
         }
 
         return $tag;
@@ -32,7 +31,6 @@ final class TagInputDataTransformer implements DataTransformerInterface
      */
     public function supportsTransformation($data, string $to, array $context = []): bool
     {
-        dump($data, $to, $context);
         // in the case of an input, the value given here is an array (the JSON decoded).
         // if it's a book we transformed the data already
         if($data instanceof CategoryTag) {

@@ -1,6 +1,7 @@
 ###> other ###
 .idea
 *.sql
+.DS_Store
 ###< other ###
 
 ###> symfony/framework-bundle ###
