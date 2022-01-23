@@ -8,7 +8,7 @@ use App\Entity\TimespanStatistics;
 use App\Service\AssetsManager;
 use Carbon\CarbonImmutable;
 
-final class IncomeExpenseTotalStatisticsProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class FoodExpensesStatisticsProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private AssetsManager $assetsManager,
@@ -29,12 +29,12 @@ final class IncomeExpenseTotalStatisticsProvider implements ContextAwareCollecti
             $from,
             $to,
             null,
-            $this->assetsManager->generateIncomeExpenseStatistics($from, $to)
+            $this->assetsManager->calculateFoodExpensesWithinPeriod($from, $to, true)
         );
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === TimespanStatistics::class && $operationName === 'incomeExpense';
+        return $resourceClass === TimespanStatistics::class && $operationName === 'foodExpenses';
     }
 }

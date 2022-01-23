@@ -2,14 +2,14 @@
 
 namespace App\DataProvider;
 
-use ApiPlatform\Core\DataProvider\DenormalizedIdentifiersAwareItemDataProviderInterface;
+use ApiPlatform\Core\DataProvider\ContextAwareCollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\TimespanStatistics;
 use App\Service\AssetsManager;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 
-final class MoneyFlowStatisticsProvider implements DenormalizedIdentifiersAwareItemDataProviderInterface, RestrictedDataProviderInterface
+final class MoneyFlowStatisticsProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private AssetsManager $assetsManager,
@@ -19,20 +19,19 @@ final class MoneyFlowStatisticsProvider implements DenormalizedIdentifiersAwareI
 
     // TODO: How to properly use custom resource filters
     // TODO: Get request parameters from, to, timeframe
-    // TODO: Nested array_key_exists???
-    public function getItem(string $resourceClass, $id, string $operationName = null, array $context = []): TimespanStatistics
+    public function getCollection(string $resourceClass, string $operationName = null, array $context = []): iterable
     {
-        $from = CarbonImmutable::now()->startOfYear();
-        $to = CarbonImmutable::now()->endOfYear();
-        $interval = CarbonInterval::createFromDateString('1 month');
-        if(array_key_exists('filters', $context)) {
-            $from = array_key_exists('from', $context['filters']) ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['from']) : $from;
-            $to = array_key_exists('to', $context['filters']) ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['to']) : $to;
-            $interval = array_key_exists('interval', $context['filters']) ? CarbonInterval::createFromDateString($context['filters']['period']) : $interval;
-        }
+        $from = isset($context['filters']['from'])
+            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['from'])
+            : CarbonImmutable::now()->startOfYear();
+        $to = isset($context['filters']['to'])
+            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['to'])
+            : CarbonImmutable::now()->endOfYear();
+        $interval = isset($context['filters']['interval'])
+            ? CarbonInterval::createFromDateString($context['filters']['interval'])
+            : CarbonInterval::createFromDateString('1 month');
 
-        return new TimespanStatistics(
-            $operationName,
+        yield new TimespanStatistics(
             $from,
             $to,
             $interval,

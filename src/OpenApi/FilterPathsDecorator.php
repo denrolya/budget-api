@@ -17,9 +17,11 @@ final class FilterPathsDecorator implements OpenApiFactoryInterface
         '/api/expense-categories/{id}',
 
         '/api/tags/{id}',
-        
+
         '/api/expenses/{id}',
         '/api/incomes/{id}',
+
+        '/api/statistics/{id}'
     ];
 
     public function __construct(private OpenApiFactoryInterface $decorated)

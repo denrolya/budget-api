@@ -5,10 +5,11 @@ namespace App\DataProvider;
 use ApiPlatform\Core\DataProvider\ContextAwareCollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\TimespanStatistics;
+use App\Entity\TransactionInterface;
 use App\Service\AssetsManager;
 use Carbon\CarbonImmutable;
 
-final class IncomeExpenseTotalStatisticsProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class ExpenseCategoriesTreeStatisticsProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private AssetsManager $assetsManager,
@@ -29,12 +30,12 @@ final class IncomeExpenseTotalStatisticsProvider implements ContextAwareCollecti
             $from,
             $to,
             null,
-            $this->assetsManager->generateIncomeExpenseStatistics($from, $to)
+            $this->assetsManager->generateCategoryTreeStatisticsWithinPeriod(TransactionInterface::EXPENSE, $from, $to)
         );
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === TimespanStatistics::class && $operationName === 'incomeExpense';
+        return $resourceClass === TimespanStatistics::class && $operationName === 'expenseCategoriesTree';
     }
 }

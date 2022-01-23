@@ -2,7 +2,6 @@
 
 namespace App\Service;
 
-use App\DTO\CurrentPrevious;
 use App\Entity\Account;
 use App\Entity\Category;
 use App\Entity\ExecutableInterface;
@@ -583,7 +582,7 @@ class AssetsManager
     /**
      * Calculate amount of money spent on food within given period
      */
-    public function calculateFoodExpensesWithinPeriod(CarbonInterface $from, CarbonInterface $to, bool $generateForPreviousPeriod = false): float|CurrentPrevious
+    public function calculateFoodExpensesWithinPeriod(CarbonInterface $from, CarbonInterface $to, bool $generateForPreviousPeriod = false): float|array
     {
         $foodCategories = $this->getTypedCategoriesWithChildren([TransactionInterface::EXPENSE], [ExpenseCategory::CATEGORY_FOOD]);
 
@@ -608,7 +607,10 @@ class AssetsManager
                 )
             );
 
-            return new CurrentPrevious($sumForCurrentPeriod, $sumForPreviousPeriod);
+            return [
+                'current' => $sumForCurrentPeriod,
+                'previous' => $sumForPreviousPeriod,
+            ];
         }
 
         return $sumForCurrentPeriod;
