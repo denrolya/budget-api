@@ -151,7 +151,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\JoinColumn(name="debt_id", referencedColumnName="id")
      */
     #[Groups(['transaction:write'])]
-    private ?Debt $debt;
+    private ?Debt $debt = null;
 
     #[Groups(['transaction:collection:read', 'debt:collection:read'])]
     abstract public function getType(): string;

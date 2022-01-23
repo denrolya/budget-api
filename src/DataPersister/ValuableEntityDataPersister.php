@@ -20,7 +20,14 @@ final class ValuableEntityDataPersister implements DataPersisterInterface
 
     public function persist($data)
     {
-        $this->setConvertedValues($data);
+        $values = $this->fixer->convert(
+            $data->{'get' . ucfirst($data->getValuableField())}(),
+            $data->getCurrency(),
+            $data instanceof ExecutableInterface ? $data->getExecutedAt() : null
+        );
+
+        dump($values, $data);
+        $data->setConvertedValues($values);
 
         return $this->decoratedDataPersister->persist($data);
     }
@@ -28,16 +35,5 @@ final class ValuableEntityDataPersister implements DataPersisterInterface
     public function remove($data): void
     {
         $this->decoratedDataPersister->remove($data);
-    }
-
-    private function setConvertedValues($entity): void
-    {
-        $values = $this->fixer->convert(
-            $entity->{'get' . ucfirst($entity->getValuableField())}(),
-            $entity->getCurrency(),
-            $entity instanceof ExecutableInterface ? $entity->getExecutedAt() : null
-        );
-
-        $entity->setConvertedValues($values);
     }
 }
