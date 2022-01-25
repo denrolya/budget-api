@@ -46,13 +46,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private string $password;
 
     /**
-     * @ORM\Column(name="settings_base_currency", type="string", length=3, nullable=false)
+     * @ORM\Column(name="base_currency", type="string", length=3, nullable=false)
      */
     #[Groups(['user:item:read', 'user:write'])]
     private string $baseCurrency = 'EUR';
 
     /**
-     * @ORM\Column(name="settings_dashboard_statistics", type="json")
+     * @ORM\Column(name="dashboard_statistics", type="json")
      */
     #[Groups(['user:item:read', 'user:write'])]
     private array $dashboardStatistics;
