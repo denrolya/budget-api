@@ -14,13 +14,16 @@ use Doctrine\ORM\EntityManagerInterface;
 final class TransferDataPersister implements DataPersisterInterface
 {
     private ExpenseCategory $expenseTransferCategory;
-    private IncomeCategory $incomeTransferCategory;
-    private ExpenseCategory $feeExpenseCategory;
-    private DataPersisterInterface $decoratedDataPersister;
 
-    public function __construct(EntityManagerInterface $em, DataPersisterInterface $decoratedDataPersister)
+    private IncomeCategory $incomeTransferCategory;
+
+    private ExpenseCategory $feeExpenseCategory;
+
+    private DataPersisterInterface $decorated;
+
+    public function __construct(EntityManagerInterface $em, DataPersisterInterface $decorated)
     {
-        $this->decoratedDataPersister = $decoratedDataPersister;
+        $this->decorated = $decorated;
         $this->expenseTransferCategory = $em->getRepository(ExpenseCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
         ]);
@@ -75,11 +78,11 @@ final class TransferDataPersister implements DataPersisterInterface
             $data->setFeeExpense($feeExpense);
         }
 
-        $this->decoratedDataPersister->persist($data);
+        return $this->decorated->persist($data);
     }
 
     public function remove($data): void
     {
-        $this->decoratedDataPersister->remove($data);
+        $this->decorated->remove($data);
     }
 }

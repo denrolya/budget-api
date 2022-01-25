@@ -16,7 +16,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     collectionOperations: [
         'post' => [
             'path' => '/transactions/income',
-            'normalization_context' => ['groups' => 'transaction:write'],
+            'normalization_context' => ['groups' => 'transaction:collection:read'],
         ],
     ],
     itemOperations: [

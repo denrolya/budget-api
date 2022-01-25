@@ -56,20 +56,24 @@ services:
 
     App\DataPersister\DebtDataPersister:
         bind:
-            $decoratedDataPersister: '@api_platform.doctrine.orm.data_persister'
+            $decorated: '@api_platform.doctrine.orm.data_persister'
 
     App\DataPersister\DebtTransactionDataPersister:
         bind:
-            $decoratedDataPersister: '@api_platform.doctrine.orm.data_persister'
+            $decorated: '@api_platform.doctrine.orm.data_persister'
 
     App\DataPersister\TransferDataPersister:
         bind:
-            $decoratedDataPersister: '@api_platform.doctrine.orm.data_persister'
+            $decorated: '@api_platform.doctrine.orm.data_persister'
 
     App\DataPersister\ValuableEntityDataPersister:
         bind:
-            $decoratedDataPersister: '@api_platform.doctrine.orm.data_persister'
+            $decorated: '@api_platform.doctrine.orm.data_persister'
+
+    App\DataPersister\AccountLogger:
+        bind:
+            $decorated: '@api_platform.doctrine.orm.data_persister'
 
     App\DataPersister\TransactionUpdateDataPersister:
         bind:
-            $decoratedDataPersister: '@api_platform.doctrine.orm.data_persister'
+            $decorated: '@api_platform.doctrine.orm.data_persister'

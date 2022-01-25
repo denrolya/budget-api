@@ -3,13 +3,17 @@
 namespace App\DataPersister;
 
 use ApiPlatform\Core\DataPersister\DataPersisterInterface;
+use ApiPlatform\Core\DataPersister\ResumableDataPersisterInterface;
 use App\Entity\ExecutableInterface;
 use App\Entity\ValuableInterface;
 use App\Service\FixerService;
 
-final class ValuableEntityDataPersister implements DataPersisterInterface
+final class ValuableEntityDataPersister implements DataPersisterInterface, ResumableDataPersisterInterface
 {
-    public function __construct(private FixerService $fixer, private DataPersisterInterface $decoratedDataPersister)
+    public function __construct(
+        private DataPersisterInterface $decorated,
+        private FixerService $fixer
+    )
     {
     }
 
@@ -26,14 +30,18 @@ final class ValuableEntityDataPersister implements DataPersisterInterface
             $data instanceof ExecutableInterface ? $data->getExecutedAt() : null
         );
 
-        dump($values, $data);
         $data->setConvertedValues($values);
 
-        return $this->decoratedDataPersister->persist($data);
+        return $this->decorated->persist($data);
     }
 
     public function remove($data): void
     {
-        $this->decoratedDataPersister->remove($data);
+        $this->decorated->remove($data);
+    }
+
+    public function resumable(array $context = []): bool
+    {
+        return true;
     }
 }

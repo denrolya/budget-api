@@ -4,7 +4,6 @@ namespace App\DataPersister;
 
 use ApiPlatform\Core\DataPersister\ContextAwareDataPersisterInterface;
 use App\Entity\Debt;
-use App\Entity\TransactionInterface;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -12,7 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 final class DebtDataPersister implements ContextAwareDataPersisterInterface
 {
     public function __construct(
-        private ContextAwareDataPersisterInterface $decoratedDataPersister,
+        private ContextAwareDataPersisterInterface $decorated,
         private EntityManagerInterface             $em
     )
     {
@@ -20,9 +19,7 @@ final class DebtDataPersister implements ContextAwareDataPersisterInterface
 
     public function supports($data, array $context = []): bool
     {
-        return $data instanceof Debt
-            && array_key_exists('item_operation_name', $context)
-            && $context['item_operation_name'] === 'put';
+        return $data instanceof Debt && isset($context['previous_data']);
     }
 
     /**
@@ -39,11 +36,11 @@ final class DebtDataPersister implements ContextAwareDataPersisterInterface
             );
         }
 
-        return $this->decoratedDataPersister->persist($data);
+        return $this->decorated->persist($data);
     }
 
     public function remove($data, array $context = []): void
     {
-        $this->decoratedDataPersister->remove($data);
+        $this->decorated->remove($data);
     }
 }

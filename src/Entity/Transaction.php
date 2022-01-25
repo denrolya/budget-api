@@ -67,7 +67,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         'income' => Income::class,
     ],
 ])]
-abstract class Transaction implements TransactionInterface, OwnableInterface, ExecutableInterface
+abstract class Transaction implements TransactionInterface, OwnableInterface, ExecutableInterface, ValuableInterface
 {
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
 

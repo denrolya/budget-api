@@ -2,15 +2,21 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Annotation\ApiResource;
 use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
 use JetBrains\PhpStorm\Pure;
+use JMS\Serializer\Annotation\Groups;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 /**
  * @ORM\Entity(repositoryClass=UserRepository::class)
  */
+#[ApiResource(
+    collectionOperations: [],
+    itemOperations: ['get', 'put'],
+)]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     /**
@@ -18,16 +24,19 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @ORM\GeneratedValue
      * @ORM\Column(type="integer")
      */
+    #[Groups(['user:item:read'])]
     private ?int $id;
 
     /**
      * @ORM\Column(type="string", length=180, unique=true)
      */
+    #[Groups(['user:item:read'])]
     private ?string $username;
 
     /**
      * @ORM\Column(type="json")
      */
+    #[Groups(['user:item:read'])]
     private ?array $roles = [];
 
     /**
@@ -37,14 +46,25 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private string $password;
 
     /**
-     * @ORM\Embedded(class=UserSettings::class)
+     * @ORM\Column(name="settings_base_currency", type="string", length=3, nullable=false)
      */
-    private ?UserSettings $settings;
+    #[Groups(['user:item:read', 'user:write'])]
+    private string $baseCurrency = 'EUR';
+
+    /**
+     * @ORM\Column(name="settings_dashboard_statistics", type="json")
+     */
+    #[Groups(['user:item:read', 'user:write'])]
+    private array $dashboardStatistics;
 
     #[Pure]
     public function __construct()
     {
-        $this->settings = new UserSettings();
+        $this->dashboardStatistics = [
+            'moneyFlow',
+            'expenseCategoriesTree',
+            'shortExpenseForGivenPeriod',
+        ];
     }
 
     public function getId(): ?int
@@ -131,20 +151,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         // $this->plainPassword = null;
     }
 
-    #[Pure]
     public function getBaseCurrency(): string
     {
-        return $this->getSettings()->getBaseCurrency();
+        return $this->baseCurrency;
     }
 
-    public function getSettings(): UserSettings
+    public function setBaseCurrency(string $baseCurrency): self
     {
-        return $this->settings;
+        $this->baseCurrency = $baseCurrency;
+
+        return $this;
     }
 
-    public function setSettings(UserSettings $settings): self
+    public function getDashboardStatistics(): array
     {
-        $this->settings = $settings;
+        return $this->dashboardStatistics;
+    }
+
+    public function setDashboardStatistics(array $dashboardStatistics): self
+    {
+        $this->dashboardStatistics = $dashboardStatistics;
 
         return $this;
     }

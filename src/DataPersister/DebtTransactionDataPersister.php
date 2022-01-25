@@ -2,47 +2,50 @@
 
 namespace App\DataPersister;
 
-use ApiPlatform\Core\DataPersister\ContextAwareDataPersisterInterface;
+use ApiPlatform\Core\DataPersister\DataPersisterInterface;
+use ApiPlatform\Core\DataPersister\ResumableDataPersisterInterface;
 use App\Entity\TransactionInterface;
 use App\Service\AssetsManager;
 
-final class DebtTransactionDataPersister implements ContextAwareDataPersisterInterface
+final class DebtTransactionDataPersister implements DataPersisterInterface, ResumableDataPersisterInterface
 {
     public function __construct(
-        private ContextAwareDataPersisterInterface $decoratedDataPersister,
-        private AssetsManager                      $assetsManager,
+        private DataPersisterInterface $decorated,
+        private AssetsManager          $assetsManager,
     )
     {
     }
 
-    public function supports($data, array $context = []): bool
+    public function supports($data): bool
     {
         return $data instanceof TransactionInterface && $data->getDebt() !== null;
     }
 
     /**
      * @param TransactionInterface $data
-     * @param array $context
-     * @return void
      */
-    public function persist($data, array $context = []): void
+    public function persist($data)
     {
         $debt = $data->getDebt();
         $amount = $this->assetsManager->convert($data)[$debt->getCurrency()];
         $debt->decreaseBalance(($data->isExpense() ? -1 * $amount : $amount));
-        $this->decoratedDataPersister->persist($data);
+
+        return $this->decorated->persist($data);
     }
 
     /**
      * @param TransactionInterface $data
-     * @param array $context
-     * @return void
      */
-    public function remove($data, array $context = []): void
+    public function remove($data): void
     {
         $debt = $data->getDebt();
         $amount = $this->assetsManager->convert($data)[$debt->getCurrency()];
         $debt->increaseBalance(($data->isExpense() ? -1 * $amount : $amount));
-        $this->decoratedDataPersister->remove($data);
+        $this->decorated->remove($data);
+    }
+
+    public function resumable(array $context = []): bool
+    {
+        return true;
     }
 }
