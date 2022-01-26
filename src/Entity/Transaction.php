@@ -38,6 +38,15 @@ use Symfony\Component\Validator\Constraints as Assert;
         'get' => [
             'normalization_context' => ['groups' => 'transaction:collection:read'],
         ],
+        'moneyFlow' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/money-flow',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Money Flow',
+                'description' => 'Generates money flow statistics within given date range and grouped by interval(optional)'
+            ],
+        ],
     ],
     itemOperations: [
         'get' => [
@@ -57,9 +66,8 @@ use Symfony\Component\Validator\Constraints as Assert;
     paginationItemsPerPage: 20,
 )]
 #[ApiFilter(DateFilter::class, properties: ['executedAt'])]
-#[ApiFilter(SearchFilter::class, properties: ['note' => 'ipartial', 'account' => 'exact', 'category' => 'exact'])]
-#[ApiFilter(RangeFilter::class, properties: ['amount'])]
-#[ApiFilter(BooleanFilter::class, properties: ['isDraft'])]
+#[ApiFilter(SearchFilter::class, properties: ['account' => 'exact', 'category' => 'exact'])]
+#[ApiFilter(BooleanFilter::class, properties: ['isDraft', 'category.isAffectingProfit'])]
 #[ApiFilter(WithDeletedFilter::class)]
 #[ApiFilter(IncomeExpenseTypeFilter::class, arguments: [
     'types' => [

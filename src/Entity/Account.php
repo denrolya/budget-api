@@ -133,9 +133,10 @@ class Account implements OwnableInterface, ValuableInterface
     #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:collection:read'])]
     #[ApiProperty(
         attributes: [
-            "openapi_context" => [
-                "type" => "string",
-                "example" => "EUR",
+            'openapi_context' => [
+                'type' => 'string',
+                'enum' => ['EUR', 'UAH', 'USD', 'HUF', 'BTC', 'ETH'],
+                'example' => 'EUR',
             ],
         ],
     )]

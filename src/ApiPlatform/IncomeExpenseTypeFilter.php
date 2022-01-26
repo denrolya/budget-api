@@ -12,7 +12,10 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\PropertyInfo\Type;
 use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 
-class IncomeExpenseTypeFilter extends AbstractFilter
+/**
+ * TODO: Rename to 'DiscriminatorFilter' and accept only one value instead of array
+ */
+final class IncomeExpenseTypeFilter extends AbstractFilter
 {
     private const PROPERTY_NAME = 'types';
 

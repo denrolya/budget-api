@@ -77,3 +77,11 @@ services:
     App\DataPersister\TransactionUpdateDataPersister:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
+
+    App\DataProvider\MoneyFlowStatisticsProvider:
+        bind:
+            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
+
+    App\DataProvider\TransactionCollectionDataProvider:
+        bind:
+            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
