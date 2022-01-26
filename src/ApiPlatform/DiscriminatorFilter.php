@@ -12,16 +12,20 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\PropertyInfo\Type;
 use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 
-/**
- * TODO: Rename to 'DiscriminatorFilter' and accept only one value instead of array
- */
-final class IncomeExpenseTypeFilter extends AbstractFilter
+final class DiscriminatorFilter extends AbstractFilter
 {
-    private const PROPERTY_NAME = 'types';
+    private const PROPERTY_NAME = 'type';
 
     private array $types;
 
-    public function __construct(ManagerRegistry $managerRegistry, ?RequestStack $requestStack = null, LoggerInterface $logger = null, array $properties = null, NameConverterInterface $nameConverter = null, array $types = [])
+    public function __construct(
+        ManagerRegistry        $managerRegistry,
+        ?RequestStack          $requestStack = null,
+        LoggerInterface        $logger = null,
+        array                  $properties = null,
+        NameConverterInterface $nameConverter = null,
+        array                  $types = []
+    )
     {
         parent::__construct($managerRegistry, $requestStack, $logger, $properties, $nameConverter);
 
@@ -47,9 +51,9 @@ final class IncomeExpenseTypeFilter extends AbstractFilter
         $em = $queryBuilder->getEntityManager();
         $alias = $queryBuilder->getRootAliases()[0];
 
-        if(!empty($value) && count($value) === 1) {
+        if(!empty($value)) {
             $queryBuilder->andWhere("$alias INSTANCE OF :type")
-                ->setParameter('type', $em->getClassMetadata($this->types[$value[0]]));
+                ->setParameter('type', $em->getClassMetadata($this->types[$value]));
         }
     }
 
@@ -60,20 +64,18 @@ final class IncomeExpenseTypeFilter extends AbstractFilter
     public function getDescription(string $resourceClass): array
     {
         return [
-            self::PROPERTY_NAME . '[]' => [
+            self::PROPERTY_NAME => [
                 'property' => null,
-                'type' => Type::BUILTIN_TYPE_ARRAY,
+                'type' => Type::BUILTIN_TYPE_STRING,
                 'required' => false,
                 'schema' => [
-                    'type' => Type::BUILTIN_TYPE_ARRAY,
-                    'items' => [
-                        'type' => Type::BUILTIN_TYPE_STRING,
-                    ],
+                    'type' => Type::BUILTIN_TYPE_STRING,
+                    'enum' => array_keys($this->types)
                 ],
                 'openapi' => [
                     'name' => self::PROPERTY_NAME,
-                    'description' => 'This filter toggles the display of soft-deleted elements',
-                    'type' => Type::BUILTIN_TYPE_ARRAY,
+                    'description' => 'Filter by type',
+                    'type' => Type::BUILTIN_TYPE_STRING,
                 ],
             ],
         ];

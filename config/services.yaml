@@ -78,10 +78,14 @@ services:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
 
-    App\DataProvider\MoneyFlowStatisticsProvider:
+    App\DataProvider\TransactionStatisticsSumProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\TransactionCollectionDataProvider:
+    App\DataProvider\TransactionStatisticsAvgProvider:
+        bind:
+            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
+
+    App\DataProvider\TransactionStatisticsMoneyFlowProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'

@@ -8,7 +8,7 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
-use App\ApiPlatform\IncomeExpenseTypeFilter;
+use App\ApiPlatform\DiscriminatorFilter;
 use App\ApiPlatform\WithDeletedFilter;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableValuableEntity;
@@ -47,6 +47,15 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => 'Generates money flow statistics within given date range and grouped by interval(optional)'
             ],
         ],
+        'sum' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/sum',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Sum Transactions',
+                'description' => ''
+            ],
+        ],
     ],
     itemOperations: [
         'get' => [
@@ -69,7 +78,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(SearchFilter::class, properties: ['account' => 'exact', 'category' => 'exact'])]
 #[ApiFilter(BooleanFilter::class, properties: ['isDraft', 'category.isAffectingProfit'])]
 #[ApiFilter(WithDeletedFilter::class)]
-#[ApiFilter(IncomeExpenseTypeFilter::class, arguments: [
+#[ApiFilter(DiscriminatorFilter::class, arguments: [
     'types' => [
         'expense' => Expense::class,
         'income' => Income::class,

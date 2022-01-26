@@ -12,7 +12,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 
-final class MoneyFlowStatisticsProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private AssetsManager                   $assetsManager,
@@ -23,6 +23,7 @@ final class MoneyFlowStatisticsProvider implements ContextAwareCollectionDataPro
 
     public function getCollection(string $resourceClass, string $operationName = null, array $context = []): iterable
     {
+        dump($context);
         $context['filters'] = $context['filters'] ?? [];
         $context['filters']['category.isAffectingProfit'] = true;
         $context['filters']['isDraft'] = false;

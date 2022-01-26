@@ -4,7 +4,7 @@ namespace App\Entity;
 
 use ApiPlatform\Core\Annotation\ApiFilter;
 use ApiPlatform\Core\Annotation\ApiResource;
-use App\ApiPlatform\IncomeExpenseTypeFilter;
+use App\ApiPlatform\DiscriminatorFilter;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -49,7 +49,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     order: ['name' => 'ASC'],
     paginationEnabled: false,
 )]
-#[ApiFilter(IncomeExpenseTypeFilter::class, arguments: [
+#[ApiFilter(DiscriminatorFilter::class, arguments: [
     'types' => [
         'expense' => ExpenseCategory::class,
         'income' => IncomeCategory::class,

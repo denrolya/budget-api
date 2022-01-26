@@ -8,10 +8,7 @@ use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
 use App\Service\AssetsManager;
 
-/**
- * TODO: Adjust Swagger Spec
- */
-final class TransactionCollectionDataProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class TransactionStatisticsSumProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private AssetsManager                   $assetsManager,
@@ -22,16 +19,16 @@ final class TransactionCollectionDataProvider implements ContextAwareCollectionD
 
     public function getCollection(string $resourceClass, string $operationName = null, array $context = []): iterable
     {
-        $query = $this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)->getQuery();
+        $context['filters'] = $context['filters'] ?? [];
+        $context['filters']['isDraft'] = false;
 
-        yield $query->getResult();
         yield $this->assetsManager->sumMixedTransactions(
-            $query->setMaxResults(null)->getResult()
+            (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)
         );
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'get';
+        return $resourceClass === Transaction::class && $operationName === 'sum';
     }
 }
