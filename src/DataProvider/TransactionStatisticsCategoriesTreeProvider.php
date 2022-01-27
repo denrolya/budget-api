@@ -10,6 +10,9 @@ use App\Entity\TransactionInterface;
 use App\Service\AssetsManager;
 use Carbon\CarbonImmutable;
 
+/**
+ * TODO: Optimize
+ */
 final class TransactionStatisticsCategoriesTreeProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(

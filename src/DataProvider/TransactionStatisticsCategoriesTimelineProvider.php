@@ -10,6 +10,9 @@ use App\Service\AssetsManager;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 
+/**
+ * TODO: Implement
+ */
 final class TransactionStatisticsCategoriesTimelineProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
