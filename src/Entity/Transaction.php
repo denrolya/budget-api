@@ -6,7 +6,6 @@ use ApiPlatform\Core\Annotation\ApiFilter;
 use ApiPlatform\Core\Annotation\ApiResource;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
 use App\ApiPlatform\WithDeletedFilter;
@@ -44,7 +43,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             'pagination_enabled' => false,
             'openapi_context' => [
                 'summary' => 'Money Flow',
-                'description' => 'Generates money flow statistics within given date range and grouped by interval(optional)'
+                'description' => 'Generates money flow statistics within given date range and grouped by interval(optional)',
             ],
         ],
         'sum' => [
@@ -53,7 +52,25 @@ use Symfony\Component\Validator\Constraints as Assert;
             'pagination_enabled' => false,
             'openapi_context' => [
                 'summary' => 'Sum Transactions',
-                'description' => ''
+                'description' => '',
+            ],
+        ],
+        'categoriesTree' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/categories-tree',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Categories Tree',
+                'description' => '',
+            ],
+        ],
+        'categoriesTimeline' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/categories-timeline',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Categories Timeline',
+                'description' => '',
             ],
         ],
     ],

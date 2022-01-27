@@ -82,7 +82,11 @@ services:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\TransactionStatisticsAvgProvider:
+    App\DataProvider\TransactionStatisticsCategoriesTimelineProvider:
+        bind:
+            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
+
+    App\DataProvider\TransactionStatisticsCategoriesTreeProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 

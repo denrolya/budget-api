@@ -12,6 +12,9 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 
+/**
+ * TODO: Try group by account/category and subgroup by date(it is grouped by date right now)
+ */
 final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
@@ -23,7 +26,6 @@ final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollec
 
     public function getCollection(string $resourceClass, string $operationName = null, array $context = []): iterable
     {
-        dump($context);
         $context['filters'] = $context['filters'] ?? [];
         $context['filters']['category.isAffectingProfit'] = true;
         $context['filters']['isDraft'] = false;
