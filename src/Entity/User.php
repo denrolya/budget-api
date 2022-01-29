@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
 use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
@@ -25,12 +26,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      * @ORM\Column(type="integer")
      */
     #[Groups(['user:item:read'])]
+    #[ApiProperty(identifier: false)]
     private ?int $id;
 
     /**
      * @ORM\Column(type="string", length=180, unique=true)
      */
     #[Groups(['user:item:read'])]
+    #[ApiProperty(identifier: true)]
     private ?string $username;
 
     /**

@@ -26,10 +26,7 @@ class AuthenticationSubscriber implements EventSubscriberInterface
         $user = $event->getUser();
         $payload = $event->getData();
 
-        $payload['settings'] = [
-            'dashboardStatistics' => $user->getDashboardStatistics(),
-            'baseCurrency' => $user->getBaseCurrency(),
-        ];
+        $payload['baseCurrency'] = $user->getBaseCurrency();
 
         $event->setData($payload);
     }
