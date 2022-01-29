@@ -7,6 +7,7 @@ use ApiPlatform\Core\Annotation\ApiResource;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
+use App\ApiPlatform\CategoryDeepSearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
 use App\ApiPlatform\WithDeletedFilter;
 use App\Traits\ExecutableEntity;
@@ -22,8 +23,6 @@ use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * TODO: Implement <withChildCategories> custom boolean filter
- *
  * @Gedmo\SoftDeleteable(fieldName="canceledAt", timeAware=false, hardDelete=false)
  *
  * @ORM\HasLifecycleCallbacks()
@@ -92,9 +91,10 @@ use Symfony\Component\Validator\Constraints as Assert;
     paginationItemsPerPage: 20,
 )]
 #[ApiFilter(DateFilter::class, properties: ['executedAt'])]
-#[ApiFilter(SearchFilter::class, properties: ['account' => 'exact', 'category' => 'exact'])]
+#[ApiFilter(SearchFilter::class, properties: ['account.id' => 'exact', 'category.id' => 'exact'])]
 #[ApiFilter(BooleanFilter::class, properties: ['isDraft', 'category.isAffectingProfit'])]
 #[ApiFilter(WithDeletedFilter::class)]
+#[ApiFilter(CategoryDeepSearchFilter::class)]
 #[ApiFilter(DiscriminatorFilter::class, arguments: [
     'types' => [
         'expense' => Expense::class,

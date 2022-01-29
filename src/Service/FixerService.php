@@ -2,7 +2,7 @@
 
 namespace App\Service;
 
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use JetBrains\PhpStorm\ArrayShape;
 use Psr\Cache\InvalidArgumentException;
@@ -11,7 +11,7 @@ use Symfony\Component\Security\Core\Security;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-class FixerService
+final class FixerService
 {
     private const BASE_URL = 'https://data.fixer.io/api/';
     private const MONTH_IN_SECONDS = 2678400;
@@ -111,7 +111,7 @@ class FixerService
      */
     public function getLatest(): array
     {
-        $now = Carbon::now();
+        $now = CarbonImmutable::now();
         $dateString = $now->toDateString();
         $requestParams = $this->getRequestParams();
         $client = $this->client;
@@ -154,7 +154,7 @@ class FixerService
      */
     public function getRates(?CarbonInterface $date = null): array
     {
-        return (!$date || $date->month === Carbon::now()->month)
+        return (!$date || $date->month === CarbonImmutable::now()->month)
             ? $this->getLatest()
             : $this->getHistorical($date->endOfMonth());
     }

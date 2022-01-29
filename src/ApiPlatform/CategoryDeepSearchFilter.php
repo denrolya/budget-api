@@ -4,6 +4,8 @@ namespace App\ApiPlatform;
 
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\AbstractFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use App\Entity\Category;
+use App\Service\AssetsManager;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use JetBrains\PhpStorm\ArrayShape;
@@ -12,24 +14,27 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\PropertyInfo\Type;
 use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 
-final class DiscriminatorFilter extends AbstractFilter
+/**
+ * TODO: Document properly
+ */
+final class CategoryDeepSearchFilter extends AbstractFilter
 {
-    private const PROPERTY_NAME = 'type';
+    private const PROPERTY_NAME = 'category_deep';
 
-    private array $types;
+    private AssetsManager $assetsManager;
 
     public function __construct(
+        AssetsManager          $assetsManager,
         ManagerRegistry        $managerRegistry,
         ?RequestStack          $requestStack = null,
         LoggerInterface        $logger = null,
         array                  $properties = null,
         NameConverterInterface $nameConverter = null,
-        array                  $types = []
     )
     {
         parent::__construct($managerRegistry, $requestStack, $logger, $properties, $nameConverter);
 
-        $this->types = $types;
+        $this->assetsManager = $assetsManager;
     }
 
     /**
@@ -48,34 +53,48 @@ final class DiscriminatorFilter extends AbstractFilter
             return;
         }
 
-        $em = $queryBuilder->getEntityManager();
-        $alias = $queryBuilder->getRootAliases()[0];
-
         if(!empty($value)) {
-            $queryBuilder->andWhere("$alias INSTANCE OF :type")
-                ->setParameter('type', $em->getClassMetadata($this->types[$value]));
+            $categories = [];
+            foreach($value as $categoryId) {
+                $em = $queryBuilder->getEntityManager();
+                if(!$category = $em->getRepository(Category::class)->find($categoryId)) {
+                    continue;
+                }
+                $categories = [...$category->getDescendantsFlat()];
+            }
+
+            $alias = $queryBuilder->getRootAliases()[0];
+
+            if(!empty($categories)) {
+                $queryBuilder->andWhere("$alias.category IN (:categories)")
+                    ->setParameter('categories', array_map(static function (Category $category) {
+                        return $category->getId();
+                    }, $categories));
+            }
         }
     }
 
     /**
      * @inheritDoc
      */
-    #[ArrayShape([self::PROPERTY_NAME => "array"])]
+    #[ArrayShape([self::PROPERTY_NAME => 'array'])]
     public function getDescription(string $resourceClass): array
     {
         return [
-            self::PROPERTY_NAME => [
+            self::PROPERTY_NAME . '[]' => [
                 'property' => null,
-                'type' => Type::BUILTIN_TYPE_STRING,
+                'type' => Type::BUILTIN_TYPE_ARRAY,
                 'required' => false,
                 'schema' => [
-                    'type' => Type::BUILTIN_TYPE_STRING,
-                    'enum' => array_keys($this->types),
+                    'type' => Type::BUILTIN_TYPE_ARRAY,
+                    'items' => [
+                        'type' => Type::BUILTIN_TYPE_INT,
+                    ],
                 ],
                 'openapi' => [
                     'name' => self::PROPERTY_NAME,
-                    'description' => 'Filter by type',
-                    'type' => Type::BUILTIN_TYPE_STRING,
+                    'description' => 'Filter by categories and theirs descendants',
+                    'type' => Type::BUILTIN_TYPE_ARRAY,
                 ],
             ],
         ];
