@@ -289,25 +289,27 @@ class AssetsManager
      * Using the structure provided by ExpenseCategoryRepository::generateCategoryTree
      * calculate transaction values within given categories
      */
-    public function generateCategoryTreeStatisticsWithinPeriod(string $type, CarbonInterface $from, CarbonInterface $to, ?Account $account = null): array
+    public function generateCategoryTreeStatisticsWithinPeriod(string $type, array $transactions): array
     {
-        $repo = $type === TransactionInterface::INCOME
-            ? $this->em->getRepository(IncomeCategory::class)
-            : $this->em->getRepository(ExpenseCategory::class);
+        // fetch all transactions once & pass them
+        $repo = $this->em->getRepository(
+            $type === TransactionInterface::INCOME
+                ? IncomeCategory::class
+                : ExpenseCategory::class
+        );
 
         $tree = $repo->generateCategoryTree();
 
         foreach($tree as $rootCategory) {
-            $transactions = $this->generateTransactionList(
-                $from,
-                $to,
-                [$type],
-                [$rootCategory['name']],
-                $account ? [$account->getName()] : []
-            );
+            $categoryTransactions = array_filter($transactions, static function (TransactionInterface $transaction) use ($rootCategory) {
+                return $transaction->getRootCategory()->getId() === $rootCategory['id'];
+            });
 
-            foreach($transactions as $transaction) {
-                $this->updateValueInCategoryTree($tree, $transaction->getCategory()->getName(), $transaction->getValue());
+            foreach($categoryTransactions as $transaction) {
+                $this->updateValueInCategoryTree(
+                    $tree,
+                    $transaction->getCategory()->getName(),
+                    $transaction->getConvertedValue());
             }
         }
 
@@ -632,7 +634,7 @@ class AssetsManager
         return round($amount, $precision);
     }
 
-    public function sumMixedTransactions(array $transactions): float
+    public function sumMixedTransactions(array $transactions, ?string $currency = null): float
     {
         return array_reduce($transactions, static function ($carry, TransactionInterface $transaction) {
             return $carry + ($transaction->getValue() * ($transaction->isExpense() ? -1 : 1));
@@ -739,7 +741,7 @@ class AssetsManager
     {
         foreach($haystack as &$child) {
             if($child['name'] === $needle) {
-                $child['value'] = array_key_exists('value', $child) ? $child['value'] + $value : $value;
+                $child['value'] = isset($child['value']) ? $child['value'] + $value : $value;
             } elseif(!empty($child['children'])) {
                 $this->updateValueInCategoryTree($child['children'], $needle, $value);
             }
@@ -754,14 +756,14 @@ class AssetsManager
     {
         foreach($haystack as &$child) {
             if(empty($child['children'])) {
-                $child['total'] = array_key_exists('value', $child) ? $child['value'] : 0;
+                $child['total'] = isset($child['value']) ? $child['value'] : 0;
             } else {
                 $this->calculateTotalCategoryValueInCategoryTree($child['children']);
 
                 $childrenTotal = array_reduce($child['children'], static function (float $carry, array $el) {
-                    return array_key_exists('total', $el) ? $carry + $el['total'] : $carry;
+                    return isset($el['total']) ? $carry + $el['total'] : $carry;
                 }, 0);
-                $child['total'] = array_key_exists('value', $child) ? $child['value'] + $childrenTotal : $childrenTotal;
+                $child['total'] = isset($child['value']) ? $child['value'] + $childrenTotal : $childrenTotal;
             }
         }
     }

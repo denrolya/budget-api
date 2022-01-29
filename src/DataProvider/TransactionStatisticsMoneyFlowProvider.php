@@ -31,20 +31,18 @@ final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollec
         $context['filters']['isDraft'] = false;
 
         $from = isset($context['filters']['executedAt']['after'])
-            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['after'])
-            : CarbonImmutable::now()->startOfYear();
+            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['after'])->startOfDay()
+            : CarbonImmutable::now()->startOfYear()->startOfDay();
         $to = isset($context['filters']['executedAt']['before'])
-            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['before'])
-            : CarbonImmutable::now()->endOfYear();
+            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['before'])->endOfDay()
+            : CarbonImmutable::now()->endOfYear()->endOfDay();
         $interval = isset($context['filters']['interval'])
             ? CarbonInterval::createFromDateString($context['filters']['interval'])
             : CarbonInterval::createFromDateString('1 month');
 
-        $transactions = $this->collectionDataProvider->getCollection($resourceClass, $operationName, $context);
-
         yield $this->generateMoneyFlowStatistics(
             new CarbonPeriod($from, $interval, $to),
-            (array)$transactions
+            (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)
         );
     }
 

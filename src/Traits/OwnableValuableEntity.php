@@ -35,13 +35,12 @@ trait OwnableValuableEntity
         return $this;
     }
 
-    #[Groups(['account:collection:read'])]
     public function getValue(): float
     {
         return $this->convertedValues[$this->getOwner()->getBaseCurrency()];
     }
 
-    public function getConvertedValue(?string $currencyCode): float
+    public function getConvertedValue(?string $currencyCode = null): float
     {
         return $this->convertedValues[is_null($currencyCode) ? $this->getOwner()->getBaseCurrency() : $currencyCode];
     }

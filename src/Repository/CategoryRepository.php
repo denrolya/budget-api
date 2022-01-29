@@ -34,6 +34,7 @@ class CategoryRepository extends ServiceEntityRepository
             foreach($rootCategories as $rootCategory) {
                 $root = !$rootCategory->isRoot() ? $rootCategory->getRoot() : $rootCategory;
                 $tree[] = [
+                    'id' => $rootCategory->getId(),
                     'root' => $root->getId(),
                     'parent' => !$rootCategory->isRoot() ? $rootCategory->getParent()->getId() : null,
                     'icon' => $rootCategory->getIcon(),

@@ -8,11 +8,7 @@ use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Service\AssetsManager;
-use Carbon\CarbonImmutable;
 
-/**
- * TODO: utilize CollectionDataProvider & optimize usage
- */
 final class TransactionStatisticsCategoriesTreeProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
@@ -26,14 +22,12 @@ final class TransactionStatisticsCategoriesTreeProvider implements ContextAwareC
     {
         $context['filters'] = $context['filters'] ?? [];
         $context['filters']['type'] = $context['filters']['type'] ?? TransactionInterface::EXPENSE;
-        $from = isset($context['filters']['executedAt']['after'])
-            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['after'])
-            : CarbonImmutable::now()->startOfYear();
-        $to = isset($context['filters']['executedAt']['before'])
-            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['before'])
-            : CarbonImmutable::now()->endOfYear();
+        $context['filters']['isDraft'] = false;
 
-        yield $this->assetsManager->generateCategoryTreeStatisticsWithinPeriod($context['filters']['type'] ?? TransactionInterface::EXPENSE, $from, $to);
+        yield $this->assetsManager->generateCategoryTreeStatisticsWithinPeriod(
+            $context['filters']['type'] ?? TransactionInterface::EXPENSE,
+            (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)
+        );
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
