@@ -60,7 +60,7 @@ final class CategoryDeepSearchFilter extends AbstractFilter
                 if(!$category = $em->getRepository(Category::class)->find($categoryId)) {
                     continue;
                 }
-                $categories = [...$category->getDescendantsFlat()];
+                $categories = [...$categories, ...$category->getDescendantsFlat()];
             }
 
             $alias = $queryBuilder->getRootAliases()[0];
