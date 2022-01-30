@@ -7,12 +7,12 @@ use ApiPlatform\Core\DataProvider\ContextAwareCollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
-use App\Service\AssetsManager;
+use App\Service\StatisticsManager;
 
 final class TransactionStatisticsCategoriesTreeProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
-        private AssetsManager                   $assetsManager,
+        private StatisticsManager               $statisticsManager,
         private CollectionDataProviderInterface $collectionDataProvider,
     )
     {
@@ -24,7 +24,7 @@ final class TransactionStatisticsCategoriesTreeProvider implements ContextAwareC
         $context['filters']['type'] = $context['filters']['type'] ?? TransactionInterface::EXPENSE;
         $context['filters']['isDraft'] = false;
 
-        yield $this->assetsManager->generateCategoryTreeStatisticsWithinPeriod(
+        yield $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
             $context['filters']['type'] ?? TransactionInterface::EXPENSE,
             (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)
         );

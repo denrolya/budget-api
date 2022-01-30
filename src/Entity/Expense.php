@@ -72,7 +72,7 @@ class Expense extends Transaction
             return $value;
         }
 
-        $this->compensations->map(function (Income $compensation) use (&$value, $currencyCode) {
+        $this->compensations->map(static function (Income $compensation) use (&$value, $currencyCode) {
             $value -= $compensation->getConvertedValue($currencyCode);
         });
 

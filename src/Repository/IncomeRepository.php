@@ -22,7 +22,7 @@ class IncomeRepository extends TransactionRepository
 
     public function findWithinPeriod(CarbonInterface $from, ?CarbonInterface $to = null, ?int $limit = null, bool $affectingProfitOnly = true, array $categories = [], array $excludedCategories = []): array
     {
-        $qb = $this->getBaseQueryBuilder($from, $to, $affectingProfitOnly, [TransactionInterface::INCOME], [], $categories, $excludedCategories);
+        $qb = $this->getBaseQueryBuilder($from, $to, $affectingProfitOnly, TransactionInterface::INCOME, [], $categories, $excludedCategories);
 
         return $qb->getQuery()->getResult();
     }

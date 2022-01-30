@@ -5,7 +5,6 @@ namespace App\Repository;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\TransactionInterface;
-use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -28,7 +27,7 @@ class ExpenseRepository extends TransactionRepository
             null,
             null,
             true,
-            [TransactionInterface::EXPENSE],
+            TransactionInterface::EXPENSE,
             [],
             $categories
         );
@@ -36,14 +35,14 @@ class ExpenseRepository extends TransactionRepository
         return $qb->getQuery()->getResult();
     }
 
-    public function getOnGivenDay(Carbon $day): array
+    public function getOnGivenDay(CarbonInterface $day): array
     {
         return $this->findWithinPeriod($day, $day, true, [], [ExpenseCategory::CATEGORY_RENT]);
     }
 
     public function findWithinPeriod(CarbonInterface $from, ?CarbonInterface $to = null, bool $affectingProfitOnly = true, array $categories = [], array $excludedCategories = []): array
     {
-        $qb = $this->getBaseQueryBuilder($from, $to, $affectingProfitOnly, [TransactionInterface::EXPENSE], $categories, [], $excludedCategories);
+        $qb = $this->getBaseQueryBuilder($from, $to, $affectingProfitOnly, TransactionInterface::EXPENSE, $categories, [], $excludedCategories);
 
         return $qb->getQuery()->getResult();
     }

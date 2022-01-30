@@ -8,6 +8,7 @@ use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Account;
 use App\Entity\TransactionInterface;
 use App\Service\AssetsManager;
+use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
 
 /**
@@ -16,7 +17,8 @@ use Carbon\CarbonImmutable;
 final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
-        private AssetsManager $assetsManager,
+        private AssetsManager             $assetsManager,
+        private StatisticsManager         $statisticsManager,
         private ItemDataProviderInterface $itemDataProvider
     )
     {
@@ -27,27 +29,26 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
         /** @var Account $account */
         $account = $this->itemDataProvider->getItem($resourceClass, $id, $operationName, $context);
 
-        if (!$account) {
+        if(!$account) {
             return null;
         }
         $startOfDecade = (new CarbonImmutable())->startOfDecade();
         $endOfDecade = (new CarbonImmutable())->endOfDecade();
 
+        $expenses = $this->assetsManager->generateExpenseTransactionList($startOfDecade, $endOfDecade, null, [$account]);
+        $incomes = $this->assetsManager->generateIncomeTransactionList($startOfDecade, $endOfDecade, null, [$account]);
+
         $account->setTopExpenseCategories(
-            $this->assetsManager->generateCategoryTreeStatisticsWithinPeriod(
+            $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
                 TransactionInterface::EXPENSE,
-                $startOfDecade,
-                $endOfDecade,
-                $account
+                $expenses
             )
         );
 
         $account->setTopIncomeCategories(
-            $this->assetsManager->generateCategoryTreeStatisticsWithinPeriod(
+            $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
                 TransactionInterface::INCOME,
-                $startOfDecade,
-                $endOfDecade,
-                $account
+                $incomes
             )
         );
 

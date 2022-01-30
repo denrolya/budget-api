@@ -12,7 +12,7 @@ final class ValuableEntityDataPersister implements DataPersisterInterface, Resum
 {
     public function __construct(
         private DataPersisterInterface $decorated,
-        private FixerService $fixer
+        private FixerService           $fixer
     )
     {
     }

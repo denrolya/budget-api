@@ -7,15 +7,17 @@ use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\ExchangeRates;
 use App\Service\FixerService;
 use Carbon\CarbonImmutable;
+use Psr\Cache\InvalidArgumentException;
 
 final class ExchangeRatesProvider implements DenormalizedIdentifiersAwareItemDataProviderInterface, RestrictedDataProviderInterface
 {
-    public function __construct(
-        private FixerService $fixer,
-    )
+    public function __construct(private FixerService $fixer)
     {
     }
 
+    /**
+     * @throws InvalidArgumentException
+     */
     public function getItem(string $resourceClass, $id, string $operationName = null, array $context = []): ?object
     {
         $date = CarbonImmutable::createFromFormat('d-m-Y', $id['dateString']);

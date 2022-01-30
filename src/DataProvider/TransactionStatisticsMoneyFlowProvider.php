@@ -8,6 +8,7 @@ use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Service\AssetsManager;
+use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
@@ -19,6 +20,7 @@ final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollec
 {
     public function __construct(
         private AssetsManager                   $assetsManager,
+        private StatisticsManager               $statisticsManager,
         private CollectionDataProviderInterface $collectionDataProvider,
     )
     {
@@ -46,13 +48,8 @@ final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollec
         );
     }
 
-    public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
-    {
-        return $resourceClass === Transaction::class && $operationName === 'moneyFlow';
-    }
-
     /**
-     * TODO: Move to AssetsManager and replace existing methods
+     * TODO: Move to StatisticsManager and replace existing methods
      */
     private function generateMoneyFlowStatistics(CarbonPeriod $period, array $transactions): array
     {
@@ -80,5 +77,10 @@ final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollec
         }
 
         return $result;
+    }
+
+    public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
+    {
+        return $resourceClass === Transaction::class && $operationName === 'moneyFlow';
     }
 }

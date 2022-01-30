@@ -5,7 +5,6 @@ namespace App\DataTransformer;
 use ApiPlatform\Core\DataTransformer\DataTransformerInterface;
 use App\Entity\CategoryTag;
 use Doctrine\ORM\EntityManagerInterface;
-use JetBrains\PhpStorm\Pure;
 
 final class TagInputDataTransformer implements DataTransformerInterface
 {

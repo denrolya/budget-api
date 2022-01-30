@@ -4,12 +4,12 @@ namespace App\DataPersister;
 
 use ApiPlatform\Core\DataPersister\ContextAwareDataPersisterInterface;
 use ApiPlatform\Core\DataPersister\ResumableDataPersisterInterface;
+use App\Entity\Account;
 use App\Entity\AccountLogEntry;
 use App\Entity\Expense;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Service\FixerService;
-use App\Entity\Account;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -17,8 +17,8 @@ final class AccountLogger implements ContextAwareDataPersisterInterface, Resumab
 {
     public function __construct(
         private ContextAwareDataPersisterInterface $decorated,
-        private EntityManagerInterface $em,
-        private FixerService $fixer
+        private EntityManagerInterface             $em,
+        private FixerService                       $fixer
     )
     {
     }
@@ -32,33 +32,13 @@ final class AccountLogger implements ContextAwareDataPersisterInterface, Resumab
     {
         $result = $this->decorated->persist($data);
 
-        if (isset($context['previous_data'])) {
+        if(isset($context['previous_data'])) {
             $this->onUpdate($data);
         } else {
             $this->onPersist($data);
         }
 
         return $result;
-    }
-
-    public function remove($data, array $context = []): void
-    {
-        $this->decorated->remove($data);
-
-        $this->onRemove($data);
-    }
-
-    public function resumable(array $context = []): bool
-    {
-        return true;
-    }
-
-    private function onPersist(TransactionInterface $transaction): void
-    {
-        $this->rebuildLogs(
-            $transaction->getAccount(),
-            $transaction->getExecutedAt(),
-        );
     }
 
     /**
@@ -96,15 +76,6 @@ final class AccountLogger implements ContextAwareDataPersisterInterface, Resumab
                 $executionDate,
             );
         }
-    }
-
-    private function onRemove(TransactionInterface $transaction): void
-    {
-        $account = $transaction->getAccount();
-        $executionDate = $transaction->getExecutedAt();
-
-        $this->removeAccountLogsAfterDate($account, $executionDate);
-        $this->recreateLogs($account, $transaction->getId());
     }
 
     private function rebuildLogs(Account $account, DateTimeInterface $executionDate): void
@@ -158,30 +129,6 @@ final class AccountLogger implements ContextAwareDataPersisterInterface, Resumab
         $this->em->flush();
     }
 
-    private function createAccountLogFromTransaction(TransactionInterface $transaction, $balance): AccountLogEntry
-    {
-        $account = $transaction->getAccount();
-
-        $convertedValues = $this->fixer->convert(
-            $balance,
-            $account->getCurrency(),
-            $transaction->getExecutedAt(),
-        );
-
-        $log = new AccountLogEntry(
-            $account,
-            $balance,
-            $convertedValues,
-            $transaction->getExecutedAt()
-        );
-        $account->addLog($log);
-
-        $this->em->persist($log);
-        $this->em->flush();
-
-        return $log;
-    }
-
     private function eliminateDuplicates(array $transactions): array
     {
         $result = [];
@@ -224,5 +171,58 @@ final class AccountLogger implements ContextAwareDataPersisterInterface, Resumab
         });
 
         return $result;
+    }
+
+    private function createAccountLogFromTransaction(TransactionInterface $transaction, $balance): AccountLogEntry
+    {
+        $account = $transaction->getAccount();
+
+        $convertedValues = $this->fixer->convert(
+            $balance,
+            $account->getCurrency(),
+            $transaction->getExecutedAt(),
+        );
+
+        $log = new AccountLogEntry(
+            $account,
+            $balance,
+            $convertedValues,
+            $transaction->getExecutedAt()
+        );
+        $account->addLog($log);
+
+        $this->em->persist($log);
+        $this->em->flush();
+
+        return $log;
+    }
+
+    private function onPersist(TransactionInterface $transaction): void
+    {
+        $this->rebuildLogs(
+            $transaction->getAccount(),
+            $transaction->getExecutedAt(),
+        );
+    }
+
+    public function remove($data, array $context = []): void
+    {
+        $this->decorated->remove($data);
+
+        $this->onRemove($data);
+    }
+
+    private function onRemove(TransactionInterface $transaction): void
+    {
+        $account = $transaction->getAccount();
+        $executionDate = $transaction->getExecutedAt();
+
+        $this->removeAccountLogsAfterDate($account, $executionDate);
+        $this->recreateLogs($account, $transaction->getId());
+    }
+
+    public function resumable(array $context = []): bool
+    {
+        return true;
     }
 }

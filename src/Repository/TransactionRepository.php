@@ -35,7 +35,7 @@ class TransactionRepository extends ServiceEntityRepository
         ?CarbonInterface $from,
         ?CarbonInterface $to,
         bool             $affectingProfitOnly = false,
-        ?array           $types = [],
+        ?string          $type = null,
         ?array           $categories = [],
         ?array           $accounts = [],
         ?array           $excludedCategories = [],
@@ -46,7 +46,7 @@ class TransactionRepository extends ServiceEntityRepository
         string           $order = self::ORDER
     ): Paginator
     {
-        $qb = $this->getBaseQueryBuilder($from, $to, $affectingProfitOnly, $types, $categories, $accounts, $excludedCategories, $onlyDrafts, $orderField, $order);
+        $qb = $this->getBaseQueryBuilder($from, $to, $affectingProfitOnly, $type, $categories, $accounts, $excludedCategories, $onlyDrafts, $orderField, $order);
 
         return (new Paginator($qb, $limit))->paginate(($offset / $limit) + 1);
     }
@@ -55,7 +55,7 @@ class TransactionRepository extends ServiceEntityRepository
         ?CarbonInterface $from,
         ?CarbonInterface $to,
         bool             $affectingProfitOnly = false,
-        ?array           $types = [],
+        ?string          $type = null,
         ?array           $categories = [],
         ?array           $accounts = [],
         ?array           $excludedCategories = [],
@@ -86,19 +86,16 @@ class TransactionRepository extends ServiceEntityRepository
                 ->setParameter('to', $to->toDateString());
         }
 
-        if(!empty($types) && count($types) === 1) {
-            if(in_array(TransactionInterface::EXPENSE, $types)) {
-                $qb->andWhere('t INSTANCE OF :expenseType')
-                    ->setParameter('expenseType', $this->getEntityManager()->getClassMetadata(Expense::class));
-            } elseif(in_array(TransactionInterface::INCOME, $types)) {
-                $qb->andWhere('t INSTANCE OF :incomeType')
-                    ->setParameter('incomeType', $this->getEntityManager()->getClassMetadata(Income::class));
-            }
+        if($type === TransactionInterface::EXPENSE) {
+            $qb->andWhere('t INSTANCE OF :type')
+                ->setParameter('type', $this->getEntityManager()->getClassMetadata(Expense::class));
+        } elseif($type === TransactionInterface::INCOME) {
+            $qb->andWhere('t INSTANCE OF :type')
+                ->setParameter('type', $this->getEntityManager()->getClassMetadata(Income::class));
         }
 
         if(!empty($accounts)) {
-            $qb->leftJoin('t.account', 'a')
-                ->andWhere('a.name IN (:accounts)')
+            $qb->andWhere('t.account IN (:accounts)')
                 ->setParameter('accounts', $accounts);
         }
 

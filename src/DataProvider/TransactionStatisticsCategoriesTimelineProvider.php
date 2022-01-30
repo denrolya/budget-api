@@ -7,6 +7,7 @@ use ApiPlatform\Core\DataProvider\ContextAwareCollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
 use App\Service\AssetsManager;
+use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 
@@ -17,6 +18,7 @@ final class TransactionStatisticsCategoriesTimelineProvider implements ContextAw
 {
     public function __construct(
         private AssetsManager                   $assetsManager,
+        private StatisticsManager               $statisticsManager,
         private CollectionDataProviderInterface $collectionDataProvider,
     )
     {
@@ -191,7 +193,7 @@ final class TransactionStatisticsCategoriesTimelineProvider implements ContextAw
                     "value" => 4562.2,
                 ],
             ],
-        ];;
+        ];
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
