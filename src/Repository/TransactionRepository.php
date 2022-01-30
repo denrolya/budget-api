@@ -10,6 +10,7 @@ use App\Entity\TransactionInterface;
 use App\Pagination\Paginator;
 use Carbon\CarbonInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -31,6 +32,36 @@ class TransactionRepository extends ServiceEntityRepository
         parent::__construct($registry, $class);
     }
 
+    public function getList(
+        ?CarbonInterface $from,
+        ?CarbonInterface $to,
+        ?string          $type = null,
+        ?array           $categories = [],
+        ?array           $accounts = [],
+        ?array           $excludedCategories = [],
+        bool             $affectingProfitOnly = true,
+        bool             $onlyDrafts = false,
+        string           $orderField = self::ORDER_FIELD,
+        string           $order = self::ORDER
+    ): Collection
+    {
+        return $this
+            ->getBaseQueryBuilder(
+                $from,
+                $to,
+                $affectingProfitOnly,
+                $type,
+                $categories,
+                $accounts,
+                $excludedCategories,
+                $onlyDrafts,
+                $orderField,
+                $order
+            )
+            ->getQuery()
+            ->getResult();
+    }
+
     public function getPaginator(
         ?CarbonInterface $from,
         ?CarbonInterface $to,
@@ -49,6 +80,64 @@ class TransactionRepository extends ServiceEntityRepository
         $qb = $this->getBaseQueryBuilder($from, $to, $affectingProfitOnly, $type, $categories, $accounts, $excludedCategories, $onlyDrafts, $orderField, $order);
 
         return (new Paginator($qb, $limit))->paginate(($offset / $limit) + 1);
+    }
+
+    public function findWithinPeriodByAccount(Account $account, CarbonInterface $from, ?CarbonInterface $to = null): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->leftJoin('t.account', 'a')
+            ->andWhere('DATE(t.executedAt) >= :from')
+            ->andWhere('a.id = :account')
+            ->setParameter('from', $from->toDateString())
+            ->setParameter('account', $account->getId());
+
+        if($to) {
+            $qb
+                ->andWhere('DATE(t.executedAt) <= :to')
+                ->setParameter('to', $to->toDateString());
+        }
+
+        return $qb
+            ->orderBy('t.' . self::ORDER_FIELD, 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findWithinPeriod(CarbonInterface $from, ?CarbonInterface $to = null): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('DATE(t.executedAt) >= :from')
+            ->setParameter('from', $from->toDateString());
+
+        if($to) {
+            $qb
+                ->andWhere('DATE(t.executedAt) <= :to')
+                ->setParameter('to', $to->toDateString());
+        }
+
+        return $qb
+            ->orderBy('t.' . self::ORDER_FIELD, self::ORDER)
+            ->getQuery()
+            ->getResult();
+    }
+
+    public function findBeforeLastLog(Account $account): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->leftJoin('t.account', 'a')
+            ->where('a.id = :account')
+            ->andWhere('t.canceledAt IS NULL')
+            ->setParameter('account', $account)
+            ->orderBy('t.executedAt', 'DESC');
+
+        if($lastLogEntry = $account->getLatestLogEntry()) {
+            $qb
+                ->andWhere('t.executedAt > :date')
+                ->setParameter('date', $lastLogEntry->getCreatedAt()->toDateTimeString());
+        }
+
+
+        return $qb->getQuery()->getResult();
     }
 
     protected function getBaseQueryBuilder(
@@ -110,63 +199,5 @@ class TransactionRepository extends ServiceEntityRepository
         }
 
         return $qb;
-    }
-
-    public function findWithinPeriodByAccount(Account $account, CarbonInterface $from, ?CarbonInterface $to = null): array
-    {
-        $qb = $this->createQueryBuilder('t')
-            ->leftJoin('t.account', 'a')
-            ->andWhere('DATE(t.executedAt) >= :from')
-            ->andWhere('a.id = :account')
-            ->setParameter('from', $from->toDateString())
-            ->setParameter('account', $account->getId());
-
-        if($to) {
-            $qb
-                ->andWhere('DATE(t.executedAt) <= :to')
-                ->setParameter('to', $to->toDateString());
-        }
-
-        return $qb
-            ->orderBy('t.' . self::ORDER_FIELD, 'ASC')
-            ->getQuery()
-            ->getResult();
-    }
-
-    public function findWithinPeriod(CarbonInterface $from, ?CarbonInterface $to = null): array
-    {
-        $qb = $this->createQueryBuilder('t')
-            ->andWhere('DATE(t.executedAt) >= :from')
-            ->setParameter('from', $from->toDateString());
-
-        if($to) {
-            $qb
-                ->andWhere('DATE(t.executedAt) <= :to')
-                ->setParameter('to', $to->toDateString());
-        }
-
-        return $qb
-            ->orderBy('t.' . self::ORDER_FIELD, self::ORDER)
-            ->getQuery()
-            ->getResult();
-    }
-
-    public function findBeforeLastLog(Account $account): array
-    {
-        $qb = $this->createQueryBuilder('t')
-            ->leftJoin('t.account', 'a')
-            ->where('a.id = :account')
-            ->andWhere('t.canceledAt IS NULL')
-            ->setParameter('account', $account)
-            ->orderBy('t.executedAt', 'DESC');
-
-        if($lastLogEntry = $account->getLatestLogEntry()) {
-            $qb
-                ->andWhere('t.executedAt > :date')
-                ->setParameter('date', $lastLogEntry->getCreatedAt()->toDateTimeString());
-        }
-
-
-        return $qb->getQuery()->getResult();
     }
 }

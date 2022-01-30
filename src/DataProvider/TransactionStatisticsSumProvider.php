@@ -23,7 +23,9 @@ final class TransactionStatisticsSumProvider implements ContextAwareCollectionDa
         $context['filters']['category.isAffectingProfit'] = true;
         $context['filters']['isDraft'] = false;
 
-        yield $this->assetsManager->sumMixedTransactions((array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context));
+        yield $this->assetsManager->sumMixedTransactions(
+            (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)
+        );
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool

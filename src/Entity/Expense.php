@@ -54,7 +54,7 @@ class Expense extends Transaction
         $this->compensations = new ArrayCollection();
     }
 
-    public function getType(): string
+    #[Groups(['transaction:collection:read', 'debt:collection:read'])] public function getType(): string
     {
         return TransactionInterface::EXPENSE;
     }

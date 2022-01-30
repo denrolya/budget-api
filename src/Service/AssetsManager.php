@@ -2,28 +2,20 @@
 
 namespace App\Service;
 
-use App\Entity\Account;
 use App\Entity\Category;
 use App\Entity\ExecutableInterface;
-use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
-use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Entity\ValuableInterface;
 use App\Pagination\Paginator;
-use App\Repository\AccountRepository;
-use App\Repository\ExpenseRepository;
 use App\Repository\TransactionRepository;
-use Carbon\Carbon;
-use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
-use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Query;
 use JetBrains\PhpStorm\ArrayShape;
+use Psr\Cache\InvalidArgumentException;
 
 final class AssetsManager
 {
@@ -33,19 +25,14 @@ final class AssetsManager
 
     private TransactionRepository $transactionRepo;
 
-    private ExpenseRepository $expenseRepo;
-
-    private AccountRepository $accountRepo;
-
     public function __construct(EntityManagerInterface $em, FixerService $fixerService)
     {
         $this->em = $em;
         $this->fixerService = $fixerService;
         $this->transactionRepo = $this->em->getRepository(Transaction::class);
-        $this->accountRepo = $this->em->getRepository(Account::class);
     }
 
-    #[ArrayShape(['list' => "mixed", 'totalValue' => "float", 'count' => "mixed"])]
+    #[ArrayShape(['list' => 'mixed', 'totalValue' => 'float', 'count' => 'mixed'])]
     public function generateTransactionPaginationData(
         CarbonInterface $from,
         CarbonInterface $to,
@@ -93,111 +80,18 @@ final class AssetsManager
         ];
     }
 
-    public function generateTransactionList(
-        CarbonInterface $from,
-        CarbonInterface $to,
-        ?string         $type = null,
-        ?array          $categories = [],
-        ?array          $accounts = [],
-        ?array          $excludedCategories = [],
-        bool            $withChildCategories = true,
-        bool            $onlyDrafts = false,
-        string          $orderField = TransactionRepository::ORDER_FIELD,
-        string          $order = TransactionRepository::ORDER
-    ): array
+    public function calculateAverage(CarbonInterface $from, CarbonInterface $to, string $interval, string $type): float
     {
-        return $this
-            ->transactionRepo
-            ->getPaginator(
-                $from,
-                $to,
-                true,
-                $type,
-                ($withChildCategories && !empty($categories)) ? $this->getTypedCategoriesWithChildren($type, $categories) : $categories,
-                $accounts,
-                $excludedCategories,
-                $onlyDrafts,
-                10,
-                0,
-                $orderField,
-                $order
-            )
-            ->getQuery()
-            ->setFirstResult(0)
-            ->setMaxResults(null)
-            ->getResult();
-    }
-
-    /**
-     * Shorthand for generateTransactionList
-     */
-    public function generateExpenseTransactionList(
-        CarbonInterface $from,
-        CarbonInterface $to,
-        ?array          $categories = [],
-        ?array          $accounts = [],
-        ?array          $excludedCategories = [],
-        bool            $withChildCategories = true,
-        bool            $onlyDrafts = false,
-        string          $orderField = TransactionRepository::ORDER_FIELD,
-        string          $order = TransactionRepository::ORDER
-    ): array
-    {
-        return $this->generateTransactionList(
-            $from,
-            $to,
-            TransactionInterface::EXPENSE,
-            $categories,
-            $accounts,
-            $excludedCategories,
-            $withChildCategories,
-            $onlyDrafts,
-            $orderField,
-            $order
-        );
-    }
-
-    /**
-     * Shorthand for generateTransactionList
-     */
-    public function generateIncomeTransactionList(
-        CarbonInterface $from,
-        CarbonInterface $to,
-        ?array          $categories = [],
-        ?array          $accounts = [],
-        ?array          $excludedCategories = [],
-        bool            $withChildCategories = true,
-        bool            $onlyDrafts = false,
-        string          $orderField = TransactionRepository::ORDER_FIELD,
-        string          $order = TransactionRepository::ORDER
-    ): array
-    {
-        return $this->generateTransactionList(
-            $from,
-            $to,
-            TransactionInterface::INCOME,
-            $categories,
-            $accounts,
-            $excludedCategories,
-            $withChildCategories,
-            $onlyDrafts,
-            $orderField,
-            $order
-        );
-    }
-
-    public function calculateAverage(CarbonInterface $from, CarbonInterface $to, string $timeframe, string $type): float
-    {
-        $transactions = $this->generateTransactionList($from, $to, $type);
-        $period = new CarbonPeriod($from, "1 $timeframe", $to);
+        $transactions = $this->transactionRepo->getList($from, $to, $type);
+        $period = new CarbonPeriod($from, "1 $interval", $to);
 
         $byDate = [];
 
         foreach($period as $date) {
-            $transactionsByDate = array_filter($transactions, static function (TransactionInterface $transaction) use ($date, $timeframe) {
+            $transactionsByDate = array_filter($transactions, static function (TransactionInterface $transaction) use ($date, $interval) {
                 return $transaction->getExecutedAt()->startOfDay()->between(
                     $date,
-                    $date->copy()->endOf($timeframe)
+                    $date->copy()->endOf($interval)
                 );
             });
             $byDate[$date->toDateString()] = count($transactionsByDate)
@@ -220,7 +114,7 @@ final class AssetsManager
     public function sumTransactionsFiltered(?string $type, CarbonInterface $from, CarbonInterface $to, ?array $categories = [], ?array $accounts = [], ?array $excludedCategories = []): float
     {
         return $this->sumMixedTransactions(
-            $this->generateTransactionList(
+            $this->transactionRepo->getList(
                 $from,
                 $to,
                 $type,
@@ -250,6 +144,7 @@ final class AssetsManager
 
     /**
      * Generates array of converted values to all base fiat currencies
+     * @throws InvalidArgumentException
      */
     public function convert(ValuableInterface $entity): array
     {
@@ -262,6 +157,7 @@ final class AssetsManager
 
     /**
      * Converts entity's value to a specified(or base if null given) currency
+     * @throws InvalidArgumentException
      */
     public function convertTo(ValuableInterface $entity, ?string $to = null): float
     {
@@ -275,12 +171,14 @@ final class AssetsManager
 
     public function getTypedCategoriesWithChildren(?string $type = null, ?array $categories = []): array
     {
-        $types = $type !== null ? $type : [TransactionInterface::EXPENSE, TransactionInterface::INCOME];
+        $types = $type ? [$type] : [TransactionInterface::EXPENSE, TransactionInterface::INCOME];
         $result = [];
 
         foreach($types as $t) {
-            $repo = $this->em
-                ->getRepository($t === TransactionInterface::EXPENSE ? ExpenseCategory::class : IncomeCategory::class);
+            $repo = $this->em->getRepository($t === TransactionInterface::EXPENSE
+                ? ExpenseCategory::class
+                : IncomeCategory::class
+            );
 
             if(empty($categories)) {
                 $result = $repo->findBy(['root' => null, 'isTechnical' => false]);

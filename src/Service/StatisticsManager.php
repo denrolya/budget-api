@@ -8,8 +8,10 @@ use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\Income;
 use App\Entity\IncomeCategory;
+use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Repository\ExpenseRepository;
+use App\Repository\TransactionRepository;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -20,6 +22,8 @@ use JetBrains\PhpStorm\ArrayShape;
 
 final class StatisticsManager
 {
+    private TransactionRepository $transactionRepo;
+
     private ExpenseRepository $expenseRepo;
 
     public function __construct(
@@ -28,6 +32,7 @@ final class StatisticsManager
     )
     {
         $this->expenseRepo = $this->em->getRepository(Expense::class);
+        $this->transactionRepo = $this->em->getRepository(Transaction::class);
     }
 
     /**
@@ -90,8 +95,8 @@ final class StatisticsManager
 
         $result = [];
 
-        $incomes = $this->assetsManager->generateIncomeTransactionList($from, $to);
-        $expenses = $this->assetsManager->generateExpenseTransactionList($from, $to);
+        $incomes = $this->transactionRepo->getList($from, $to, TransactionInterface::INCOME);
+        $expenses = $this->transactionRepo->getList($from, $to, TransactionInterface::EXPENSE);
 
         while($from->isBefore($to)) {
             $iterator = $from->copy()->add($factor . " milliseconds");
@@ -146,7 +151,7 @@ final class StatisticsManager
         return $tree;
     }
 
-    #[ArrayShape(['min' => "array", 'max' => "array"])]
+    #[ArrayShape(['min' => 'array', 'max' => 'array'])]
     public function generateMinMaxByMonthExpenseStatistics(CarbonInterface $from, CarbonInterface $to, string $category): array
     {
         $result = [
@@ -178,12 +183,11 @@ final class StatisticsManager
         );
 
         foreach($period as $key => $date) {
-            $sum = $this->assetsManager->sumTransactions(
-                $this->assetsManager->generateExpenseTransactionList(
-                    $date->startOfMonth(),
-                    $date->copy()->endOfMonth(),
-                    [$category]
-                )
+            $sum = $this->assetsManager->sumTransactionsFiltered(
+                TransactionInterface::EXPENSE,
+                $date->startOfMonth(),
+                $date->copy()->endOfMonth(),
+                [$category]
             );
 
             if($key === 0) {
@@ -217,7 +221,7 @@ final class StatisticsManager
 
         /** @var Account $account */
         foreach($accounts as $account) {
-            $expenses = $this->assetsManager->generateExpenseTransactionList($from, $to, [], [$account]);
+            $expenses = $this->transactionRepo->getList($from, $to, TransactionInterface::EXPENSE, null, [$account]);
             $amount = $this->assetsManager->sumTransactions($expenses, $account->getCurrency());
             $value = $this->assetsManager->sumTransactions($expenses);
 
@@ -255,9 +259,14 @@ final class StatisticsManager
 
             $name = $category->getName();
 
-            $result[$name] = $this->assetsManager->sumTransactionsByDateInterval(
+            $result[$name] = $this->sumTransactionsByDateInterval(
                 $period,
-                $this->assetsManager->generateTransactionList($start, $end, null, [$name])
+                $this->transactionRepo->getList(
+                    $start,
+                    $end,
+                    null,
+                    [$name]
+                )
             );
         }
 

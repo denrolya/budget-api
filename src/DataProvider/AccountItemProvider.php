@@ -6,22 +6,27 @@ use ApiPlatform\Core\DataProvider\DenormalizedIdentifiersAwareItemDataProviderIn
 use ApiPlatform\Core\DataProvider\ItemDataProviderInterface;
 use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Account;
+use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
-use App\Service\AssetsManager;
+use App\Repository\TransactionRepository;
 use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
+use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * TODO: Perhaps this thing can use query parameters to specify from/to date to get categories statistics
  */
 final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataProviderInterface, RestrictedDataProviderInterface
 {
+    private TransactionRepository $transactionRepo;
+
     public function __construct(
-        private AssetsManager             $assetsManager,
         private StatisticsManager         $statisticsManager,
-        private ItemDataProviderInterface $itemDataProvider
+        private ItemDataProviderInterface $itemDataProvider,
+        EntityManagerInterface            $em
     )
     {
+        $this->transactionRepo = $em->getRepository(Transaction::class);
     }
 
     public function getItem(string $resourceClass, $id, string $operationName = null, array $context = []): ?object
@@ -35,22 +40,22 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
         $startOfDecade = (new CarbonImmutable())->startOfDecade();
         $endOfDecade = (new CarbonImmutable())->endOfDecade();
 
-        $expenses = $this->assetsManager->generateExpenseTransactionList($startOfDecade, $endOfDecade, null, [$account]);
-        $incomes = $this->assetsManager->generateIncomeTransactionList($startOfDecade, $endOfDecade, null, [$account]);
+        $expenses = $this->transactionRepo->getList($startOfDecade, $endOfDecade, TransactionInterface::EXPENSE, null, [$account]);
+        $incomes = $this->transactionRepo->getList($startOfDecade, $endOfDecade, TransactionInterface::INCOME, null, [$account]);
 
-        $account->setTopExpenseCategories(
-            $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
-                TransactionInterface::EXPENSE,
-                $expenses
+        $account
+            ->setTopExpenseCategories(
+                $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
+                    TransactionInterface::EXPENSE,
+                    $expenses
+                )
             )
-        );
-
-        $account->setTopIncomeCategories(
-            $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
-                TransactionInterface::INCOME,
-                $incomes
-            )
-        );
+            ->setTopIncomeCategories(
+                $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
+                    TransactionInterface::INCOME,
+                    $incomes
+                )
+            );
 
         return $account;
     }
