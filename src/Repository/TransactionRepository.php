@@ -43,7 +43,7 @@ class TransactionRepository extends ServiceEntityRepository
         bool             $onlyDrafts = false,
         string           $orderField = self::ORDER_FIELD,
         string           $order = self::ORDER
-    ): Collection
+    ): Collection|array
     {
         return $this
             ->getBaseQueryBuilder(

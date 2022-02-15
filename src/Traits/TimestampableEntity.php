@@ -24,22 +24,6 @@ trait TimestampableEntity
      */
     protected ?DateTimeInterface $updatedAt;
 
-    public function getCreatedAt(): ?CarbonInterface
-    {
-        if($this->createdAt instanceof DateTimeInterface) {
-            return new CarbonImmutable($this->createdAt->getTimestamp(), $this->createdAt->getTimezone());
-        }
-
-        return $this->createdAt;
-    }
-
-    public function setCreatedAt(DateTimeInterface $createdAt): self
-    {
-        $this->createdAt = $createdAt;
-
-        return $this;
-    }
-
     public function getUpdatedAt()
     {
         if($this->updatedAt instanceof DateTimeInterface) {
@@ -63,5 +47,21 @@ trait TimestampableEntity
         if($this->getCreatedAt() === null) {
             $this->setCreatedAt(CarbonImmutable::now());
         }
+    }
+
+    public function getCreatedAt(): ?CarbonInterface
+    {
+        if($this->createdAt instanceof DateTimeInterface) {
+            return new CarbonImmutable($this->createdAt->getTimestamp(), $this->createdAt->getTimezone());
+        }
+
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(DateTimeInterface $createdAt): self
+    {
+        $this->createdAt = $createdAt;
+
+        return $this;
     }
 }

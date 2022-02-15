@@ -2,7 +2,12 @@
 .idea
 *.sql
 .DS_Store
+backups
 ###< other ###
+
+###> deployer/deployer ###
+deploy.php
+###< deployer/deployer ###
 
 ###> symfony/framework-bundle ###
 /.env.local

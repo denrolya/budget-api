@@ -2,10 +2,10 @@
 
 namespace App\Traits;
 
-use Symfony\Component\Security\Core\User\UserInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use Symfony\Component\Serializer\Annotation\Groups;
+use JetBrains\PhpStorm\Pure;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 trait OwnableValuableEntity
 {
@@ -23,6 +23,11 @@ trait OwnableValuableEntity
      */
     protected ?array $convertedValues = [];
 
+    public function getValue(): float
+    {
+        return $this->convertedValues[$this->getOwner()->getBaseCurrency()];
+    }
+
     public function getOwner(): ?UserInterface
     {
         return $this->owner;
@@ -35,11 +40,7 @@ trait OwnableValuableEntity
         return $this;
     }
 
-    public function getValue(): float
-    {
-        return $this->convertedValues[$this->getOwner()->getBaseCurrency()];
-    }
-
+    #[Pure]
     public function getConvertedValue(?string $currencyCode = null): float
     {
         return $this->convertedValues[is_null($currencyCode) ? $this->getOwner()->getBaseCurrency() : $currencyCode];

@@ -8,5 +8,10 @@ final class TagInput
 {
     #[Groups(['category:write', 'tag:write'])]
     public string $name;
+
+    public function __construct(string $name)
+    {
+        $this->name = $name;
+    }
 }
 

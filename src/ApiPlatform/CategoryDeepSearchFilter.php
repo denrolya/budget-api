@@ -40,6 +40,32 @@ final class CategoryDeepSearchFilter extends AbstractFilter
     /**
      * @inheritDoc
      */
+    #[ArrayShape([self::PROPERTY_NAME => 'array'])]
+    public function getDescription(string $resourceClass): array
+    {
+        return [
+            self::PROPERTY_NAME . '[]' => [
+                'property' => null,
+                'type' => Type::BUILTIN_TYPE_ARRAY,
+                'required' => false,
+                'schema' => [
+                    'type' => Type::BUILTIN_TYPE_ARRAY,
+                    'items' => [
+                        'type' => Type::BUILTIN_TYPE_INT,
+                    ],
+                ],
+                'openapi' => [
+                    'name' => self::PROPERTY_NAME,
+                    'description' => 'Filter by categories and theirs descendants',
+                    'type' => Type::BUILTIN_TYPE_ARRAY,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @inheritDoc
+     */
     protected function filterProperty(
         string                      $property,
         mixed                       $value,
@@ -72,31 +98,5 @@ final class CategoryDeepSearchFilter extends AbstractFilter
                     }, $categories));
             }
         }
-    }
-
-    /**
-     * @inheritDoc
-     */
-    #[ArrayShape([self::PROPERTY_NAME => 'array'])]
-    public function getDescription(string $resourceClass): array
-    {
-        return [
-            self::PROPERTY_NAME . '[]' => [
-                'property' => null,
-                'type' => Type::BUILTIN_TYPE_ARRAY,
-                'required' => false,
-                'schema' => [
-                    'type' => Type::BUILTIN_TYPE_ARRAY,
-                    'items' => [
-                        'type' => Type::BUILTIN_TYPE_INT,
-                    ],
-                ],
-                'openapi' => [
-                    'name' => self::PROPERTY_NAME,
-                    'description' => 'Filter by categories and theirs descendants',
-                    'type' => Type::BUILTIN_TYPE_ARRAY,
-                ],
-            ],
-        ];
     }
 }

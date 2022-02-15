@@ -35,6 +35,30 @@ final class DiscriminatorFilter extends AbstractFilter
     /**
      * @inheritDoc
      */
+    #[ArrayShape([self::PROPERTY_NAME => "array"])]
+    public function getDescription(string $resourceClass): array
+    {
+        return [
+            self::PROPERTY_NAME => [
+                'property' => null,
+                'type' => Type::BUILTIN_TYPE_STRING,
+                'required' => false,
+                'schema' => [
+                    'type' => Type::BUILTIN_TYPE_STRING,
+                    'enum' => array_keys($this->types),
+                ],
+                'openapi' => [
+                    'name' => self::PROPERTY_NAME,
+                    'description' => 'Filter by type',
+                    'type' => Type::BUILTIN_TYPE_STRING,
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @inheritDoc
+     */
     protected function filterProperty(
         string                      $property,
         mixed                       $value,
@@ -55,29 +79,5 @@ final class DiscriminatorFilter extends AbstractFilter
             $queryBuilder->andWhere("$alias INSTANCE OF :type")
                 ->setParameter('type', $em->getClassMetadata($this->types[$value]));
         }
-    }
-
-    /**
-     * @inheritDoc
-     */
-    #[ArrayShape([self::PROPERTY_NAME => "array"])]
-    public function getDescription(string $resourceClass): array
-    {
-        return [
-            self::PROPERTY_NAME => [
-                'property' => null,
-                'type' => Type::BUILTIN_TYPE_STRING,
-                'required' => false,
-                'schema' => [
-                    'type' => Type::BUILTIN_TYPE_STRING,
-                    'enum' => array_keys($this->types),
-                ],
-                'openapi' => [
-                    'name' => self::PROPERTY_NAME,
-                    'description' => 'Filter by type',
-                    'type' => Type::BUILTIN_TYPE_STRING,
-                ],
-            ],
-        ];
     }
 }

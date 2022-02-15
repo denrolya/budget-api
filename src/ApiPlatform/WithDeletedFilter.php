@@ -16,6 +16,24 @@ class WithDeletedFilter extends AbstractFilter
     /**
      * @inheritDoc
      */
+    #[ArrayShape([self::PROPERTY_NAME => 'array'])]
+    public function getDescription(string $resourceClass): array
+    {
+        return [
+            self::PROPERTY_NAME => [
+                'property' => null,
+                'type' => 'boolean',
+                'required' => false,
+                'openapi' => [
+                    'description' => 'This filter toggles the display of soft-deleted elements',
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @inheritDoc
+     */
     protected function filterProperty(
         string                      $property,
         mixed                       $value,
@@ -32,24 +50,6 @@ class WithDeletedFilter extends AbstractFilter
         if(filter_var(($value ?? null), FILTER_VALIDATE_BOOLEAN)) {
             $this->disableSoftDeleteable($queryBuilder->getEntityManager());
         }
-    }
-
-    /**
-     * @inheritDoc
-     */
-    #[ArrayShape([self::PROPERTY_NAME => "array"])]
-    public function getDescription(string $resourceClass): array
-    {
-        return [
-            self::PROPERTY_NAME => [
-                'property' => null,
-                'type' => 'boolean',
-                'required' => false,
-                'openapi' => [
-                    'description' => 'This filter toggles the display of soft-deleted elements',
-                ],
-            ],
-        ];
     }
 
     private function disableSoftDeleteable(EntityManagerInterface $em): void
