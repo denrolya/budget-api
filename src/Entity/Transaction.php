@@ -77,6 +77,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             'method' => 'POST',
             'path' => '/monobank/transactions',
             'input' => MonobankResponse::class,
+            'status' => 200,
             'denormalization_context' => ['groups' => 'transaction:write'],
             'normalization_context' => ['groups' => 'transaction:collection:read'],
         ],
