@@ -8,9 +8,9 @@ use App\Entity\ExpenseCategory;
 use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\TransactionInterface;
-use App\Entity\User;
 use Carbon\Carbon;
 use Doctrine\ORM\EntityManagerInterface;
+use InvalidArgumentException;
 
 class MonobankService
 {
@@ -21,18 +21,19 @@ class MonobankService
         $this->em = $em;
     }
 
-    public function convertStatementItemToDraftTransaction(array $data): TransactionInterface
+    /**
+     * @throws InvalidArgumentException
+     */
+    public function convertStatementItemToDraftTransaction(string $accountId, array $statementItem): TransactionInterface
     {
-        if(!$account = $this->em->getRepository(BankCardAccount::class)->findOneByMonobankId($data['account'])) {
-            throw new \Exception('Account ID is not registered in system.');
+        if(!$account = $this->em->getRepository(BankCardAccount::class)->findOneByMonobankId($accountId)) {
+            throw new InvalidArgumentException('Account ID is not registered in system.');
         }
-
-        $statementItem = $data['statementItem'];
 
         $isIncome = $statementItem['amount'] > 0;
         $unknownIncomeCategory = $this->em->getRepository(IncomeCategory::class)->find(39);
         $unknownExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->find(17);
-        $user = $this->em->getRepository(User::class)->find(2);
+        $user = $account->getOwner();
         $amount = abs($statementItem['amount'] / 100);
         $note = $statementItem['description'] . ' ' . (array_key_exists('comment', $statementItem) ? $statementItem['comment'] : '');
 

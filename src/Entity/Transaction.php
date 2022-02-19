@@ -10,6 +10,7 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 use App\ApiPlatform\CategoryDeepSearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
 use App\ApiPlatform\WithDeletedFilter;
+use App\DTO\MonobankResponse;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
@@ -71,6 +72,13 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'summary' => 'Categories Timeline',
                 'description' => '',
             ],
+        ],
+        'post_monobank' => [
+            'method' => 'POST',
+            'path' => '/monobank/transactions',
+            'input' => MonobankResponse::class,
+            'denormalization_context' => ['groups' => 'transaction:write'],
+            'normalization_context' => ['groups' => 'transaction:collection:read'],
         ],
     ],
     itemOperations: [

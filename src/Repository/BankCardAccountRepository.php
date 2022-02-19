@@ -11,6 +11,7 @@ use Doctrine\Persistence\ManagerRegistry;
  * @method BankCardAccount|null findOneBy(array $criteria, array $orderBy = null)
  * @method BankCardAccount[]    findAll()
  * @method BankCardAccount[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @method BankCardAccount      findOneByMonobankId(string $id)
  */
 class BankCardAccountRepository extends ServiceEntityRepository
 {
