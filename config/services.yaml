@@ -66,10 +66,6 @@ services:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
 
-    App\DataPersister\AccountLogger:
-        bind:
-            $decorated: '@api_platform.doctrine.orm.data_persister'
-
     App\DataPersister\TransactionUpdateDataPersister:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
