@@ -58,8 +58,6 @@ final class TransactionUpdateDataPersister implements ContextAwareDataPersisterI
             $newAccount->updateBalanceBy($data->isExpense() ? -$newAmount : $newAmount);
         }
 
-        // Don't flush cause AccountLogger will do it afterwards
-
         return $this->decorated->persist($data);
     }
 

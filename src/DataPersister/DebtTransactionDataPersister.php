@@ -6,6 +6,7 @@ use ApiPlatform\Core\DataPersister\DataPersisterInterface;
 use ApiPlatform\Core\DataPersister\ResumableDataPersisterInterface;
 use App\Entity\TransactionInterface;
 use App\Service\AssetsManager;
+use Psr\Cache\InvalidArgumentException;
 
 final class DebtTransactionDataPersister implements DataPersisterInterface, ResumableDataPersisterInterface
 {
@@ -22,7 +23,7 @@ final class DebtTransactionDataPersister implements DataPersisterInterface, Resu
     }
 
     /**
-     * @param TransactionInterface $data
+     * @throws InvalidArgumentException
      */
     public function persist($data)
     {
@@ -34,7 +35,7 @@ final class DebtTransactionDataPersister implements DataPersisterInterface, Resu
     }
 
     /**
-     * @param TransactionInterface $data
+     * @throws InvalidArgumentException
      */
     public function remove($data): void
     {
