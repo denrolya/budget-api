@@ -24,7 +24,6 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
-            - '../src/Tests/'
 
     doctrine.filter.configurator:
         class: App\Filter\Configurator
