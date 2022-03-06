@@ -13,7 +13,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 final class FixerService
 {
-    private const BASE_URL = 'https://data.fixer.io/api/';
+    private const BASE_URL = 'http://data.fixer.io/api/';
     private const MONTH_IN_SECONDS = 2678400;
     private const FIAT_CURRENCIES = ['EUR', 'USD', 'HUF', 'UAH'];
 
