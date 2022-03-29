@@ -15,7 +15,7 @@ final class FixerService
 {
     private const BASE_URL = 'http://data.fixer.io/api/';
     private const MONTH_IN_SECONDS = 2678400;
-    private const FIAT_CURRENCIES = ['EUR', 'USD', 'HUF', 'UAH'];
+    private const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'HUF', 'UAH', 'BTC'];
 
     private string $apiKey;
 
@@ -61,12 +61,12 @@ final class FixerService
      */
     public function convert(float $amount, string $from, ?CarbonInterface $executionDate = null): array
     {
-        if(!in_array($from, self::FIAT_CURRENCIES)) {
+        if(!in_array($from, self::AVAILABLE_CURRENCIES)) {
             return [];
         }
 
         $values = [];
-        foreach(self::FIAT_CURRENCIES as $currency) {
+        foreach(self::AVAILABLE_CURRENCIES as $currency) {
             $values[$currency] = $this->convertTo(
                 $amount,
                 $from,
