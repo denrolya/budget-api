@@ -315,7 +315,7 @@ abstract class Category
         return array_reduce(
             $this->getTransactions(true)->toArray(),
             static function (float $carry, TransactionInterface $transaction) {
-                $carry += $transaction->getValue();
+                $carry += $transaction->getConvertedValue();
 
                 return $carry;
             }, 0);

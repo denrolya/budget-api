@@ -88,7 +88,7 @@ class Expense extends Transaction
         }
 
         $this->compensations->map(function (Income $compensation) use (&$value) {
-            $value -= $compensation->getValue();
+            $value -= $compensation->getConvertedValue();
         });
 
         return $value;
