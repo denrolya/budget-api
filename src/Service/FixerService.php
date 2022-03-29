@@ -173,7 +173,7 @@ final class FixerService
         return array_key_exists($currencyCode, $rates);
     }
 
-    #[ArrayShape(['access_key' => "string", 'base' => "string", 'symbols' => "string"])]
+    #[ArrayShape(['access_key' => 'string', 'base' => 'string', 'symbols' => 'string'])]
     private function getRequestParams(): array
     {
         return [
