@@ -31,10 +31,10 @@ final class TransactionStatisticsCategoriesTimelineProvider implements ContextAw
         $context['filters']['isDraft'] = false;
 
         $from = isset($context['filters']['executedAt']['after'])
-            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['after'])
+            ? CarbonImmutable::parse($context['filters']['executedAt']['after'])
             : CarbonImmutable::now()->startOfYear();
         $to = isset($context['filters']['executedAt']['before'])
-            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['before'])
+            ? CarbonImmutable::parse($context['filters']['executedAt']['before'])
             : CarbonImmutable::now()->endOfYear();
         $interval = isset($context['filters']['interval'])
             ? CarbonInterval::createFromDateString($context['filters']['interval'])

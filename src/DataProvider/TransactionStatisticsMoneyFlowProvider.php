@@ -20,7 +20,6 @@ final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollec
 {
     public function __construct(
         private AssetsManager                   $assetsManager,
-        private StatisticsManager               $statisticsManager,
         private CollectionDataProviderInterface $collectionDataProvider,
     )
     {
@@ -33,10 +32,10 @@ final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollec
         $context['filters']['isDraft'] = false;
 
         $from = isset($context['filters']['executedAt']['after'])
-            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['after'])->startOfDay()
+            ? CarbonImmutable::parse($context['filters']['executedAt']['after'])->startOfDay()
             : CarbonImmutable::now()->startOfYear()->startOfDay();
         $to = isset($context['filters']['executedAt']['before'])
-            ? CarbonImmutable::createFromFormat('d-m-Y', $context['filters']['executedAt']['before'])->endOfDay()
+            ? CarbonImmutable::parse($context['filters']['executedAt']['before'])->endOfDay()
             : CarbonImmutable::now()->endOfYear()->endOfDay();
         $interval = isset($context['filters']['interval'])
             ? CarbonInterval::createFromDateString($context['filters']['interval'])
