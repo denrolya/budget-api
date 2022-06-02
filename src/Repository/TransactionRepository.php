@@ -3,6 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Account;
+use App\Entity\AccountLogEntry;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
@@ -130,7 +131,13 @@ class TransactionRepository extends ServiceEntityRepository
             ->setParameter('account', $account)
             ->orderBy('t.executedAt', 'DESC');
 
-        if($lastLogEntry = $account->getLatestLogEntry()) {
+        $lastLogEntry = $this->getEntityManager()->getRepository(AccountLogEntry::class)->findOneBy([
+            'account' => $account,
+        ], [
+            'createdAt' => 'DESC',
+        ]);
+
+        if($lastLogEntry) {
             $qb
                 ->andWhere('t.executedAt > :date')
                 ->setParameter('date', $lastLogEntry->getCreatedAt()->toDateTimeString());

@@ -171,7 +171,7 @@ class Account implements OwnableInterface, ValuableInterface
     private string $color;
 
     /**
-     * @ORM\OneToMany(targetEntity=AccountLogEntry::class, mappedBy="account", orphanRemoval=true)
+     * @ORM\OneToMany(targetEntity=AccountLogEntry::class, mappedBy="account", orphanRemoval=true, fetch="EXTRA_LAZY")
      * @ORM\OrderBy({"createdAt" = "ASC"})
      */
     private ?Collection $logs;
@@ -398,11 +398,6 @@ class Account implements OwnableInterface, ValuableInterface
         return array_values($this->logs->filter(static function (AccountLogEntry $log) use ($from, $to) {
             return $log->getCreatedAt()->isBetween($from, $to);
         })->toArray());
-    }
-
-    public function getLatestLogEntry(): bool|AccountLogEntry
-    {
-        return $this->logs->last();
     }
 
     public function getTopExpenseCategories(): array

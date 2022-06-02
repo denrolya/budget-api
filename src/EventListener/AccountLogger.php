@@ -13,6 +13,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 final class AccountLogger
 {
+    public const BATCH_SIZE = 20;
+
     public function __construct(
         private EntityManagerInterface $em,
         private FixerService           $fixer
@@ -81,12 +83,17 @@ final class AccountLogger
 
     private function removeAccountLogsAfterDate(Account $account, DateTimeInterface $date): void
     {
-        $logsToBeRemoved = $account->getLogs()->filter(static function (AccountLogEntry $entry) use ($date) {
-            return $entry->getCreatedAt()->greaterThanOrEqualTo($date);
-        })->toArray();
+        $logsToBeRemoved = $this
+            ->em
+            ->getRepository(AccountLogEntry::class)
+            ->findWithinPeriod($date, null, null, $account);
 
-        foreach($logsToBeRemoved as $log) {
+        foreach($logsToBeRemoved as $i => $log) {
             $this->em->remove($log);
+
+            if(($i % self::BATCH_SIZE) === 0) {
+                $this->em->flush();
+            }
         }
         $this->em->flush();
     }
@@ -102,9 +109,12 @@ final class AccountLogger
     private function recreateLogs(Account $account, ?int $removedTransactionId = null): void
     {
         $repo = $this->em->getRepository(Transaction::class);
+
+        $transactionsBeforeLastLog = $repo->findBeforeLastLog($account);
+
         $transactions = $this->eliminateDuplicates(
             array_filter(
-                $repo->findBeforeLastLog($account),
+                $transactionsBeforeLastLog,
                 static function (TransactionInterface $transaction) use ($removedTransactionId) {
                     return $transaction->getId() !== $removedTransactionId;
                 }
@@ -112,7 +122,7 @@ final class AccountLogger
         );
 
         $balance = $account->getBalance();
-        foreach($transactions as $transaction) {
+        foreach($transactions as $i => $transaction) {
             $transactionLogEntry = $this->createAccountLogFromTransaction($transaction, $balance);
 
             $amount = $transaction->getAmount();
@@ -120,6 +130,10 @@ final class AccountLogger
                 ? $balance + $amount
                 : $balance - $amount;
             $this->em->persist($transactionLogEntry);
+
+            if(($i % self::BATCH_SIZE) === 0) {
+                $this->em->flush();
+            }
         }
 
         $this->em->flush();

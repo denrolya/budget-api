@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Entity\Account;
 use App\Entity\AccountLogEntry;
 use Carbon\CarbonInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -20,7 +21,7 @@ class AccountLogEntryRepository extends ServiceEntityRepository
         parent::__construct($registry, AccountLogEntry::class);
     }
 
-    public function findWithinPeriod(CarbonInterface $from, ?CarbonInterface $to = null, int $limit = null): array
+    public function findWithinPeriod(CarbonInterface $from, ?CarbonInterface $to = null, int $limit = null, Account $account = null): array
     {
         $qb = $this->createQueryBuilder('l')
             ->andWhere('DATE(l.createdAt) >= :from')
@@ -30,6 +31,12 @@ class AccountLogEntryRepository extends ServiceEntityRepository
             $qb
                 ->andWhere('DATE(l.createdAt) <= :to')
                 ->setParameter('to', $to->toDateString());
+        }
+
+        if ($account) {
+            $qb
+                ->andWhere('l.account = :account')
+                ->setParameter('account', $account);
         }
 
         return $qb

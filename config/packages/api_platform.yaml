@@ -23,15 +23,6 @@ api_platform:
 
     defaults:
         pagination_client_items_per_page: true
-        cache_headers:
-            max_age: 0
-            shared_max_age: 3600
-            vary: [ 'Content-Type', 'Authorization', 'Origin' ]
     collection:
         pagination:
             items_per_page_parameter_name: perPage # Default value
-    http_cache:
-        invalidation:
-            enabled: true
-        public: true
-
