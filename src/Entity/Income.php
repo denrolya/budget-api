@@ -28,7 +28,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     denormalizationContext: ['groups' => 'transaction:write'],
 )]
-final class Income extends Transaction
+class Income extends Transaction
 {
     /**
      * Original expense which this income is compensating
