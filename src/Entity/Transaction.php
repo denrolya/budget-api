@@ -306,6 +306,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     public function setCategory(Category $category): TransactionInterface
     {
         $this->category = $category;
+        $this->category->updateTimestamps();
 
         return $this;
     }

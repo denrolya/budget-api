@@ -151,7 +151,7 @@ class Account implements OwnableInterface, ValuableInterface
     private float $balance = 0;
 
     /**
-     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="account", cascade={"remove"}, orphanRemoval=true)
+     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="account", cascade={"remove"}, orphanRemoval=true, fetch="EXTRA_LAZY")
      * @ORM\OrderBy({"executedAt" = "ASC"})
      */
     private ?Collection $transactions;
@@ -186,6 +186,16 @@ class Account implements OwnableInterface, ValuableInterface
         ],
     )]
     private ?array $topExpenseCategories;
+
+    #[Groups(['account:item:read'])]
+    #[ApiProperty(
+        attributes: [
+            "openapi_context" => [
+                "type" => "datetime",
+            ],
+        ],
+    )]
+    private ?CarbonInterface $lastTransactionAt;
 
     #[Groups(['account:item:read'])]
     #[ApiProperty(
@@ -325,16 +335,6 @@ class Account implements OwnableInterface, ValuableInterface
         return 'balance';
     }
 
-    #[Groups(['account:collection:read', 'account:item:read'])]
-    public function getLastTransactionAt()
-    {
-        if(!$lastTransaction = $this->transactions->last()) {
-            return null;
-        }
-
-        return $lastTransaction->getCreatedAt();
-    }
-
     #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'transfer:collection:read', 'debt:collection:read'])]
     #[Pure]
     public function getIcon(): string
@@ -400,10 +400,26 @@ class Account implements OwnableInterface, ValuableInterface
         })->toArray());
     }
 
+    public function getLastTransactionAt(): ?CarbonInterface
+    {
+        if($this->lastTransactionAt === null) {
+            throw new \LogicException('Field lastTransactionAt has not been initialized');
+        }
+
+        return $this->lastTransactionAt;
+    }
+
+    public function setLastTransactionAt(?CarbonInterface $lastTransactionAt): self
+    {
+        $this->lastTransactionAt = $lastTransactionAt;
+
+        return $this;
+    }
+
     public function getTopExpenseCategories(): array
     {
         if($this->topExpenseCategories === null) {
-            throw new \LogicException('The isMe field has not been initialized');
+            throw new \LogicException('Field topExpenseCategories has not been initialized');
         }
 
         return $this->topExpenseCategories;
@@ -419,7 +435,7 @@ class Account implements OwnableInterface, ValuableInterface
     public function getTopIncomeCategories(): array
     {
         if($this->topIncomeCategories === null) {
-            throw new \LogicException('The isMe field has not been initialized');
+            throw new \LogicException('Field topIncomeCategories has not been initialized');
         }
 
         return $this->topIncomeCategories;

@@ -129,7 +129,7 @@ abstract class Category
     private ?Category $root;
 
     /**
-     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="category", orphanRemoval=true, cascade={"remove"})
+     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="category", orphanRemoval=true, cascade={"remove"}, fetch="EXTRA_LAZY")
      */
     private Collection $transactions;
 
@@ -315,7 +315,7 @@ abstract class Category
         return array_reduce(
             $this->getTransactions(true)->toArray(),
             static function (float $carry, TransactionInterface $transaction) {
-                $carry += $transaction->getConvertedValue();
+                $carry += $transaction->getValue();
 
                 return $carry;
             }, 0);

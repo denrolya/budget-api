@@ -69,7 +69,7 @@ class Expense extends Transaction
     {
         $value = $this->convertedValues[is_null($currencyCode) ? $this->getOwner()->getBaseCurrency() : $currencyCode];
 
-        if(empty($this->compensations)) {
+        if(!$this->hasCompensations()) {
             return $value;
         }
 
@@ -84,12 +84,12 @@ class Expense extends Transaction
     {
         $value = $this->convertedValues[$this->getOwner()->getBaseCurrency()];
 
-        if(empty($this->compensations)) {
+        if(!$this->hasCompensations()) {
             return $value;
         }
 
         $this->compensations->map(function (Income $compensation) use (&$value) {
-            $value -= $compensation->getConvertedValue();
+            $value -= $compensation->getValue();
         });
 
         return $value;

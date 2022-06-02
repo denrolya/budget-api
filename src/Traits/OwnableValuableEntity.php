@@ -23,6 +23,7 @@ trait OwnableValuableEntity
      */
     protected ?array $convertedValues = [];
 
+    #[Pure]
     public function getValue(): float
     {
         return $this->convertedValues[$this->getOwner()->getBaseCurrency()];

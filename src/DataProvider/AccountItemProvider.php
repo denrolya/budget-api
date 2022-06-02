@@ -43,7 +43,15 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
         $expenses = $this->transactionRepo->getList($startOfDecade, $endOfDecade, TransactionInterface::EXPENSE, null, [$account]);
         $incomes = $this->transactionRepo->getList($startOfDecade, $endOfDecade, TransactionInterface::INCOME, null, [$account]);
 
+        $lastTransactionAt = $this->transactionRepo->findOneBy([
+            'account' => $account,
+            'canceledAt' => null,
+        ], [
+            'executedAt' => 'DESC'
+        ]);
+
         $account
+            ->setLastTransactionAt($lastTransactionAt?->getExecutedAt())
             ->setTopExpenseCategories(
                 $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
                     TransactionInterface::EXPENSE,

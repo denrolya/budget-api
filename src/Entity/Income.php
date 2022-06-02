@@ -28,14 +28,15 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     denormalizationContext: ['groups' => 'transaction:write'],
 )]
-class Income extends Transaction
+final class Income extends Transaction
 {
     /**
      * Original expense which this income is compensating
      *
-     * @ORM\ManyToOne(targetEntity="App\Entity\Expense", inversedBy="compensations")
+     * @ORM\ManyToOne(targetEntity=Expense::class, inversedBy="compensations", fetch="EXTRA_LAZY")
      * @ORM\JoinColumn(referencedColumnName="id")
      */
+    #[Groups(['transaction:collection:read'])]
     private ?Expense $originalExpense;
 
     /**
@@ -43,10 +44,15 @@ class Income extends Transaction
      */
     public function isExpenseCategory(): bool
     {
+        if(!$this->category) {
+            return false;
+        }
+
         return get_class($this->category) === IncomeCategory::class;
     }
 
-    #[Groups(['transaction:collection:read', 'debt:collection:read'])] public function getType(): string
+    #[Groups(['transaction:collection:read', 'debt:collection:read'])]
+    public function getType(): string
     {
         return TransactionInterface::INCOME;
     }

@@ -105,7 +105,7 @@ final class AssetsManager
     public function calculateAverageTransaction(array $transactions = []): float
     {
         $sum = array_reduce($transactions, static function (float $acc, TransactionInterface $transaction) {
-            return $acc + $transaction->getConvertedValue();
+            return $acc + $transaction->getValue();
         }, 0);
 
         return $sum / (count($transactions) ?: 1);

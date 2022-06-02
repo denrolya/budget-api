@@ -134,15 +134,18 @@ final class StatisticsManager
         $tree = $repo->generateCategoryTree();
 
         foreach($tree as $rootCategory) {
-            $categoryTransactions = array_filter($transactions, static function (TransactionInterface $transaction) use ($rootCategory) {
-                return $transaction->getRootCategory()->getId() === $rootCategory['id'];
-            });
+            $categoryTransactions = array_filter(
+                $transactions,
+                static function (TransactionInterface $transaction) use ($rootCategory) {
+                    return $transaction->getRootCategory()->getId() === $rootCategory['id'];
+                }
+            );
 
             foreach($categoryTransactions as $transaction) {
                 $this->updateValueInCategoryTree(
                     $tree,
                     $transaction->getCategory()->getName(),
-                    $transaction->getConvertedValue());
+                    $transaction->getValue());
             }
         }
 
