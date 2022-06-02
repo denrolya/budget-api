@@ -1,0 +1,134 @@
+<?php
+
+namespace Deployer;
+
+require 'recipe/symfony4.php';
+
+// Project name
+set('application', 'api');
+set('http_user', 'www-data');
+set('host_address', '167.71.75.171');
+set('remote_url', 'http://{{ host_address }}:3227');
+
+set('db', [
+    'local' => [
+        'name' => '{DB_NAME_LOCAL}',
+        'username' => '{USERNAME_LOCAL}',
+        'password' => '{PASSWORD_LOCAL}'
+    ],
+    'production' => [
+        'host' => get('host_address'),
+        'name' => '{DB_NAME_REMOTE}',
+        'username' => '{USERNAME_REMOTE}',
+        'password' => '{PASSWORD_REMOTE}'
+    ]
+]);
+
+// [Optional] Allocate tty for git clone. Default value is false.
+set('git_tty', false);
+
+// Hosts
+host('production')
+    ->hostname(get('host_address'))
+    ->stage('production')
+    ->user('{USERNAME}')
+    ->configFile('~/.ssh/config')
+    ->identityFile('~/.ssh/id_rsa')
+    ->multiplexing(true)
+    ->set('repository', 'git@bitbucket.org:drolya/api.git')
+    ->set('branch', 'master')
+    ->set('clear_paths', [])
+    ->set('symfony_env', 'prod')
+    ->set('deploy_path', '/var/www/{{application}}')
+    ->set('writable_mode', 'acl')
+    ->set('composer_options', '{{composer_action}}')
+    ->set('shared_dirs', ['var/log', 'var/sessions', 'config/jwt'])
+    ->set('shared_files', ['.env', 'php.ini'])
+    ->set('writable_dirs', ['var']);
+
+after('deploy', 'success');
+after('deploy:failed', 'deploy:unlock'); // [Optional] if deploy fails automatically unlock.
+
+// Tasks
+task('deploy', [
+    'deploy:info',
+    'deploy:prepare',
+    'deploy:lock',
+    'deploy:release',
+    'deploy:update_code',
+    'deploy:shared',
+    'deploy:writable',
+    'deploy:vendors',
+    'deploy:cache:clear',
+    'deploy:cache:warmup',
+    'deploy:symlink',
+    'deploy:unlock',
+    'cleanup',
+])->desc('Deploy Application');
+
+task('database:copy:to_local', function () {
+    $dumpFilename = 'dump-' . time() . '.sql';
+    $stage = input()->getArgument('stage');
+    $remoteDb = get('db')[$stage];
+    $localDb = get('db')['local'];
+
+    writeln('<info>Dumping database from remote host.</info>');
+    runLocally("mysqldump -h {$remoteDb['host']} -u {$remoteDb['username']} -p{$remoteDb['password']} {$remoteDb['name']} > ./$dumpFilename");
+
+    writeln('<info>Dump success. Exporting dump into local database.</info>');
+    runLocally("mysql -u {$localDb['username']} -p{$localDb['password']} {$localDb['name']} < ./$dumpFilename");
+    writeln('<info>Successfully exported! Removing leftover files...</info>');
+    runLocally("rm ./$dumpFilename");
+
+    writeln('<info>Database migration finished...</info>');
+})->desc('Copy database from remote stage to local environment');
+
+task('database:copy:to_remote', function () {
+    $stage = input()->getArgument('stage');
+    if (!askConfirmation('You sure you want to upload your local DB to [' . $stage . ']?')) {
+        writeln('<info>Aborted by user!</info>');
+        die;
+    }
+
+    backupRemoteDatabaseLocally();
+
+    $dumpFilename = 'dump-' . time() . '.sql';
+    $remoteDb = get('db')[$stage];
+    $localDb = get('db')['local'];
+
+    writeln('<info>Dumping database locally.</info>');
+    runLocally("mysqldump -u {$localDb['username']} -p{$localDb['password']} {$localDb['name']} > ./$dumpFilename");
+
+    writeln('<info>Dump complete. Exporting dump into remote database.</info>');
+    runLocally("mysql -h {$remoteDb['host']} -u {$remoteDb['username']} -p{$remoteDb['password']} {$remoteDb['name']} < ./$dumpFilename");
+
+    writeln('<info>Successfully exported! Removing leftover files...</info>');
+    runLocally("rm ./$dumpFilename");
+
+    writeln('<info>Done</info>');
+})->desc('Back up remote database locally & copy local database to remote stage');
+
+task('database:backup:to_local', function() {
+    backupRemoteDatabaseLocally();
+})->desc('Create local backup of remote database');
+
+task('database:backup:download', function() {
+    download('{{deploy_path}}/backups', './');
+    writeln('<info>Backups successfully downloaded</info>');
+})->desc('Download database backups from remote');
+
+task('success', function () {
+    // TODO: Add global OS notification
+    writeln('<info>Successfully deployed! Check it out under: {{ remote_url }}<info>');
+});
+
+function backupRemoteDatabaseLocally() {
+    $filename = './backups/dump-' . time() . '.sql';
+    $stage = input()->getArgument('stage');
+    $remoteDb = get('db')[$stage];
+
+    writeln('<info>Backing up database from remote host.</info>');
+    runLocally("mysqldump -h {$remoteDb['host']} -u {$remoteDb['username']} -p{$remoteDb['password']} {$remoteDb['name']} > $filename");
+
+    writeln("<info>Database backup was successfully created in $filename.</info>");
+}
