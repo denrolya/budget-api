@@ -248,7 +248,6 @@ abstract class Category
         return $this;
     }
 
-    #[Groups(['category:collection:read'])]
     public function getTransactionsCount(bool $withChildren = true): int
     {
         $result = $this->transactions->count();
