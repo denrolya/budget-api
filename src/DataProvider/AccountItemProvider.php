@@ -37,11 +37,9 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
         if(!$account) {
             return null;
         }
-        $startOfDecade = (new CarbonImmutable())->startOfDecade();
-        $endOfDecade = (new CarbonImmutable())->endOfDecade();
 
-        $expenses = $this->transactionRepo->getList($startOfDecade, $endOfDecade, TransactionInterface::EXPENSE, null, [$account]);
-        $incomes = $this->transactionRepo->getList($startOfDecade, $endOfDecade, TransactionInterface::INCOME, null, [$account]);
+        $expenses = $this->transactionRepo->getList(null, null, TransactionInterface::EXPENSE, null, [$account]);
+        $incomes = $this->transactionRepo->getList(null, null, TransactionInterface::INCOME, null, [$account]);
 
         $lastTransactionAt = $this->transactionRepo->findOneBy([
             'account' => $account,
