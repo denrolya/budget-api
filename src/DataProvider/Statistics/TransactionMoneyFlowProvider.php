@@ -1,6 +1,6 @@
 <?php
 
-namespace App\DataProvider;
+namespace App\DataProvider\Statistics;
 
 use ApiPlatform\Core\DataProvider\CollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\ContextAwareCollectionDataProviderInterface;
@@ -8,7 +8,6 @@ use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Service\AssetsManager;
-use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
@@ -16,7 +15,7 @@ use Carbon\CarbonPeriod;
 /**
  * TODO: Try group by account/category and subgroup by date(it is grouped by date right now)
  */
-final class TransactionStatisticsMoneyFlowProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class TransactionMoneyFlowProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private AssetsManager                   $assetsManager,

@@ -70,19 +70,19 @@ services:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
 
-    App\DataProvider\TransactionStatisticsSumProvider:
+    App\DataProvider\Statistics\TransactionSumProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\TransactionStatisticsCategoriesTimelineProvider:
+    App\DataProvider\Statistics\TransactionCategoriesTimelineProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\TransactionStatisticsCategoriesTreeProvider:
+    App\DataProvider\Statistics\TransactionCategoriesTreeProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\TransactionStatisticsMoneyFlowProvider:
+    App\DataProvider\Statistics\TransactionMoneyFlowProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 

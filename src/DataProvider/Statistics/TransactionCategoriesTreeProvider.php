@@ -1,17 +1,18 @@
 <?php
 
-namespace App\DataProvider;
+namespace App\DataProvider\Statistics;
 
 use ApiPlatform\Core\DataProvider\CollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\ContextAwareCollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
-use App\Service\AssetsManager;
+use App\Entity\TransactionInterface;
+use App\Service\StatisticsManager;
 
-final class TransactionStatisticsSumProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class TransactionCategoriesTreeProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
-        private AssetsManager                   $assetsManager,
+        private StatisticsManager               $statisticsManager,
         private CollectionDataProviderInterface $collectionDataProvider,
     )
     {
@@ -20,16 +21,17 @@ final class TransactionStatisticsSumProvider implements ContextAwareCollectionDa
     public function getCollection(string $resourceClass, string $operationName = null, array $context = []): iterable
     {
         $context['filters'] = $context['filters'] ?? [];
-        $context['filters']['category.isAffectingProfit'] = true;
+        $context['filters']['type'] = $context['filters']['type'] ?? TransactionInterface::EXPENSE;
         $context['filters']['isDraft'] = false;
 
-        yield $this->assetsManager->sumMixedTransactions(
+        yield $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
+            $context['filters']['type'] ?? TransactionInterface::EXPENSE,
             (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)
         );
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'sum';
+        return $resourceClass === Transaction::class && $operationName === 'categoriesTree';
     }
 }

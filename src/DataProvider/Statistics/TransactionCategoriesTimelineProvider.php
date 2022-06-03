@@ -1,6 +1,6 @@
 <?php
 
-namespace App\DataProvider;
+namespace App\DataProvider\Statistics;
 
 use ApiPlatform\Core\DataProvider\CollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\ContextAwareCollectionDataProviderInterface;
@@ -11,7 +11,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 
-final class TransactionStatisticsCategoriesTimelineProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class TransactionCategoriesTimelineProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private StatisticsManager               $statisticsManager,
