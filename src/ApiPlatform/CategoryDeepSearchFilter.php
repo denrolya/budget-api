@@ -5,7 +5,6 @@ namespace App\ApiPlatform;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\AbstractFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use App\Entity\Category;
-use App\Service\AssetsManager;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use JetBrains\PhpStorm\ArrayShape;
@@ -21,10 +20,7 @@ final class CategoryDeepSearchFilter extends AbstractFilter
 {
     private const PROPERTY_NAME = 'category_deep';
 
-    private AssetsManager $assetsManager;
-
     public function __construct(
-        AssetsManager          $assetsManager,
         ManagerRegistry        $managerRegistry,
         ?RequestStack          $requestStack = null,
         LoggerInterface        $logger = null,
@@ -33,8 +29,6 @@ final class CategoryDeepSearchFilter extends AbstractFilter
     )
     {
         parent::__construct($managerRegistry, $requestStack, $logger, $properties, $nameConverter);
-
-        $this->assetsManager = $assetsManager;
     }
 
     /**

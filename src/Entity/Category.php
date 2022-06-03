@@ -107,14 +107,14 @@ abstract class Category
     private bool $isTechnical;
 
     /**
-     * @ORM\OneToMany(targetEntity=Category::class, mappedBy="parent", cascade={"remove"})
+     * @ORM\OneToMany(targetEntity=Category::class, mappedBy="parent", cascade={"remove"}, fetch="EXTRA_LAZY")
      */
     private Collection $children;
 
     /**
      * Many Categories have One Parent Category.
      *
-     * @ORM\ManyToOne(targetEntity="Category", inversedBy="children")
+     * @ORM\ManyToOne(targetEntity="Category", inversedBy="children", fetch="EXTRA_LAZY")
      * @ORM\JoinColumn(name="parent_id", referencedColumnName="id")
      */
     #[Groups(['category:collection:read', 'category:write'])]
@@ -122,7 +122,7 @@ abstract class Category
 
     /**
      * Many Categories have One Root Category.
-     * @ORM\ManyToOne(targetEntity="Category")
+     * @ORM\ManyToOne(targetEntity="Category", fetch="EXTRA_LAZY")
      * @ORM\JoinColumn(name="root_id", referencedColumnName="id")
      */
     #[Groups(['category:collection:read'])]
@@ -437,6 +437,7 @@ abstract class Category
         $result = [];
         foreach($this->children as $child) {
             $result[] = [
+                'id' => $child->getId(),
                 'root' => $child->getRoot()->getId(),
                 'parent' => !$child->isRoot() ? $child->getParent()->getId() : null,
                 'icon' => $child->getIcon(),

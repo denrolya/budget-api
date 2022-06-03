@@ -242,19 +242,8 @@ final class StatisticsManager
         return $result;
     }
 
-    /**
-     * Sums categories' transactions and groups them by timeframe within given period
-     */
-    public function generateCategoriesOnTimelineStatistics(CarbonPeriod $period, ?array $categories): ?array
+    public function test(CarbonPeriod $period, array $transactions, ?array $categories): ?array
     {
-        if(empty($categories)) {
-            return null;
-        }
-
-        $result = [];
-        $start = $period->getStartDate();
-        $end = $period->getEndDate();
-
         foreach($categories as $categoryId) {
             if(!$category = $this->em->getRepository(Category::class)->find($categoryId)) {
                 continue;
@@ -271,6 +260,37 @@ final class StatisticsManager
                     [$name]
                 )
             );
+        }
+    }
+
+    /**
+     * Sums categories' transactions and groups them by timeframe within given period
+     */
+    public function generateCategoriesOnTimelineStatistics(CarbonPeriod $period, ?array $categories, array $transactions): ?array
+    {
+        if(empty($categories)) {
+            return null;
+        }
+
+        $result = [];
+        $start = $period->getStartDate();
+        $end = $period->getEndDate();
+
+        foreach($categories as $categoryId) {
+            if(!$category = $this->em->getRepository(Category::class)->find($categoryId)) {
+                continue;
+            }
+
+            $name = $category->getName();
+
+            $categoryTransactionsWithinPeriod = array_filter(
+                $transactions,
+                static function (TransactionInterface $transaction) use ($category, $start, $end) {
+                    return $transaction->getCategory()->isChildOf($category) && $transaction->getExecutedAt()->isBetween($start, $end);
+                }
+            );
+
+            $result[$name] = $this->sumTransactionsByDateInterval($period, $categoryTransactionsWithinPeriod);
         }
 
         return $result;
