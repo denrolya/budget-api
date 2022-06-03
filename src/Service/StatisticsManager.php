@@ -397,21 +397,25 @@ final class StatisticsManager
 
     public function sumTransactionsByDateInterval(CarbonPeriod $period, array $transactions = []): array
     {
+        $dates = $period->toArray();
         $result = [];
-        foreach($period as $date) {
-            $filteredTransactions = array_filter(
-                $transactions,
-                static function (TransactionInterface $transaction) use ($date, $period) {
-                    return $transaction->getExecutedAt()->startOfDay()->between(
-                        $date,
-                        $date->copy()->add($period->interval)->subDay()->endOf('day')
-                    );
-                });
+        foreach($dates as $date) {
+            $to = next($dates);
 
-            $result[] = [
-                'date' => $date->timestamp,
-                'value' => $this->assetsManager->sumTransactions($filteredTransactions),
-            ];
+            if($to !== false) {
+                $transactionsWithinPeriod = array_filter(
+                    $transactions,
+                    static function (TransactionInterface $transaction) use ($date, $to) {
+                        $transactionDate = $transaction->getExecutedAt();
+
+                        return $transactionDate->greaterThanOrEqualTo($date) && $transactionDate->lessThan($to);
+                    });
+
+                $result[] = [
+                    'date' => $date->timestamp,
+                    'value' => $this->assetsManager->sumTransactions($transactionsWithinPeriod),
+                ];
+            }
         }
 
         return $result;

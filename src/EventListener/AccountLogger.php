@@ -200,7 +200,7 @@ final class AccountLogger
             ];
         }
 
-        usort($result, static function (TransactionInterface $a, TransactionInterface $b) {
+        uasort($result, static function (TransactionInterface $a, TransactionInterface $b) {
             return $a->getExecutedAt()->isBefore($b->getExecutedAt());
         });
 
