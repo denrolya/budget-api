@@ -18,7 +18,7 @@ use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
  */
 final class CategoryDeepSearchFilter extends AbstractFilter
 {
-    private const PROPERTY_NAME = 'category_deep';
+    private const PROPERTY_NAME = 'categoryDeep';
 
     public function __construct(
         ManagerRegistry        $managerRegistry,
