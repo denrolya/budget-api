@@ -79,6 +79,6 @@ final class TransactionMoneyFlowProvider implements ContextAwareCollectionDataPr
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'moneyFlow';
+        return $resourceClass === Transaction::class && $operationName === 'money_flow';
     }
 }

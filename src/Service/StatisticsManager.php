@@ -12,7 +12,6 @@ use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Repository\ExpenseRepository;
 use App\Repository\TransactionRepository;
-use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
@@ -155,7 +154,7 @@ final class StatisticsManager
     }
 
     #[ArrayShape(['min' => 'array', 'max' => 'array'])]
-    public function generateMinMaxByMonthExpenseStatistics(CarbonInterface $from, CarbonInterface $to, string $category): array
+    public function generateMinMaxByIntervalExpenseStatistics(array $transactions, CarbonPeriod $period): array
     {
         $result = [
             'min' => [
@@ -168,46 +167,38 @@ final class StatisticsManager
             ],
         ];
 
-        $now = Carbon::now();
-        $endOfMonth = $now->copy()->endOfMonth();
+        $dates = $period->toArray();
+        foreach($dates as $key => $from) {
+            $to = next($dates);
 
-        if($now->isBefore($to)) {
-            if($now->isSameDay($endOfMonth)) {
-                $to = $endOfMonth;
-            } else {
-                $to = $now->previous('month');
-            }
-        }
+            if($to !== false) {
+                $sum = $this->assetsManager->sumTransactions(
+                    array_filter(
+                        $transactions,
+                        static function (TransactionInterface $transaction) use ($from, $to) {
+                            $transactionDate = $transaction->getExecutedAt();
 
-        $period = new CarbonPeriod(
-            $from->startOfMonth(),
-            '1 month',
-            $to->endOfMonth()
-        );
+                            return $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
+                        }
+                    )
+                );
 
-        foreach($period as $key => $date) {
-            $sum = $this->assetsManager->sumTransactionsFiltered(
-                TransactionInterface::EXPENSE,
-                $date->startOfMonth(),
-                $date->copy()->endOfMonth(),
-                [$category]
-            );
+                if($key === 0) {
+                    $result['min']['value'] = $sum;
+                    $result['min']['when'] = $from->copy()->toDateString();
+                    $result['max']['value'] = $sum;
+                    $result['max']['when'] = $from->copy()->toDateString();
+                }
 
-            if($key === 0) {
-                $result['min']['value'] = $sum;
-                $result['min']['when'] = $date->toDateString();
-                $result['max']['value'] = $sum;
-                $result['max']['when'] = $date->toDateString();
-            }
+                if($sum < $result['min']['value']) {
+                    $result['min']['value'] = $sum;
+                    $result['min']['when'] = $from->copy()->toDateString();
+                }
 
-            if($sum < $result['min']['value']) {
-                $result['min']['value'] = $sum;
-                $result['min']['when'] = $date->toDateString();
-            }
-
-            if($sum > $result['max']['value']) {
-                $result['max']['value'] = $sum;
-                $result['max']['when'] = $date->toDateString();
+                if($sum > $result['max']['value']) {
+                    $result['max']['value'] = $sum;
+                    $result['max']['when'] = $from->copy()->toDateString();
+                }
             }
         }
 
@@ -240,27 +231,6 @@ final class StatisticsManager
         }
 
         return $result;
-    }
-
-    public function test(CarbonPeriod $period, array $transactions, ?array $categories): ?array
-    {
-        foreach($categories as $categoryId) {
-            if(!$category = $this->em->getRepository(Category::class)->find($categoryId)) {
-                continue;
-            }
-
-            $name = $category->getName();
-
-            $result[$name] = $this->sumTransactionsByDateInterval(
-                $period,
-                $this->transactionRepo->getList(
-                    $start,
-                    $end,
-                    null,
-                    [$name]
-                )
-            );
-        }
     }
 
     /**

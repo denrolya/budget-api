@@ -40,6 +40,6 @@ final class TransactionGroceriesAvgProvider implements ContextAwareCollectionDat
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'groceriesAverage';
+        return $resourceClass === Transaction::class && $operationName === 'groceries_average';
     }
 }

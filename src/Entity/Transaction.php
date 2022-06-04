@@ -37,7 +37,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         'get' => [
             'normalization_context' => ['groups' => 'transaction:collection:read'],
         ],
-        'moneyFlow' => [
+        'money_flow' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/money-flow',
             'pagination_enabled' => false,
@@ -64,7 +64,16 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ],
         ],
-        'groceriesAverage' => [
+        'min_max' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/min-max',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Minimum & maximum by interval',
+                'description' => '',
+            ],
+        ],
+        'groceries_average' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/groceries',
             'pagination_enabled' => false,
@@ -73,7 +82,7 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ],
         ],
-        'categoriesTree' => [
+        'categories_tree' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/categories-tree',
             'pagination_enabled' => false,
@@ -82,7 +91,7 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ],
         ],
-        'categoriesTimeline' => [
+        'categories_timeline' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/categories-timeline',
             'pagination_enabled' => false,

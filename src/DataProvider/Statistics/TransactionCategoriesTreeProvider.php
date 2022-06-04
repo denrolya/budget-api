@@ -32,6 +32,6 @@ final class TransactionCategoriesTreeProvider implements ContextAwareCollectionD
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'categoriesTree';
+        return $resourceClass === Transaction::class && $operationName === 'categories_tree';
     }
 }
