@@ -109,6 +109,15 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => 'Category that has the biggest cumulative value',
             ]
         ],
+        'account_distribution' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/account-distribution',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Account distribution',
+                'description' => '',
+            ]
+        ],
         'post_monobank' => [
             'method' => 'POST',
             'path' => '/monobank/transactions',

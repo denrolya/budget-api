@@ -11,7 +11,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 
-final class TransactionCategoriesTimelineProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class CategoriesTimelineProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private StatisticsManager               $statisticsManager,

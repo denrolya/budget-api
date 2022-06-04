@@ -6,10 +6,9 @@ use ApiPlatform\Core\DataProvider\CollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\ContextAwareCollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
-use App\Entity\TransactionInterface;
 use App\Service\StatisticsManager;
 
-final class TransactionCategoriesTreeProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class AccountDistributionProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private StatisticsManager               $statisticsManager,
@@ -21,17 +20,16 @@ final class TransactionCategoriesTreeProvider implements ContextAwareCollectionD
     public function getCollection(string $resourceClass, string $operationName = null, array $context = []): iterable
     {
         $context['filters'] = $context['filters'] ?? [];
-        $context['filters']['type'] = $context['filters']['type'] ?? TransactionInterface::EXPENSE;
+        $context['filters']['category.isAffectingProfit'] = true;
         $context['filters']['isDraft'] = false;
 
-        yield $this->statisticsManager->generateCategoryTreeStatisticsWithinPeriod(
-            $context['filters']['type'] ?? TransactionInterface::EXPENSE,
-            (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)
+        yield $this->statisticsManager->generateAccountDistributionStatistics(
+            (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context),
         );
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'categories_tree';
+        return $resourceClass === Transaction::class && $operationName === 'account_distribution';
     }
 }

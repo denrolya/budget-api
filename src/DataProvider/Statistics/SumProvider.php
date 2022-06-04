@@ -8,7 +8,7 @@ use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
 use App\Service\AssetsManager;
 
-final class TransactionGroceriesAvgProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class SumProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private AssetsManager                   $assetsManager,
@@ -23,23 +23,13 @@ final class TransactionGroceriesAvgProvider implements ContextAwareCollectionDat
         $context['filters']['category.isAffectingProfit'] = true;
         $context['filters']['isDraft'] = false;
 
-        $days = [];
-        $transactions = (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context);
-
-        foreach($transactions as $transaction) {
-            $day = $transaction->getExecutedAt()->dayOfWeekIso;
-
-            $days[$day] = array_key_exists($day, $days) ? $days[$day] + 1 : 1;
-        }
-
-        yield [
-            'average' => $this->assetsManager->calculateAverageTransaction($transactions),
-            'dayOfWeek' => array_search(max($days), $days, true),
-        ];
+        yield $this->assetsManager->sumMixedTransactions(
+            (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)
+        );
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'groceries_average';
+        return $resourceClass === Transaction::class && $operationName === 'sum';
     }
 }

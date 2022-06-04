@@ -70,15 +70,15 @@ services:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
 
-    App\DataProvider\Statistics\TransactionSumProvider:
+    App\DataProvider\Statistics\SumProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\Statistics\TransactionAvgProvider:
+    App\DataProvider\Statistics\AvgProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\Statistics\TransactionGroceriesAvgProvider:
+    App\DataProvider\Statistics\GroceriesAvgProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
@@ -86,15 +86,19 @@ services:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\Statistics\TransactionCategoriesTimelineProvider:
+    App\DataProvider\Statistics\AccountDistributionProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\Statistics\TransactionCategoriesTreeProvider:
+    App\DataProvider\Statistics\CategoriesTimelineProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\Statistics\TransactionMoneyFlowProvider:
+    App\DataProvider\Statistics\CategoriesTreeProvider:
+        bind:
+            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
+
+    App\DataProvider\Statistics\MoneyFlowProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 

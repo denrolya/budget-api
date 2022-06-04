@@ -6,15 +6,16 @@ use ApiPlatform\Core\DataProvider\CollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\ContextAwareCollectionDataProviderInterface;
 use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
-use App\Service\AssetsManager;
+use App\Service\StatisticsManager;
+use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 
-final class TransactionAvgProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class MinMaxProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
-        private AssetsManager                   $assetsManager,
+        private StatisticsManager                   $statisticsManager,
         private CollectionDataProviderInterface $collectionDataProvider,
     )
     {
@@ -36,15 +37,25 @@ final class TransactionAvgProvider implements ContextAwareCollectionDataProvider
             ? CarbonInterval::createFromDateString($context['filters']['interval'])
             : CarbonInterval::createFromDateString('1 month');
 
+        $now = Carbon::now();
+        $endOfMonth = $now->copy()->endOfMonth();
 
-        yield $this->assetsManager->calculateAverageWithinPeriod(
+        if($now->isBefore($to)) {
+            if($now->isSameDay($endOfMonth)) {
+                $to = $endOfMonth;
+            } else {
+                $to = $now->previous('month');
+            }
+        }
+
+        yield $this->statisticsManager->generateMinMaxByIntervalExpenseStatistics(
             (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context),
-            new CarbonPeriod($from, $interval, $to),
+            new CarbonPeriod($from, $interval, $to)
         );
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'avg';
+        return $resourceClass === Transaction::class && $operationName === 'min_max';
     }
 }

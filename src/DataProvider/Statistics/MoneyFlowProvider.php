@@ -15,7 +15,7 @@ use Carbon\CarbonPeriod;
 /**
  * TODO: Try group by account/category and subgroup by date(it is grouped by date right now)
  */
-final class TransactionMoneyFlowProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class MoneyFlowProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private AssetsManager                   $assetsManager,

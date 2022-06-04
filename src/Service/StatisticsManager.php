@@ -206,16 +206,21 @@ final class StatisticsManager
     }
 
     /**
-     * Generates account value distribution statistics within given period
+     * Generates account value distribution statistics within given transactions array
      */
-    public function generateAccountExpenseDistributionStatistics(CarbonInterface $from, CarbonInterface $to): array
+    public function generateAccountDistributionStatistics(array $transactions): array
     {
         $result = [];
         $accounts = $this->em->getRepository(Account::class)->findAll();
 
         /** @var Account $account */
         foreach($accounts as $account) {
-            $expenses = $this->transactionRepo->getList($from, $to, TransactionInterface::EXPENSE, null, [$account]);
+            $expenses = array_filter(
+                $transactions,
+                static function (TransactionInterface $transaction) use ($account) {
+                    return $transaction->getAccount()->getId() === $account->getId();
+                }
+            );
             $amount = $this->assetsManager->sumTransactions($expenses, $account->getCurrency());
             $value = $this->assetsManager->sumTransactions($expenses);
 
