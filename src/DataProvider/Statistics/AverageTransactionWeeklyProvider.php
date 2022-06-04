@@ -8,7 +8,7 @@ use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Transaction;
 use App\Service\AssetsManager;
 
-final class GroceriesAvgProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class AverageTransactionWeeklyProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private AssetsManager                   $assetsManager,
@@ -33,13 +33,13 @@ final class GroceriesAvgProvider implements ContextAwareCollectionDataProviderIn
         }
 
         yield [
-            'average' => $this->assetsManager->calculateAverageTransaction($transactions),
+            'value' => $this->assetsManager->calculateAverageTransaction($transactions),
             'dayOfWeek' => array_search(max($days), $days, true),
         ];
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'groceries_average';
+        return $resourceClass === Transaction::class && $operationName === 'average_transaction_weekly';
     }
 }

@@ -73,12 +73,12 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ],
         ],
-        'groceries_average' => [
+        'average_transaction_weekly' => [
             'method' => 'GET',
-            'path' => '/transactions/statistics/groceries',
+            'path' => '/transactions/statistics/avg-weekly',
             'pagination_enabled' => false,
             'openapi_context' => [
-                'summary' => 'Groceries average check',
+                'summary' => 'Average transaction weekly',
                 'description' => '',
             ],
         ],

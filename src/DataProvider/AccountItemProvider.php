@@ -10,7 +10,6 @@ use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Repository\TransactionRepository;
 use App\Service\StatisticsManager;
-use Carbon\CarbonImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**

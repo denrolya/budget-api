@@ -78,7 +78,7 @@ services:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
-    App\DataProvider\Statistics\GroceriesAvgProvider:
+    App\DataProvider\Statistics\AverageTransactionWeeklyProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
