@@ -118,6 +118,11 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ]
         ],
+        'get_monobank' => [
+            'method' => 'GET',
+            'path' => '/monobank/transactions',
+            'status' => 200
+        ],
         'post_monobank' => [
             'method' => 'POST',
             'path' => '/monobank/transactions',

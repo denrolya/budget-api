@@ -24,10 +24,10 @@ class MonobankService
     /**
      * @throws InvalidArgumentException
      */
-    public function convertStatementItemToDraftTransaction(string $accountId, array $statementItem): TransactionInterface
+    public function convertStatementItemToDraftTransaction(string $accountId, array $statementItem): ?TransactionInterface
     {
         if(!$account = $this->em->getRepository(BankCardAccount::class)->findOneByMonobankId($accountId)) {
-            throw new InvalidArgumentException('Account ID is not registered in system.');
+            return null;
         }
 
         $isIncome = $statementItem['amount'] > 0;
