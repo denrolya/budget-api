@@ -267,6 +267,45 @@ final class StatisticsManager
     }
 
     /**
+     * Find transaction category that holds the biggest cumulative value
+     */
+    public function generateTopValueCategoryStatistics(array $transactions): ?array
+    {
+        $rootCategories = $this->em
+            ->getRepository(Category::class)
+            ->findBy([
+                'root' => null,
+                'isTechnical' => false,
+            ]);
+        $max = 0;
+        $result = null;
+
+        foreach($rootCategories as $category) {
+            $value = abs(
+                $this->assetsManager->sumTransactions(
+                    array_filter(
+                        $transactions,
+                        static function (TransactionInterface $transaction) use ($category) {
+                            return $transaction->getCategory()->isChildOf($category);
+                        }
+                    )
+                )
+            );
+
+            if($value > $max) {
+                $max = $value;
+                $result = [
+                    'icon' => $category->getIcon(),
+                    'name' => $category->getName(),
+                    'value' => $max,
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Calculate total amount of assets
      */
     public function calculateTotalAssets(): float

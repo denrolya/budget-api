@@ -82,6 +82,10 @@ services:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
+    App\DataProvider\Statistics\TopValueCategoryProvider:
+        bind:
+            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
+
     App\DataProvider\Statistics\TransactionCategoriesTimelineProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'

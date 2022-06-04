@@ -100,6 +100,15 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ],
         ],
+        'top_value_category' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/top-value-category',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Top value category',
+                'description' => 'Category that has the biggest cumulative value',
+            ]
+        ],
         'post_monobank' => [
             'method' => 'POST',
             'path' => '/monobank/transactions',
