@@ -80,26 +80,28 @@ final class AssetsManager
         ];
     }
 
-    public function calculateAverage(CarbonInterface $from, CarbonInterface $to, string $interval, string $type): float
+    public function calculateAverageWithinPeriod(array $transactions, CarbonPeriod $period): float
     {
-        $transactions = $this->transactionRepo->getList($from, $to, $type);
-        $period = new CarbonPeriod($from, "1 $interval", $to);
-
         $byDate = [];
 
-        foreach($period as $date) {
-            $transactionsByDate = array_filter($transactions, static function (TransactionInterface $transaction) use ($date, $interval) {
-                return $transaction->getExecutedAt()->startOfDay()->between(
-                    $date,
-                    $date->copy()->endOf($interval)
+        $dates = $period->toArray();
+        foreach($dates as $from) {
+            $to = next($dates);
+
+            if($to !== false) {
+                $transactionsByDate = array_filter(
+                    $transactions,
+                    static function (TransactionInterface $transaction) use ($from, $to) {
+                        return $transaction->getExecutedAt()->startOfDay()->between($from, $to);
+                    }
                 );
-            });
-            $byDate[$date->toDateString()] = count($transactionsByDate)
-                ? $this->sumTransactions($transactionsByDate) / count($transactionsByDate)
-                : 0;
+                $byDate[$from->toDateString()] = count($transactionsByDate)
+                    ? $this->sumTransactions($transactionsByDate) / count($transactionsByDate)
+                    : 0;
+            }
         }
 
-        return array_sum(array_values($byDate)) / $period->count();
+        return array_sum(array_values($byDate)) / count($dates);
     }
 
     public function calculateAverageTransaction(array $transactions = []): float

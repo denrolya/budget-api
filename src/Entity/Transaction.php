@@ -55,6 +55,24 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ],
         ],
+        'avg' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/avg',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Average amount of transactions',
+                'description' => '',
+            ],
+        ],
+        'groceriesAverage' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/groceries',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Groceries average check',
+                'description' => '',
+            ],
+        ],
         'categoriesTree' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/categories-tree',
