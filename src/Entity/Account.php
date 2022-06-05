@@ -208,6 +208,12 @@ class Account implements OwnableInterface, ValuableInterface
     )]
     private ?array $topIncomeCategories;
 
+    /**
+     * @ORM\Column(type="boolean")
+     */
+    #[Groups(['account:collection:read', 'account:item:read'])]
+    private bool $isDisplayedOnSidebar = false;
+
     public function __construct()
     {
         $this->transactions = new ArrayCollection();
@@ -444,6 +450,18 @@ class Account implements OwnableInterface, ValuableInterface
     public function setTopIncomeCategories(array $topIncomeCategories): self
     {
         $this->topIncomeCategories = $topIncomeCategories;
+
+        return $this;
+    }
+
+    public function getIsDisplayedOnSidebar(): bool
+    {
+        return $this->isDisplayedOnSidebar;
+    }
+
+    public function setIsDisplayedOnSidebar(bool $isDisplayedOnSidebar): self
+    {
+        $this->isDisplayedOnSidebar = $isDisplayedOnSidebar;
 
         return $this;
     }
