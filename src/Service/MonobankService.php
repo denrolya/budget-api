@@ -3,6 +3,7 @@
 namespace App\Service;
 
 use App\Entity\BankCardAccount;
+use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\Income;
@@ -31,8 +32,8 @@ class MonobankService
         }
 
         $isIncome = $statementItem['amount'] > 0;
-        $unknownIncomeCategory = $this->em->getRepository(IncomeCategory::class)->find(39);
-        $unknownExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->find(17);
+        $unknownIncomeCategory = $this->em->getRepository(IncomeCategory::class)->find(Category::INCOME_CATEGORY_ID_UNKNOWN);
+        $unknownExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
         $user = $account->getOwner();
         $amount = abs($statementItem['amount'] / 100);
         $note = $statementItem['description'] . ' ' . (array_key_exists('comment', $statementItem) ? $statementItem['comment'] : '');

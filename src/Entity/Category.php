@@ -67,6 +67,9 @@ abstract class Category
     public const CATEGORY_TRANSFER_FEE = 'Transfer Fee';
     public const CATEGORY_GROCERIES = 'Groceries';
 
+    public const EXPENSE_CATEGORY_ID_UNKNOWN = 17;
+    public const INCOME_CATEGORY_ID_UNKNOWN = 39;
+
     /**
      * @ORM\Id()
      * @ORM\GeneratedValue()
