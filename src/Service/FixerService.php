@@ -16,11 +16,9 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 final class FixerService
 {
-    private const BASE_URL = 'http://data.fixer.io/api/';
+    private const BASE_URL = 'https://api.apilayer.com/fixer/';
     private const MONTH_IN_SECONDS = 2678400;
     private const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'HUF', 'UAH', 'BTC'];
-
-    private string $apiKey;
 
     private Security $security;
 
@@ -28,10 +26,9 @@ final class FixerService
 
     private CacheInterface $cache;
 
-    public function __construct(HttpClientInterface $client, string $fixerApiKey, CacheInterface $cache, Security $security)
+    public function __construct(HttpClientInterface $fixerClient, CacheInterface $cache, Security $security)
     {
-        $this->apiKey = $fixerApiKey;
-        $this->client = $client;
+        $this->client = $fixerClient;
         $this->cache = $cache;
         $this->security = $security;
     }
@@ -176,11 +173,10 @@ final class FixerService
         return array_key_exists($currencyCode, $rates);
     }
 
-    #[ArrayShape(['access_key' => 'string', 'base' => 'string', 'symbols' => 'string'])]
+    #[ArrayShape(['base' => 'string', 'symbols' => 'string'])]
     private function getRequestParams(): array
     {
         return [
-            'access_key' => $this->apiKey,
             'base' => 'EUR',
             'symbols' => 'EUR, USD, HUF, UAH, BTC, ETH',
         ];
