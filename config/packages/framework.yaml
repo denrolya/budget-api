@@ -21,7 +21,7 @@ framework:
             fixer_client:
                 base_uri: 'https://api.apilayer.com/fixer'
                 headers:
-                    apiKey: 'env(%env(FIXER_API_KEY)%)'
+                    apiKey: '%env(FIXER_API_KEY)%'
 
 when@test:
     framework:
