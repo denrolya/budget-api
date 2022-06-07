@@ -351,21 +351,6 @@ final class StatisticsManager
     }
 
     /**
-     * Calculate total amount of assets
-     */
-    public function calculateTotalAssets(): float
-    {
-        $accounts = $this->em->getRepository(Account::class)->findAll();
-        $sum = 0;
-
-        foreach($accounts as $account) {
-            $sum += $account->getValue();
-        }
-
-        return $sum;
-    }
-
-    /**
      * Calculates the sum of expenses made today converted to base currency
      */
     public function calculateTodayExpenses(): float

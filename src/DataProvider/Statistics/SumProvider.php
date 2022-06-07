@@ -28,7 +28,7 @@ final class SumProvider implements ContextAwareCollectionDataProviderInterface, 
 
         $transactions = (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context);
 
-        $result = $context['filters']['type']
+        $result = isset($context['filters']['type'])
             ? $this->assetsManager->sumTransactions($transactions)
             : $this->assetsManager->sumMixedTransactions($transactions);
 

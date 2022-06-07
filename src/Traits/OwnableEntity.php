@@ -2,9 +2,9 @@
 
 namespace App\Traits;
 
+use App\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use App\Entity\User;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 trait OwnableEntity

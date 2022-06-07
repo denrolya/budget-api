@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Entity\User;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
@@ -13,7 +14,7 @@ trait OwnableValuableEntity
      * @Gedmo\Blameable(on="create")
      * @Gedmo\Blameable(on="update")
      *
-     * @ORM\ManyToOne(targetEntity="App\Entity\User")
+     * @ORM\ManyToOne(targetEntity=User::class)
      * @ORM\JoinColumn(name="owner_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
      */
     protected ?UserInterface $owner;

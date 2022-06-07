@@ -3,22 +3,22 @@
 namespace App\Entity;
 
 use ApiPlatform\Core\Annotation\ApiFilter;
+use ApiPlatform\Core\Annotation\ApiProperty;
+use ApiPlatform\Core\Annotation\ApiResource;
 use ApiPlatform\Core\Serializer\Filter\PropertyFilter;
-use App\Traits\OwnableValuableEntity;
+use App\Repository\AccountRepository;
+use App\Traits\OwnableEntity;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use Doctrine\Common\Collections\Collection;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
-use ApiPlatform\Core\Annotation\ApiResource;
-use App\Repository\AccountRepository;
 use Symfony\Component\Serializer\Annotation\SerializedName;
-use ApiPlatform\Core\Annotation\ApiProperty;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -52,7 +52,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     paginationEnabled: false
 )]
 #[ApiFilter(PropertyFilter::class)]
-class Account implements OwnableInterface, ValuableInterface
+class Account implements OwnableInterface
 {
     public const CURRENCIES = [
         'EUR' => [
@@ -82,7 +82,7 @@ class Account implements OwnableInterface, ValuableInterface
     public const ACCOUNT_TYPE_INTERNET = 'internet';
     public const ACCOUNT_TYPE_BANK_CARD = 'bank';
 
-    use TimestampableEntity, OwnableValuableEntity;
+    use TimestampableEntity, OwnableEntity;
 
     /**
      * @ORM\Id()
@@ -91,12 +91,6 @@ class Account implements OwnableInterface, ValuableInterface
      */
     #[Groups(['account:collection:read', 'account:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transaction:collection:read'])]
     private ?int $id;
-
-    /**
-     * @ORM\Column(type="json", nullable=false)
-     */
-    #[Groups(['account:collection:read'])]
-    protected ?array $convertedValues = [];
 
     /**
      * @Gedmo\Timestampable(on="create")
