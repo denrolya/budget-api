@@ -37,12 +37,6 @@ interface TransactionInterface extends ValuableInterface
 
     public function setExecutedAt(DateTimeInterface $executedAt): self;
 
-    public function getCanceledAt(): CarbonInterface|DateTimeInterface|null;
-
-    public function setCanceledAt(DateTimeInterface $canceledAt): TransactionInterface;
-
-    public function cancel(): TransactionInterface;
-
     public function isExpense(): bool;
 
     public function isIncome(): bool;

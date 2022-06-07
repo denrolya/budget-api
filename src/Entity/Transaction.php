@@ -9,13 +9,10 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 use App\ApiPlatform\CategoryDeepSearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
-use App\ApiPlatform\WithDeletedFilter;
 use App\DTO\MonobankResponse;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
-use Carbon\CarbonImmutable;
-use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
@@ -24,8 +21,6 @@ use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * @Gedmo\SoftDeleteable(fieldName="canceledAt", timeAware=false, hardDelete=false)
- *
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\TransactionRepository")
  * @ORM\InheritanceType("SINGLE_TABLE")
@@ -161,7 +156,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(DateFilter::class, properties: ['executedAt'])]
 #[ApiFilter(SearchFilter::class, properties: ['account.id' => 'exact', 'category.id' => 'exact'])]
 #[ApiFilter(BooleanFilter::class, properties: ['isDraft', 'category.isAffectingProfit'])]
-#[ApiFilter(WithDeletedFilter::class)]
 #[ApiFilter(CategoryDeepSearchFilter::class)]
 #[ApiFilter(DiscriminatorFilter::class, arguments: [
     'types' => [
@@ -235,12 +229,6 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     protected ?Category $category;
-
-    /**
-     * @ORM\Column(type="datetime", nullable=true)
-     */
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
-    private ?DateTimeInterface $canceledAt = null;
 
     /**
      * @ORM\Column(type="boolean", nullable=false)
@@ -319,27 +307,6 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
         $this->note = $note;
 
         return $this;
-    }
-
-    public function getCanceledAt(): CarbonInterface|DateTimeInterface|null
-    {
-        if($this->canceledAt instanceof DateTimeInterface) {
-            return new CarbonImmutable($this->canceledAt->getTimestamp(), $this->canceledAt->getTimezone());
-        }
-
-        return $this->canceledAt;
-    }
-
-    public function setCanceledAt(?DateTimeInterface $canceledAt): TransactionInterface
-    {
-        $this->canceledAt = $canceledAt;
-
-        return $this;
-    }
-
-    public function cancel(): TransactionInterface
-    {
-        return $this->setCanceledAt(CarbonImmutable::now());
     }
 
     public function isExpense(): bool

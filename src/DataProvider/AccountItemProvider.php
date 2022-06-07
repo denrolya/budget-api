@@ -42,7 +42,6 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
 
         $lastTransactionAt = $this->transactionRepo->findOneBy([
             'account' => $account,
-            'canceledAt' => null,
         ], [
             'executedAt' => 'DESC'
         ]);

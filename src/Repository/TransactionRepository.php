@@ -127,7 +127,6 @@ class TransactionRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('t')
             ->leftJoin('t.account', 'a')
             ->where('a.id = :account')
-            ->andWhere('t.canceledAt IS NULL')
             ->setParameter('account', $account)
             ->orderBy('t.executedAt', 'DESC');
 

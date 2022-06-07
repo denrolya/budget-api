@@ -18,12 +18,10 @@ use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
- * @Gedmo\SoftDeleteable(fieldName="removedAt", timeAware=false, hardDelete=false)
- *
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\CategoryRepository")
  * @ORM\Table(
- *     uniqueConstraints={@ORM\UniqueConstraint(name="unique_category", columns={"name", "type", "removed_at"})},
+ *     uniqueConstraints={@ORM\UniqueConstraint(name="unique_category", columns={"name", "type"})},
  *     indexes={@ORM\Index(name="category_name_idx", columns={"name"})}),
  * )
  * @ORM\InheritanceType("SINGLE_TABLE")
@@ -98,11 +96,6 @@ abstract class Category
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
     private ?string $name;
-
-    /**
-     * @ORM\Column(type="datetime", nullable=true)
-     */
-    private ?DateTimeInterface $removedAt;
 
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
@@ -265,22 +258,6 @@ abstract class Category
         }
 
         return $result;
-    }
-
-    public function getRemovedAt(): ?CarbonInterface
-    {
-        if($this->removedAt instanceof DateTimeInterface) {
-            return new CarbonImmutable($this->removedAt->getTimestamp(), $this->removedAt->getTimezone());
-        }
-
-        return $this->removedAt;
-    }
-
-    public function setRemovedAt(CarbonInterface $removedAt): self
-    {
-        $this->removedAt = $removedAt;
-
-        return $this;
     }
 
     public function getIsTechnical(): bool

@@ -11,16 +11,11 @@ use App\ApiPlatform\WithDeletedFilter;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableEntity;
 use App\Traits\TimestampableEntity;
-use Carbon\CarbonImmutable;
-use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
-use Gedmo\Mapping\Annotation as Gedmo;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
- * @Gedmo\SoftDeleteable(fieldName="canceledAt", timeAware=false, hardDelete=false)
- *
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\TransferRepository")
  */
@@ -129,11 +124,6 @@ class Transfer implements OwnableInterface
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     protected ?DateTimeInterface $executedAt;
-
-    /**
-     * @ORM\Column(type="datetime", nullable=true)
-     */
-    private ?DateTimeInterface $canceledAt;
 
     public function getId(): ?int
     {
@@ -258,26 +248,5 @@ class Transfer implements OwnableInterface
         $this->note = $note;
 
         return $this;
-    }
-
-    public function getCanceledAt(): null|CarbonInterface|DateTimeInterface
-    {
-        if($this->canceledAt instanceof DateTimeInterface) {
-            return new CarbonImmutable($this->canceledAt->getTimestamp(), $this->canceledAt->getTimezone());
-        }
-
-        return $this->canceledAt;
-    }
-
-    public function setCanceledAt(?DateTimeInterface $canceledAt): self
-    {
-        $this->canceledAt = $canceledAt;
-
-        return $this;
-    }
-
-    public function cancel(): self
-    {
-        return $this->setCanceledAt(CarbonImmutable::now());
     }
 }
