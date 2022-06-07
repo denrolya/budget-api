@@ -102,6 +102,10 @@ services:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
+    App\DataProvider\Statistics\UtilityCostsProvider:
+        bind:
+            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
+
     App\EventListener\ValuableEntityEventListener:
         tags:
             - { name: doctrine.event_listener, event: prePersist }

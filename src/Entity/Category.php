@@ -83,6 +83,7 @@ abstract class Category
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
+    #[Groups(['category:collection:read'])]
     protected ?DateTimeInterface $createdAt;
 
     /**

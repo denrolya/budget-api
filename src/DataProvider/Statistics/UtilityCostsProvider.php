@@ -11,10 +11,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 
-/**
- * TODO: Try group by account/category and subgroup by date(it is grouped by date right now)
- */
-final class MoneyFlowProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
+final class UtilityCostsProvider implements ContextAwareCollectionDataProviderInterface, RestrictedDataProviderInterface
 {
     public function __construct(
         private StatisticsManager               $statisticsManager,
@@ -38,8 +35,9 @@ final class MoneyFlowProvider implements ContextAwareCollectionDataProviderInter
         $interval = isset($context['filters']['interval'])
             ? CarbonInterval::createFromDateString($context['filters']['interval'])
             : CarbonInterval::createFromDateString('1 month');
+        // $categories = ...
 
-        yield $this->statisticsManager->generateMoneyFlowStatistics(
+        yield $this->statisticsManager->generateUtilityCostsStatistics(
             (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context),
             new CarbonPeriod($from, $interval, $to)
         );
@@ -47,6 +45,6 @@ final class MoneyFlowProvider implements ContextAwareCollectionDataProviderInter
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Transaction::class && $operationName === 'money_flow';
+        return $resourceClass === Transaction::class && $operationName === 'utility_costs';
     }
 }

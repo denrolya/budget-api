@@ -118,6 +118,15 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ]
         ],
+        'utility_costs' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/utilities',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Utility costs',
+                'description' => '',
+            ]
+        ],
         'get_monobank' => [
             'method' => 'GET',
             'path' => '/monobank/transactions',

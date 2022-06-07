@@ -10,11 +10,11 @@ use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
+use App\Repository\ExpenseCategoryRepository;
 use App\Repository\ExpenseRepository;
 use App\Repository\TransactionRepository;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
-use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 use Doctrine\ORM\EntityManagerInterface;
 use JetBrains\PhpStorm\ArrayShape;
@@ -25,6 +25,8 @@ final class StatisticsManager
 
     private ExpenseRepository $expenseRepo;
 
+    private ExpenseCategoryRepository $expenseCategoryRepo;
+
     public function __construct(
         private AssetsManager          $assetsManager,
         private EntityManagerInterface $em,
@@ -32,53 +34,43 @@ final class StatisticsManager
     {
         $this->expenseRepo = $this->em->getRepository(Expense::class);
         $this->transactionRepo = $this->em->getRepository(Transaction::class);
+        $this->expenseCategoryRepo = $this->em->getRepository(ExpenseCategory::class);
     }
 
     /**
      * Generates transactions statistics grouped by types. With given interval also grouped by date interval
      */
-    public function generateMoneyFlowStatistics(
-        CarbonInterface $from,
-        CarbonInterface $to,
-        ?CarbonInterval $interval = null,
-        ?array          $types = null,
-        ?array          $accounts = [],
-        ?array          $categories = []): array
+    public function generateMoneyFlowStatistics(array $transactions, CarbonPeriod $period): array
     {
-        if(empty($types)) {
-            $types = [TransactionInterface::EXPENSE, TransactionInterface::INCOME];
-        }
-
         $result = [];
+        $dates = $period->toArray();
+        foreach($dates as $from) {
+            $to = next($dates);
 
-        if($interval) {
-            $period = new CarbonPeriod($from, $interval, $to);
-            foreach($period as $date) {
-                $temporaryResult = [
-                    'date' => $date->timestamp,
+            if($to !== false) {
+                $result[] = [
+                    'date' => $from->timestamp,
+                    'expense' => $this->assetsManager->sumTransactions(
+                        array_filter(
+                            $transactions,
+                            static function (TransactionInterface $t) use ($from, $to) {
+                                $transactionDate = $t->getExecutedAt();
+
+                                return $t->isExpense() && $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
+                            }
+                        )
+                    ),
+                    'income' => $this->assetsManager->sumTransactions(
+                        array_filter(
+                            $transactions,
+                            static function (TransactionInterface $t) use ($from, $to) {
+                                $transactionDate = $t->getExecutedAt();
+
+                                return $t->isIncome() && $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
+                            }
+                        )
+                    ),
                 ];
-
-                foreach($types as $type) {
-                    $temporaryResult[$type] = $this->assetsManager->sumTransactionsFiltered(
-                        $type,
-                        $date,
-                        $date->copy()->add($period->interval)->subDay(),
-                        $categories,
-                        $accounts
-                    );
-                }
-
-                $result[] = $temporaryResult;
-            }
-        } else {
-            foreach($types as $type) {
-                $result[$type] = $this->assetsManager->sumTransactionsFiltered(
-                    $type,
-                    $from,
-                    $to,
-                    $categories,
-                    $accounts
-                );
             }
         }
 
@@ -305,6 +297,50 @@ final class StatisticsManager
                     'value' => $max,
                 ];
             }
+        }
+
+        return $result;
+    }
+
+    public function generateUtilityCostsStatistics(array $transactions, CarbonPeriod $period): array
+    {
+        $result = [];
+        $dates = $period->toArray();
+        $categories = [
+            ExpenseCategory::CATEGORY_UTILITIES,
+            ExpenseCategory::CATEGORY_UTILITIES_GAS,
+            ExpenseCategory::CATEGORY_UTILITIES_WATER,
+            ExpenseCategory::CATEGORY_UTILITIES_ELECTRICITY,
+        ];
+
+        foreach($categories as $categoryName) {
+            /** @var ExpenseCategory $category */
+            $category = $this->expenseCategoryRepo->findOneBy(['name' => $categoryName]);
+            $data = [
+                'name' => $categoryName,
+                'icon' => $category->getIcon(),
+                'color' => $category->getColor(),
+                'values' => [],
+            ];
+
+            foreach($dates as $from) {
+                $to = next($dates);
+
+                if($to !== false) {
+                    $data['values'][] = $this->assetsManager->sumTransactions(
+                        array_filter(
+                            $transactions,
+                            static function (TransactionInterface $transaction) use ($from, $to, $category) {
+                                $transactionDate = $transaction->getExecutedAt();
+
+                                return $transactionDate->isBetween($from, $to) && $transaction->getCategory()->isChildOf($category);
+                            }
+                        )
+                    );
+                }
+            }
+
+            $result[] = $data;
         }
 
         return $result;
