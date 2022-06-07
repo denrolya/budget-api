@@ -47,31 +47,33 @@ final class StatisticsManager
         foreach($dates as $from) {
             $to = next($dates);
 
-            if($to !== false) {
-                $result[] = [
-                    'date' => $from->timestamp,
-                    'expense' => $this->assetsManager->sumTransactions(
-                        array_filter(
-                            $transactions,
-                            static function (TransactionInterface $t) use ($from, $to) {
-                                $transactionDate = $t->getExecutedAt();
-
-                                return $t->isExpense() && $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
-                            }
-                        )
-                    ),
-                    'income' => $this->assetsManager->sumTransactions(
-                        array_filter(
-                            $transactions,
-                            static function (TransactionInterface $t) use ($from, $to) {
-                                $transactionDate = $t->getExecutedAt();
-
-                                return $t->isIncome() && $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
-                            }
-                        )
-                    ),
-                ];
+            if($to === false) {
+                $to = $period->getEndDate();
             }
+
+            $result[] = [
+                'date' => $from->timestamp,
+                'expense' => $this->assetsManager->sumTransactions(
+                    array_filter(
+                        $transactions,
+                        static function (TransactionInterface $t) use ($from, $to) {
+                            $transactionDate = $t->getExecutedAt();
+
+                            return $t->isExpense() && $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
+                        }
+                    )
+                ),
+                'income' => $this->assetsManager->sumTransactions(
+                    array_filter(
+                        $transactions,
+                        static function (TransactionInterface $t) use ($from, $to) {
+                            $transactionDate = $t->getExecutedAt();
+
+                            return $t->isIncome() && $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
+                        }
+                    )
+                ),
+            ];
         }
 
         return $result;
@@ -163,34 +165,36 @@ final class StatisticsManager
         foreach($dates as $key => $from) {
             $to = next($dates);
 
-            if($to !== false) {
-                $sum = $this->assetsManager->sumTransactions(
-                    array_filter(
-                        $transactions,
-                        static function (TransactionInterface $transaction) use ($from, $to) {
-                            $transactionDate = $transaction->getExecutedAt();
+            if($to === false) {
+                $to = $period->getEndDate();
+            }
 
-                            return $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
-                        }
-                    )
-                );
+            $sum = $this->assetsManager->sumTransactions(
+                array_filter(
+                    $transactions,
+                    static function (TransactionInterface $transaction) use ($from, $to) {
+                        $transactionDate = $transaction->getExecutedAt();
 
-                if($key === 0) {
-                    $result['min']['value'] = $sum;
-                    $result['min']['when'] = $from->copy()->toDateString();
-                    $result['max']['value'] = $sum;
-                    $result['max']['when'] = $from->copy()->toDateString();
-                }
+                        return $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
+                    }
+                )
+            );
 
-                if($sum < $result['min']['value']) {
-                    $result['min']['value'] = $sum;
-                    $result['min']['when'] = $from->copy()->toDateString();
-                }
+            if($key === 0) {
+                $result['min']['value'] = $sum;
+                $result['min']['when'] = $from->copy()->toDateString();
+                $result['max']['value'] = $sum;
+                $result['max']['when'] = $from->copy()->toDateString();
+            }
 
-                if($sum > $result['max']['value']) {
-                    $result['max']['value'] = $sum;
-                    $result['max']['when'] = $from->copy()->toDateString();
-                }
+            if($sum < $result['min']['value']) {
+                $result['min']['value'] = $sum;
+                $result['min']['when'] = $from->copy()->toDateString();
+            }
+
+            if($sum > $result['max']['value']) {
+                $result['max']['value'] = $sum;
+                $result['max']['when'] = $from->copy()->toDateString();
             }
         }
 
@@ -445,27 +449,29 @@ final class StatisticsManager
         return $expenseSum / $to->endOfDay()->diffInDays($from->startOfDay());
     }
 
-    public function sumTransactionsByDateInterval(CarbonPeriod $period, array $transactions = []): array
+    public function sumTransactionsByDateInterval(CarbonPeriod $period, array $transactions): array
     {
         $dates = $period->toArray();
         $result = [];
         foreach($dates as $date) {
             $to = next($dates);
 
-            if($to !== false) {
-                $transactionsWithinPeriod = array_filter(
-                    $transactions,
-                    static function (TransactionInterface $transaction) use ($date, $to) {
-                        $transactionDate = $transaction->getExecutedAt();
-
-                        return $transactionDate->greaterThanOrEqualTo($date) && $transactionDate->lessThan($to);
-                    });
-
-                $result[] = [
-                    'date' => $date->timestamp,
-                    'value' => $this->assetsManager->sumTransactions($transactionsWithinPeriod),
-                ];
+            if($to === false) {
+                $to = $period->getEndDate();
             }
+
+            $transactionsWithinPeriod = array_filter(
+                $transactions,
+                static function (TransactionInterface $transaction) use ($date, $to) {
+                    $transactionDate = $transaction->getExecutedAt();
+
+                    return $transactionDate->greaterThanOrEqualTo($date) && $transactionDate->lessThan($to);
+                });
+
+            $result[] = [
+                'date' => $date->timestamp,
+                'value' => $this->assetsManager->sumTransactions($transactionsWithinPeriod),
+            ];
         }
 
         return $result;

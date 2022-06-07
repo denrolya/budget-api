@@ -23,9 +23,16 @@ final class SumProvider implements ContextAwareCollectionDataProviderInterface, 
         $context['filters']['category.isAffectingProfit'] = true;
         $context['filters']['isDraft'] = false;
 
-        yield $this->assetsManager->sumMixedTransactions(
-            (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context)
-        );
+        // TODO: If no interval - provide sum
+        // TODO: If interval provided - sum by interval; return array of values with dates
+
+        $transactions = (array)$this->collectionDataProvider->getCollection($resourceClass, $operationName, $context);
+
+        $result = $context['filters']['type']
+            ? $this->assetsManager->sumTransactions($transactions)
+            : $this->assetsManager->sumMixedTransactions($transactions);
+
+        yield $result;
     }
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool

@@ -36,7 +36,7 @@ final class CategoriesTimelineProvider implements ContextAwareCollectionDataProv
             ? CarbonInterval::createFromDateString($context['filters']['interval'])
             : CarbonInterval::createFromDateString('1 month');
 
-        $categories = $context['filters']['categories'] ?? [];
+        $categories = $context['filters']['categoryDeep'] ?? [];
 
         $transactions = $this->collectionDataProvider->getCollection($resourceClass, $operationName, $context);
 
