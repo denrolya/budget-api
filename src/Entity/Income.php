@@ -87,8 +87,6 @@ class Income extends Transaction
      */
     public function restoreAccountBalance(): void
     {
-        if(!$this->getCanceledAt()) {
-            $this->account->decreaseBalance($this->amount);
-        }
+        $this->account->decreaseBalance($this->amount);
     }
 }

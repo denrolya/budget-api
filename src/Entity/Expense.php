@@ -7,8 +7,8 @@ use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Annotation\Groups;
 use JetBrains\PhpStorm\Pure;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -137,8 +137,6 @@ class Expense extends Transaction
      */
     public function restoreAccountBalance(): void
     {
-        if(!$this->getCanceledAt()) {
-            $this->account->increaseBalance($this->amount);
-        }
+        $this->account->increaseBalance($this->amount);
     }
 }
