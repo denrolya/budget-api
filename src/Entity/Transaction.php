@@ -243,7 +243,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     #[Groups(['transaction:write'])]
     private ?Debt $debt = null;
 
-    #[Groups(['transaction:collection:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'debt:collection:read', 'account:item:read'])]
     abstract public function getType(): string;
 
     #[Pure]
