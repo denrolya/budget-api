@@ -126,6 +126,11 @@ final class StatisticsManager
 
         $tree = $repo->generateCategoryTree();
 
+        // Find root categories
+        // For each category
+            //
+
+
         foreach($tree as $rootCategory) {
             $categoryTransactions = array_filter(
                 $transactions,

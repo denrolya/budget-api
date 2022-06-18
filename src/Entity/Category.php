@@ -157,6 +157,12 @@ abstract class Category
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
     private Collection $tags;
 
+    private float $value = 0;
+
+    private float $total = 0;
+
+    private float $previous = 0;
+
     #[Groups(['category:collection:read'])]
     abstract public function getType(): string;
 
@@ -288,17 +294,6 @@ abstract class Category
         }
 
         return $this;
-    }
-
-    public function getValue(): float
-    {
-        return array_reduce(
-            $this->getTransactions(true)->toArray(),
-            static function (float $carry, TransactionInterface $transaction) {
-                $carry += $transaction->getValue();
-
-                return $carry;
-            }, 0);
     }
 
     public function getTransactions(bool $withDescendants = false): Collection
@@ -473,5 +468,41 @@ abstract class Category
     public function getTags(): Collection
     {
         return $this->tags;
+    }
+
+    public function getValue(): float
+    {
+        return $this->value;
+    }
+
+    public function setValue(float $value): self
+    {
+        $this->value = $value;
+
+        return $this;
+    }
+
+    public function getTotal(): float
+    {
+        return $this->total;
+    }
+
+    public function setTotal(float $total): self
+    {
+        $this->total = $total;
+
+        return $this;
+    }
+
+    public function getPrevious(): float
+    {
+        return $this->previous;
+    }
+
+    public function setPrevious(float $previous): self
+    {
+        $this->previous = $previous;
+
+        return $this;
     }
 }

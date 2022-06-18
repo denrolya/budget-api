@@ -23,6 +23,7 @@ class CategoryRepository extends ServiceEntityRepository
     }
 
     /**
+     * TODO: Set up serailizer group & return Category entity
      * @param Category|null $category
      * @return array
      */
@@ -37,6 +38,8 @@ class CategoryRepository extends ServiceEntityRepository
                     'id' => $rootCategory->getId(),
                     'root' => $root->getId(),
                     'parent' => !$rootCategory->isRoot() ? $rootCategory->getParent()->getId() : null,
+                    'color' => $rootCategory->getColor(),
+                    'tags' => $rootCategory->getTags(),
                     'icon' => $rootCategory->getIcon(),
                     'name' => $rootCategory->getName(),
                     'children' => !$rootCategory->hasChildren() ? [] : $rootCategory->getDescendantsTree(),
