@@ -460,7 +460,7 @@ class Account implements OwnableInterface
         return $this;
     }
 
-    #[Groups(['account:item:read'])]
+    #[Groups(['account:collection:read', 'account:item:read'])]
     public function getType(): string
     {
         return self::ACCOUNT_TYPE_BASIC;
