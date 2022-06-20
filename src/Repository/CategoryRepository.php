@@ -22,36 +22,6 @@ class CategoryRepository extends ServiceEntityRepository
         parent::__construct($registry, $class);
     }
 
-    /**
-     * TODO: Set up serailizer group & return Category entity
-     * @param Category|null $category
-     * @return array
-     */
-    public function generateCategoryTree(?Category $category = null): array
-    {
-        if(!$category) {
-            $rootCategories = $this->findBy(['root' => null, 'isTechnical' => false]);
-            $tree = [];
-            foreach($rootCategories as $rootCategory) {
-                $root = !$rootCategory->isRoot() ? $rootCategory->getRoot() : $rootCategory;
-                $tree[] = [
-                    'id' => $rootCategory->getId(),
-                    'root' => $root->getId(),
-                    'parent' => !$rootCategory->isRoot() ? $rootCategory->getParent()->getId() : null,
-                    'color' => $rootCategory->getColor(),
-                    'tags' => $rootCategory->getTags(),
-                    'icon' => $rootCategory->getIcon(),
-                    'name' => $rootCategory->getName(),
-                    'children' => !$rootCategory->hasChildren() ? [] : $rootCategory->getDescendantsTree(),
-                ];
-            }
-
-            return $tree;
-        }
-
-        return $category->getDescendantsTree();
-    }
-
     public function findByTypes(array $types)
     {
         $qb = $this->createQueryBuilder('c');

@@ -4,10 +4,11 @@ namespace App\Entity;
 
 use ApiPlatform\Core\Annotation\ApiFilter;
 use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\ExistsFilter;
 use App\ApiPlatform\DiscriminatorFilter;
 use App\Traits\TimestampableEntity;
-use Carbon\CarbonImmutable;
-use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -33,6 +34,16 @@ use Symfony\Component\Validator\Constraints as Assert;
         'get' => [
             'normalization_context' => ['groups' => 'category:collection:read'],
         ],
+        'categories_tree' => [
+            'method' => 'GET',
+            'path' => '/categories/tree',
+            'normalization_context' => ['groups' => 'category:tree:read'],
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Categories Tree',
+                'description' => '',
+            ],
+        ],
     ],
     itemOperations: [
         'put' => [
@@ -53,6 +64,9 @@ use Symfony\Component\Validator\Constraints as Assert;
         'income' => IncomeCategory::class,
     ],
 ])]
+#[ApiFilter(ExistsFilter::class, properties: ['root'])]
+#[ApiFilter(BooleanFilter::class, properties: ['isAffectingProfit'])]
+#[ApiFilter(DateFilter::class, properties: ['transactions.executedAt'])]
 abstract class Category
 {
     use TimestampableEntity;
@@ -73,7 +87,7 @@ abstract class Category
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'transaction:collection:read'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'transaction:collection:read'])]
     private ?int $id;
 
     /**
@@ -81,7 +95,7 @@ abstract class Category
      *
      * @ORM\Column(type="datetime", nullable=true)
      */
-    #[Groups(['category:collection:read'])]
+    #[Groups(['category:collection:read', 'category:tree:read'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
@@ -94,18 +108,19 @@ abstract class Category
     /**
      * @ORM\Column(type="string", length=255)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
     private ?string $name;
 
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
-    #[Groups(['category:collection:read', 'category:write'])]
+    #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
     private bool $isTechnical;
 
     /**
      * @ORM\OneToMany(targetEntity=Category::class, mappedBy="parent", cascade={"remove"}, fetch="EXTRA_LAZY")
      */
+    #[Groups(['category:tree:read'])]
     private Collection $children;
 
     /**
@@ -133,19 +148,19 @@ abstract class Category
     /**
      * @ORM\Column(type="boolean", nullable=false)
      */
-    #[Groups(['category:collection:read', 'category:write'])]
+    #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
     private bool $isAffectingProfit = true;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
     private ?string $icon;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
     private ?string $color;
 
     /**
@@ -154,16 +169,16 @@ abstract class Category
      * @ORM\ManyToMany(targetEntity=CategoryTag::class, cascade={"persist"}, inversedBy="categories")
      * @ORM\JoinTable(name="categories_tags")
      */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:write'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
     private Collection $tags;
 
+    #[Groups(['category:tree:read'])]
     private float $value = 0;
 
+    #[Groups(['category:tree:read'])]
     private float $total = 0;
 
-    private float $previous = 0;
-
-    #[Groups(['category:collection:read'])]
+    #[Groups(['category:collection:read', 'category:tree:read'])]
     abstract public function getType(): string;
 
     #[Pure]
@@ -490,18 +505,6 @@ abstract class Category
     public function setTotal(float $total): self
     {
         $this->total = $total;
-
-        return $this;
-    }
-
-    public function getPrevious(): float
-    {
-        return $this->previous;
-    }
-
-    public function setPrevious(float $previous): self
-    {
-        $this->previous = $previous;
 
         return $this;
     }

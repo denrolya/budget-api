@@ -7,7 +7,6 @@ use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\Income;
-use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Repository\ExpenseCategoryRepository;
@@ -115,41 +114,36 @@ final class StatisticsManager
         return $result;
     }
 
-    public function generateCategoryTreeStatisticsWithinPeriod(string $type, array $transactions): array
+    public function generateCategoryTreeWithValues(array $categories, array $transactions): array
     {
-        // fetch all transactions once & pass them
-        $repo = $this->em->getRepository(
-            $type === TransactionInterface::INCOME
-                ? IncomeCategory::class
-                : ExpenseCategory::class
-        );
-
-        $tree = $repo->generateCategoryTree();
-
-        // Find root categories
-        // For each category
-            //
-
-
-        foreach($tree as $rootCategory) {
+        foreach($categories as $category) {
             $categoryTransactions = array_filter(
                 $transactions,
-                static function (TransactionInterface $transaction) use ($rootCategory) {
-                    return $transaction->getRootCategory()->getId() === $rootCategory['id'];
+                static function (TransactionInterface $transaction) use ($category) {
+                    return $transaction->getCategory()->getId() === $category->getId();
                 }
             );
+            $value = $this->assetsManager->sumTransactions($categoryTransactions);
+            $category->setValue($value);
 
-            foreach($categoryTransactions as $transaction) {
-                $this->updateValueInCategoryTree(
-                    $tree,
-                    $transaction->getCategory()->getName(),
-                    $transaction->getValue());
+            $nestedTransactions = array_filter(
+                $transactions,
+                static function (TransactionInterface $transaction) use ($category) {
+                    return $transaction->getCategory()->isChildOf($category);
+                }
+            );
+            $totalValue = $this->assetsManager->sumTransactions($nestedTransactions);
+            $category->setTotal($totalValue);
+
+            if($category->hasChildren() && count($nestedTransactions) > 0) {
+                $this->generateCategoryTreeWithValues(
+                    $category->getChildren()->toArray(),
+                    $nestedTransactions
+                );
             }
         }
 
-        $this->calculateTotalCategoryValueInCategoryTree($tree);
-
-        return $tree;
+        return $categories;
     }
 
     #[ArrayShape(['min' => 'array', 'max' => 'array'])]
@@ -494,26 +488,6 @@ final class StatisticsManager
                 $child['value'] = isset($child['value']) ? $child['value'] + $value : $value;
             } elseif(!empty($child['children'])) {
                 $this->updateValueInCategoryTree($child['children'], $needle, $value);
-            }
-        }
-    }
-
-    /**
-     * Given category tree generated with ExpenseCategoryRepository::generateCategoryTree
-     * calculate the total value of all categories & their children
-     */
-    private function calculateTotalCategoryValueInCategoryTree(array &$haystack): void
-    {
-        foreach($haystack as &$child) {
-            if(empty($child['children'])) {
-                $child['total'] = $child['value'] ?? 0;
-            } else {
-                $this->calculateTotalCategoryValueInCategoryTree($child['children']);
-
-                $childrenTotal = array_reduce($child['children'], static function (float $carry, array $el) {
-                    return isset($el['total']) ? $carry + $el['total'] : $carry;
-                }, 0);
-                $child['total'] = isset($child['value']) ? $child['value'] + $childrenTotal : $childrenTotal;
             }
         }
     }

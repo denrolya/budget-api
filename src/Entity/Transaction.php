@@ -77,15 +77,6 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ],
         ],
-        'categories_tree' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/categories-tree',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Categories Tree',
-                'description' => '',
-            ],
-        ],
         'categories_timeline' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/categories-timeline',
