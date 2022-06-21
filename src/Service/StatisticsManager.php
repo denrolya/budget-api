@@ -114,8 +114,16 @@ final class StatisticsManager
         return $result;
     }
 
-    public function generateCategoryTreeWithValues(array $categories, array $transactions): array
+    public function generateCategoryTreeWithValues(?array $categories, array $transactions, ?string $categoryClass = null): array
     {
+        if (empty($categories)) {
+            $categories = $this->em->getRepository($categoryClass)->findBy([
+                'root' => null,
+                'isAffectingProfit' => true,
+                'isTechnical' => false,
+            ]);
+        }
+
         foreach($categories as $category) {
             $categoryTransactions = array_filter(
                 $transactions,
@@ -268,6 +276,7 @@ final class StatisticsManager
 
     /**
      * Find transaction category that holds the biggest cumulative value
+     * Used for: mainIncomeSource
      */
     public function generateTopValueCategoryStatistics(array $transactions): ?array
     {
@@ -275,6 +284,7 @@ final class StatisticsManager
             ->getRepository(Category::class)
             ->findBy([
                 'root' => null,
+                'isAffectingProfit' => true,
                 'isTechnical' => false,
             ]);
         $max = 0;

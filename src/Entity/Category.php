@@ -172,10 +172,10 @@ abstract class Category
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
     private Collection $tags;
 
-    #[Groups(['category:tree:read'])]
+    #[Groups(['category:tree:read', 'account:item:read'])]
     private float $value = 0;
 
-    #[Groups(['category:tree:read'])]
+    #[Groups(['category:tree:read', 'account:item:read'])]
     private float $total = 0;
 
     #[Groups(['category:collection:read', 'category:tree:read'])]
