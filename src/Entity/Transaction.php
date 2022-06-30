@@ -113,6 +113,15 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => '',
             ]
         ],
+        'by_weekdays' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/by-weekdays',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'By Weekdays',
+                'description' => ''
+            ]
+        ],
         'get_monobank' => [
             'method' => 'GET',
             'path' => '/monobank/transactions',
