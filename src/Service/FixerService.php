@@ -16,7 +16,6 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  */
 final class FixerService
 {
-    private const BASE_URL = 'https://api.apilayer.com/fixer/';
     private const MONTH_IN_SECONDS = 2678400;
     private const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'HUF', 'UAH', 'BTC'];
 
@@ -26,8 +25,11 @@ final class FixerService
 
     private CacheInterface $cache;
 
-    public function __construct(HttpClientInterface $fixerClient, CacheInterface $cache, Security $security)
+    private string $apiKey;
+
+    public function __construct(HttpClientInterface $fixerClient, string $fixerApiKey, CacheInterface $cache, Security $security)
     {
+        $this->apiKey = $fixerApiKey;
         $this->client = $fixerClient;
         $this->cache = $cache;
         $this->security = $security;
@@ -118,8 +120,9 @@ final class FixerService
 
         return $this->cache->get("fixer.$dateString", static function (ItemInterface $item) use ($requestParams, $client) {
             $item->expiresAfter(self::MONTH_IN_SECONDS);
-            $query = self::BASE_URL . 'latest?' . http_build_query($requestParams);
-            $response = $client->request('GET', $query)->getContent();
+            $response = $client->request('GET', '/latest', [
+                'query' => $requestParams,
+            ])->getContent();
 
             return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
         });
@@ -140,8 +143,9 @@ final class FixerService
 
         return $this->cache->get("fixer.$dateString", static function (ItemInterface $item) use ($requestParams, $client, $dateString) {
             $item->expiresAfter(self::MONTH_IN_SECONDS);
-            $query = self::BASE_URL . $dateString . '?' . http_build_query($requestParams);
-            $response = $client->request('GET', $query)->getContent();
+            $response = $client->request('GET', '/' . $dateString, [
+                'query' => $requestParams,
+            ])->getContent();
 
             return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
         });
@@ -173,12 +177,13 @@ final class FixerService
         return array_key_exists($currencyCode, $rates);
     }
 
-    #[ArrayShape(['base' => 'string', 'symbols' => 'string'])]
+    #[ArrayShape(['access_key' => "string", 'base' => "string", 'symbols' => "string"])]
     private function getRequestParams(): array
     {
         return [
+            'access_key' => $this->apiKey,
             'base' => 'EUR',
-            'symbols' => 'EUR, USD, HUF, UAH, BTC, ETH',
+            'symbols' => implode(',', self::AVAILABLE_CURRENCIES),
         ];
     }
 }
