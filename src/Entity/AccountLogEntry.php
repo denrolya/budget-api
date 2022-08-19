@@ -29,7 +29,7 @@ class AccountLogEntry
     private ?Account $account;
 
     /**
-     * @ORM\Column(type="decimal", precision=15, scale=5, nullable=true)
+     * @ORM\Column(type="decimal", precision=20, scale=10, nullable=true)
      */
     private float $balance;
 

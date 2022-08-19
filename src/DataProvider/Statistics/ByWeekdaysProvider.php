@@ -14,7 +14,7 @@ final class ByWeekdaysProvider implements ContextAwareCollectionDataProviderInte
 {
     public function __construct(
         private CollectionDataProviderInterface $collectionDataProvider,
-        private EntityManagerInterface $em,
+        private EntityManagerInterface          $em,
     )
     {
     }
@@ -33,8 +33,6 @@ final class ByWeekdaysProvider implements ContextAwareCollectionDataProviderInte
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        dump($resourceClass === Transaction::class && $operationName === 'by_weekdays', $operationName);
-
         return $resourceClass === Transaction::class && $operationName === 'by_weekdays';
     }
 
