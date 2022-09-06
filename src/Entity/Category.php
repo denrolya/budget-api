@@ -118,7 +118,7 @@ abstract class Category
     private bool $isTechnical;
 
     /**
-     * @ORM\OneToMany(targetEntity=Category::class, mappedBy="parent", cascade={"remove"}, fetch="EAGER")
+     * @ORM\OneToMany(targetEntity=Category::class, mappedBy="parent", cascade={"remove"}, fetch="EXTRA_LAZY")
      */
     #[Groups(['category:tree:read'])]
     private Collection $children;
@@ -126,7 +126,7 @@ abstract class Category
     /**
      * Many Categories have One Parent Category.
      *
-     * @ORM\ManyToOne(targetEntity="Category", inversedBy="children", fetch="EAGER")
+     * @ORM\ManyToOne(targetEntity="Category", inversedBy="children", fetch="EXTRA_LAZY")
      * @ORM\JoinColumn(name="parent_id", referencedColumnName="id")
      */
     #[Groups(['category:collection:read', 'category:write'])]
@@ -134,14 +134,14 @@ abstract class Category
 
     /**
      * Many Categories have One Root Category.
-     * @ORM\ManyToOne(targetEntity="Category", fetch="EAGER")
+     * @ORM\ManyToOne(targetEntity="Category", fetch="EXTRA_LAZY")
      * @ORM\JoinColumn(name="root_id", referencedColumnName="id")
      */
     #[Groups(['category:collection:read'])]
     private ?Category $root;
 
     /**
-     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="category", orphanRemoval=true, cascade={"remove"}, fetch="EAGER")
+     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="category", orphanRemoval=true, cascade={"remove"}, fetch="EXTRA_LAZY")
      */
     private Collection $transactions;
 
