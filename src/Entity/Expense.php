@@ -34,7 +34,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 class Expense extends Transaction
 {
     /**
-     * @ORM\OneToMany(targetEntity=Income::class, mappedBy="originalExpense", cascade={"persist"}, fetch="EXTRA_LAZY")
+     * @ORM\OneToMany(targetEntity=Income::class, mappedBy="originalExpense", cascade={"persist"}, fetch="EAGER")
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'debt:collection:read'])]
     private ?Collection $compensations;
