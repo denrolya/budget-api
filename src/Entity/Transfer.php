@@ -47,7 +47,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiFilter(SearchFilter::class, properties: ['note' => 'ipartial', 'account' => 'exact', 'category' => 'exact'])]
 #[ApiFilter(RangeFilter::class, properties: ['amount'])]
 #[ApiFilter(WithDeletedFilter::class)]
-class Transfer implements OwnableInterface
+final class Transfer implements OwnableInterface
 {
     use TimestampableEntity, OwnableEntity, ExecutableEntity;
 
@@ -61,14 +61,12 @@ class Transfer implements OwnableInterface
 
     /**
      * @ORM\ManyToOne(targetEntity="Account")
-     * @ORM\JoinColumn(name="from_id", referencedColumnName="id")
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?Account $from;
 
     /**
      * @ORM\ManyToOne(targetEntity="Account")
-     * @ORM\JoinColumn(name="to_id", referencedColumnName="id")
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?Account $to;
@@ -105,7 +103,7 @@ class Transfer implements OwnableInterface
 
     /**
      * @ORM\OneToOne(targetEntity="Expense", cascade={"persist", "remove"}, orphanRemoval=true)
-     * @ORM\JoinColumn(name="fee_expense_id", referencedColumnName="id", onDelete="CASCADE")
+     * @ORM\JoinColumn(onDelete="CASCADE")
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?Expense $feeExpense;

@@ -145,7 +145,7 @@ class Account implements OwnableInterface
     private float $balance = 0;
 
     /**
-     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="account", cascade={"remove"}, orphanRemoval=true, fetch="EXTRA_LAZY")
+     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="account", cascade={"remove"}, orphanRemoval=true)
      * @ORM\OrderBy({"executedAt" = "ASC"})
      */
     private ?Collection $transactions;
@@ -165,7 +165,7 @@ class Account implements OwnableInterface
     private string $color;
 
     /**
-     * @ORM\OneToMany(targetEntity=AccountLogEntry::class, mappedBy="account", orphanRemoval=true, fetch="EXTRA_LAZY")
+     * @ORM\OneToMany(targetEntity=AccountLogEntry::class, mappedBy="account", fetch="EAGER")
      * @ORM\OrderBy({"createdAt" = "ASC"})
      */
     private ?Collection $logs;

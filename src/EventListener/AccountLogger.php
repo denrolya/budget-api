@@ -124,12 +124,12 @@ final class AccountLogger
         $balance = $account->getBalance();
         foreach($transactions as $i => $transaction) {
             $transactionLogEntry = $this->createAccountLogFromTransaction($transaction, $balance);
+            $this->em->persist($transactionLogEntry);
 
             $amount = $transaction->getAmount();
             $balance = $transaction instanceof Expense
                 ? $balance + $amount
                 : $balance - $amount;
-            $this->em->persist($transactionLogEntry);
 
             if(($i % self::BATCH_SIZE) === 0) {
                 $this->em->flush();
@@ -156,9 +156,6 @@ final class AccountLogger
             $transaction->getExecutedAt()
         );
         $account->addLog($log);
-
-        $this->em->persist($log);
-        $this->em->flush();
 
         return $log;
     }

@@ -40,7 +40,11 @@ final class TransferDataPersister implements DataPersisterInterface
         return $data instanceof Transfer;
     }
 
-    public function persist($data)
+    /**
+     * @param Transfer $data
+     * @return object|null
+     */
+    public function persist($data): ?object
     {
         $from = $data->getFrom();
         $to = $data->getTo();
@@ -81,6 +85,10 @@ final class TransferDataPersister implements DataPersisterInterface
         return $this->decorated->persist($data);
     }
 
+    /**
+     * @param Transfer $data
+     * @return void
+     */
     public function remove($data): void
     {
         $this->decorated->remove($data);

@@ -33,8 +33,7 @@ class Income extends Transaction
     /**
      * Original expense which this income is compensating
      *
-     * @ORM\ManyToOne(targetEntity=Expense::class, inversedBy="compensations", fetch="EXTRA_LAZY")
-     * @ORM\JoinColumn(referencedColumnName="id")
+     * @ORM\ManyToOne(targetEntity=Expense::class, inversedBy="compensations", fetch="EAGER")
      */
     #[Groups(['transaction:collection:read'])]
     private ?Expense $originalExpense;
