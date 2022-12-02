@@ -189,7 +189,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @Assert\Type("numeric")
      * @Assert\GreaterThan(value="0")
      *
-     * @ORM\Column(type="decimal", precision=15, scale=5)
+     * @ORM\Column(type="decimal", precision=50, scale=30)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     protected float $amount = 0;

@@ -93,7 +93,7 @@ class Debt implements OwnableInterface, ValuableInterface
     private ?string $currency;
 
     /**
-     * @ORM\Column(type="decimal", precision=15, scale=5)
+     * @ORM\Column(type="decimal", precision=50, scale=30)
      */
     #[Groups(['debt:collection:read', 'debt:write'])]
     private float $balance = 0;

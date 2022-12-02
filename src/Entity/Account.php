@@ -139,7 +139,7 @@ class Account implements OwnableInterface
     /**
      * Initial balance of the account
      *
-     * @ORM\Column(type="decimal", precision=15, scale=10)
+     * @ORM\Column(type="decimal", precision=50, scale=30)
      */
     #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
     private float $balance = 0;

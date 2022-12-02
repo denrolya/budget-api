@@ -84,19 +84,19 @@ final class Transfer implements OwnableInterface
     private ?Income $toIncome;
 
     /**
-     * @ORM\Column(type="decimal", precision=15, scale=5)
+     * @ORM\Column(type="decimal", precision=50, scale=30)
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transfer:write'])]
     private float $amount;
 
     /**
-     * @ORM\Column(type="decimal", precision=15, scale=5, nullable=false)
+     * @ORM\Column(type="decimal", precision=50, scale=30, nullable=false)
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private float $rate = 0;
 
     /**
-     * @ORM\Column(type="decimal", precision=15, scale=5, nullable=false)
+     * @ORM\Column(type="decimal", precision=50, scale=30, nullable=false)
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private float $fee = 0;
