@@ -41,6 +41,15 @@ use Symfony\Component\Validator\Constraints as Assert;
                 'description' => 'Generates money flow statistics within given date range and grouped by interval(optional)',
             ],
         ],
+        'income_expense' => [
+            'method' => 'GET',
+            'path' => '/transactions/statistics/income-expense',
+            'pagination_enabled' => false,
+            'openapi_context' => [
+                'summary' => 'Incomes & Expenses',
+                'description' => 'Incomes & expenses ',
+            ],
+        ],
         'sum' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/sum',

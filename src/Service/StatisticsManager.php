@@ -81,25 +81,22 @@ final class StatisticsManager
     /**
      * Expenses & Incomes within given period with floating step
      */
-    public function generateIncomeExpenseStatistics(CarbonInterface $from, CarbonInterface $to): array
+    public function generateIncomeExpenseStatistics(CarbonInterface $from, CarbonInterface $to, array $transactions): array
     {
         $factor = ($to->timestamp - $from->timestamp) / .04;
 
         $result = [];
 
-        $incomes = $this->transactionRepo->getList($from, $to, TransactionInterface::INCOME);
-        $expenses = $this->transactionRepo->getList($from, $to, TransactionInterface::EXPENSE);
-
-        while($from->isBefore($to)) {
+        while ($from->isBefore($to)) {
             $iterator = $from->copy()->add($factor . " milliseconds");
             $expense = $this->assetsManager->sumTransactions(
-                array_filter($expenses, static function (Expense $expense) use ($from, $iterator) {
-                    return $expense->getExecutedAt()->isBetween($from, $iterator);
+                array_filter($transactions, static function (TransactionInterface $t) use ($from, $iterator) {
+                    return $t->isExpense() && $t->getExecutedAt()->isBetween($from, $iterator);
                 })
             );
             $income = $this->assetsManager->sumTransactions(
-                array_filter($incomes, static function (Income $income) use ($from, $iterator) {
-                    return $income->getExecutedAt()->isBetween($from, $iterator);
+                array_filter($transactions, static function (TransactionInterface $t) use ($from, $iterator) {
+                    return $t->isIncome() && $t->getExecutedAt()->isBetween($from, $iterator);
                 })
             );
 
