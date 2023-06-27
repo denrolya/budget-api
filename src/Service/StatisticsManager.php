@@ -102,7 +102,8 @@ final class StatisticsManager
 
             $from = $iterator;
             $result[] = [
-                'date' => $from->timestamp,
+                'from' => $from->timestamp,
+                'to' => $from->copy()->add('milliseconds', $factor)->timestamp,
                 'expense' => -$expense,
                 'income' => $income,
             ];
