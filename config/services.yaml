@@ -25,6 +25,14 @@ services:
             - '../src/Entity/'
             - '../src/Kernel.php'
 
+    App\Request\ParamConverter\CarbonParamConverter:
+        tags:
+            - { name: request.param_converter, converter: carbon }
+
+    App\Request\ParamConverter\CarbonIntervalParamConverter:
+        tags:
+            - { name: request.param_converter, converter: carbonInterval }
+
     doctrine.filter.configurator:
         class: App\Filter\Configurator
         arguments:

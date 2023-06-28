@@ -19,8 +19,18 @@ use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
+use JMS\Serializer\Annotation as Serializer;
 
 /**
+ *
+ * @Serializer\ExclusionPolicy("none")
+ * @Serializer\Discriminator(
+ *     field = "type",
+ *     disabled = false,
+ *     map = {"expense" = "App\Entity\Expense", "income" = "App\Entity\Income"},
+ *     groups={"transaction_list"}
+ * )
+ *
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\TransactionRepository")
  * @ORM\InheritanceType("SINGLE_TABLE")
@@ -177,6 +187,8 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
 
     /**
+     * @Serializer\Groups({"transaction_list"})
+     *
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
@@ -185,6 +197,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     protected ?int $id;
 
     /**
+     * @Serializer\Groups({"transaction_list"})
      * @Assert\NotBlank()
      *
      * @ORM\ManyToOne(targetEntity=Account::class, inversedBy="transactions")
@@ -194,6 +207,8 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     protected ?Account $account;
 
     /**
+     * @Serializer\Groups({"transaction_list"})
+     *
      * @Assert\NotBlank()
      * @Assert\Type("numeric")
      * @Assert\GreaterThan(value="0")
@@ -204,12 +219,16 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     protected float $amount = 0;
 
     /**
+     * @Serializer\Groups({"transaction_list"})
+     *
      * @ORM\Column(type="json", nullable=false)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?array $convertedValues = [];
 
     /**
+     * @Serializer\Groups({"transaction_list"})
+     *
      * @ORM\Column(type="text", nullable=true)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
