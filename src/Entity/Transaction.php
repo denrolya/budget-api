@@ -22,13 +22,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 use JMS\Serializer\Annotation as Serializer;
 
 /**
- *
- * @Serializer\ExclusionPolicy("none")
+ * TODO: Convert Discriminator annotation to attribute
  * @Serializer\Discriminator(
  *     field = "type",
  *     disabled = false,
  *     map = {"expense" = "App\Entity\Expense", "income" = "App\Entity\Income"},
- *     groups={"transaction_list"}
+ *     groups={"transaction:collection:read"}
  * )
  *
  * @ORM\HasLifecycleCallbacks()
@@ -187,28 +186,26 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
 
     /**
-     * @Serializer\Groups({"transaction_list"})
-     *
      * @ORM\Id()
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     protected ?int $id;
 
     /**
-     * @Serializer\Groups({"transaction_list"})
      * @Assert\NotBlank()
      *
      * @ORM\ManyToOne(targetEntity=Account::class, inversedBy="transactions")
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     protected ?Account $account;
 
     /**
-     * @Serializer\Groups({"transaction_list"})
-     *
+     * @var float
      * @Assert\NotBlank()
      * @Assert\Type("numeric")
      * @Assert\GreaterThan(value="0")
@@ -216,22 +213,21 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\Column(type="decimal", precision=50, scale=30)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     protected float $amount = 0;
 
     /**
-     * @Serializer\Groups({"transaction_list"})
-     *
      * @ORM\Column(type="json", nullable=false)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     protected ?array $convertedValues = [];
 
     /**
-     * @Serializer\Groups({"transaction_list"})
-     *
      * @ORM\Column(type="text", nullable=true)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     protected ?string $note;
 
     /**
@@ -240,6 +236,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\Column(type="datetime", nullable=true)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     protected ?DateTimeInterface $executedAt;
 
     /**
@@ -256,12 +253,14 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\JoinColumn(name="category_id", referencedColumnName="id", nullable=false)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     protected ?Category $category;
 
     /**
      * @ORM\Column(type="boolean", nullable=false)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private bool $isDraft;
 
     /**

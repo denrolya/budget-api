@@ -20,6 +20,7 @@ use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Serializer\Annotation\SerializedName;
 use Symfony\Component\Validator\Constraints as Assert;
+use JMS\Serializer\Annotation as Serializer;
 
 /**
  * @ORM\HasLifecycleCallbacks()
@@ -90,6 +91,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="integer")
      */
     #[Groups(['account:collection:read', 'account:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private ?int $id;
 
     /**
@@ -113,6 +115,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="string", length=255)
      */
     #[Groups(['account:collection:read', 'account:item:read', 'account:write', 'transaction:collection:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private string $name;
 
     /**
@@ -125,6 +128,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="string", length=3)
      */
     #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     #[ApiProperty(
         attributes: [
             'openapi_context' => [
@@ -162,6 +166,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="string", length=30)
      */
     #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private string $color;
 
     /**
@@ -337,6 +342,8 @@ class Account implements OwnableInterface
 
     #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'transfer:collection:read', 'debt:collection:read'])]
     #[Pure]
+    #[Serializer\VirtualProperty]
+    #[Serializer\Groups(['transaction:collection:read'])]
     public function getIcon(): string
     {
         $icons = [

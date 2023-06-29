@@ -22,14 +22,26 @@ use FOS\RestBundle\Controller\AbstractFOSRestController;
 class TransactionController extends AbstractFOSRestController
 {
     /**
-     * @Rest\View(serializerGroups={"transaction_list"})
+     * @Rest\QueryParam(name="after", nullable=true, description="After date")
+     * @ParamConverter("after", options={"format": "Y-m-d", "default"="first day of this month"})
+     * @Rest\QueryParam(name="before", nullable=true, description="Before date")
+     * @ParamConverter("before", options={"format": "Y-m-d", "default"="first day of next month"})
+     * * @Rest\QueryParam(name="type", requirements="(expense|income)", nullable=true, allowBlank=false, default=null,
+     *     description="Type of transactions to calculate")
+     * @Rest\QueryParam(name="accounts", nullable=true, description="Account filters")
+     * @Rest\QueryParam(name="categories", nullable=true, description="Category filters")
+     * @Rest\QueryParam(name="isDraft", default=false, nullable=false, description="Whether or not to fetch
+     *     draft transactions only")
+     * @Rest\QueryParam(name="perPage", requirements="\d+", default="30", description="Number of results per page")
+     * @Rest\QueryParam(name="page", requirements="\d+", default="1", description="Page number")
+     * @Rest\View(serializerGroups={"transaction:collection:read"})
      */
     #[Route('/transaction', name: 'app_transaction_list', methods:['get'] )]
-    public function list(ManagerRegistry $doctrine): View
+    public function list(ManagerRegistry $doctrine, CarbonImmutable $after, CarbonImmutable $before): View
     {
         return $this->view($doctrine
             ->getRepository(Transaction::class)
-            ->findBy([], null, 10));
+            ->findWithinPeriod($after, $before));
     }
 
     #[Route('/transaction/{id}', name: 'app_transaction_single', methods:['get'] )]

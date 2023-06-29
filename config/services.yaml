@@ -33,6 +33,11 @@ services:
         tags:
             - { name: request.param_converter, converter: carbonInterval }
 
+    jms_serializer.serialized_name_annotation_strategy:
+        class: JMS\Serializer\Naming\SerializedNameAnnotationStrategy
+        arguments:
+            - '@jms_serializer.identical_property_naming_strategy'
+
     doctrine.filter.configurator:
         class: App\Filter\Configurator
         arguments:

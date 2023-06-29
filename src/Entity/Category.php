@@ -17,6 +17,7 @@ use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
+use JMS\Serializer\Annotation as Serializer;
 
 /**
  * @ORM\HasLifecycleCallbacks()
@@ -88,6 +89,7 @@ abstract class Category
      * @ORM\Column(type="integer")
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private ?int $id;
 
     /**
@@ -109,6 +111,7 @@ abstract class Category
      * @ORM\Column(type="string", length=255)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private ?string $name;
 
     /**
@@ -155,12 +158,14 @@ abstract class Category
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private ?string $icon;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private ?string $color;
 
     /**
@@ -197,6 +202,8 @@ abstract class Category
     }
 
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Serializer\VirtualProperty]
+    #[Serializer\Groups(['transaction:collection:read'])]
     public function getFullPath(): array
     {
         $result = [$this->getName()];

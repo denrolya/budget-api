@@ -10,8 +10,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 use JMS\Serializer\Annotation as Serializer;
 
 /**
- * @Serializer\ExclusionPolicy("all")
- *
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\IncomeRepository")
  */
@@ -39,6 +37,7 @@ class Income extends Transaction
      * @ORM\ManyToOne(targetEntity=Expense::class, inversedBy="compensations", fetch="EAGER")
      */
     #[Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private ?Expense $originalExpense;
 
     /**
