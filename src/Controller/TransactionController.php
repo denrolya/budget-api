@@ -41,22 +41,4 @@ class TransactionController extends AbstractFOSRestController
 
         return $this->json($transaction);
     }
-
-    /**
-     * @Rest\QueryParam(name="from", nullable=true, description="From date")
-     * @ParamConverter("from", options={"format": "Y-m-d", "default"="first day of this month"})
-     * @Rest\QueryParam(name="to", nullable=true, description="To date")
-     * @ParamConverter("to", options={"format": "Y-m-d", "default"="first day of next month"})
-     * @Rest\QueryParam(name="interval", nullable=true, allowBlank=false, description="Interval to group by")
-     * @ParamConverter("interval", options={"default"="1 month"})
-     */
-    #[Route('/transaction/statistics/money-flow', name: 'app_money_flow', methods:['get'] )]
-    public function moneyFlow(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, CarbonImmutable $from, CarbonImmutable $to, CarbonInterval $interval): View
-    {
-        // TODO: Continue here
-        $transactions = $doctrine->getRepository(Transaction::class)->findWithinPeriod($from, $to);
-        return $this->view(
-            $statisticsManager->generateMoneyFlowStatistics($transactions, new CarbonPeriod($from, $interval, $to))
-        );
-    }
 }

@@ -141,6 +141,7 @@ final class StatisticsManager
             $totalValue = $this->assetsManager->sumTransactions($nestedTransactions);
             $category->setTotal($totalValue);
 
+
             if($category->hasChildren() && count($nestedTransactions) > 0) {
                 $this->generateCategoryTreeWithValues(
                     $category->getChildren()->toArray(),
