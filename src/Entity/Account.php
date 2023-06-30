@@ -53,8 +53,30 @@ use JMS\Serializer\Annotation as Serializer;
     paginationEnabled: false
 )]
 #[ApiFilter(PropertyFilter::class)]
+#[Serializer\Discriminator([
+    'field' => 'type',
+    'groups' => ['account:collection:read'],
+    'map' => [
+        'basic' => Account::class,
+        'bank' => BankCardAccount::class,
+        'internet' => InternetAccount::class,
+        'cash' => CashAccount::class,
+    ],
+    'disabled' => false,
+])]
 class Account implements OwnableInterface
 {
+//    #[Serializer\Discriminator(
+//    'field' => 'type',
+//    'disabled' => false,
+//    'map' => [
+//        'basic' => Account::class,
+//        'bank' = BankCardAccount::class,
+//        'internet' => InternetAccount::class,
+//        'cash' = CashAccount::class,
+//    ],
+//    'groups' => ['account:collection:read'],
+//)]
     public const CURRENCIES = [
         'EUR' => [
             'name' => 'Euro',
@@ -91,7 +113,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="integer")
      */
     #[Groups(['account:collection:read', 'account:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transaction:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['account:collection:read', 'transaction:collection:read'])]
     private ?int $id;
 
     /**
@@ -100,6 +122,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="datetime", nullable=false)
      */
     #[Groups(['account:item:read'])]
+    #[Serializer\Groups(['account:collection:read'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
@@ -108,6 +131,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="datetime", nullable=false)
      */
     #[Groups(['account:collection:read'])]
+    #[Serializer\Groups(['account:collection:read'])]
     protected ?DateTimeInterface $updatedAt;
 
     /**
@@ -115,7 +139,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="string", length=255)
      */
     #[Groups(['account:collection:read', 'account:item:read', 'account:write', 'transaction:collection:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['account:collection:read', 'transaction:collection:read'])]
     private string $name;
 
     /**
@@ -128,7 +152,6 @@ class Account implements OwnableInterface
      * @ORM\Column(type="string", length=3)
      */
     #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
     #[ApiProperty(
         attributes: [
             'openapi_context' => [
@@ -138,6 +161,7 @@ class Account implements OwnableInterface
             ],
         ],
     )]
+    #[Serializer\Groups(['account:collection:read', 'transaction:collection:read'])]
     private ?string $currency;
 
     /**
@@ -146,6 +170,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="decimal", precision=50, scale=30)
      */
     #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read'])]
     private float $balance = 0;
 
     /**
@@ -160,13 +185,14 @@ class Account implements OwnableInterface
      * @ORM\Column(type="datetime", nullable=true)
      */
     #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read'])]
     private ?DateTimeInterface $archivedAt;
 
     /**
      * @ORM\Column(type="string", length=30)
      */
     #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['account:collection:read', 'transaction:collection:read'])]
     private string $color;
 
     /**
@@ -211,6 +237,7 @@ class Account implements OwnableInterface
      * @ORM\Column(type="boolean")
      */
     #[Groups(['account:collection:read', 'account:item:read'])]
+    #[Serializer\Groups(['account:collection:read'])]
     private bool $isDisplayedOnSidebar = false;
 
     public function __construct()
@@ -343,7 +370,7 @@ class Account implements OwnableInterface
     #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'transfer:collection:read', 'debt:collection:read'])]
     #[Pure]
     #[Serializer\VirtualProperty]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['account:collection:read', 'transaction:collection:read'])]
     public function getIcon(): string
     {
         $icons = [
@@ -468,6 +495,7 @@ class Account implements OwnableInterface
     }
 
     #[Groups(['account:collection:read', 'account:item:read'])]
+    #[Serializer\Groups(['account:collection:read'])]
     public function getType(): string
     {
         return self::ACCOUNT_TYPE_BASIC;

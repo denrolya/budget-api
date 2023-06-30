@@ -22,14 +22,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 use JMS\Serializer\Annotation as Serializer;
 
 /**
- * TODO: Convert Discriminator annotation to attribute
- * @Serializer\Discriminator(
- *     field = "type",
- *     disabled = false,
- *     map = {"expense" = "App\Entity\Expense", "income" = "App\Entity\Income"},
- *     groups={"transaction:collection:read"}
- * )
- *
  * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass="App\Repository\TransactionRepository")
  * @ORM\InheritanceType("SINGLE_TABLE")
@@ -111,7 +103,7 @@ use JMS\Serializer\Annotation as Serializer;
             'openapi_context' => [
                 'summary' => 'Top value category',
                 'description' => 'Category that has the biggest cumulative value',
-            ]
+            ],
         ],
         'account_distribution' => [
             'method' => 'GET',
@@ -120,7 +112,7 @@ use JMS\Serializer\Annotation as Serializer;
             'openapi_context' => [
                 'summary' => 'Account distribution',
                 'description' => '',
-            ]
+            ],
         ],
         'utility_costs' => [
             'method' => 'GET',
@@ -129,7 +121,7 @@ use JMS\Serializer\Annotation as Serializer;
             'openapi_context' => [
                 'summary' => 'Utility costs',
                 'description' => '',
-            ]
+            ],
         ],
         'by_weekdays' => [
             'method' => 'GET',
@@ -137,13 +129,13 @@ use JMS\Serializer\Annotation as Serializer;
             'pagination_enabled' => false,
             'openapi_context' => [
                 'summary' => 'By Weekdays',
-                'description' => ''
-            ]
+                'description' => '',
+            ],
         ],
         'get_monobank' => [
             'method' => 'GET',
             'path' => '/monobank/transactions',
-            'status' => 200
+            'status' => 200,
         ],
         'post_monobank' => [
             'method' => 'POST',
@@ -180,6 +172,15 @@ use JMS\Serializer\Annotation as Serializer;
         'expense' => Expense::class,
         'income' => Income::class,
     ],
+])]
+#[Serializer\Discriminator([
+    'field' => 'type',
+    'groups' => ['transaction:collection:read'],
+    'map' => [
+        'expense' => Expense::class,
+        'income' => Income::class,
+    ],
+    'disabled' => false,
 ])]
 abstract class Transaction implements TransactionInterface, OwnableInterface, ExecutableInterface
 {
