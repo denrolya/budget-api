@@ -68,6 +68,15 @@ use JMS\Serializer\Annotation as Serializer;
 #[ApiFilter(ExistsFilter::class, properties: ['root'])]
 #[ApiFilter(BooleanFilter::class, properties: ['isAffectingProfit'])]
 #[ApiFilter(DateFilter::class, properties: ['transactions.executedAt'])]
+#[Serializer\Discriminator([
+    'field' => 'type',
+    'groups' => ['category:collection:read', 'category:tree:read'],
+    'map' => [
+        'expense' => ExpenseCategory::class,
+        'income' => IncomeCategory::class,
+    ],
+    'disabled' => false,
+])]
 abstract class Category
 {
     use TimestampableEntity;
@@ -89,7 +98,7 @@ abstract class Category
      * @ORM\Column(type="integer")
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'transaction:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'transaction:collection:read'])]
     private ?int $id;
 
     /**
@@ -98,6 +107,7 @@ abstract class Category
      * @ORM\Column(type="datetime", nullable=true)
      */
     #[Groups(['category:collection:read', 'category:tree:read'])]
+    #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
@@ -111,13 +121,14 @@ abstract class Category
      * @ORM\Column(type="string", length=255)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'transaction:collection:read'])]
     private ?string $name;
 
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
     #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
+    #[Serializer\Groups(['category:collection:read'])]
     private bool $isTechnical;
 
     /**
@@ -133,6 +144,7 @@ abstract class Category
      * @ORM\JoinColumn(name="parent_id", referencedColumnName="id")
      */
     #[Groups(['category:collection:read', 'category:write'])]
+    #[Serializer\Groups(['category:collection:read'])]
     private ?Category $parent;
 
     /**
@@ -141,6 +153,7 @@ abstract class Category
      * @ORM\JoinColumn(name="root_id", referencedColumnName="id")
      */
     #[Groups(['category:collection:read'])]
+    #[Serializer\Groups(['category:collection:read'])]
     private ?Category $root;
 
     /**
@@ -152,20 +165,21 @@ abstract class Category
      * @ORM\Column(type="boolean", nullable=false)
      */
     #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
+    #[Serializer\Groups(['category:collection:read'])]
     private bool $isAffectingProfit = true;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'transaction:collection:read'])]
     private ?string $icon;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['category:collection:read'])]
     private ?string $color;
 
     /**
@@ -175,6 +189,7 @@ abstract class Category
      * @ORM\JoinTable(name="categories_tags")
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
+    #[Serializer\Groups(['category:collection:read'])]
     private Collection $tags;
 
     #[Groups(['category:tree:read', 'account:item:read'])]
@@ -184,6 +199,7 @@ abstract class Category
     private float $total = 0;
 
     #[Groups(['category:collection:read', 'category:tree:read'])]
+    #[Serializer\Groups(['category:collection:read'])]
     abstract public function getType(): string;
 
     #[Pure]

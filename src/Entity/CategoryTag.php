@@ -14,6 +14,7 @@ use JetBrains\PhpStorm\Pure;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
+use JMS\Serializer\Annotation as Serializer;
 
 /**
  * @ORM\Entity()
@@ -50,6 +51,7 @@ class CategoryTag implements OwnableInterface
      * @ORM\Column(type="string", length=100)
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
+    #[Serializer\Groups(['category:collection:read'])]
     private ?string $name;
 
     /**
