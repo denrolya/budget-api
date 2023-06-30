@@ -37,11 +37,22 @@ class TransactionController extends AbstractFOSRestController
      * @Rest\View(serializerGroups={"transaction:collection:read"})
      */
     #[Route('/transaction', name: 'app_transaction_list', methods:['get'] )]
-    public function list(ManagerRegistry $doctrine, CarbonImmutable $after, CarbonImmutable $before): View
+    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?string $type = null, ?array $accounts, ?array $categories, $isDraft = false, int $perPage = 30, int $page = 1): View
     {
-        return $this->view($doctrine
-            ->getRepository(Transaction::class)
-            ->findWithinPeriod($after, $before));
+        return $this->view(
+            $assetsManager->generateTransactionPaginationData(
+                $after,
+                $before,
+                $type,
+                $categories,
+                $accounts,
+                null,
+                true,
+                $isDraft,
+                $perPage,
+                $page
+            )
+        );
     }
 
     #[Route('/transaction/{id}', name: 'app_transaction_single', methods:['get'] )]

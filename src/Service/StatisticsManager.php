@@ -383,51 +383,6 @@ final class StatisticsManager
     }
 
     /**
-     * Calculate amount of money spent on rent and utilities within given period
-     */
-    public function calculateRentExpensesWithinPeriod(CarbonInterface $from, CarbonInterface $to): float
-    {
-        $rentCategories = $this->assetsManager->getTypedCategoriesWithChildren(TransactionInterface::EXPENSE, [ExpenseCategory::CATEGORY_RENT, ExpenseCategory::CATEGORY_UTILITIES]);
-
-        return $this->assetsManager->sumTransactions(
-            $this->expenseRepo->findWithinPeriod($from, $to, true, $rentCategories)
-        );
-    }
-
-    /**
-     * Calculate amount of money spent on food within given period
-     */
-    public function calculateFoodExpensesWithinPeriod(CarbonInterface $from, CarbonInterface $to, bool $generateForPreviousPeriod = false): float|array
-    {
-        $foodCategories = $this->assetsManager->getTypedCategoriesWithChildren(TransactionInterface::EXPENSE, [ExpenseCategory::CATEGORY_FOOD]);
-
-        $sumForCurrentPeriod = $this->assetsManager->sumTransactionsFiltered(
-            TransactionInterface::EXPENSE,
-            $from,
-            $to,
-            $foodCategories
-        );
-
-        if($generateForPreviousPeriod) {
-            $previousPeriod = $this->generatePreviousTimeperiod($from, $to);
-
-            $sumForPreviousPeriod = $this->assetsManager->sumTransactionsFiltered(
-                TransactionInterface::EXPENSE,
-                $previousPeriod->getStartDate(),
-                $previousPeriod->getEndDate(),
-                $foodCategories
-            );
-
-            return [
-                'current' => $sumForCurrentPeriod,
-                'previous' => $sumForPreviousPeriod,
-            ];
-        }
-
-        return $sumForCurrentPeriod;
-    }
-
-    /**
      * Calculate average daily expense for given period converted to base currency
      */
     public function calculateAverageDailyExpenseWithinPeriod(CarbonInterface $from, CarbonInterface $to): float

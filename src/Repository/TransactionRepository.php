@@ -63,6 +63,9 @@ class TransactionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * TODO: Replace $offset with $page
+     */
     public function getPaginator(
         ?CarbonInterface $from,
         ?CarbonInterface $to,
@@ -195,12 +198,12 @@ class TransactionRepository extends ServiceEntityRepository
         }
 
         if(!empty($categories)) {
-            $qb->andWhere('c.name IN (:categories)')
+            $qb->andWhere('t.category IN (:categories)')
                 ->setParameter('categories', $categories);
         }
 
         if(!empty($excludedCategories)) {
-            $qb->andWhere('c.name NOT IN (:excludedCategories)')
+            $qb->andWhere('t.category NOT IN (:excludedCategories)')
                 ->setParameter('excludedCategories', $excludedCategories);
         }
 

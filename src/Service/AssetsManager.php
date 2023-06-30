@@ -37,13 +37,13 @@ final class AssetsManager
         CarbonInterface $from,
         CarbonInterface $to,
         ?string         $type = null,
-        array           $categories = [],
-        array           $accounts = [],
-        array           $excludedCategories = [],
+        ?array           $categories = null,
+        ?array           $accounts = null,
+        ?array           $excludedCategories = [],
         bool            $withChildCategories = true,
         bool            $onlyDrafts = false,
         int             $limit = Paginator::PAGE_SIZE,
-        int             $offset = 0,
+        int             $page = 1,
         string          $orderField = TransactionRepository::ORDER_FIELD,
         string          $order = TransactionRepository::ORDER
     ): array
@@ -62,7 +62,7 @@ final class AssetsManager
                 $excludedCategories,
                 $onlyDrafts,
                 $limit,
-                $offset,
+                ($page - 1) * $limit,
                 $orderField,
                 $order
             );
@@ -186,15 +186,19 @@ final class AssetsManager
                 $result = $repo->findBy(['root' => null, 'isTechnical' => false]);
 
                 $result = array_map(static function (Category $category) {
-                    return $category->getName();
+                    return $category;
                 }, $result);
             } else {
                 foreach($categories as $category) {
                     /** @var Category $category */
-                    $category = $repo->findOneBy(['name' => $category]);
+                    $category = $repo->findOneBy(['id' => $category]);
+
+                    if (!$category) {
+                        // TODO: Error handling
+                    }
 
                     if($category) {
-                        $result = [...$result, ...$category->getDescendantsFlat(true)->toArray()];
+                        $result = [...$result, ...$category->getDescendantsFlat()->toArray()];
                     }
                 }
             }
