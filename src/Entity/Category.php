@@ -98,7 +98,7 @@ abstract class Category
      * @ORM\Column(type="integer")
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'transaction:collection:read'])]
-    #[Serializer\Groups(['category:collection:read', 'transaction:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'transaction:collection:read', 'debt:collection:read'])]
     private ?int $id;
 
     /**
@@ -121,7 +121,7 @@ abstract class Category
      * @ORM\Column(type="string", length=255)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'transaction:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'transaction:collection:read', 'debt:collection:read'])]
     private ?string $name;
 
     /**
@@ -172,14 +172,14 @@ abstract class Category
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'transaction:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'transaction:collection:read', 'debt:collection:read'])]
     private ?string $icon;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'debt:collection:read'])]
     private ?string $color;
 
     /**
@@ -188,7 +188,7 @@ abstract class Category
      * @ORM\ManyToMany(targetEntity=CategoryTag::class, cascade={"persist"}, inversedBy="categories")
      * @ORM\JoinTable(name="categories_tags")
      */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
+    #[Groups(['account:item:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
     #[Serializer\Groups(['category:collection:read'])]
     private Collection $tags;
 
@@ -217,9 +217,9 @@ abstract class Category
         return $this->name ?: 'New Category';
     }
 
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'debt:collection:read'])]
     #[Serializer\VirtualProperty]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
     public function getFullPath(): array
     {
         $result = [$this->getName()];

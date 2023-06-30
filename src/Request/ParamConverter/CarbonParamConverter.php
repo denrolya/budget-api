@@ -29,14 +29,14 @@ class CarbonParamConverter implements ParamConverterInterface
         $options = $configuration->getOptions();
         $value = $request->attributes->get($param);
 
-        if(!$value && !$options['default']) {
+        if(!$value && !array_key_exists('default', $options)) {
             return false;
         }
 
         $invalidDateMessage = 'Invalid date given.';
 
         try {
-            if(!$value && $options['default']) {
+            if(!$value && array_key_exists('default', $options)) {
                 $date = (new CarbonImmutable($options['default']))->startOfDay();
             } elseif($value) {
                 $date = isset($options['format'])

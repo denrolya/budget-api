@@ -175,7 +175,7 @@ use JMS\Serializer\Annotation as Serializer;
 ])]
 #[Serializer\Discriminator([
     'field' => 'type',
-    'groups' => ['transaction:collection:read'],
+    'groups' => ['transaction:collection:read', 'debt:collection:read'],
     'map' => [
         'expense' => Expense::class,
         'income' => Income::class,
@@ -192,7 +192,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\Column(type="integer")
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
     protected ?int $id;
 
     /**
@@ -202,7 +202,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
     protected ?Account $account;
 
     /**
@@ -214,21 +214,22 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\Column(type="decimal", precision=50, scale=30)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
+    #[Serializer\Type('float')]
     protected float $amount = 0;
 
     /**
      * @ORM\Column(type="json", nullable=false)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
     protected ?array $convertedValues = [];
 
     /**
      * @ORM\Column(type="text", nullable=true)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
     protected ?string $note;
 
     /**
@@ -237,7 +238,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\Column(type="datetime", nullable=true)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
     protected ?DateTimeInterface $executedAt;
 
     /**
@@ -254,7 +255,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\JoinColumn(name="category_id", referencedColumnName="id", nullable=false)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
     protected ?Category $category;
 
     /**

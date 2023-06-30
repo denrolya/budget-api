@@ -14,9 +14,7 @@ use FOS\RestBundle\Controller\AbstractFOSRestController;
 #[Route('/api/v2/account', name: 'api_v2_account_')]
 class AccountController extends AbstractFOSRestController
 {
-    /**
-     * @Rest\View(serializerGroups={"account:collection:read"})
-     */
+    #[Rest\View(serializerGroups: ['account:collection:read'])]
     #[Route('', name: 'collection_read', methods:['get'] )]
     public function list(ManagerRegistry $doctrine): View
     {

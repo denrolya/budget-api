@@ -15,6 +15,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
+use JMS\Serializer\Annotation as Serializer;
 
 /**
  * @Gedmo\SoftDeleteable(fieldName="closedAt", timeAware=false, hardDelete=false)
@@ -58,24 +59,28 @@ class Debt implements OwnableInterface, ValuableInterface
      * @ORM\Column(type="integer")
      */
     #[Groups(['debt:collection:read'])]
+    #[Serializer\Groups(['debt:collection:read'])]
     private ?int $id;
 
     /**
      * @ORM\Column(type="json", nullable=false)
      */
     #[Groups(['debt:collection:read'])]
+    #[Serializer\Groups(['debt:collection:read'])]
     protected ?array $convertedValues = [];
 
     /**
      * @ORM\Column(type="datetime", nullable=true)
      */
     #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Serializer\Groups(['debt:collection:read'])]
     protected ?DateTimeInterface $createdAt;
 
     /**
      * @ORM\Column(type="text", nullable=true)
      */
     #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Serializer\Groups(['debt:collection:read'])]
     protected ?string $note;
 
     /**
@@ -84,25 +89,31 @@ class Debt implements OwnableInterface, ValuableInterface
      * @ORM\Column(type="string", length=255)
      */
     #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Serializer\Groups(['debt:collection:read'])]
     private ?string $debtor;
 
     /**
      * @ORM\Column(type="string", length=3)
      */
     #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Serializer\Groups(['debt:collection:read'])]
     private ?string $currency;
 
     /**
      * @ORM\Column(type="decimal", precision=50, scale=30)
      */
     #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Serializer\Groups(['debt:collection:read'])]
+    #[Serializer\Type('float')]
     private float $balance = 0;
 
     /**
+     * TODO: Remove transactions from collection:read
      * @ORM\OneToMany(targetEntity=Transaction::class, mappedBy="debt")
      */
     #[Groups(['debt:collection:read'])]
     #[ApiSubresource]
+    #[Serializer\Groups(['debt:collection:read'])]
     private ?Collection $transactions;
 
     /**
@@ -110,6 +121,7 @@ class Debt implements OwnableInterface, ValuableInterface
      * @ORM\Column(type="datetime", nullable=true)
      */
     #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Serializer\Groups(['debt:collection:read'])]
     private ?DateTimeInterface $closedAt;
 
     #[Pure]
