@@ -47,7 +47,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ApiFilter(SearchFilter::class, properties: ['note' => 'ipartial', 'account' => 'exact', 'category' => 'exact'])]
 #[ApiFilter(RangeFilter::class, properties: ['amount'])]
 #[ApiFilter(WithDeletedFilter::class)]
-final class Transfer implements OwnableInterface
+class Transfer implements OwnableInterface
 {
     use TimestampableEntity, OwnableEntity, ExecutableEntity;
 
