@@ -22,6 +22,12 @@ framework:
                 base_uri: '%env(FIXER_BASE_URL)%'
                 headers:
                     apiKey: '%env(FIXER_API_KEY)%'
+    cache:
+        pools:
+            doctrine.result_cache_pool:
+                adapter: cache.app
+            doctrine.system_cache_pool:
+                adapter: cache.system
 
 when@test:
     framework:

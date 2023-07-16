@@ -26,7 +26,7 @@ class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'page', requirements: '\d+', default: 1, description: 'Page number')]
     #[Rest\View(serializerGroups: ['transaction:collection:read'])]
     #[Route('', name: 'collection_read', methods:['get'] )]
-    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?string $type = null, ?array $accounts, ?array $categories, $isDraft = false, int $perPage = 30, int $page = 1): View
+    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?array $accounts, ?array $categories, ?string $type = null, $isDraft = false, int $perPage = 30, int $page = 1): View
     {
         return $this->view(
             $assetsManager->generateTransactionPaginationData(
