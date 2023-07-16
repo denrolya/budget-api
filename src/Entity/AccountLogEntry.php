@@ -8,6 +8,7 @@ use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
+use JMS\Serializer\Annotation as Serializer;
 
 /**
  * @ORM\Entity(repositoryClass=AccountLogEntryRepository::class)
@@ -20,6 +21,7 @@ class AccountLogEntry
      * @ORM\Column(type="integer")
      */
     #[Groups(['account:item:read'])]
+    #[Serializer\Groups(['account:item:read'])]
     private ?int $id;
 
     /**
@@ -37,11 +39,14 @@ class AccountLogEntry
      * @ORM\Column(type="json", nullable=true)
      */
     #[Groups(['account:item:read'])]
+    #[Serializer\Groups(['account:item:read'])]
     private array $convertedValues;
 
     /**
      * @ORM\Column(type="datetime")
      */
+    #[Serializer\Type("DateTime<'U'>")]
+    #[Serializer\Groups(['account:item:read'])]
     private ?DateTimeInterface $createdAt;
 
     public function __construct(Account $account, float $balance, array $convertedValues, CarbonInterface $createdAt)

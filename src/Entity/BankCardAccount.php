@@ -6,6 +6,7 @@ use ApiPlatform\Core\Annotation\ApiResource;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use ApiPlatform\Core\Action\NotFoundAction;
+use JMS\Serializer\Annotation as Serializer;
 
 /**
  * @ORM\HasLifecycleCallbacks()
@@ -32,19 +33,22 @@ class BankCardAccount extends Account
     /**
      * @ORM\Column(type="string", length=16, nullable=true)
      */
-    #[Groups(['account:item:read', "account:write"])]
+    #[Groups(['account:item:read', 'account:write'])]
+    #[Serializer\Groups(['account:item:read'])]
     private ?string $cardNumber;
 
     /**
      * @ORM\Column(type="string", length=34, nullable=true)
      */
-    #[Groups(['account:item:read', "account:write"])]
+    #[Groups(['account:item:read', 'account:write'])]
+    #[Serializer\Groups(['account:item:read'])]
     private ?string $iban;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
-    #[Groups(['account:item:read', "account:write"])]
+    #[Groups(['account:item:read', 'account:write'])]
+    #[Serializer\Groups(['account:item:read'])]
     private ?string $monobankId;
 
     public function getCardNumber(): ?string
