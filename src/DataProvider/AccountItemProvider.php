@@ -49,7 +49,6 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
         ]);
 
         $account
-            ->setLastTransactionAt($lastTransactionAt?->getExecutedAt())
             ->setTopExpenseCategories(
                 $this->statisticsManager->generateCategoryTreeWithValues(null, $expenses, ExpenseCategory::class)
             )
