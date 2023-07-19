@@ -43,32 +43,32 @@ final class StatisticsManager
     {
         $result = [];
         $dates = $period->toArray();
-        foreach($dates as $from) {
-            $to = next($dates);
+        foreach($dates as $after) {
+            $before = next($dates);
 
-            if($to === false) {
-                $to = $period->getEndDate();
+            if($before === false) {
+                $before = $period->getEndDate();
             }
 
             $result[] = [
-                'date' => $from->timestamp,
+                'date' => $after->timestamp,
                 'expense' => $this->assetsManager->sumTransactions(
                     array_filter(
                         $transactions,
-                        static function (TransactionInterface $t) use ($from, $to) {
+                        static function (TransactionInterface $t) use ($after, $before) {
                             $transactionDate = $t->getExecutedAt();
 
-                            return $t->isExpense() && $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
+                            return $t->isExpense() && $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
                         }
                     )
                 ),
                 'income' => $this->assetsManager->sumTransactions(
                     array_filter(
                         $transactions,
-                        static function (TransactionInterface $t) use ($from, $to) {
+                        static function (TransactionInterface $t) use ($after, $before) {
                             $transactionDate = $t->getExecutedAt();
 
-                            return $t->isIncome() && $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
+                            return $t->isIncome() && $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
                         }
                     )
                 ),
@@ -81,29 +81,29 @@ final class StatisticsManager
     /**
      * Expenses & Incomes within given period with floating step
      */
-    public function generateIncomeExpenseStatistics(CarbonInterface $from, CarbonInterface $to, array $transactions): array
+    public function generateIncomeExpenseStatistics(CarbonInterface $after, CarbonInterface $before, array $transactions): array
     {
-        $factor = ($to->timestamp - $from->timestamp) / .04;
+        $factor = ($before->timestamp - $after->timestamp) / .04;
 
         $result = [];
 
-        while ($from->isBefore($to)) {
-            $iterator = $from->copy()->add($factor . " milliseconds");
+        while ($after->isBefore($before)) {
+            $iterator = $after->copy()->add($factor . " milliseconds");
             $expense = $this->assetsManager->sumTransactions(
-                array_filter($transactions, static function (TransactionInterface $t) use ($from, $iterator) {
-                    return $t->isExpense() && $t->getExecutedAt()->isBetween($from, $iterator);
+                array_filter($transactions, static function (TransactionInterface $t) use ($after, $iterator) {
+                    return $t->isExpense() && $t->getExecutedAt()->isBetween($after, $iterator);
                 })
             );
             $income = $this->assetsManager->sumTransactions(
-                array_filter($transactions, static function (TransactionInterface $t) use ($from, $iterator) {
-                    return $t->isIncome() && $t->getExecutedAt()->isBetween($from, $iterator);
+                array_filter($transactions, static function (TransactionInterface $t) use ($after, $iterator) {
+                    return $t->isIncome() && $t->getExecutedAt()->isBetween($after, $iterator);
                 })
             );
 
-            $from = $iterator;
+            $after = $iterator;
             $result[] = [
-                'from' => $from->timestamp,
-                'to' => $from->copy()->add('milliseconds', $factor)->timestamp,
+                'after' => $after->timestamp,
+                'before' => $after->copy()->add('milliseconds', $factor)->timestamp,
                 'expense' => -$expense,
                 'income' => $income,
             ];
@@ -168,39 +168,39 @@ final class StatisticsManager
         ];
 
         $dates = $period->toArray();
-        foreach($dates as $key => $from) {
-            $to = next($dates);
+        foreach($dates as $key => $after) {
+            $before = next($dates);
 
-            if($to === false) {
-                $to = $period->getEndDate();
+            if($before === false) {
+                $before = $period->getEndDate();
             }
 
             $sum = $this->assetsManager->sumTransactions(
                 array_filter(
                     $transactions,
-                    static function (TransactionInterface $transaction) use ($from, $to) {
+                    static function (TransactionInterface $transaction) use ($after, $before) {
                         $transactionDate = $transaction->getExecutedAt();
 
-                        return $transactionDate->greaterThanOrEqualTo($from) && $transactionDate->lessThan($to);
+                        return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
                     }
                 )
             );
 
             if($key === 0) {
                 $result['min']['value'] = $sum;
-                $result['min']['when'] = $from->copy()->toDateString();
+                $result['min']['when'] = $after->copy()->toDateString();
                 $result['max']['value'] = $sum;
-                $result['max']['when'] = $from->copy()->toDateString();
+                $result['max']['when'] = $after->copy()->toDateString();
             }
 
             if($sum < $result['min']['value']) {
                 $result['min']['value'] = $sum;
-                $result['min']['when'] = $from->copy()->toDateString();
+                $result['min']['when'] = $after->copy()->toDateString();
             }
 
             if($sum > $result['max']['value']) {
                 $result['max']['value'] = $sum;
-                $result['max']['when'] = $from->copy()->toDateString();
+                $result['max']['when'] = $after->copy()->toDateString();
             }
         }
 
@@ -335,17 +335,17 @@ final class StatisticsManager
                 'values' => [],
             ];
 
-            foreach($dates as $from) {
-                $to = next($dates);
+            foreach($dates as $after) {
+                $before = next($dates);
 
-                if($to !== false) {
+                if($before !== false) {
                     $data['values'][] = $this->assetsManager->sumTransactions(
                         array_filter(
                             $transactions,
-                            static function (TransactionInterface $transaction) use ($from, $to, $category) {
+                            static function (TransactionInterface $transaction) use ($after, $before, $category) {
                                 $transactionDate = $transaction->getExecutedAt();
 
-                                return $transactionDate->isBetween($from, $to) && $transaction->getCategory()->isChildOf($category);
+                                return $transactionDate->isBetween($after, $before) && $transaction->getCategory()->isChildOf($category);
                             }
                         )
                     );
@@ -385,16 +385,16 @@ final class StatisticsManager
     /**
      * Calculate average daily expense for given period converted to base currency
      */
-    public function calculateAverageDailyExpenseWithinPeriod(CarbonInterface $from, CarbonInterface $to): float
+    public function calculateAverageDailyExpenseWithinPeriod(CarbonInterface $after, CarbonInterface $before): float
     {
         $expenseSum = $this->assetsManager->sumTransactionsFiltered(
             TransactionInterface::EXPENSE,
-            $from,
-            $to,
+            $after,
+            $before,
             [ExpenseCategory::CATEGORY_RENT]
         );
 
-        return $expenseSum / $to->endOfDay()->diffInDays($from->startOfDay());
+        return $expenseSum / $before->endOfDay()->diffInDays($after->startOfDay());
     }
 
     public function sumTransactionsByDateInterval(CarbonPeriod $period, array $transactions): array
@@ -402,18 +402,18 @@ final class StatisticsManager
         $dates = $period->toArray();
         $result = [];
         foreach($dates as $date) {
-            $to = next($dates);
+            $before = next($dates);
 
-            if($to === false) {
-                $to = $period->getEndDate();
+            if($before === false) {
+                $before = $period->getEndDate();
             }
 
             $transactionsWithinPeriod = array_filter(
                 $transactions,
-                static function (TransactionInterface $transaction) use ($date, $to) {
+                static function (TransactionInterface $transaction) use ($date, $before) {
                     $transactionDate = $transaction->getExecutedAt();
 
-                    return $transactionDate->greaterThanOrEqualTo($date) && $transactionDate->lessThan($to);
+                    return $transactionDate->greaterThanOrEqualTo($date) && $transactionDate->lessThan($before);
                 });
 
             $result[] = [
@@ -428,16 +428,16 @@ final class StatisticsManager
     /**
      * Generated previous period daterange for given dates(previous month, week, day, quarter...)
      */
-    public function generatePreviousTimeperiod(CarbonInterface $from, CarbonInterface $to): CarbonPeriod
+    public function generatePreviousTimeperiod(CarbonInterface $after, CarbonInterface $before): CarbonPeriod
     {
-        return ($from->isSameDay($from->startOfMonth()) && $to->isSameDay($to->endOfMonth()))
+        return ($after->isSameDay($after->startOfMonth()) && $before->isSameDay($before->endOfMonth()))
             ? new CarbonPeriod(
-                $from->sub('month', ($to->year - $from->year + 1) * abs($to->month - $from->month + 1)),
-                $from->sub('days', 1)
+                $after->sub('month', ($before->year - $after->year + 1) * abs($before->month - $after->month + 1)),
+                $after->sub('days', 1)
             )
             : new CarbonPeriod(
-                $from->sub('days', $to->diffInDays($from) + 1),
-                $from->sub('days', 1)
+                $after->sub('days', $before->diffInDays($after) + 1),
+                $after->sub('days', 1)
             );
     }
 

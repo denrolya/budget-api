@@ -29,8 +29,8 @@ class TransferRepository extends ServiceEntityRepository
     }
 
     /**
-     * @param null|CarbonInterface $from
-     * @param null|CarbonInterface $to
+     * @param null|CarbonInterface $after
+     * @param null|CarbonInterface $before
      * @param array|null $accounts
      * @param int|null $limit
      * @param int $offset
@@ -38,9 +38,9 @@ class TransferRepository extends ServiceEntityRepository
      * @param string $order
      * @return Paginator
      */
-    public function getPaginator(?CarbonInterface $from, ?CarbonInterface $to, ?array $accounts = null, ?int $limit = self::LIMIT, int $offset = self::OFFSET, string $orderField = self::ORDER_FIELD, string $order = self::ORDER): Paginator
+    public function getPaginator(?CarbonInterface $after, ?CarbonInterface $before, ?array $accounts = null, ?int $limit = self::LIMIT, int $offset = self::OFFSET, string $orderField = self::ORDER_FIELD, string $order = self::ORDER): Paginator
     {
-        $qb = $this->getBaseQueryBuilder($from, $to, $accounts, $limit, $offset, $orderField, $order);
+        $qb = $this->getBaseQueryBuilder($after, $before, $accounts, $limit, $offset, $orderField, $order);
 
         return new Paginator(
             $qb->getQuery()->setHydrationMode(Query::HYDRATE_OBJECT),
@@ -49,8 +49,8 @@ class TransferRepository extends ServiceEntityRepository
     }
 
     /**
-     * @param null|CarbonInterface $from
-     * @param null|CarbonInterface $to
+     * @param null|CarbonInterface $after
+     * @param null|CarbonInterface $before
      * @param array|null $accounts
      * @param int|null $limit
      * @param int $offset
@@ -59,24 +59,24 @@ class TransferRepository extends ServiceEntityRepository
      *
      * @return QueryBuilder
      */
-    private function getBaseQueryBuilder(?CarbonInterface $from, ?CarbonInterface $to, ?array $accounts = null, ?int $limit = self::LIMIT, int $offset = self::OFFSET, string $orderField = self::ORDER_FIELD, string $order = self::ORDER): QueryBuilder
+    private function getBaseQueryBuilder(?CarbonInterface $after, ?CarbonInterface $before, ?array $accounts = null, ?int $limit = self::LIMIT, int $offset = self::OFFSET, string $orderField = self::ORDER_FIELD, string $order = self::ORDER): QueryBuilder
     {
         $qb = $this
             ->createQueryBuilder('t')
             ->setFirstResult($offset)
             ->setMaxResults($limit)
-            ->leftJoin('t.from', 'fa')
-            ->leftJoin('t.to', 'ta')
+            ->leftJoin('t.after', 'fa')
+            ->leftJoin('t.before', 'ta')
             ->orderBy("t.$orderField", $order);
 
-        if($from) {
-            $qb->andWhere('DATE(t.executedAt) >= :from')
-                ->setParameter('from', $from->toDateString());
+        if($after) {
+            $qb->andWhere('DATE(t.executedAt) >= :after')
+                ->setParameter('after', $after->toDateString());
         }
 
-        if($to) {
-            $qb->andWhere('DATE(t.executedAt) <= :to')
-                ->setParameter('to', $to->toDateString());
+        if($before) {
+            $qb->andWhere('DATE(t.executedAt) <= :before')
+                ->setParameter('before', $before->toDateString());
         }
 
 

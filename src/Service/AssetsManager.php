@@ -34,8 +34,8 @@ final class AssetsManager
 
     #[ArrayShape(['list' => 'mixed', 'totalValue' => 'float', 'count' => 'mixed'])]
     public function generateTransactionPaginationData(
-        CarbonInterface $from,
-        CarbonInterface $to,
+        CarbonInterface $after,
+        CarbonInterface $before,
         ?string         $type = null,
         ?array           $categories = null,
         ?array           $accounts = null,
@@ -51,8 +51,8 @@ final class AssetsManager
         $paginator = $this
             ->transactionRepo
             ->getPaginator(
-                $from,
-                $to,
+                $after,
+                $before,
                 false,
                 $type,
                 ($withChildCategories && !empty($categories))
@@ -85,17 +85,17 @@ final class AssetsManager
         $byDate = [];
 
         $dates = $period->toArray();
-        foreach($dates as $from) {
-            $to = next($dates);
+        foreach($dates as $after) {
+            $before = next($dates);
 
-            if($to !== false) {
+            if($before !== false) {
                 $transactionsByDate = array_filter(
                     $transactions,
-                    static function (TransactionInterface $transaction) use ($from, $to) {
-                        return $transaction->getExecutedAt()->startOfDay()->between($from, $to);
+                    static function (TransactionInterface $transaction) use ($after, $before) {
+                        return $transaction->getExecutedAt()->startOfDay()->between($after, $before);
                     }
                 );
-                $byDate[$from->toDateString()] = count($transactionsByDate)
+                $byDate[$after->toDateString()] = count($transactionsByDate)
                     ? $this->sumTransactions($transactionsByDate) / count($transactionsByDate)
                     : 0;
             }
@@ -113,12 +113,12 @@ final class AssetsManager
         return $sum / (count($transactions) ?: 1);
     }
 
-    public function sumTransactionsFiltered(?string $type, CarbonInterface $from, CarbonInterface $to, ?array $categories = [], ?array $accounts = [], ?array $excludedCategories = []): float
+    public function sumTransactionsFiltered(?string $type, CarbonInterface $after, CarbonInterface $before, ?array $categories = [], ?array $accounts = [], ?array $excludedCategories = []): float
     {
         return $this->sumMixedTransactions(
             $this->transactionRepo->getList(
-                $from,
-                $to,
+                $after,
+                $before,
                 $type,
                 $categories,
                 $accounts,
@@ -161,12 +161,12 @@ final class AssetsManager
      * Converts entity's value to a specified(or base if null given) currency
      * @throws InvalidArgumentException
      */
-    public function convertTo(ValuableInterface $entity, ?string $to = null): float
+    public function convertTo(ValuableInterface $entity, ?string $before = null): float
     {
         return $this->fixerService->convertTo(
             $entity->{'get' . ucfirst($entity->getValuableField())}(),
             $entity->getCurrency(),
-            $to ?? $entity->getCurrency(),
+            $before ?? $entity->getCurrency(),
             $entity instanceof ExecutableInterface ? $entity->getExecutedAt() : null
         );
     }

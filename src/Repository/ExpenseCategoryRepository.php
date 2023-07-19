@@ -20,17 +20,17 @@ class ExpenseCategoryRepository extends CategoryRepository
     }
 
     /**
-     * @param CarbonInterface $from
-     * @param CarbonInterface $to
+     * @param CarbonInterface $after
+     * @param CarbonInterface $before
      * @return ExpenseCategory[]|array
      */
-    public function findCreatedWithinPeriod(CarbonInterface $from, CarbonInterface $to): array
+    public function findCreatedWithinPeriod(CarbonInterface $after, CarbonInterface $before): array
     {
         $qb = $this->createQueryBuilder('c')
-            ->where('DATE(c.createdAt) >= :from')
-            ->setParameter('from', $from->toDateString())
-            ->andWhere('DATE(c.createdAt) <= :to')
-            ->setParameter('to', $to->toDateString());
+            ->where('DATE(c.createdAt) >= :after')
+            ->setParameter('after', $after->toDateString())
+            ->andWhere('DATE(c.createdAt) <= :before')
+            ->setParameter('before', $before->toDateString());
 
         return $qb->getQuery()->getResult();
     }

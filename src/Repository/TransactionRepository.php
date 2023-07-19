@@ -34,8 +34,8 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     public function getList(
-        ?CarbonInterface $from,
-        ?CarbonInterface $to,
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
         ?string          $type = null,
         ?array           $categories = [],
         ?array           $accounts = [],
@@ -48,8 +48,8 @@ class TransactionRepository extends ServiceEntityRepository
     {
         return $this
             ->getBaseQueryBuilder(
-                $from,
-                $to,
+                $after,
+                $before,
                 $affectingProfitOnly,
                 $type,
                 $categories,
@@ -67,8 +67,8 @@ class TransactionRepository extends ServiceEntityRepository
      * TODO: Replace $offset with $page
      */
     public function getPaginator(
-        ?CarbonInterface $from,
-        ?CarbonInterface $to,
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
         bool             $affectingProfitOnly = false,
         ?string          $type = null,
         ?array           $categories = [],
@@ -81,24 +81,24 @@ class TransactionRepository extends ServiceEntityRepository
         string           $order = self::ORDER
     ): Paginator
     {
-        $qb = $this->getBaseQueryBuilder($from, $to, $affectingProfitOnly, $type, $categories, $accounts, $excludedCategories, $onlyDrafts, $orderField, $order);
+        $qb = $this->getBaseQueryBuilder($after, $before, $affectingProfitOnly, $type, $categories, $accounts, $excludedCategories, $onlyDrafts, $orderField, $order);
 
         return (new Paginator($qb, $limit))->paginate(($offset / $limit) + 1);
     }
 
-    public function findWithinPeriodByAccount(Account $account, CarbonInterface $from, ?CarbonInterface $to = null): array
+    public function findWithinPeriodByAccount(Account $account, CarbonInterface $after, ?CarbonInterface $before = null): array
     {
         $qb = $this->createQueryBuilder('t')
             ->leftJoin('t.account', 'a')
-            ->andWhere('DATE(t.executedAt) >= :from')
+            ->andWhere('DATE(t.executedAt) >= :after')
             ->andWhere('a.id = :account')
-            ->setParameter('from', $from->toDateString())
+            ->setParameter('after', $after->toDateString())
             ->setParameter('account', $account->getId());
 
-        if($to) {
+        if($before) {
             $qb
-                ->andWhere('DATE(t.executedAt) <= :to')
-                ->setParameter('to', $to->toDateString());
+                ->andWhere('DATE(t.executedAt) <= :before')
+                ->setParameter('before', $before->toDateString());
         }
 
         return $qb
@@ -107,16 +107,16 @@ class TransactionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function findWithinPeriod(CarbonInterface $from, ?CarbonInterface $to = null): array
+    public function findWithinPeriod(CarbonInterface $after, ?CarbonInterface $before = null): array
     {
         $qb = $this->createQueryBuilder('t')
-            ->andWhere('DATE(t.executedAt) >= :from')
-            ->setParameter('from', $from->toDateString());
+            ->andWhere('DATE(t.executedAt) >= :after')
+            ->setParameter('after', $after->toDateString());
 
-        if($to) {
+        if($before) {
             $qb
-                ->andWhere('DATE(t.executedAt) <= :to')
-                ->setParameter('to', $to->toDateString());
+                ->andWhere('DATE(t.executedAt) <= :before')
+                ->setParameter('before', $before->toDateString());
         }
 
         return $qb
@@ -150,8 +150,8 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     protected function getBaseQueryBuilder(
-        ?CarbonInterface $from,
-        ?CarbonInterface $to,
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
         bool             $affectingProfitOnly = false,
         ?string          $type = null,
         ?array           $categories = [],
@@ -174,14 +174,14 @@ class TransactionRepository extends ServiceEntityRepository
                 ->setParameter('affectingProfitOnly', $affectingProfitOnly);
         }
 
-        if($from) {
-            $qb->andWhere('DATE(t.executedAt) >= :from')
-                ->setParameter('from', $from->toDateString());
+        if($after) {
+            $qb->andWhere('DATE(t.executedAt) >= :after')
+                ->setParameter('after', $after->toDateString());
         }
 
-        if($to) {
-            $qb->andWhere('DATE(t.executedAt) <= :to')
-                ->setParameter('to', $to->toDateString());
+        if($before) {
+            $qb->andWhere('DATE(t.executedAt) <= :before')
+                ->setParameter('before', $before->toDateString());
         }
 
         if($type === TransactionInterface::EXPENSE) {
