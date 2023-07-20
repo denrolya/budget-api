@@ -91,7 +91,6 @@ final class TransferDataPersister implements DataPersisterInterface
      */
     public function remove($data): void
     {
-        dump('remove');
         $this->decorated->remove($data);
     }
 }
