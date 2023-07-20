@@ -66,7 +66,7 @@ final class AccountLogger
         }
     }
 
-    public function preRemove(TransactionInterface $transaction): void
+    public function postRemove(TransactionInterface $transaction): void
     {
         $account = $transaction->getAccount();
         $executionDate = $transaction->getExecutedAt();

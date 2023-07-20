@@ -206,17 +206,17 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     protected ?Account $account;
 
     /**
-     * @var float
+     * @var string
      * @Assert\NotBlank()
      * @Assert\Type("numeric")
      * @Assert\GreaterThan(value="0")
      *
-     * @ORM\Column(type="decimal", precision=50, scale=30)
+     * @ORM\Column(type="string", length=100)
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Type('float')]
-    protected float $amount = 0;
+    protected string $amount = '0.0';
 
     /**
      * @ORM\Column(type="json", nullable=false)
@@ -316,10 +316,10 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
 
     public function getAmount(): float
     {
-        return $this->amount;
+        return (float)$this->amount;
     }
 
-    public function setAmount(float $amount): TransactionInterface
+    public function setAmount(string $amount): TransactionInterface
     {
         $this->amount = $amount;
 

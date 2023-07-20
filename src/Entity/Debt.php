@@ -100,16 +100,17 @@ class Debt implements OwnableInterface, ValuableInterface
     private ?string $currency;
 
     /**
-     * @ORM\Column(type="decimal", precision=50, scale=30)
+     * @ORM\Column(type="string", length=100)
      */
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     #[Serializer\Type('float')]
-    private float $balance = 0;
+    private string $balance = '0.0';
 
     /**
      * TODO: Remove transactions from collection:read
      * @ORM\OneToMany(targetEntity=Transaction::class, mappedBy="debt")
+     * @ORM\OrderBy({"executedAt" = "DESC"})
      */
     #[Groups(['debt:collection:read'])]
     #[ApiSubresource]
@@ -162,10 +163,10 @@ class Debt implements OwnableInterface, ValuableInterface
 
     public function getBalance(): float
     {
-        return $this->balance;
+        return (float)$this->balance;
     }
 
-    public function setBalance(float $balance): self
+    public function setBalance(string $balance): self
     {
         $this->balance = $balance;
 

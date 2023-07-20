@@ -101,7 +101,7 @@ class Account implements OwnableInterface
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['account:collection:read', 'account:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transaction:collection:read'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read', 'ч:collection:read'])]
     #[Serializer\Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
     private ?int $id;
 
@@ -156,12 +156,12 @@ class Account implements OwnableInterface
     /**
      * Initial balance of the account
      *
-     * @ORM\Column(type="decimal", precision=50, scale=30)
+     * @ORM\Column(type="string", length=100)
      */
     #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
     #[Serializer\Type('float')]
-    private float $balance = 0;
+    private string $balance = '0.0';
 
     /**
      * @ORM\OneToMany(targetEntity="Transaction", mappedBy="account", cascade={"remove"}, orphanRemoval=true)
@@ -265,10 +265,10 @@ class Account implements OwnableInterface
 
     public function getBalance(): ?float
     {
-        return $this->balance;
+        return (float)$this->balance;
     }
 
-    public function setBalance(float $balance): self
+    public function setBalance(string $balance): self
     {
         $this->balance = $balance;
 

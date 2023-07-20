@@ -6,11 +6,13 @@ use App\Repository\AccountLogEntryRepository;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
+use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use JMS\Serializer\Annotation as Serializer;
 
 /**
+ * @ORM\HasLifecycleCallbacks()
  * @ORM\Entity(repositoryClass=AccountLogEntryRepository::class)
  */
 class AccountLogEntry
@@ -31,9 +33,9 @@ class AccountLogEntry
     private ?Account $account;
 
     /**
-     * @ORM\Column(type="decimal", precision=50, scale=30, nullable=true)
+     * @ORM\Column(type="string", nullable=true, length=100)
      */
-    private float $balance;
+    private string $balance = '0.0';
 
     /**
      * @ORM\Column(type="json", nullable=true)
@@ -74,9 +76,9 @@ class AccountLogEntry
         return $this;
     }
 
-    public function getBalance(): ?string
+    public function getBalance(): ?float
     {
-        return $this->balance;
+        return (float)$this->balance;
     }
 
     public function setBalance(?string $balance): self
@@ -123,5 +125,15 @@ class AccountLogEntry
         $this->createdAt = $createdAt;
 
         return $this;
+    }
+
+    /**
+     * @ORM\PreUpdate
+     */
+    public function preUpdate(PreUpdateEventArgs $event): void
+    {
+        $em = $event->getEntityManager();
+        $uow = $em->getUnitOfWork();
+        $uow->recomputeSingleEntityChangeSet($em->getClassMetadata(self::class), $this);
     }
 }

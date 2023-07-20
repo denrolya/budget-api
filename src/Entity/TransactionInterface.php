@@ -27,7 +27,7 @@ interface TransactionInterface extends ValuableInterface
 
     public function getAmount(): ?float;
 
-    public function setAmount(float $amount): TransactionInterface;
+    public function setAmount(string $amount): TransactionInterface;
 
     public function getNote(): ?string;
 
