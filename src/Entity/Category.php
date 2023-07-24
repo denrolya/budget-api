@@ -219,20 +219,6 @@ abstract class Category
         return $this->name ?: 'New Category';
     }
 
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'debt:collection:read'])]
-    #[Serializer\VirtualProperty]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
-    public function getFullPath(): array
-    {
-        $result = [$this->getName()];
-
-        if(!$this->isRoot() && $this->hasParent()) {
-            return array_merge($result, $this->getParent()->getFullPath());
-        }
-
-        return $result;
-    }
-
     public function getName(): ?string
     {
         return $this->name;
