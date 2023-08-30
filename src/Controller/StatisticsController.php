@@ -65,36 +65,6 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
     #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this month'])]
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
-    #[Rest\QueryParam(name: 'categories', default: [], description: 'Filter by categories', nullable: false, allowBlank: false)]
-    #[Route('/sum', name: 'sum', methods: ['get'])]
-    public function sum(ManagerRegistry $doctrine, AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
-    {
-        // TODO: If no interval - provide sum
-        // TODO: If interval provided - sum by interval; return array of values with dates
-        $transactions = $doctrine->getRepository(Transaction::class)->getList(
-            $after,
-            $before,
-            $type,
-            !empty($categories) ? $assetsManager->getTypedCategoriesWithChildren($type, $categories) : $categories,
-            $accounts,
-            [],
-            true,
-            false
-        );
-
-        $result = isset($type)
-            ? $assetsManager->sumTransactions($transactions)
-            : $assetsManager->sumMixedTransactions($transactions);
-
-        return $this->view($result);
-    }
-
-    #[Rest\QueryParam(name: 'after', description: 'After date', nullable: true)]
-    #[ParamConverter('after', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'first day of this month'])]
-    #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
-    #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this month'])]
-    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: true)]
     #[Rest\View(serializerGroups: ['category:tree:read'])]
     #[Route('/category/tree', name: 'category_tree', methods: ['get'])]
     public function categoryTree(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
@@ -171,6 +141,21 @@ class StatisticsController extends AbstractFOSRestController
 
         return $this->view(
             $statisticsManager->generateTransactionsValueByCategoriesByWeekdays($transactions)
+        );
+    }
+
+    #[Rest\QueryParam(name: 'after', description: 'After date', nullable: true)]
+    #[ParamConverter('after', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'first day of this year'])]
+    #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
+    #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this year'])]
+    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: TransactionInterface::EXPENSE, nullable: true, allowBlank: false)]
+    #[Route('/top-value-category', name: 'top_value_category', methods: ['get'])]
+    public function topValueCategory(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
+    {
+        $transactions = $doctrine->getRepository(Transaction::class)->getList($after, $before, $type, [], [], [], true, false, 'executedAt', 'ASC');
+
+        return $this->view(
+            $statisticsManager->generateTopValueCategoryStatistics($transactions)
         );
     }
 }

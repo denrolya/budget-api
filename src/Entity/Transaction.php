@@ -42,39 +42,12 @@ use JMS\Serializer\Annotation as Serializer;
                 'description' => '',
             ],
         ],
-        'min_max' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/min-max',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Minimum & maximum by interval',
-                'description' => '',
-            ],
-        ],
         'average_transaction_weekly' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/avg-weekly',
             'pagination_enabled' => false,
             'openapi_context' => [
                 'summary' => 'Average transaction weekly',
-                'description' => '',
-            ],
-        ],
-        'top_value_category' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/top-value-category',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Top value category',
-                'description' => 'Category that has the biggest cumulative value',
-            ],
-        ],
-        'utility_costs' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/utilities',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Utility costs',
                 'description' => '',
             ],
         ],
