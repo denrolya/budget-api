@@ -79,15 +79,7 @@ services:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
 
-    App\DataProvider\Statistics\SumProvider:
-        bind:
-            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
-
     App\DataProvider\Statistics\AvgProvider:
-        bind:
-            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
-
-    App\DataProvider\Statistics\ByWeekdaysProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
@@ -96,22 +88,6 @@ services:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 
     App\DataProvider\Statistics\TopValueCategoryProvider:
-        bind:
-            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
-
-    App\DataProvider\Statistics\AccountDistributionProvider:
-        bind:
-            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
-
-    App\DataProvider\Statistics\CategoriesTimelineProvider:
-        bind:
-            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
-
-    App\DataProvider\Statistics\CategoriesTreeProvider:
-        bind:
-            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
-
-    App\DataProvider\Statistics\MoneyFlowProvider:
         bind:
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
 

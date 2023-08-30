@@ -33,33 +33,6 @@ use JMS\Serializer\Annotation as Serializer;
         'get' => [
             'normalization_context' => ['groups' => 'transaction:collection:read'],
         ],
-        'money_flow' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/money-flow',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Money Flow',
-                'description' => 'Generates money flow statistics within given date range and grouped by interval(optional)',
-            ],
-        ],
-        'income_expense' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/income-expense',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Incomes & Expenses',
-                'description' => 'Incomes & expenses ',
-            ],
-        ],
-        'sum' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/sum',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Sum Transactions',
-                'description' => '',
-            ],
-        ],
         'avg' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/avg',
@@ -87,15 +60,6 @@ use JMS\Serializer\Annotation as Serializer;
                 'description' => '',
             ],
         ],
-        'categories_timeline' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/categories-timeline',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Categories Timeline',
-                'description' => '',
-            ],
-        ],
         'top_value_category' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/top-value-category',
@@ -105,30 +69,12 @@ use JMS\Serializer\Annotation as Serializer;
                 'description' => 'Category that has the biggest cumulative value',
             ],
         ],
-        'account_distribution' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/account-distribution',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Account distribution',
-                'description' => '',
-            ],
-        ],
         'utility_costs' => [
             'method' => 'GET',
             'path' => '/transactions/statistics/utilities',
             'pagination_enabled' => false,
             'openapi_context' => [
                 'summary' => 'Utility costs',
-                'description' => '',
-            ],
-        ],
-        'by_weekdays' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/by-weekdays',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'By Weekdays',
                 'description' => '',
             ],
         ],

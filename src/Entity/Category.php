@@ -35,16 +35,6 @@ use JMS\Serializer\Annotation as Serializer;
         'get' => [
             'normalization_context' => ['groups' => 'category:collection:read'],
         ],
-        'categories_tree' => [
-            'method' => 'GET',
-            'path' => '/categories/tree',
-            'normalization_context' => ['groups' => 'category:tree:read'],
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Categories Tree',
-                'description' => '',
-            ],
-        ],
     ],
     itemOperations: [
         'put' => [
@@ -98,7 +88,7 @@ abstract class Category
      * @ORM\Column(type="integer")
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'transaction:collection:read'])]
-    #[Serializer\Groups(['category:collection:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'category:tree:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
     private ?int $id;
 
     /**
@@ -121,20 +111,21 @@ abstract class Category
      * @ORM\Column(type="string", length=255)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'category:tree:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
     private ?string $name;
 
     /**
      * @ORM\Column(type="boolean", nullable=false, options={"default": false})
      */
     #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     private bool $isTechnical;
 
     /**
      * @ORM\OneToMany(targetEntity=Category::class, mappedBy="parent", cascade={"remove"}, fetch="EXTRA_LAZY")
      */
     #[Groups(['category:tree:read'])]
+    #[Serializer\Groups(['category:tree:read'])]
     private Collection $children;
 
     /**
@@ -165,21 +156,21 @@ abstract class Category
      * @ORM\Column(type="boolean", nullable=false)
      */
     #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     private bool $isAffectingProfit = true;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'category:tree:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
     private ?string $icon;
 
     /**
      * @ORM\Column(type="string", length=150, nullable=true)
      */
     #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'category:tree:read', 'account:item:read', 'debt:collection:read'])]
     private ?string $color;
 
     /**
@@ -189,7 +180,7 @@ abstract class Category
      * @ORM\JoinTable(name="categories_tags")
      */
     #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     private Collection $tags;
 
     #[Groups(['category:tree:read', 'account:item:read'])]
@@ -201,7 +192,7 @@ abstract class Category
     private float $total = 0;
 
     #[Groups(['category:collection:read', 'category:tree:read'])]
-    #[Serializer\Groups(['category:collection:read'])]
+    #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     abstract public function getType(): string;
 
     #[Pure]

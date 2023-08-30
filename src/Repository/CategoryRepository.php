@@ -38,4 +38,14 @@ class CategoryRepository extends ServiceEntityRepository
 
         return $qb->getQuery()->getResult();
     }
+
+    public function findRootCategories(?array $orderBy = null, ?int $limit = null, ?int $offset = null): array
+    {
+        return $this->findBy([
+            'root' => null,
+            'isTechnical' => false,
+            'isAffectingProfit' => true,
+        ], $orderBy, $limit, $offset);
+    }
 }
+

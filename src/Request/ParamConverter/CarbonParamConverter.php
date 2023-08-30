@@ -43,10 +43,10 @@ class CarbonParamConverter implements ParamConverterInterface
                     ? CarbonImmutable::createFromFormat($options['format'], $value)
                     : new CarbonImmutable($value);
 
-                if($param === 'from') {
-                    $date->startOfDay();
-                } elseif($param === 'to') {
-                    $date->endOfDay();
+                if($param === 'from' || $param === 'after') {
+                    $date = $date->startOfDay();
+                } elseif($param === 'to' || $param === 'before') {
+                    $date = $date->endOfDay();
                 }
             }
         } catch (Exception $e) {

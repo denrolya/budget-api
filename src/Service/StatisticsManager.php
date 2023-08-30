@@ -7,6 +7,7 @@ use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\Income;
+use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Repository\ExpenseCategoryRepository;
@@ -37,40 +38,43 @@ final class StatisticsManager
     }
 
     /**
+     * OPTIMIZED BY CHATPGT
      * Generates transactions statistics grouped by types. With given interval also grouped by date interval
      */
-    public function generateMoneyFlowStatistics(array $transactions, CarbonPeriod $period): array
+    public function calculateTransactionsValueByPeriod(array $transactions, CarbonPeriod $period): array
     {
         $result = [];
         $dates = $period->toArray();
-        foreach($dates as $after) {
-            $before = next($dates);
 
-            if($before === false) {
-                $before = $period->getEndDate();
+        $expenses = array_filter($transactions, static function (TransactionInterface $t) {
+            return $t->isExpense();
+        });
+
+        $incomes = array_filter($transactions, static function (TransactionInterface $t) {
+            return $t->isIncome();
+        });
+
+        foreach ($dates as $index => $after) {
+            $before = $index === count($dates) - 1 ? $period->getEndDate() : $dates[$index + 1];
+
+            if ($after->equalTo($before)) {
+                continue;
             }
 
             $result[] = [
-                'date' => $after->timestamp,
+                'after' => $after->timestamp,
+                'before' => $before->timestamp,
                 'expense' => $this->assetsManager->sumTransactions(
-                    array_filter(
-                        $transactions,
-                        static function (TransactionInterface $t) use ($after, $before) {
-                            $transactionDate = $t->getExecutedAt();
-
-                            return $t->isExpense() && $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
-                        }
-                    )
+                    array_filter($expenses, static function (TransactionInterface $t) use ($after, $before) {
+                        $transactionDate = $t->getExecutedAt();
+                        return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
+                    })
                 ),
                 'income' => $this->assetsManager->sumTransactions(
-                    array_filter(
-                        $transactions,
-                        static function (TransactionInterface $t) use ($after, $before) {
-                            $transactionDate = $t->getExecutedAt();
-
-                            return $t->isIncome() && $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
-                        }
-                    )
+                    array_filter($incomes, static function (TransactionInterface $t) use ($after, $before) {
+                        $transactionDate = $t->getExecutedAt();
+                        return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
+                    })
                 ),
             ];
         }
@@ -78,75 +82,27 @@ final class StatisticsManager
         return $result;
     }
 
-    /**
-     * Expenses & Incomes within given period with floating step
-     */
-    public function generateIncomeExpenseStatistics(CarbonInterface $after, CarbonInterface $before, array $transactions): array
+    public function generateCategoryTreeWithValues(?array $categories, array $transactions, ?string $type = null): array
     {
-        $factor = ($before->timestamp - $after->timestamp) / .04;
+        $categories = $categories ?: $this->getRootCategories($type);
 
-        $result = [];
-
-        while ($after->isBefore($before)) {
-            $iterator = $after->copy()->add($factor . " milliseconds");
-            $expense = $this->assetsManager->sumTransactions(
-                array_filter($transactions, static function (TransactionInterface $t) use ($after, $iterator) {
-                    return $t->isExpense() && $t->getExecutedAt()->isBetween($after, $iterator);
-                })
-            );
-            $income = $this->assetsManager->sumTransactions(
-                array_filter($transactions, static function (TransactionInterface $t) use ($after, $iterator) {
-                    return $t->isIncome() && $t->getExecutedAt()->isBetween($after, $iterator);
-                })
-            );
-
-            $after = $iterator;
-            $result[] = [
-                'after' => $after->timestamp,
-                'before' => $after->copy()->add('milliseconds', $factor)->timestamp,
-                'expense' => -$expense,
-                'income' => $income,
-            ];
-        }
-
-        return $result;
-    }
-
-    public function generateCategoryTreeWithValues(?array $categories, array $transactions, ?string $categoryClass = null): array
-    {
-        if (empty($categories)) {
-            $categories = $this->em->getRepository($categoryClass)->findBy([
-                'root' => null,
-                'isAffectingProfit' => true,
-                'isTechnical' => false,
-            ]);
-        }
-
-        foreach($categories as $category) {
+        foreach ($categories as $category) {
+            $categoryId = $category->getId();
             $categoryTransactions = array_filter(
                 $transactions,
-                static function (TransactionInterface $transaction) use ($category) {
-                    return $transaction->getCategory()->getId() === $category->getId();
-                }
+                static fn(TransactionInterface $t) => $t->getCategory()->getId() === $categoryId
             );
             $value = $this->assetsManager->sumTransactions($categoryTransactions);
             $category->setValue($value);
 
             $nestedTransactions = array_filter(
                 $transactions,
-                static function (TransactionInterface $transaction) use ($category) {
-                    return $transaction->getCategory()->isChildOf($category);
-                }
+                static fn(TransactionInterface $t) => $t->getCategory()->isChildOf($category)
             );
-            $totalValue = $this->assetsManager->sumTransactions($nestedTransactions);
-            $category->setTotal($totalValue);
+            $category->setTotal($this->assetsManager->sumTransactions($nestedTransactions));
 
-
-            if($category->hasChildren() && count($nestedTransactions) > 0) {
-                $this->generateCategoryTreeWithValues(
-                    $category->getChildren()->toArray(),
-                    $nestedTransactions
-                );
+            if (!empty($nestedTransactions) && $category->hasChildren()) {
+                $this->generateCategoryTreeWithValues($category->getChildren()->toArray(), $nestedTransactions);
             }
         }
 
@@ -208,33 +164,43 @@ final class StatisticsManager
     }
 
     /**
+     * OPTIMIZED BY CHATPGT
      * Generates account value distribution statistics within given transactions array
      */
     public function generateAccountDistributionStatistics(array $transactions): array
     {
         $result = [];
-        $accounts = $this->em->getRepository(Account::class)->findAll();
+        $accountExpenses = [];
 
-        /** @var Account $account */
-        foreach($accounts as $account) {
-            $expenses = array_filter(
-                $transactions,
-                static function (TransactionInterface $transaction) use ($account) {
-                    return $transaction->getAccount()->getId() === $account->getId();
-                }
-            );
-            $amount = $this->assetsManager->sumTransactions($expenses, $account->getCurrency());
-            $value = $this->assetsManager->sumTransactions($expenses);
+        // Group transactions by account
+        foreach ($transactions as $transaction) {
+            $accountId = $transaction->getAccount()->getId();
+            if (!isset($accountExpenses[$accountId])) {
+                $accountExpenses[$accountId] = [
+                    'currency' => $transaction->getAccount()->getCurrency(),
+                    'transactions' => [],
+                ];
+            }
+            $accountExpenses[$accountId]['transactions'][] = $transaction;
+        }
 
-            if(!$value) {
+        foreach ($accountExpenses as $accountId => $accountData) {
+            $amount = $this->assetsManager->sumTransactions($accountData['transactions'], $accountData['currency']);
+            $value = $this->assetsManager->sumTransactions($accountData['transactions']);
+
+            if (!$value) {
                 continue;
             }
 
-            $result[] = [
-                'account' => $account,
-                'amount' => $amount,
-                'value' => $value,
-            ];
+            $account = $this->em->getRepository(Account::class)->find($accountId);
+
+            if ($account) {
+                $result[] = [
+                    'account' => $account,
+                    'amount' => $amount,
+                    'value' => $value,
+                ];
+            }
         }
 
         return $result;
@@ -358,6 +324,38 @@ final class StatisticsManager
         return $result;
     }
 
+    public function generateTransactionsValueByCategoriesByWeekdays(array $transactionsOrdered): array
+    {
+        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        $result = array_map(static fn($day) => ['name' => $day, 'values' => []], $days);
+
+        $rootCategories = $this->em->getRepository(ExpenseCategory::class)->findRootCategories(['name' => 'ASC']);
+
+        foreach ($rootCategories as $category) {
+            $categoryTransactions = array_filter($transactionsOrdered, static fn(TransactionInterface $transaction) => $transaction->getCategory()->isChildOf($category));
+
+            foreach ($categoryTransactions as $transaction) {
+                $weekday = $transaction->getExecutedAt()->dayOfWeekIso - 1;
+                $categoryName = $category->getName();
+
+                $result[$weekday]['values'][$categoryName] = ($result[$weekday]['values'][$categoryName] ?? 0) + $transaction->getValue();
+            }
+        }
+
+        foreach ($result as $index => &$weekdayData) {
+            $weekdaysCount = $this->countWeekdays(
+                $transactionsOrdered[0]->getExecutedAt(),
+                end($transactionsOrdered)->getExecutedAt(),
+                $index
+            );
+
+            $weekdayData['values'] = array_map(static fn($value) => $value / $weekdaysCount, $weekdayData['values']);
+        }
+
+        return $result;
+    }
+
     /**
      * Calculates the sum of expenses made today converted to base currency
      */
@@ -454,5 +452,37 @@ final class StatisticsManager
                 $this->updateValueInCategoryTree($child['children'], $needle, $value);
             }
         }
+    }
+
+    private function getRootCategories(?string $type): array
+    {
+        $categoryClass = Category::class;
+        if($type === Category::EXPENSE_CATEGORY_TYPE) {
+            $categoryClass = ExpenseCategory::class;
+        } elseif($type === Category::INCOME_CATEGORY_TYPE) {
+            $categoryClass = IncomeCategory::class;
+        }
+
+        return $this->em->getRepository($categoryClass)->findRootCategories();
+    }
+
+    private function countWeekdays(CarbonInterface $after, CarbonInterface $before, int $weekday): int
+    {
+        if ($weekday < 0 || $weekday > 6) {
+            throw new \InvalidArgumentException('Invalid weekday. Please provide a value between 0 and 6 (Sunday to Saturday).');
+        }
+
+        $count = 0;
+        $startDate = $after->copy()->startOfDay();
+        $endDate = $before->copy()->startOfDay();
+
+        while ($startDate->lte($endDate)) {
+            if ($startDate->dayOfWeek === $weekday) {
+                $count++;
+            }
+            $startDate = $startDate->addDay();
+        }
+
+        return $count;
     }
 }

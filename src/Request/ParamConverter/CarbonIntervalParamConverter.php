@@ -23,29 +23,28 @@ class CarbonIntervalParamConverter implements ParamConverterInterface
     {
         $param = $configuration->getName();
 
-        if(!$request->attributes->has($param)) {
+        if(!$request->attributes->has($param) || (!($request->attributes->has('before') && $request->attributes->has('after')))) {
             return false;
         }
 
         $options = $configuration->getOptions();
         $value = $request->attributes->get($param);
 
-        if(!$value && !array_key_exists('default', $options)) {
-            return false;
-        }
-
-        $invalidDateMessage = 'Invalid interval given.';
+        $invalidIntervalMessage = 'Invalid interval given.';
 
         try {
-            if(!$value && $options['default']) {
+            if($value === 'false' || $value === false || $value === '0' || $value === 0 || (!$value && !array_key_exists('default', $options))) {
+                $interval = $request->attributes->get('before')->diffAsCarbonInterval($request->attributes->get('after'));
+            } elseif($value === 'true' || $value === true || $value === '1' || $value === 1) {
+                $milliseconds = ($request->attributes->get('before')->timestamp - $request->attributes->get('after')->timestamp) / .06;
+                $interval = CarbonInterval::milliseconds($milliseconds);
+            } elseif($value === '' && $options['default']) {
                 $interval = CarbonInterval::createFromDateString($options['default']);
             } elseif($value) {
                 $interval = CarbonInterval::createFromDateString($value);
-            } else {
-                $interval = null;
             }
         } catch (Exception $e) {
-            throw new NotFoundHttpException($invalidDateMessage);
+            throw new NotFoundHttpException($invalidIntervalMessage);
         }
 
         $request->attributes->set($param, $interval);
