@@ -37,9 +37,9 @@ final class AssetsManager
         CarbonInterface $after,
         CarbonInterface $before,
         ?string         $type = null,
-        ?array           $categories = null,
-        ?array           $accounts = null,
-        ?array           $excludedCategories = [],
+        ?array          $categories = null,
+        ?array          $accounts = null,
+        ?array          $excludedCategories = [],
         bool            $withChildCategories = true,
         bool            $onlyDrafts = false,
         int             $limit = Paginator::PAGE_SIZE,
@@ -193,7 +193,7 @@ final class AssetsManager
                     /** @var Category $category */
                     $category = $repo->findOneBy(['id' => $category]);
 
-                    if (!$category) {
+                    if(!$category) {
                         // TODO: Error handling
                     }
 

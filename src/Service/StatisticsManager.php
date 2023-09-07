@@ -233,7 +233,7 @@ final class StatisticsManager
                 }
             );
 
-            $result[$name] = $this->sumTransactionsByDateInterval($period, $categoryTransactionsWithinPeriod);
+            $result[$name] = $this->sumTransactionsByDateInterval($categoryTransactionsWithinPeriod, $period);
         }
 
         return $result;
@@ -395,28 +395,56 @@ final class StatisticsManager
         return $expenseSum / $before->endOfDay()->diffInDays($after->startOfDay());
     }
 
-    public function sumTransactionsByDateInterval(CarbonPeriod $period, array $transactions): array
+    public function sumTransactionsByDateInterval(array $transactions, CarbonPeriod $period): array
     {
-        $dates = $period->toArray();
         $result = [];
-        foreach($dates as $date) {
-            $before = next($dates);
+        $dates = $period->toArray();
+        foreach ($dates as $index => $after) {
+            $before = $index === count($dates) - 1 ? $period->getEndDate() : $dates[$index + 1];
 
-            if($before === false) {
-                $before = $period->getEndDate();
+            if ($after->equalTo($before)) {
+                continue;
             }
 
             $transactionsWithinPeriod = array_filter(
                 $transactions,
-                static function (TransactionInterface $transaction) use ($date, $before) {
+                static function (TransactionInterface $transaction) use ($after, $before) {
                     $transactionDate = $transaction->getExecutedAt();
 
-                    return $transactionDate->greaterThanOrEqualTo($date) && $transactionDate->lessThan($before);
+                    return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
                 });
 
             $result[] = [
-                'date' => $date->timestamp,
+                'date' => $after->timestamp,
                 'value' => $this->assetsManager->sumTransactions($transactionsWithinPeriod),
+            ];
+        }
+
+        return $result;
+    }
+
+    public function averageByPeriod(array $transactions, CarbonPeriod $period): array
+    {
+        $result = [];
+        $dates = $period->toArray();
+        foreach ($dates as $index => $after) {
+            $before = $index === count($dates) - 1 ? $period->getEndDate() : $dates[$index + 1];
+
+            if ($after->equalTo($before)) {
+                continue;
+            }
+
+            $transactionsWithinPeriod = array_filter(
+                $transactions,
+                static function (TransactionInterface $transaction) use ($after, $before) {
+                    $transactionDate = $transaction->getExecutedAt();
+
+                    return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
+                });
+
+            $result[] = [
+                'date' => $after->timestamp,
+                'value' => count($transactionsWithinPeriod) !== 0 ? $this->assetsManager->sumTransactions($transactionsWithinPeriod) / count($transactionsWithinPeriod) : 0,
             ];
         }
 

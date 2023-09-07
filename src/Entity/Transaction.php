@@ -42,15 +42,6 @@ use JMS\Serializer\Annotation as Serializer;
                 'description' => '',
             ],
         ],
-        'average_transaction_weekly' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/avg-weekly',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Average transaction weekly',
-                'description' => '',
-            ],
-        ],
         'get_monobank' => [
             'method' => 'GET',
             'path' => '/monobank/transactions',

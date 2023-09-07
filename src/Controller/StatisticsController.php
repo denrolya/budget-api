@@ -158,4 +158,37 @@ class StatisticsController extends AbstractFOSRestController
             $statisticsManager->generateTopValueCategoryStatistics($transactions)
         );
     }
+
+    #[Rest\QueryParam(name: 'after', description: 'After date', nullable: true)]
+    #[ParamConverter('after', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'first day of this month'])]
+    #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
+    #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this month'])]
+    #[Rest\QueryParam(name: 'interval', default: null, nullable: true, allowBlank: true)]
+    #[ParamConverter('interval', CarbonInterval::class)]
+    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
+    #[Rest\QueryParam(name: 'categories', default: [], description: 'Filter by categories', nullable: false, allowBlank: false)]
+    #[Route('/avg', name: 'average', methods: ['get'])]
+    public function average(ManagerRegistry $doctrine, AssetsManager $assetsManager, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
+    {
+        $transactions = $doctrine
+            ->getRepository(Transaction::class)
+            ->getList(
+                $after,
+                $before,
+                $type,
+                !empty($categories) ? $assetsManager->getTypedCategoriesWithChildren($type, $categories) : $categories,
+                $accounts,
+                [],
+                true,
+                false
+            );
+
+        return $this->view(
+            $statisticsManager->averageByPeriod(
+                $transactions,
+                new CarbonPeriod($after, $interval, $before)
+            )
+        );
+    }
 }
