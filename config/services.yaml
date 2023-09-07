@@ -79,14 +79,6 @@ services:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
 
-    App\DataProvider\Statistics\AvgProvider:
-        bind:
-            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
-
-    App\DataProvider\Statistics\AverageTransactionWeeklyProvider:
-        bind:
-            $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
-
     App\EventListener\ValuableEntityEventListener:
         tags:
             - { name: doctrine.event_listener, event: prePersist }

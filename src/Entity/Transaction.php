@@ -33,15 +33,6 @@ use JMS\Serializer\Annotation as Serializer;
         'get' => [
             'normalization_context' => ['groups' => 'transaction:collection:read'],
         ],
-        'avg' => [
-            'method' => 'GET',
-            'path' => '/transactions/statistics/avg',
-            'pagination_enabled' => false,
-            'openapi_context' => [
-                'summary' => 'Average amount of transactions',
-                'description' => '',
-            ],
-        ],
         'get_monobank' => [
             'method' => 'GET',
             'path' => '/monobank/transactions',
