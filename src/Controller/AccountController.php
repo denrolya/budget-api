@@ -24,7 +24,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 #[Route('/api/v2/account', name: 'api_v2_account_')]
 class AccountController extends AbstractFOSRestController
 {
-    private $httpClient;
+    private HttpClientInterface $httpClient;
 
     public function __construct(HttpClientInterface $httpClient)
     {
@@ -58,7 +58,7 @@ class AccountController extends AbstractFOSRestController
                 array_filter($accountTransactions, static function (TransactionInterface $transaction) {
                     return $transaction->isExpense();
                 }),
-                ExpenseCategory::class
+                TransactionInterface::EXPENSE,
             )
         );
 
@@ -68,7 +68,7 @@ class AccountController extends AbstractFOSRestController
                 array_filter($accountTransactions, static function (TransactionInterface $transaction) {
                     return $transaction->isIncome();
                 }),
-                IncomeCategory::class
+                TransactionInterface::INCOME,
             )
         );
 

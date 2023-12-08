@@ -268,7 +268,7 @@ class Account implements OwnableInterface
         return (float)$this->balance;
     }
 
-    public function setBalance(string $balance): self
+    public function setBalance($balance): self
     {
         $this->balance = $balance;
 

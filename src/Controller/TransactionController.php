@@ -21,12 +21,13 @@ class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'accounts', description: 'Filter by accounts', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'withNestedCategories', default: true, description: 'Filter by category and its children', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'isDraft', default: false, description: 'Show only draft transactions', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'perPage', requirements: '\d+', default: 30, description: 'Results per page')]
     #[Rest\QueryParam(name: 'page', requirements: '\d+', default: 1, description: 'Page number')]
     #[Rest\View(serializerGroups: ['transaction:collection:read'])]
     #[Route('', name: 'collection_read', methods:['get'] )]
-    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?array $accounts, ?array $categories, ?string $type = null, $isDraft = false, int $perPage = 30, int $page = 1): View
+    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?array $accounts, ?array $categories, bool $withNestedCategories = true, ?string $type = null, $isDraft = false, int $perPage = 30, int $page = 1): View
     {
         return $this->view(
             $assetsManager->generateTransactionPaginationData(
@@ -36,7 +37,7 @@ class TransactionController extends AbstractFOSRestController
                 $categories,
                 $accounts,
                 null,
-                true,
+                $withNestedCategories,
                 $isDraft,
                 $perPage,
                 $page
