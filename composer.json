@@ -14,7 +14,7 @@
         "doctrine/annotations":                 "^1.0",
         "doctrine/doctrine-bundle":             "^2.5",
         "doctrine/doctrine-migrations-bundle":  "^3.2",
-        "doctrine/orm":                         "^2.10",
+        "doctrine/orm":                         "2.16",
         "lexik/jwt-authentication-bundle":      "^2.14",
         "nelmio/cors-bundle":                   "^2.2",
         "nesbot/carbon":                        "^2.55",
