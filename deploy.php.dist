@@ -7,8 +7,9 @@ require 'recipe/symfony4.php';
 // Project name
 set('application', 'api');
 set('http_user', 'www-data');
-set('host_address', '167.71.75.171');
-set('remote_url', 'http://{{ host_address }}:3227');
+set('host_address', '{HOST}');
+set('port', {PORT})
+set('remote_url', 'http://{{ host_address }}:{{ port }}');
 
 set('db', [
     'local' => [
