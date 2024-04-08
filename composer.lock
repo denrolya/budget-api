@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f28793f33dc27eeb0c0cdb521c536963",
+    "content-hash": "3bdead3f97c6b6f8aaa3be79e6c6d95e",
     "packages": [
         {
             "name": "api-platform/core",
@@ -1904,28 +1904,29 @@
         },
         {
             "name": "friendsofsymfony/rest-bundle",
-            "version": "3.6.0",
+            "version": "3.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/FriendsOfSymfony/FOSRestBundle.git",
-                "reference": "e01be8113d4451adb3cbb29d7d2cc96bbc698179"
+                "reference": "fa0f68bd1072d5d1e882a14deb8af0dd13bbdc70"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/FriendsOfSymfony/FOSRestBundle/zipball/e01be8113d4451adb3cbb29d7d2cc96bbc698179",
-                "reference": "e01be8113d4451adb3cbb29d7d2cc96bbc698179",
+                "url": "https://api.github.com/repos/FriendsOfSymfony/FOSRestBundle/zipball/fa0f68bd1072d5d1e882a14deb8af0dd13bbdc70",
+                "reference": "fa0f68bd1072d5d1e882a14deb8af0dd13bbdc70",
                 "shasum": ""
             },
             "require": {
-                "php": "^7.2|^8.0",
-                "symfony/config": "^5.4|^6.0",
-                "symfony/dependency-injection": "^5.4|^6.0",
-                "symfony/event-dispatcher": "^5.4|^6.0",
-                "symfony/framework-bundle": "^4.4.1|^5.0|^6.0",
-                "symfony/http-foundation": "^5.4|^6.0",
-                "symfony/http-kernel": "^5.4|^6.0",
-                "symfony/routing": "^5.4|^6.0",
-                "symfony/security-core": "^5.4|^6.0",
+                "php": "^7.4|^8.0",
+                "symfony/config": "^5.4|^6.4|^7.0",
+                "symfony/dependency-injection": "^5.4|^6.4|^7.0",
+                "symfony/deprecation-contracts": "^2.1|^3.0",
+                "symfony/event-dispatcher": "^5.4|^6.4|^7.0",
+                "symfony/framework-bundle": "^5.4|^6.4|^7.0",
+                "symfony/http-foundation": "^5.4|^6.4|^7.0",
+                "symfony/http-kernel": "^5.4|^6.4|^7.0",
+                "symfony/routing": "^5.4|^6.4|^7.0",
+                "symfony/security-core": "^5.4|^6.4|^7.0",
                 "willdurand/jsonp-callback-validator": "^1.0|^2.0",
                 "willdurand/negotiation": "^2.0|^3.0"
             },
@@ -1936,32 +1937,32 @@
                 "sensio/framework-extra-bundle": "<6.1"
             },
             "require-dev": {
-                "doctrine/annotations": "^1.13.2|^2.0 ",
-                "friendsofphp/php-cs-fixer": "^3.0",
+                "doctrine/annotations": "^1.13.2|^2.0",
+                "friendsofphp/php-cs-fixer": "^3.43",
                 "jms/serializer": "^1.13|^2.0|^3.0",
                 "jms/serializer-bundle": "^2.4.3|^3.0.1|^4.0|^5.0",
                 "psr/http-message": "^1.0",
                 "psr/log": "^1.0|^2.0|^3.0",
                 "sensio/framework-extra-bundle": "^6.1",
-                "symfony/asset": "^5.4|^6.0",
-                "symfony/browser-kit": "^5.4|^6.0",
-                "symfony/css-selector": "^5.4|^6.0",
-                "symfony/expression-language": "^5.4|^6.0",
-                "symfony/form": "^5.4|^6.0",
-                "symfony/mime": "^5.4|^6.0",
-                "symfony/phpunit-bridge": "^5.4|^6.0",
-                "symfony/security-bundle": "^5.4|^6.0",
-                "symfony/serializer": "^5.4|^6.0",
-                "symfony/twig-bundle": "^5.4|^6.0",
-                "symfony/validator": "^5.4|^6.0",
-                "symfony/web-profiler-bundle": "^5.4|^6.0",
-                "symfony/yaml": "^5.4|^6.0"
+                "symfony/asset": "^5.4|^6.4|^7.0",
+                "symfony/browser-kit": "^5.4|^6.4|^7.0",
+                "symfony/css-selector": "^5.4|^6.4|^7.0",
+                "symfony/expression-language": "^5.4|^6.4|^7.0",
+                "symfony/form": "^5.4|^6.4|^7.0",
+                "symfony/mime": "^5.4|^6.4|^7.0",
+                "symfony/phpunit-bridge": "^7.0.1",
+                "symfony/security-bundle": "^5.4|^6.4|^7.0",
+                "symfony/serializer": "^5.4|^6.4|^7.0",
+                "symfony/twig-bundle": "^5.4|^6.4|^7.0",
+                "symfony/validator": "^5.4|^6.4|^7.0",
+                "symfony/web-profiler-bundle": "^5.4|^6.4|^7.0",
+                "symfony/yaml": "^5.4|^6.4|^7.0"
             },
             "suggest": {
-                "jms/serializer-bundle": "Add support for advanced serialization capabilities, recommended, requires ^2.0|^3.0",
-                "sensio/framework-extra-bundle": "Add support for the request body converter and the view response listener, requires ^3.0",
-                "symfony/serializer": "Add support for basic serialization capabilities and xml decoding, requires ^2.7|^3.0",
-                "symfony/validator": "Add support for validation capabilities in the ParamFetcher, requires ^2.7|^3.0"
+                "jms/serializer-bundle": "Add support for advanced serialization capabilities, recommended",
+                "sensio/framework-extra-bundle": "Add support for the request body converter and the view response listener, not supported with Symfony >=7.0",
+                "symfony/serializer": "Add support for basic serialization capabilities and xml decoding",
+                "symfony/validator": "Add support for validation capabilities in the ParamFetcher"
             },
             "type": "symfony-bundle",
             "extra": {
@@ -2003,9 +2004,9 @@
             ],
             "support": {
                 "issues": "https://github.com/FriendsOfSymfony/FOSRestBundle/issues",
-                "source": "https://github.com/FriendsOfSymfony/FOSRestBundle/tree/3.6.0"
+                "source": "https://github.com/FriendsOfSymfony/FOSRestBundle/tree/3.7.0"
             },
-            "time": "2023-09-27T11:41:02+00:00"
+            "time": "2024-04-04T17:25:49+00:00"
         },
         {
             "name": "gedmo/doctrine-extensions",
