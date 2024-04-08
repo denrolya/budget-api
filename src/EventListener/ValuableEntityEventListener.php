@@ -34,11 +34,6 @@ final class ValuableEntityEventListener
             return;
         }
 
-        /**
-         *  TODO: This is necessary cause now amount for transactions is stored as double and some weird conversion
-         *      from decimal to string and to back to float is happening; Solution will be to store not in decimal but in
-         *      minimal item(cents, forints, etc...)
-         */
         if($entity instanceof ExecutableInterface) {
             $uow = $this->em->getUnitOfWork();
             $uow->computeChangeSets();

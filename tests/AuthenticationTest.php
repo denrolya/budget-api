@@ -12,20 +12,21 @@ class AuthenticationTest extends ApiTestCase
 
     public function testLogin(): void
     {
+        $container = self::getContainer();
         $client = self::createClient();
 
         $user = new User();
         $user->setUsername('testUser');
         $user->setPassword(
-            self::$container->get('security.user_password_hasher')->hashPassword($user, '$3CR3T')
+            $container->get('security.user_password_hasher')->hashPassword($user, '$3CR3T')
         );
 
-        $manager = self::$container->get('doctrine')->getManager();
+        $manager = $container->get('doctrine')->getManager();
         $manager->persist($user);
         $manager->flush();
 
         // retrieve a token
-        $response = $client->request('POST', '/api/login', [
+        $response = $client->request('POST', '/api/login_check', [
             'headers' => ['Content-Type' => 'application/json'],
             'json' => [
                 'username' => 'testUser',
@@ -38,11 +39,11 @@ class AuthenticationTest extends ApiTestCase
         $this->assertArrayHasKey('token', $json);
 
         // test not authorized
-        $client->request('GET', '/api/test');
+        $client->request('GET', '/api/transactions');
         self::assertResponseStatusCodeSame(401);
 
         // test authorized
-        $client->request('GET', '/api/test', ['auth_bearer' => $json['token']]);
+        $client->request('GET', '/api/transactions', ['auth_bearer' => $json['token']]);
         self::assertResponseIsSuccessful();
     }
 }

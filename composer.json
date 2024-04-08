@@ -38,10 +38,12 @@
         "symfony/serializer":                   "5.4.*",
         "symfony/twig-bundle":                  "5.4.*",
         "symfony/validator":                    "5.4.*",
-        "symfony/yaml":                         "5.4.*"
+        "symfony/yaml":                         "5.4.*",
+        "friendsofsymfony/rest-bundle":         "~3.6.0"
     },
     "require-dev":       {
-        "friendsofsymfony/rest-bundle": "^3.5",
+        "dama/doctrine-test-bundle": "^8.0",
+        "doctrine/doctrine-fixtures-bundle": "^3.5",
         "hautelook/alice-bundle": "^2.10",
         "jms/serializer-bundle": "^5.3",
         "justinrainbow/json-schema": "^5.2",

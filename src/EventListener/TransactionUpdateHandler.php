@@ -34,24 +34,21 @@ final class TransactionUpdateHandler implements ToggleEnabledInterface
             return;
         }
 
-        if($isAccountChanged && !$isAmountChanged) {
-            $amount = $transaction->getAmount();
-            [$oldAccount, $newAccount] = $changes['account'];
+        $amount = $transaction->getAmount();
+        $oldAmount = $changes['amount'][0] ?? null;
+        $newAmount = $changes['amount'][1] ?? null;
+        $oldAccount = $changes['account'][0] ?? null;
+        $newAccount = $changes['account'][1] ?? null;
 
+        if($isAccountChanged) {
             $oldAccount->updateBalanceBy($transaction->isExpense() ? $amount : -$amount);
             $newAccount->updateBalanceBy($transaction->isIncome() ? $amount : -$amount);
-        } elseif(!$isAccountChanged && $isAmountChanged) {
+        }
+
+        if($isAmountChanged) {
             $account = $transaction->getAccount();
-            [$oldAmount, $newAmount] = $changes['amount'];
             $difference = $oldAmount - $newAmount;
-
             $account->updateBalanceBy($transaction->isExpense() ? $difference : -$difference);
-        } elseif($isAccountChanged && $isAmountChanged) {
-            [$oldAccount, $newAccount] = $changes['account'];
-            [$oldAmount, $newAmount] = $changes['amount'];
-
-            $oldAccount->updateBalanceBy($transaction->isExpense() ? $oldAmount : -$oldAmount);
-            $newAccount->updateBalanceBy($transaction->isExpense() ? -$newAmount : $newAmount);
         }
     }
 }

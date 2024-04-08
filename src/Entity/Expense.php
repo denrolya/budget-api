@@ -35,7 +35,7 @@ use JMS\Serializer\Annotation as Serializer;
 class Expense extends Transaction
 {
     /**
-     * @ORM\OneToMany(targetEntity=Income::class, mappedBy="originalExpense", cascade={"persist"}, fetch="EAGER")
+     * @ORM\OneToMany(targetEntity=Income::class, mappedBy="originalExpense", cascade={"persist"}, fetch="EXTRA_LAZY")
      */
     #[Groups(['transaction:collection:read', 'transaction:write', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read'])]
@@ -46,7 +46,7 @@ class Expense extends Transaction
      */
     public function isExpenseCategory(): bool
     {
-        return get_class($this->category) === ExpenseCategory::class;
+        return $this->getCategory()->getType() === 'expense';
     }
 
     #[Pure]
@@ -104,7 +104,7 @@ class Expense extends Transaction
 
     public function hasCompensations(): bool
     {
-        return !$this->compensations->isEmpty();
+        return $this->compensations->count() > 0;
     }
 
     public function addCompensation(Income $income): self
