@@ -35,7 +35,7 @@ security:
         - { path: ^/api/docs,                   roles: PUBLIC_ACCESS } # Allows accessing the Swagger UI
         - { path: ^/api/monobank/transactions,  roles: PUBLIC_ACCESS } # Monobank webhook
         - { path: ^/api/login,                  roles: PUBLIC_ACCESS }
-        - { path: ^/api/v2,                     roles: PUBLIC_ACCESS }
+        - { path: ^/api/v2,                     roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api,                        roles: IS_AUTHENTICATED_FULLY }
 
 when@test:

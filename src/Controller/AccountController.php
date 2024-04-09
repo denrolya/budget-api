@@ -3,18 +3,16 @@
 namespace App\Controller;
 
 use App\Entity\Account;
-use App\Entity\ExpenseCategory;
-use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Service\StatisticsManager;
+use Doctrine\Persistence\ManagerRegistry;
+use FOS\RestBundle\Controller\AbstractFOSRestController;
+use FOS\RestBundle\Controller\Annotations as Rest;
+use FOS\RestBundle\View\View;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Doctrine\Persistence\ManagerRegistry;
-use FOS\RestBundle\Controller\Annotations as Rest;
-use FOS\RestBundle\View\View;
-use FOS\RestBundle\Controller\AbstractFOSRestController;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;

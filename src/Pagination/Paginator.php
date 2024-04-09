@@ -20,7 +20,7 @@ use Doctrine\ORM\Tools\Pagination\Paginator as DoctrinePaginator;
  */
 class Paginator
 {
-    public const PAGE_SIZE = 15;
+    public const PER_PAGE = 30;
     private $queryBuilder;
     private $currentPage;
     private $pageSize;
@@ -28,7 +28,7 @@ class Paginator
     private $numResults;
     private $query;
 
-    public function __construct(DoctrineQueryBuilder $queryBuilder, int $pageSize = self::PAGE_SIZE)
+    public function __construct(DoctrineQueryBuilder $queryBuilder, int $pageSize = self::PER_PAGE)
     {
         $this->queryBuilder = $queryBuilder;
         $this->pageSize = $pageSize;

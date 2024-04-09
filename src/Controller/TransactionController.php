@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Pagination\Paginator;
 use App\Request\ParamConverter\CarbonParamConverter;
 use App\Service\AssetsManager;
 use Carbon\CarbonImmutable;
@@ -23,11 +24,11 @@ class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'withNestedCategories', default: true, description: 'Filter by category and its children', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'isDraft', default: false, description: 'Show only draft transactions', nullable: false, allowBlank: false)]
-    #[Rest\QueryParam(name: 'perPage', requirements: '\d+', default: 30, description: 'Results per page')]
-    #[Rest\QueryParam(name: 'page', requirements: '\d+', default: 1, description: 'Page number')]
+    #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: Paginator::PER_PAGE, description: 'Results per page')]
+    #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1, description: 'Page number')]
     #[Rest\View(serializerGroups: ['transaction:collection:read'])]
     #[Route('', name: 'collection_read', methods:['get'] )]
-    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?array $accounts, ?array $categories, bool $withNestedCategories = true, ?string $type = null, $isDraft = false, int $perPage = 30, int $page = 1): View
+    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?array $accounts, ?array $categories, bool $withNestedCategories = true, ?string $type = null, $isDraft = false, int $perPage = Paginator::PER_PAGE, int $page = 1): View
     {
         return $this->view(
             $assetsManager->generateTransactionPaginationData(

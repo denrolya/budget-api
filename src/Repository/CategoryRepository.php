@@ -3,7 +3,9 @@
 namespace App\Repository;
 
 use App\Entity\Category;
+use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
+use App\Entity\TransactionInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -46,6 +48,32 @@ class CategoryRepository extends ServiceEntityRepository
             'isTechnical' => false,
             'isAffectingProfit' => true,
         ], $orderBy, $limit, $offset);
+    }
+
+    public function getCategoriesWithDescendantsByType(?array $categories = [], string $type = null): array
+    {
+        $types = $type ? [$type] : [TransactionInterface::EXPENSE, TransactionInterface::INCOME];
+        $result = [];
+
+        foreach($types as $t) {
+            $repo = $this
+                ->getEntityManager()
+                ->getRepository(
+                    $t === TransactionInterface::EXPENSE ? ExpenseCategory::class : IncomeCategory::class
+                );
+
+            if(empty($categories)) {
+                $result[] = $repo->findBy(['root' => null, 'isTechnical' => false]);
+            } else {
+                $foundCategories = $repo->findBy(['id' => $categories]);
+
+                foreach($foundCategories as $category) {
+                    $result[] = $category->getDescendantsFlat()->toArray();
+                }
+            }
+        }
+
+        return array_merge(...$result);
     }
 }
 

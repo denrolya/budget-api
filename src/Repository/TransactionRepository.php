@@ -4,6 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Account;
 use App\Entity\AccountLogEntry;
+use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
@@ -33,9 +34,22 @@ class TransactionRepository extends ServiceEntityRepository
         parent::__construct($registry, $class);
     }
 
+    /**
+     * @param CarbonInterface|null $after
+     * @param CarbonInterface|null $before
+     * @param string|null $type
+     * @param array<Category|int>|null $categories
+     * @param array<Account|int>|null $accounts
+     * @param array<Category|int>|null $excludedCategories
+     * @param bool $affectingProfitOnly
+     * @param bool $onlyDrafts
+     * @param string $orderField
+     * @param string $order
+     * @return Collection|array
+     */
     public function getList(
-        ?CarbonInterface $after,
-        ?CarbonInterface $before,
+        ?CarbonInterface $after = null,
+        ?CarbonInterface $before = null,
         ?string          $type = null,
         ?array           $categories = [],
         ?array           $accounts = [],
@@ -75,7 +89,7 @@ class TransactionRepository extends ServiceEntityRepository
         ?array           $accounts = [],
         ?array           $excludedCategories = [],
         bool             $onlyDrafts = false,
-        ?int             $limit = Paginator::PAGE_SIZE,
+        ?int             $limit = Paginator::PER_PAGE,
         int              $offset = 0,
         string           $orderField = self::ORDER_FIELD,
         string           $order = self::ORDER
@@ -149,6 +163,19 @@ class TransactionRepository extends ServiceEntityRepository
         return $qb->getQuery()->getResult();
     }
 
+    /**
+     * @param CarbonInterface|null $after
+     * @param CarbonInterface|null $before
+     * @param bool $affectingProfitOnly
+     * @param string|null $type
+     * @param array<Category|int>|null $categories
+     * @param array<Account|int>|null $accounts
+     * @param array<Category|int>|null $excludedCategories
+     * @param bool $onlyDrafts
+     * @param string $orderField
+     * @param string $order
+     * @return QueryBuilder
+     */
     protected function getBaseQueryBuilder(
         ?CarbonInterface $after,
         ?CarbonInterface $before,
@@ -166,6 +193,7 @@ class TransactionRepository extends ServiceEntityRepository
             ->createQueryBuilder('t')
             ->leftJoin('t.category', 'c')
             ->orderBy("t.$orderField", $order)
+            ->addOrderBy('t.id', $order)
             ->andWhere('t.isDraft = :onlyDrafts')
             ->setParameter('onlyDrafts', $onlyDrafts);
 
@@ -182,6 +210,10 @@ class TransactionRepository extends ServiceEntityRepository
         if($before) {
             $qb->andWhere('DATE(t.executedAt) <= :before')
                 ->setParameter('before', $before->toDateString());
+        }
+
+        if($type && !in_array($type, [TransactionInterface::EXPENSE, TransactionInterface::INCOME], true)) {
+            throw new \InvalidArgumentException('Invalid transaction type');
         }
 
         if($type === TransactionInterface::EXPENSE) {

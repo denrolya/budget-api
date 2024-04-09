@@ -4,16 +4,13 @@ namespace App\Tests;
 
 use ApiPlatform\Core\Bridge\Symfony\Bundle\Test\ApiTestCase;
 use App\Entity\User;
-use Hautelook\AliceBundle\PhpUnit\ReloadDatabaseTrait;
 
 class AuthenticationTest extends ApiTestCase
 {
-    use ReloadDatabaseTrait;
-
     public function testLogin(): void
     {
-        $container = self::getContainer();
         $client = self::createClient();
+        $container = self::getContainer();
 
         $user = new User();
         $user->setUsername('testUser');

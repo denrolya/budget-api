@@ -2,25 +2,22 @@
 
 namespace App\Controller;
 
-use App\Entity\Category;
 use App\Entity\Expense;
-use App\Entity\ExpenseCategory;
 use App\Entity\Income;
-use App\Entity\IncomeCategory;
 use App\Entity\TransactionInterface;
-use App\Service\AssetsManager;
+use App\Repository\CategoryRepository;
+use App\Repository\TransactionRepository;
 use App\Service\StatisticsManager;
 use App\Traits\SoftDeletableTogglerController;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
-use Symfony\Component\Routing\Annotation\Route;
 use Doctrine\Persistence\ManagerRegistry;
-use App\Entity\Transaction;
+use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
-use FOS\RestBundle\Controller\AbstractFOSRestController;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
+use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/statistics', name: 'api_v2_statistics_')]
 class StatisticsController extends AbstractFOSRestController
@@ -37,19 +34,15 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', default: [], description: 'Filter by categories', nullable: false, allowBlank: false)]
     #[Route('/value-by-period', name: 'value_by_period', methods: ['get'])]
-    public function value(ManagerRegistry $doctrine, AssetsManager $assetsManager, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
+    public function value(TransactionRepository $transactionRepo, CategoryRepository $categoryRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
     {
-        $transactions = $doctrine
-            ->getRepository(Transaction::class)
+        $transactions = $transactionRepo
             ->getList(
-                $after,
-                $before,
-                $type,
-                !empty($categories) ? $assetsManager->getTypedCategoriesWithChildren($type, $categories) : $categories,
-                $accounts,
-                [],
-                true,
-                false
+                after: $after,
+                before: $before,
+                type: $type,
+                categories: !empty($categories) ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type) : $categories,
+                accounts: $accounts,
             );
 
         return $this->view(
@@ -67,9 +60,13 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: true)]
     #[Rest\View(serializerGroups: ['category:tree:read'])]
     #[Route('/category/tree', name: 'category_tree', methods: ['get'])]
-    public function categoryTree(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
+    public function categoryTree(TransactionRepository $transactionRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
     {
-        $transactions = $doctrine->getRepository(Transaction::class)->getList($after, $before, $type, [], [], [], true, false);
+        $transactions = $transactionRepo->getList(
+            after: $after,
+            before: $before,
+            type: $type
+        );
 
         return $this->view(
             $statisticsManager->generateCategoryTreeWithValues(
@@ -88,17 +85,12 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
     #[Rest\View(serializerGroups: ['category:tree:read'])]
     #[Route('/category/timeline', name: 'category_timeline', methods: ['get'])]
-    public function categoryTimeline(ManagerRegistry $doctrine, AssetsManager $assetsManager, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, CarbonInterval $interval, ?array $categories): View
+    public function categoryTimeline(TransactionRepository $transactionRepo, CategoryRepository $categoryRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, CarbonInterval $interval, ?array $categories): View
     {
-        $transactions = $doctrine->getRepository(Transaction::class)->getList(
-            $after,
-            $before,
-            null,
-            !empty($categories) ? $assetsManager->getTypedCategoriesWithChildren(null, $categories) : $categories,
-            [],
-            [],
-            true,
-            false
+        $transactions = $transactionRepo->getList(
+            after: $after,
+            before: $before,
+            categories: !empty($categories) ? $categoryRepo->getCategoriesWithDescendantsByType($categories) : $categories,
         );
 
         return $this->view(
@@ -124,7 +116,7 @@ class StatisticsController extends AbstractFOSRestController
 
         return $this->view(
             $statisticsManager->generateAccountDistributionStatistics(
-                $repo->getList($after, $before, $type, [], [], [], true, false)
+                $repo->getList(after: $after, before: $before, type: $type)
             )
         );
     }
@@ -135,9 +127,13 @@ class StatisticsController extends AbstractFOSRestController
     #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this year'])]
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: TransactionInterface::EXPENSE, nullable: true, allowBlank: false)]
     #[Route('/by-weekdays', name: 'by_weekdays', methods: ['get'])]
-    public function transactionsValueByWeekdays(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
+    public function transactionsValueByWeekdays(TransactionRepository $transactionRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
     {
-        $transactions = $doctrine->getRepository(Transaction::class)->getList($after, $before, $type, [], [], [], true, false, 'executedAt', 'ASC');
+        $transactions = $transactionRepo->getList(
+            after: $after,
+            before: $before,
+            type: $type
+        );
 
         return $this->view(
             $statisticsManager->generateTransactionsValueByCategoriesByWeekdays($transactions)
@@ -150,9 +146,13 @@ class StatisticsController extends AbstractFOSRestController
     #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this year'])]
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: TransactionInterface::EXPENSE, nullable: true, allowBlank: false)]
     #[Route('/top-value-category', name: 'top_value_category', methods: ['get'])]
-    public function topValueCategory(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
+    public function topValueCategory(TransactionRepository $transactionRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
     {
-        $transactions = $doctrine->getRepository(Transaction::class)->getList($after, $before, $type, [], [], [], true, false, 'executedAt', 'ASC');
+        $transactions = $transactionRepo->getList(
+            after: $after,
+            before: $before,
+            type: $type
+        );
 
         return $this->view(
             $statisticsManager->generateTopValueCategoryStatistics($transactions)
@@ -169,19 +169,15 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', default: [], description: 'Filter by categories', nullable: false, allowBlank: false)]
     #[Route('/avg', name: 'average', methods: ['get'])]
-    public function average(ManagerRegistry $doctrine, AssetsManager $assetsManager, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
+    public function average(TransactionRepository $transactionRepo, CategoryRepository $categoryRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
     {
-        $transactions = $doctrine
-            ->getRepository(Transaction::class)
+        $transactions = $transactionRepo
             ->getList(
-                $after,
-                $before,
-                $type,
-                !empty($categories) ? $assetsManager->getTypedCategoriesWithChildren($type, $categories) : $categories,
-                $accounts,
-                [],
-                true,
-                false
+                after: $after,
+                before: $before,
+                type: $type,
+                categories: !empty($categories) ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type) : $categories,
+                accounts: $accounts,
             );
 
         return $this->view(

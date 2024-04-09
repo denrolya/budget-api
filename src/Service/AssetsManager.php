@@ -42,7 +42,7 @@ final class AssetsManager
         ?array          $excludedCategories = [],
         bool            $withChildCategories = true,
         bool            $onlyDrafts = false,
-        int             $limit = Paginator::PAGE_SIZE,
+        int             $limit = Paginator::PER_PAGE,
         int             $page = 1,
         string          $orderField = TransactionRepository::ORDER_FIELD,
         string          $order = TransactionRepository::ORDER
@@ -56,7 +56,7 @@ final class AssetsManager
                 false,
                 $type,
                 ($withChildCategories && !empty($categories))
-                    ? $this->getTypedCategoriesWithChildren($type, $categories)
+                    ? $this->em->getRepository(Category::class)->getCategoriesWithDescendantsByType($categories, $type)
                     : $categories,
                 $accounts,
                 $excludedCategories,
@@ -71,11 +71,11 @@ final class AssetsManager
 
         return [
             'list' => $list,
-            'totalValue' => $this->sumMixedTransactions($paginator
+            'totalValue' => round($this->sumMixedTransactions($paginator
                 ->getQuery()
                 ->setFirstResult(0)
                 ->setMaxResults(null)
-                ->getResult()),
+                ->getResult()), 2),
             'count' => $paginator->getNumResults(),
         ];
     }
@@ -169,41 +169,5 @@ final class AssetsManager
             $before ?? $entity->getCurrency(),
             $entity instanceof ExecutableInterface ? $entity->getExecutedAt() : null
         );
-    }
-
-    public function getTypedCategoriesWithChildren(?string $type = null, ?array $categories = []): array
-    {
-        $types = $type ? [$type] : [TransactionInterface::EXPENSE, TransactionInterface::INCOME];
-        $result = [];
-
-        foreach($types as $t) {
-            $repo = $this->em->getRepository($t === TransactionInterface::EXPENSE
-                ? ExpenseCategory::class
-                : IncomeCategory::class
-            );
-
-            if(empty($categories)) {
-                $result = $repo->findBy(['root' => null, 'isTechnical' => false]);
-
-                $result = array_map(static function (Category $category) {
-                    return $category;
-                }, $result);
-            } else {
-                foreach($categories as $category) {
-                    /** @var Category $category */
-                    $category = $repo->findOneBy(['id' => $category]);
-
-                    if(!$category) {
-                        // TODO: Error handling
-                    }
-
-                    if($category) {
-                        $result = [...$result, ...$category->getDescendantsFlat()->toArray()];
-                    }
-                }
-            }
-        }
-
-        return $result;
     }
 }
