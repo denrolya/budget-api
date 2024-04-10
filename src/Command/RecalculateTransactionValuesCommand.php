@@ -2,7 +2,6 @@
 
 namespace App\Command;
 
-use App\Entity\Expense;
 use App\Entity\Transaction;
 use App\Service\FixerService;
 use Doctrine\DBAL\Exception;
