@@ -56,14 +56,14 @@ final class FixerService
      * Generates array of converted values to all base fiat currencies
      *
      * @param float $amount
-     * @param string $after
+     * @param string $fromCurrency
      * @param CarbonInterface|null $executionDate
      * @return array
      * @throws InvalidArgumentException
      */
-    public function convert(float $amount, string $after, ?CarbonInterface $executionDate = null): array
+    public function convert(float $amount, string $fromCurrency, ?CarbonInterface $executionDate = null): array
     {
-        if(!in_array($after, self::AVAILABLE_CURRENCIES)) {
+        if(!in_array($fromCurrency, self::AVAILABLE_CURRENCIES)) {
             return [];
         }
 
@@ -71,7 +71,7 @@ final class FixerService
         foreach(self::AVAILABLE_CURRENCIES as $currency) {
             $values[$currency] = $this->convertTo(
                 $amount,
-                $after,
+                $fromCurrency,
                 $currency,
                 $executionDate
             );
@@ -84,25 +84,25 @@ final class FixerService
      * Convert amount from one currency to another
      *
      * @param float $amount
-     * @param string $after
-     * @param string $before
+     * @param string $fromCurrency
+     * @param string $toCurrency
      * @param CarbonInterface|null $executionDate
      * @return float
      * @throws InvalidArgumentException
      */
-    public function convertTo(float $amount, string $after, string $before, ?CarbonInterface $executionDate = null): float
+    public function convertTo(float $amount, string $fromCurrency, string $toCurrency, ?CarbonInterface $executionDate = null): float
     {
-        if(!$this->currencyExists($after)) {
-            throw new \InvalidArgumentException("Invalid currency code passed as `after` parameter: $after. ");
+        if(!$this->currencyExists($fromCurrency)) {
+            throw new \InvalidArgumentException("Invalid currency code passed as `fromCurrency` parameter: $fromCurrency. ");
         }
 
-        if(!$this->currencyExists($before)) {
-            throw new \InvalidArgumentException("Invalid currency code passed as `before` parameter: $before. ");
+        if(!$this->currencyExists($toCurrency)) {
+            throw new \InvalidArgumentException("Invalid currency code passed as `toCurrency` parameter: $toCurrency. ");
         }
 
         $rates = $this->getRates($executionDate?->copy());
 
-        return $amount / $rates[$after] * $rates[$before];
+        return $amount / $rates[$fromCurrency] * $rates[$toCurrency];
     }
 
     /**

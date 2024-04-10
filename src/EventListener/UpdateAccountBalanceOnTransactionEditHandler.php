@@ -5,7 +5,7 @@ namespace App\EventListener;
 use App\Entity\TransactionInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class TransactionUpdateHandler implements ToggleEnabledInterface
+final class UpdateAccountBalanceOnTransactionEditHandler implements ToggleEnabledInterface
 {
     use ToggleEnabledTrait;
 

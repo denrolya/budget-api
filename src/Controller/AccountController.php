@@ -43,11 +43,8 @@ class AccountController extends AbstractFOSRestController
     public function item(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, Account $account): View
     {
         $accountTransactions = $doctrine->getRepository(Transaction::class)->getList(
-            null,
-            null,
-            null,
-            null,
-            [$account]
+            categories: null,
+            accounts: [$account]
         );
 
         $account->setTopExpenseCategories(

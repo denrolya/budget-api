@@ -161,12 +161,12 @@ final class AssetsManager
      * Converts entity's value to a specified(or base if null given) currency
      * @throws InvalidArgumentException
      */
-    public function convertTo(ValuableInterface $entity, ?string $before = null): float
+    public function convertTo(ValuableInterface $entity, ?string $toCurrency = null): float
     {
         return $this->fixerService->convertTo(
             $entity->{'get' . ucfirst($entity->getValuableField())}(),
             $entity->getCurrency(),
-            $before ?? $entity->getCurrency(),
+            $toCurrency ?? $entity->getCurrency(),
             $entity instanceof ExecutableInterface ? $entity->getExecutedAt() : null
         );
     }

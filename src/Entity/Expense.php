@@ -67,36 +67,6 @@ class Expense extends Transaction
         return $this->getCategory()->getIsAffectingProfit();
     }
 
-    public function getConvertedValue(?string $currencyCode = null): float
-    {
-        $value = $this->convertedValues[is_null($currencyCode) ? $this->getOwner()->getBaseCurrency() : $currencyCode];
-
-        if(!$this->hasCompensations()) {
-            return $value;
-        }
-
-        $this->compensations->map(static function (Income $compensation) use (&$value, $currencyCode) {
-            $value -= $compensation->getConvertedValue($currencyCode);
-        });
-
-        return $value;
-    }
-
-    public function getValue(): float
-    {
-        $value = $this->convertedValues[$this->getOwner()->getBaseCurrency()];
-
-        if(!$this->hasCompensations()) {
-            return $value;
-        }
-
-        $this->compensations->map(function (Income $compensation) use (&$value) {
-            $value -= $compensation->getValue();
-        });
-
-        return $value;
-    }
-
     public function getCompensations(): Collection
     {
         return $this->compensations;

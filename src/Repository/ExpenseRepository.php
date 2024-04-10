@@ -56,4 +56,14 @@ class ExpenseRepository extends TransactionRepository
             $categories
         );
     }
+
+    public function findWithCompensations(): array
+    {
+        return $this
+            ->createQueryBuilder('e')
+            ->innerJoin('e.compensations', 'c')
+            ->addSelect('c')
+            ->getQuery()
+            ->getResult();
+    }
 }
