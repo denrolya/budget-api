@@ -17,9 +17,14 @@ class MonobankService
 {
     private EntityManagerInterface $em;
 
+    private IncomeCategory $unknownIncomeCategory;
+    private ExpenseCategory $unknownExpenseCategory;
+
     public function __construct(EntityManagerInterface $em)
     {
         $this->em = $em;
+        $this->unknownIncomeCategory = $this->em->getRepository(IncomeCategory::class)->find(Category::INCOME_CATEGORY_ID_UNKNOWN);
+        $this->unknownExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
     }
 
     /**
@@ -32,15 +37,13 @@ class MonobankService
         }
 
         $isIncome = $statementItem['amount'] > 0;
-        $unknownIncomeCategory = $this->em->getRepository(IncomeCategory::class)->find(Category::INCOME_CATEGORY_ID_UNKNOWN);
-        $unknownExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
         $user = $account->getOwner();
         $amount = abs($statementItem['amount'] / 100);
         $note = $statementItem['description'] . ' ' . (array_key_exists('comment', $statementItem) ? $statementItem['comment'] : '');
 
         $draftTransaction = $isIncome ? new Income(true) : new Expense(true);
         $draftTransaction
-            ->setCategory($isIncome ? $unknownIncomeCategory : $unknownExpenseCategory)
+            ->setCategory($isIncome ? $this->unknownIncomeCategory : $this->unknownExpenseCategory)
             ->setAmount($amount)
             ->setAccount($account)
             ->setNote($note)

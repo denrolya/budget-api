@@ -58,8 +58,9 @@ final readonly class ValuableEntityEventListener
 
             $isExecutionDateChanged = !empty($changes['executedAt']);
             $isAmountChanged = !empty($changes['amount']) && ((float)$changes['amount'][0] !== (float)$changes['amount'][1]);
+            $isAccountChanged = !empty($changes['account']);
 
-            if (!$isExecutionDateChanged && !$isAmountChanged) {
+            if (!$isExecutionDateChanged && !$isAmountChanged && !$isAccountChanged) {
                 return;
             }
         }

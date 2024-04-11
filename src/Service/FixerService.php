@@ -6,8 +6,8 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use JetBrains\PhpStorm\ArrayShape;
 use Psr\Cache\InvalidArgumentException;
-use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Component\Security\Core\Security;
+use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -27,8 +27,12 @@ class FixerService
 
     private string $apiKey;
 
-    public function __construct(HttpClientInterface $fixerClient, string $fixerApiKey, CacheInterface $cache, Security $security)
-    {
+    public function __construct(
+        HttpClientInterface $fixerClient,
+        string $fixerApiKey,
+        CacheInterface $cache,
+        Security $security
+    ) {
         $this->apiKey = $fixerApiKey;
         $this->client = $fixerClient;
         $this->cache = $cache;
@@ -42,8 +46,11 @@ class FixerService
      * @return float
      * @throws InvalidArgumentException
      */
-    public function convertToBaseCurrency(float $amount, string $currencyCode, ?CarbonInterface $executionDate = null): float
-    {
+    public function convertToBaseCurrency(
+        float $amount,
+        string $currencyCode,
+        ?CarbonInterface $executionDate = null
+    ): float {
         return $this->convertTo(
             $amount,
             $currencyCode,
@@ -63,12 +70,12 @@ class FixerService
      */
     public function convert(float $amount, string $fromCurrency, ?CarbonInterface $executionDate = null): array
     {
-        if(!in_array($fromCurrency, self::AVAILABLE_CURRENCIES)) {
+        if (!in_array($fromCurrency, self::AVAILABLE_CURRENCIES)) {
             return [];
         }
 
         $values = [];
-        foreach(self::AVAILABLE_CURRENCIES as $currency) {
+        foreach (self::AVAILABLE_CURRENCIES as $currency) {
             $values[$currency] = $this->convertTo(
                 $amount,
                 $fromCurrency,
@@ -90,14 +97,22 @@ class FixerService
      * @return float
      * @throws InvalidArgumentException
      */
-    public function convertTo(float $amount, string $fromCurrency, string $toCurrency, ?CarbonInterface $executionDate = null): float
-    {
-        if(!$this->currencyExists($fromCurrency)) {
-            throw new \InvalidArgumentException("Invalid currency code passed as `fromCurrency` parameter: $fromCurrency. ");
+    public function convertTo(
+        float $amount,
+        string $fromCurrency,
+        string $toCurrency,
+        ?CarbonInterface $executionDate = null
+    ): float {
+        if (!$this->currencyExists($fromCurrency)) {
+            throw new \InvalidArgumentException(
+                "Invalid currency code passed as `fromCurrency` parameter: $fromCurrency. "
+            );
         }
 
-        if(!$this->currencyExists($toCurrency)) {
-            throw new \InvalidArgumentException("Invalid currency code passed as `toCurrency` parameter: $toCurrency. ");
+        if (!$this->currencyExists($toCurrency)) {
+            throw new \InvalidArgumentException(
+                "Invalid currency code passed as `toCurrency` parameter: $toCurrency. "
+            );
         }
 
         $rates = $this->getRates($executionDate?->copy());
@@ -118,14 +133,17 @@ class FixerService
         $requestParams = $this->getRequestParams();
         $client = $this->client;
 
-        return $this->cache->get("fixer.$dateString", static function (ItemInterface $item) use ($requestParams, $client) {
-            $item->expiresAfter(self::MONTH_IN_SECONDS);
-            $response = $client->request('GET', '/latest', [
-                'query' => $requestParams,
-            ])->getContent();
+        return $this->cache->get(
+            "fixer.$dateString",
+            static function (ItemInterface $item) use ($requestParams, $client) {
+                $item->expiresAfter(self::MONTH_IN_SECONDS);
+                $response = $client->request('GET', '/latest', [
+                    'query' => $requestParams,
+                ])->getContent();
 
-            return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
-        });
+                return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
+            }
+        );
     }
 
     /**
@@ -141,14 +159,17 @@ class FixerService
         $requestParams = $this->getRequestParams();
         $client = $this->client;
 
-        return $this->cache->get("fixer.$dateString", static function (ItemInterface $item) use ($requestParams, $client, $dateString) {
-            $item->expiresAfter(self::MONTH_IN_SECONDS);
-            $response = $client->request('GET', '/' . $dateString, [
-                'query' => $requestParams,
-            ])->getContent();
+        return $this->cache->get(
+            "fixer.$dateString",
+            static function (ItemInterface $item) use ($requestParams, $client, $dateString) {
+                $item->expiresAfter(self::MONTH_IN_SECONDS);
+                $response = $client->request('GET', '/'.$dateString, [
+                    'query' => $requestParams,
+                ])->getContent();
 
-            return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
-        });
+                return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
+            }
+        );
     }
 
     /**
@@ -160,7 +181,7 @@ class FixerService
     {
         return (!$date || $date->day === CarbonImmutable::now()->day)
             ? $this->getLatest()
-            : $this->getHistorical($date->endOfMonth());
+            : $this->getHistorical($date);
     }
 
     /**

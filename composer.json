@@ -79,6 +79,7 @@
             "App\\Tests\\": "tests/"
         }
     },
+    "bin-dir":           "vendor/bin",
     "replace":           {
         "symfony/polyfill-ctype": "*",
         "symfony/polyfill-iconv": "*",
@@ -94,7 +95,9 @@
         ],
         "post-update-cmd":  [
             "@auto-scripts"
-        ]
+        ],
+        "test":             "phpunit --colors --testdox --verbose",
+        "deploy":           "vendor/bin/dep deploy"
     },
     "conflict":          {
         "symfony/symfony": "*"
