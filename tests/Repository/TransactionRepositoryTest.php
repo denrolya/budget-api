@@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 class TransactionRepositoryTest extends KernelTestCase
 {
     private ObjectManager|null $em;
+
     private TransactionRepository $repo;
 
     protected function setUp(): void
@@ -39,7 +40,7 @@ class TransactionRepositoryTest extends KernelTestCase
     {
         $result = $this->repo->getList();
 
-        self::assertCount(9427, $result);
+        self::assertCount(9430, $result);
     }
 
     public function testGetListWithBeforeArgument(): void
@@ -94,7 +95,7 @@ class TransactionRepositoryTest extends KernelTestCase
     {
         $result = $this->repo->getList(type: 'expense');
 
-        self::assertCount(9197, $result);
+        self::assertCount(9200, $result);
         self::assertTrue($result[0]->isExpense());
         self::assertTrue($result[4500]->isExpense());
         self::assertTrue($result[9196]->isExpense());
@@ -116,24 +117,24 @@ class TransactionRepositoryTest extends KernelTestCase
     public function testGetListWithInvalidBooleanType(): void
     {
         $result = $this->repo->getList(type: false);
-        self::assertCount(9427, $result);
+        self::assertCount(9430, $result);
     }
 
     public function testGetListWithAffectingProfitOnlyArgument(): void
     {
         $result = $this->repo->getList(affectingProfitOnly: true);
-        self::assertCount(9427, $result);
+        self::assertCount(9430, $result);
         self::assertTrue($result[0]->getCategory()->getIsAffectingProfit());
         self::assertTrue($result[3000]->getCategory()->getIsAffectingProfit());
         self::assertTrue($result[9426]->getCategory()->getIsAffectingProfit());
 
         $result = $this->repo->getList(affectingProfitOnly: false);
 
-        self::assertCount(10947, $result);
+        self::assertCount(10950, $result);
         $notAffectingProfit = array_filter($result, static function (Transaction $transaction) {
             return !$transaction->getCategory()->getIsAffectingProfit();
         });
-        self::assertCount(10947 - 9427, $notAffectingProfit);
+        self::assertCount(10950 - 9430, $notAffectingProfit);
     }
 
     public function testGetListWithCategoriesArgument(): void
@@ -144,7 +145,7 @@ class TransactionRepositoryTest extends KernelTestCase
             $categoryRepo->findOneBy(['name' => 'Food & Drinks']),
         ];
         $result = $this->repo->getList(categories: $categories);
-        self::assertCount(372, $result);
+        self::assertCount(374, $result);
         self::assertEquals($categories[0]->getName(), $result[0]->getCategory()->getName());
         self::assertEquals($categories[0]->getName(), $result[150]->getCategory()->getName());
         self::assertEquals($categories[0]->getName(), $result[370]->getCategory()->getName());
@@ -154,7 +155,7 @@ class TransactionRepositoryTest extends KernelTestCase
             return $category->getName();
         }, $categories);
         $result = $this->repo->getList(categories: $categories);
-        self::assertCount(388, $result);
+        self::assertCount(390, $result);
         self::assertContains($result[0]->getCategory()->getName(), $categoryNames);
         self::assertContains($result[155]->getCategory()->getName(), $categoryNames);
         self::assertContains($result[387]->getCategory()->getName(), $categoryNames);
@@ -163,7 +164,7 @@ class TransactionRepositoryTest extends KernelTestCase
             return $category->getId();
         }, $categories);
         $result = $this->repo->getList(categories: $categories);
-        self::assertCount(388, $result);
+        self::assertCount(390, $result);
         self::assertContains($result[0]->getCategory()->getName(), $categoryNames);
         self::assertContains($result[155]->getCategory()->getName(), $categoryNames);
         self::assertContains($result[387]->getCategory()->getName(), $categoryNames);
@@ -183,7 +184,7 @@ class TransactionRepositoryTest extends KernelTestCase
             $categoryRepo->findOneBy(['name' => 'Food & Drinks']),
         ];
         $result = $this->repo->getList(excludedCategories: $categories);
-        self::assertCount(9055, $result);
+        self::assertCount(9056, $result);
         self::assertNotEquals($categories[0]->getName(), $result[0]->getCategory()->getName());
         self::assertNotEquals($categories[0]->getName(), $result[4642]->getCategory()->getName());
         self::assertNotEquals($categories[0]->getName(), $result[9050]->getCategory()->getName());
@@ -193,7 +194,7 @@ class TransactionRepositoryTest extends KernelTestCase
             return $category->getName();
         }, $categories);
         $result = $this->repo->getList(excludedCategories: $categories);
-        self::assertCount(9039, $result);
+        self::assertCount(9040, $result);
         self::assertNotContains($result[0]->getCategory()->getName(), $categoryNames);
         self::assertNotContains($result[4777]->getCategory()->getName(), $categoryNames);
         self::assertNotContains($result[9030]->getCategory()->getName(), $categoryNames);
@@ -202,7 +203,7 @@ class TransactionRepositoryTest extends KernelTestCase
             return $category->getId();
         }, $categories);
         $result = $this->repo->getList(excludedCategories: $categories);
-        self::assertCount(9039, $result);
+        self::assertCount(9040, $result);
         self::assertNotContains($result[0]->getCategory()->getName(), $categoryNames);
         self::assertNotContains($result[4755]->getCategory()->getName(), $categoryNames);
         self::assertNotContains($result[9038]->getCategory()->getName(), $categoryNames);
@@ -216,7 +217,7 @@ class TransactionRepositoryTest extends KernelTestCase
             $accountsRepo->findOneBy(['id' => 10]),
         ];
         $result = $this->repo->getList(accounts: $accounts);
-        self::assertCount(4920, $result);
+        self::assertCount(4923, $result);
         self::assertEquals($accounts[0]->getId(), $result[0]->getAccount()->getId());
         self::assertEquals($accounts[0]->getId(), $result[1500]->getAccount()->getId());
         self::assertEquals($accounts[0]->getId(), $result[4919]->getAccount()->getId());
@@ -226,7 +227,7 @@ class TransactionRepositoryTest extends KernelTestCase
             return $account->getId();
         }, $accounts);
         $result = $this->repo->getList(accounts: $accounts);
-        self::assertCount(7752, $result);
+        self::assertCount(7755, $result);
         self::assertContains($result[0]->getAccount()->getId(), $accountIds);
         self::assertContains($result[4650]->getAccount()->getId(), $accountIds);
         self::assertContains($result[7751]->getAccount()->getId(), $accountIds);
@@ -235,7 +236,7 @@ class TransactionRepositoryTest extends KernelTestCase
             return $account->getId();
         }, $accounts);
         $result = $this->repo->getList(accounts: $accounts);
-        self::assertCount(7752, $result);
+        self::assertCount(7755, $result);
         self::assertContains($result[0]->getAccount()->getId(), $accountIds);
         self::assertContains($result[4650]->getAccount()->getId(), $accountIds);
         self::assertContains($result[7751]->getAccount()->getId(), $accountIds);
@@ -250,19 +251,19 @@ class TransactionRepositoryTest extends KernelTestCase
     public function testGetListWithOrderArguments(): void
     {
         $result = $this->repo->getList(orderField: 'executedAt', order: 'ASC');
-        self::assertCount(9427, $result);
+        self::assertCount(9430, $result);
         self::assertTrue($result[0]->getExecutedAt()->isBefore($result[9426]->getExecutedAt()));
 
         $result = $this->repo->getList(orderField: 'executedAt', order: 'DESC');
-        self::assertCount(9427, $result);
+        self::assertCount(9430, $result);
         self::assertTrue($result[0]->getExecutedAt()->isAfter($result[9426]->getExecutedAt()));
 
         $result = $this->repo->getList(orderField: 'amount', order: 'ASC');
-        self::assertCount(9427, $result);
+        self::assertCount(9430, $result);
         self::assertTrue($result[0]->getAmount() < $result[9426]->getAmount());
 
         $result = $this->repo->getList(orderField: 'amount', order: 'DESC');
-        self::assertCount(9427, $result);
+        self::assertCount(9430, $result);
         self::assertTrue($result[0]->getAmount() > $result[9426]->getAmount());
     }
 

@@ -28,11 +28,11 @@ class CategoryRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('c');
 
-        if(!empty($types) && count($types) === 1) {
-            if(in_array(Category::EXPENSE_CATEGORY_TYPE, $types, true)) {
+        if (!empty($types) && count($types) === 1) {
+            if (in_array(Category::EXPENSE_CATEGORY_TYPE, $types, true)) {
                 $qb->andWhere('c INSTANCE OF :expenseType')
                     ->setParameter('expenseType', $this->getEntityManager()->getClassMetadata(Category::class));
-            } elseif(in_array(Category::INCOME_CATEGORY_TYPE, $types, true)) {
+            } elseif (in_array(Category::INCOME_CATEGORY_TYPE, $types, true)) {
                 $qb->andWhere('c INSTANCE OF :incomeType')
                     ->setParameter('incomeType', $this->getEntityManager()->getClassMetadata(IncomeCategory::class));
             }
@@ -55,19 +55,19 @@ class CategoryRepository extends ServiceEntityRepository
         $types = $type ? [$type] : [TransactionInterface::EXPENSE, TransactionInterface::INCOME];
         $result = [];
 
-        foreach($types as $t) {
+        foreach ($types as $t) {
             $repo = $this
                 ->getEntityManager()
                 ->getRepository(
                     $t === TransactionInterface::EXPENSE ? ExpenseCategory::class : IncomeCategory::class
                 );
 
-            if(empty($categories)) {
+            if (empty($categories)) {
                 $result[] = $repo->findBy(['root' => null, 'isTechnical' => false]);
             } else {
                 $foundCategories = $repo->findBy(['id' => $categories]);
 
-                foreach($foundCategories as $category) {
+                foreach ($foundCategories as $category) {
                     $result[] = $category->getDescendantsFlat()->toArray();
                 }
             }

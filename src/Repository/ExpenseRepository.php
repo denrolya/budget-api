@@ -40,9 +40,22 @@ class ExpenseRepository extends TransactionRepository
         return $this->findWithinPeriod($day, $day, true, [], [ExpenseCategory::CATEGORY_RENT]);
     }
 
-    public function findWithinPeriod(CarbonInterface $after, ?CarbonInterface $before = null, bool $affectingProfitOnly = true, array $categories = [], array $excludedCategories = []): array
-    {
-        $qb = $this->getBaseQueryBuilder($after, $before, $affectingProfitOnly, TransactionInterface::EXPENSE, $categories, [], $excludedCategories);
+    public function findWithinPeriod(
+        CarbonInterface $after,
+        ?CarbonInterface $before = null,
+        bool $affectingProfitOnly = true,
+        array $categories = [],
+        array $excludedCategories = []
+    ): array {
+        $qb = $this->getBaseQueryBuilder(
+            $after,
+            $before,
+            $affectingProfitOnly,
+            TransactionInterface::EXPENSE,
+            $categories,
+            [],
+            $excludedCategories
+        );
 
         return $qb->getQuery()->getResult();
     }

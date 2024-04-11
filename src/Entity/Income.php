@@ -38,7 +38,7 @@ class Income extends Transaction
      */
     #[Groups(['transaction:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read'])]
-    private ?Expense $originalExpense;
+    private ?Expense $originalExpense = null;
 
     /**
      * @Assert\IsTrue(message="Invalid category provided")

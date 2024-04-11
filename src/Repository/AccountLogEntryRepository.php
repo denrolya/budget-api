@@ -21,13 +21,17 @@ class AccountLogEntryRepository extends ServiceEntityRepository
         parent::__construct($registry, AccountLogEntry::class);
     }
 
-    public function findWithinPeriod(CarbonInterface $after, ?CarbonInterface $before = null, int $limit = null, Account $account = null): array
-    {
+    public function findWithinPeriod(
+        CarbonInterface $after,
+        ?CarbonInterface $before = null,
+        int $limit = null,
+        Account $account = null
+    ): array {
         $qb = $this->createQueryBuilder('l')
             ->andWhere('DATE(l.createdAt) >= :after')
             ->setParameter('after', $after->toDateString());
 
-        if($before) {
+        if ($before) {
             $qb
                 ->andWhere('DATE(l.createdAt) <= :before')
                 ->setParameter('before', $before->toDateString());

@@ -130,7 +130,7 @@ class TransactionControllerTest extends BaseApiTest
         $content = $response->toArray();
         self::assertCount(30, $content['list']);
         self::assertEquals(124, $content['count']);
-        self::assertEqualsWithDelta(5520.17, $content['totalValue'], 0.01);
+        self::assertEqualsWithDelta(5525.58, $content['totalValue'], 0.01);
         self::assertTrue(Carbon::parse($content['list'][0]['executedAt'])->isBetween($after, $before));
         self::assertTrue(Carbon::parse($content['list'][29]['executedAt'])->isBetween($after, $before));
 
@@ -145,7 +145,7 @@ class TransactionControllerTest extends BaseApiTest
         $content = $response->toArray();
         self::assertCount(4, $content['list']);
         self::assertEquals(124, $content['count']);
-        self::assertEqualsWithDelta(5520.17, $content['totalValue'], 0.01);
+        self::assertEqualsWithDelta(5525.58, $content['totalValue'], 0.01);
         self::assertTrue(Carbon::parse($content['list'][0]['executedAt'])->isBetween($after, $before));
         self::assertTrue(Carbon::parse($content['list'][3]['executedAt'])->isBetween($after, $before));
     }
@@ -164,7 +164,7 @@ class TransactionControllerTest extends BaseApiTest
         $content = $response->toArray();
         self::assertCount(30, $content['list']);
         self::assertEquals(80, $content['count']);
-        self::assertEqualsWithDelta(-954.12, $content['totalValue'], 0.01);
+        self::assertEqualsWithDelta(-953.88, $content['totalValue'], 0.01);
         self::assertEquals(10, $content['list'][0]['account']['id']);
         self::assertEquals(10, $content['list'][29]['account']['id']);
 
@@ -178,7 +178,7 @@ class TransactionControllerTest extends BaseApiTest
         $content = $response->toArray();
         self::assertCount(30, $content['list']);
         self::assertEquals(119, $content['count']);
-        self::assertEqualsWithDelta(-1306.31, $content['totalValue'], 0.01);
+        self::assertEqualsWithDelta(-1300.9, $content['totalValue'], 0.01);
         self::assertContains($content['list'][0]['account']['id'], [10, 4]);
         self::assertContains($content['list'][29]['account']['id'], [10, 4]);
 
@@ -265,7 +265,7 @@ class TransactionControllerTest extends BaseApiTest
         $content = $response->toArray();
         self::assertEquals(790, $content['count']);
         self::assertCount(30, $content['list']);
-        self::assertEqualsWithDelta(-5273.67, $content['totalValue'], 0.01);
+        self::assertEqualsWithDelta(-5179.92, $content['totalValue'], 0.01);
 
         $nestedCategoriesIds = $category->getDescendantsFlat()->map(fn(Category $category) => $category->getId())->toArray();
         self::assertContains($content['list'][0]['category']['id'], $nestedCategoriesIds);
@@ -282,7 +282,7 @@ class TransactionControllerTest extends BaseApiTest
         $content = $response->toArray();
         self::assertEquals(2, $content['count']);
         self::assertCount(2, $content['list']);
-        self::assertEqualsWithDelta(-1.61, $content['totalValue'], 0.01);
+        self::assertEqualsWithDelta(-1.62, $content['totalValue'], 0.01);
         self::assertEquals(1, $content['list'][0]['category']['id']);
         self::assertEquals(1, $content['list'][1]['category']['id']);
     }
@@ -312,7 +312,7 @@ class TransactionControllerTest extends BaseApiTest
         $content = $response->toArray();
         self::assertEquals(124, $content['count']);
         self::assertCount(30, $content['list']);
-        self::assertEqualsWithDelta(5520.17, $content['totalValue'], 0.01);
+        self::assertEqualsWithDelta(5525.58, $content['totalValue'], 0.01);
     }
 
     public function testTypeFilter(): void
@@ -329,7 +329,7 @@ class TransactionControllerTest extends BaseApiTest
         $content = $response->toArray();
         self::assertEquals(107, $content['count']);
         self::assertCount(30, $content['list']);
-        self::assertEqualsWithDelta(-1519.62, $content['totalValue'], 0.01);
+        self::assertEqualsWithDelta(-1514.2, $content['totalValue'], 0.01);
 
         $response = $this->client->request(
             'GET',

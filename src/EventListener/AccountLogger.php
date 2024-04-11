@@ -17,9 +17,8 @@ final class AccountLogger
 
     public function __construct(
         private EntityManagerInterface $em,
-        private FixerService           $fixer
-    )
-    {
+        private FixerService $fixer
+    ) {
     }
 
     public function postPersist(TransactionInterface $transaction): void
@@ -28,51 +27,6 @@ final class AccountLogger
             $transaction->getAccount(),
             $transaction->getExecutedAt(),
         );
-    }
-
-    /**
-     * Should invoke logging only if account, amount or execution date was changed;
-     *
-     * @param TransactionInterface $transaction
-     * @return void
-     */
-    public function postUpdate(TransactionInterface $transaction): void
-    {
-        $uow = $this->em->getUnitOfWork();
-        $uow->computeChangeSets();
-
-        $changes = $uow->getEntityChangeSet($transaction);
-
-        $isAccountChanged = !empty($changes['account']);
-        $isExecutionDateChanged = !empty($changes['executedAt']) && ($changes['executedAt'][0]->getTimestamp() !== $changes['executedAt'][1]->getTimestamp());
-        $isAmountChanged = !empty($changes['amount']) && ((float)$changes['amount'][0] !== (float)$changes['amount'][1]);
-
-        if(!$isAmountChanged && !$isAccountChanged && !$isExecutionDateChanged) {
-            return;
-        }
-
-        $executionDate = $transaction->getExecutedAt();
-
-        $this->rebuildLogs(
-            $transaction->getAccount(),
-            $executionDate,
-        );
-
-        if($isAccountChanged) {
-            $this->rebuildLogs(
-                $changes['account'][0],
-                $executionDate,
-            );
-        }
-    }
-
-    public function postRemove(TransactionInterface $transaction): void
-    {
-        $account = $transaction->getAccount();
-        $executionDate = $transaction->getExecutedAt();
-
-        $this->removeAccountLogsAfterDate($account, $executionDate);
-        $this->recreateLogs($account, $transaction->getId());
     }
 
     private function rebuildLogs(Account $account, DateTimeInterface $executionDate): void
@@ -88,10 +42,10 @@ final class AccountLogger
             ->getRepository(AccountLogEntry::class)
             ->findWithinPeriod($date, null, null, $account);
 
-        foreach($logsToBeRemoved as $i => $log) {
+        foreach ($logsToBeRemoved as $i => $log) {
             $this->em->remove($log);
 
-            if(($i % self::BATCH_SIZE) === 0) {
+            if (($i % self::BATCH_SIZE) === 0) {
                 $this->em->flush();
             }
         }
@@ -122,7 +76,7 @@ final class AccountLogger
         );
 
         $balance = $account->getBalance();
-        foreach($transactions as $i => $transaction) {
+        foreach ($transactions as $i => $transaction) {
             $transactionLogEntry = $this->createAccountLogFromTransaction($transaction, $balance);
             $this->em->persist($transactionLogEntry);
 
@@ -131,12 +85,57 @@ final class AccountLogger
                 ? $balance + $amount
                 : $balance - $amount;
 
-            if(($i % self::BATCH_SIZE) === 0) {
+            if (($i % self::BATCH_SIZE) === 0) {
                 $this->em->flush();
             }
         }
 
         $this->em->flush();
+    }
+
+    private function eliminateDuplicates(array $transactions): array
+    {
+        $result = [];
+
+        $dates = [];
+        foreach ($transactions as $transaction) {
+            $dates[$transaction->getExecutedAt()->toDateTimeString()][] = $transaction;
+        }
+
+        foreach ($dates as $date => $transactionsByDate) {
+            if (count($transactionsByDate) === 1) {
+                $result = [
+                    ...$result,
+                    ...$transactionsByDate,
+                ];
+                continue;
+            }
+
+            $newTransaction = new Expense();
+            $newTransaction
+                ->setAccount($transactionsByDate[0]->getAccount())
+                ->setExecutedAt($transactionsByDate[0]->getExecutedAt());
+
+            foreach ($transactionsByDate as $transaction) {
+                $newTransaction->setAmount(
+                    $transaction instanceof Expense
+                        ? $newTransaction->getAmount() + $transaction->getAmount()
+                        : $newTransaction->getAmount() - $transaction->getAmount()
+                );
+            }
+
+            $result = [
+                ...$result,
+                $newTransaction,
+            ];
+        }
+
+        uasort($result, static function (TransactionInterface $a, TransactionInterface $b) {
+            // TODO: uasort(): Returning bool from comparison function is deprecated, return an integer less than, equal to, or greater than zero
+            return $a->getExecutedAt()->isBefore($b->getExecutedAt());
+        });
+
+        return $result;
     }
 
     private function createAccountLogFromTransaction(TransactionInterface $transaction, $balance): AccountLogEntry
@@ -160,47 +159,49 @@ final class AccountLogger
         return $log;
     }
 
-    private function eliminateDuplicates(array $transactions): array
+    /**
+     * Should invoke logging only if account, amount or execution date was changed;
+     *
+     * @param TransactionInterface $transaction
+     * @return void
+     */
+    public function postUpdate(TransactionInterface $transaction): void
     {
-        $result = [];
+        $uow = $this->em->getUnitOfWork();
+        $uow->computeChangeSets();
 
-        $dates = [];
-        foreach($transactions as $transaction) {
-            $dates[$transaction->getExecutedAt()->toDateTimeString()][] = $transaction;
+        $changes = $uow->getEntityChangeSet($transaction);
+
+        $isAccountChanged = !empty($changes['account']);
+        $isExecutionDateChanged = !empty($changes['executedAt']) && ($changes['executedAt'][0]->getTimestamp(
+                ) !== $changes['executedAt'][1]->getTimestamp());
+        $isAmountChanged = !empty($changes['amount']) && ((float)$changes['amount'][0] !== (float)$changes['amount'][1]);
+
+        if (!$isAmountChanged && !$isAccountChanged && !$isExecutionDateChanged) {
+            return;
         }
 
-        foreach($dates as $date => $transactionsByDate) {
-            if(count($transactionsByDate) === 1) {
-                $result = [
-                    ...$result,
-                    ...$transactionsByDate,
-                ];
-                continue;
-            }
+        $executionDate = $transaction->getExecutedAt();
 
-            $newTransaction = new Expense();
-            $newTransaction
-                ->setAccount($transactionsByDate[0]->getAccount())
-                ->setExecutedAt($transactionsByDate[0]->getExecutedAt());
+        $this->rebuildLogs(
+            $transaction->getAccount(),
+            $executionDate,
+        );
 
-            foreach($transactionsByDate as $transaction) {
-                $newTransaction->setAmount(
-                    $transaction instanceof Expense
-                        ? $newTransaction->getAmount() + $transaction->getAmount()
-                        : $newTransaction->getAmount() - $transaction->getAmount()
-                );
-            }
-
-            $result = [
-                ...$result,
-                $newTransaction,
-            ];
+        if ($isAccountChanged) {
+            $this->rebuildLogs(
+                $changes['account'][0],
+                $executionDate,
+            );
         }
+    }
 
-        uasort($result, static function (TransactionInterface $a, TransactionInterface $b) {
-            return $a->getExecutedAt()->isBefore($b->getExecutedAt());
-        });
+    public function postRemove(TransactionInterface $transaction): void
+    {
+        $account = $transaction->getAccount();
+        $executionDate = $transaction->getExecutedAt();
 
-        return $result;
+        $this->removeAccountLogsAfterDate($account, $executionDate);
+        $this->recreateLogs($account, $transaction->getId());
     }
 }

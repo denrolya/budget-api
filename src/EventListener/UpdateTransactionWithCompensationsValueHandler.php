@@ -20,15 +20,15 @@ final class UpdateTransactionWithCompensationsValueHandler implements ToggleEnab
 
     public function updateTransactionWithCompensationsValue(TransactionInterface $transaction): void
     {
-        if(!$this->enabled) {
+        if (!$this->enabled) {
             return;
         }
 
-        if($transaction->isIncome() && $transaction->getOriginalExpense() !== null) {
+        if ($transaction->isIncome() && $transaction->getOriginalExpense() !== null) {
             $this->recalculateTransactionValue($transaction->getOriginalExpense());
         }
 
-        if($transaction->isExpense() && $transaction->hasCompensations()) {
+        if ($transaction->isExpense() && $transaction->hasCompensations()) {
             $this->recalculateTransactionValue($transaction);
         }
     }
@@ -44,9 +44,9 @@ final class UpdateTransactionWithCompensationsValueHandler implements ToggleEnab
             executionDate: $transaction->getExecutedAt()
         );
 
-        foreach($transaction->getCompensations() as $compensation) {
+        foreach ($transaction->getCompensations() as $compensation) {
             $currencies = array_keys($transactionValue);
-            foreach($currencies as $currency) {
+            foreach ($currencies as $currency) {
                 $transactionValue[$currency] -= $compensation->getConvertedValue($currency);
             }
         }

@@ -14,7 +14,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 /**
  * TODO: After 00:00 in Ukraine it is impossible to fetch rates, cause fixer's timezone is couple of hours ago
  */
-final class FixerService
+class FixerService
 {
     private const MONTH_IN_SECONDS = 2678400;
     private const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'HUF', 'UAH', 'BTC'];
@@ -158,7 +158,7 @@ final class FixerService
      */
     public function getRates(?CarbonInterface $date = null): array
     {
-        return (!$date || $date->month === CarbonImmutable::now()->month)
+        return (!$date || $date->day === CarbonImmutable::now()->day)
             ? $this->getLatest()
             : $this->getHistorical($date->endOfMonth());
     }

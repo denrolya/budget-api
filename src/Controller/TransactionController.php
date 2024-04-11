@@ -3,14 +3,13 @@
 namespace App\Controller;
 
 use App\Pagination\Paginator;
-use App\Request\ParamConverter\CarbonParamConverter;
 use App\Service\AssetsManager;
 use Carbon\CarbonImmutable;
-use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
-use Symfony\Component\Routing\Annotation\Route;
+use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
-use FOS\RestBundle\Controller\AbstractFOSRestController;
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
+use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/transaction', name: 'api_v2_transaction_')]
 class TransactionController extends AbstractFOSRestController
@@ -32,16 +31,15 @@ class TransactionController extends AbstractFOSRestController
     {
         return $this->view(
             $assetsManager->generateTransactionPaginationData(
-                $after,
-                $before,
-                $type,
-                $categories,
-                $accounts,
-                null,
-                $withNestedCategories,
-                $isDraft,
-                $perPage,
-                $page
+                after: $after,
+                before: $before,
+                type: $type,
+                categories: $categories,
+                accounts: $accounts,
+                withChildCategories: $withNestedCategories,
+                onlyDrafts: $isDraft,
+                perPage: $perPage,
+                page: $page
             )
         );
     }

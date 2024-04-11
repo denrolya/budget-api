@@ -15,6 +15,7 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
+use InvalidArgumentException;
 
 /**
  * @method Transaction|null find($id, $lockMode = null, $lockVersion = null)
@@ -50,16 +51,15 @@ class TransactionRepository extends ServiceEntityRepository
     public function getList(
         ?CarbonInterface $after = null,
         ?CarbonInterface $before = null,
-        ?string          $type = null,
-        ?array           $categories = [],
-        ?array           $accounts = [],
-        ?array           $excludedCategories = [],
-        bool             $affectingProfitOnly = true,
-        bool             $onlyDrafts = false,
-        string           $orderField = self::ORDER_FIELD,
-        string           $order = self::ORDER
-    ): Collection|array
-    {
+        ?string $type = null,
+        ?array $categories = [],
+        ?array $accounts = [],
+        ?array $excludedCategories = [],
+        bool $affectingProfitOnly = true,
+        bool $onlyDrafts = false,
+        string $orderField = self::ORDER_FIELD,
+        string $order = self::ORDER
+    ): Collection|array {
         return $this
             ->getBaseQueryBuilder(
                 $after,
@@ -78,30 +78,121 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param CarbonInterface|null $after
+     * @param CarbonInterface|null $before
+     * @param bool $affectingProfitOnly
+     * @param string|null $type
+     * @param array<Category|int>|null $categories
+     * @param array<Account|int>|null $accounts
+     * @param array<Category|int>|null $excludedCategories
+     * @param bool $onlyDrafts
+     * @param string $orderField
+     * @param string $order
+     * @return QueryBuilder
+     */
+    protected function getBaseQueryBuilder(
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+        bool $affectingProfitOnly = false,
+        ?string $type = null,
+        ?array $categories = [],
+        ?array $accounts = [],
+        ?array $excludedCategories = [],
+        bool $onlyDrafts = false,
+        string $orderField = self::ORDER_FIELD,
+        string $order = self::ORDER
+    ): QueryBuilder {
+        $qb = $this
+            ->createQueryBuilder('t')
+            ->leftJoin('t.category', 'c')
+            ->orderBy("t.$orderField", $order)
+            ->addOrderBy('t.id', $order)
+            ->andWhere('t.isDraft = :onlyDrafts')
+            ->setParameter('onlyDrafts', $onlyDrafts);
+
+        if ($affectingProfitOnly) {
+            $qb->andWhere('c.isAffectingProfit = :affectingProfitOnly')
+                ->setParameter('affectingProfitOnly', $affectingProfitOnly);
+        }
+
+        if ($after) {
+            $qb->andWhere('DATE(t.executedAt) >= :after')
+                ->setParameter('after', $after->toDateString());
+        }
+
+        if ($before) {
+            $qb->andWhere('DATE(t.executedAt) <= :before')
+                ->setParameter('before', $before->toDateString());
+        }
+
+        if ($type && !in_array($type, [TransactionInterface::EXPENSE, TransactionInterface::INCOME], true)) {
+            throw new InvalidArgumentException('Invalid transaction type');
+        }
+
+        if ($type === TransactionInterface::EXPENSE) {
+            $qb->andWhere('t INSTANCE OF :type')
+                ->setParameter('type', $this->getEntityManager()->getClassMetadata(Expense::class));
+        } elseif ($type === TransactionInterface::INCOME) {
+            $qb->andWhere('t INSTANCE OF :type')
+                ->setParameter('type', $this->getEntityManager()->getClassMetadata(Income::class));
+        }
+
+        if (!empty($accounts)) {
+            $qb->andWhere('t.account IN (:accounts)')
+                ->setParameter('accounts', $accounts);
+        }
+
+        if (!empty($categories)) {
+            $qb->andWhere('t.category IN (:categories)')
+                ->setParameter('categories', $categories);
+        }
+
+        if (!empty($excludedCategories)) {
+            $qb->andWhere('t.category NOT IN (:excludedCategories)')
+                ->setParameter('excludedCategories', $excludedCategories);
+        }
+
+        return $qb;
+    }
+
+    /**
      * TODO: Replace $offset with $page
      */
     public function getPaginator(
         ?CarbonInterface $after,
         ?CarbonInterface $before,
-        bool             $affectingProfitOnly = false,
-        ?string          $type = null,
-        ?array           $categories = [],
-        ?array           $accounts = [],
-        ?array           $excludedCategories = [],
-        bool             $onlyDrafts = false,
-        ?int             $limit = Paginator::PER_PAGE,
-        int              $offset = 0,
-        string           $orderField = self::ORDER_FIELD,
-        string           $order = self::ORDER
-    ): Paginator
-    {
-        $qb = $this->getBaseQueryBuilder($after, $before, $affectingProfitOnly, $type, $categories, $accounts, $excludedCategories, $onlyDrafts, $orderField, $order);
+        bool $affectingProfitOnly = false,
+        ?string $type = null,
+        ?array $categories = [],
+        ?array $accounts = [],
+        ?array $excludedCategories = [],
+        bool $onlyDrafts = false,
+        ?int $limit = Paginator::PER_PAGE,
+        int $offset = 0,
+        string $orderField = self::ORDER_FIELD,
+        string $order = self::ORDER
+    ): Paginator {
+        $qb = $this->getBaseQueryBuilder(
+            $after,
+            $before,
+            $affectingProfitOnly,
+            $type,
+            $categories,
+            $accounts,
+            $excludedCategories,
+            $onlyDrafts,
+            $orderField,
+            $order
+        );
 
         return (new Paginator($qb, $limit))->paginate(($offset / $limit) + 1);
     }
 
-    public function findWithinPeriodByAccount(Account $account, CarbonInterface $after, ?CarbonInterface $before = null): array
-    {
+    public function findWithinPeriodByAccount(
+        Account $account,
+        CarbonInterface $after,
+        ?CarbonInterface $before = null
+    ): array {
         $qb = $this->createQueryBuilder('t')
             ->leftJoin('t.account', 'a')
             ->andWhere('DATE(t.executedAt) >= :after')
@@ -109,14 +200,14 @@ class TransactionRepository extends ServiceEntityRepository
             ->setParameter('after', $after->toDateString())
             ->setParameter('account', $account->getId());
 
-        if($before) {
+        if ($before) {
             $qb
                 ->andWhere('DATE(t.executedAt) <= :before')
                 ->setParameter('before', $before->toDateString());
         }
 
         return $qb
-            ->orderBy('t.' . self::ORDER_FIELD, 'ASC')
+            ->orderBy('t.'.self::ORDER_FIELD, 'ASC')
             ->getQuery()
             ->getResult();
     }
@@ -127,14 +218,14 @@ class TransactionRepository extends ServiceEntityRepository
             ->andWhere('DATE(t.executedAt) >= :after')
             ->setParameter('after', $after->toDateString());
 
-        if($before) {
+        if ($before) {
             $qb
                 ->andWhere('DATE(t.executedAt) <= :before')
                 ->setParameter('before', $before->toDateString());
         }
 
         return $qb
-            ->orderBy('t.' . self::ORDER_FIELD, self::ORDER)
+            ->orderBy('t.'.self::ORDER_FIELD, self::ORDER)
             ->getQuery()
             ->getResult();
     }
@@ -153,7 +244,7 @@ class TransactionRepository extends ServiceEntityRepository
             'createdAt' => 'DESC',
         ]);
 
-        if($lastLogEntry) {
+        if ($lastLogEntry) {
             $qb
                 ->andWhere('t.executedAt > :date')
                 ->setParameter('date', $lastLogEntry->getCreatedAt()->toDateTimeString());
@@ -161,84 +252,5 @@ class TransactionRepository extends ServiceEntityRepository
 
 
         return $qb->getQuery()->getResult();
-    }
-
-    /**
-     * @param CarbonInterface|null $after
-     * @param CarbonInterface|null $before
-     * @param bool $affectingProfitOnly
-     * @param string|null $type
-     * @param array<Category|int>|null $categories
-     * @param array<Account|int>|null $accounts
-     * @param array<Category|int>|null $excludedCategories
-     * @param bool $onlyDrafts
-     * @param string $orderField
-     * @param string $order
-     * @return QueryBuilder
-     */
-    protected function getBaseQueryBuilder(
-        ?CarbonInterface $after,
-        ?CarbonInterface $before,
-        bool             $affectingProfitOnly = false,
-        ?string          $type = null,
-        ?array           $categories = [],
-        ?array           $accounts = [],
-        ?array           $excludedCategories = [],
-        bool             $onlyDrafts = false,
-        string           $orderField = self::ORDER_FIELD,
-        string           $order = self::ORDER
-    ): QueryBuilder
-    {
-        $qb = $this
-            ->createQueryBuilder('t')
-            ->leftJoin('t.category', 'c')
-            ->orderBy("t.$orderField", $order)
-            ->addOrderBy('t.id', $order)
-            ->andWhere('t.isDraft = :onlyDrafts')
-            ->setParameter('onlyDrafts', $onlyDrafts);
-
-        if($affectingProfitOnly) {
-            $qb->andWhere('c.isAffectingProfit = :affectingProfitOnly')
-                ->setParameter('affectingProfitOnly', $affectingProfitOnly);
-        }
-
-        if($after) {
-            $qb->andWhere('DATE(t.executedAt) >= :after')
-                ->setParameter('after', $after->toDateString());
-        }
-
-        if($before) {
-            $qb->andWhere('DATE(t.executedAt) <= :before')
-                ->setParameter('before', $before->toDateString());
-        }
-
-        if($type && !in_array($type, [TransactionInterface::EXPENSE, TransactionInterface::INCOME], true)) {
-            throw new \InvalidArgumentException('Invalid transaction type');
-        }
-
-        if($type === TransactionInterface::EXPENSE) {
-            $qb->andWhere('t INSTANCE OF :type')
-                ->setParameter('type', $this->getEntityManager()->getClassMetadata(Expense::class));
-        } elseif($type === TransactionInterface::INCOME) {
-            $qb->andWhere('t INSTANCE OF :type')
-                ->setParameter('type', $this->getEntityManager()->getClassMetadata(Income::class));
-        }
-
-        if(!empty($accounts)) {
-            $qb->andWhere('t.account IN (:accounts)')
-                ->setParameter('accounts', $accounts);
-        }
-
-        if(!empty($categories)) {
-            $qb->andWhere('t.category IN (:categories)')
-                ->setParameter('categories', $categories);
-        }
-
-        if(!empty($excludedCategories)) {
-            $qb->andWhere('t.category NOT IN (:excludedCategories)')
-                ->setParameter('excludedCategories', $excludedCategories);
-        }
-
-        return $qb;
     }
 }

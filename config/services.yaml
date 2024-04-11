@@ -104,3 +104,13 @@ services:
             - { name: doctrine.orm.entity_listener, event: postUpdate, entity: 'App\Entity\Transaction', priority: 10 }
             - { name: doctrine.orm.entity_listener, event: postRemove, entity: 'App\Entity\Transaction', priority: 10 }
 
+when@test:
+    services:
+        _defaults:
+            autowire: true      # Automatically injects dependencies in your services.
+            autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+            bind:
+                $fixerApiKey: "dummy_api_key"
+
+        App\Service\FixerService:
+            public: true

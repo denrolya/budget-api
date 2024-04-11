@@ -4,8 +4,6 @@ namespace App\Service;
 
 use App\Entity\Category;
 use App\Entity\ExecutableInterface;
-use App\Entity\ExpenseCategory;
-use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Entity\ValuableInterface;
@@ -36,18 +34,17 @@ final class AssetsManager
     public function generateTransactionPaginationData(
         CarbonInterface $after,
         CarbonInterface $before,
-        ?string         $type = null,
-        ?array          $categories = null,
-        ?array          $accounts = null,
-        ?array          $excludedCategories = [],
-        bool            $withChildCategories = true,
-        bool            $onlyDrafts = false,
-        int             $limit = Paginator::PER_PAGE,
-        int             $page = 1,
-        string          $orderField = TransactionRepository::ORDER_FIELD,
-        string          $order = TransactionRepository::ORDER
-    ): array
-    {
+        ?string $type = null,
+        ?array $categories = null,
+        ?array $accounts = null,
+        ?array $excludedCategories = [],
+        bool $withChildCategories = true,
+        bool $onlyDrafts = false,
+        int $perPage = Paginator::PER_PAGE,
+        int $page = 1,
+        string $orderField = TransactionRepository::ORDER_FIELD,
+        string $order = TransactionRepository::ORDER
+    ): array {
         $paginator = $this
             ->transactionRepo
             ->getPaginator(
@@ -61,8 +58,8 @@ final class AssetsManager
                 $accounts,
                 $excludedCategories,
                 $onlyDrafts,
-                $limit,
-                ($page - 1) * $limit,
+                $perPage,
+                ($page - 1) * $perPage,
                 $orderField,
                 $order
             );
@@ -71,11 +68,16 @@ final class AssetsManager
 
         return [
             'list' => $list,
-            'totalValue' => round($this->sumMixedTransactions($paginator
-                ->getQuery()
-                ->setFirstResult(0)
-                ->setMaxResults(null)
-                ->getResult()), 2),
+            'totalValue' => round(
+                $this->sumMixedTransactions(
+                    $paginator
+                        ->getQuery()
+                        ->setFirstResult(0)
+                        ->setMaxResults(null)
+                        ->getResult()
+                ),
+                2
+            ),
             'count' => $paginator->getNumResults(),
         ];
     }
@@ -85,10 +87,10 @@ final class AssetsManager
         $byDate = [];
 
         $dates = $period->toArray();
-        foreach($dates as $after) {
+        foreach ($dates as $after) {
             $before = next($dates);
 
-            if($before !== false) {
+            if ($before !== false) {
                 $transactionsByDate = array_filter(
                     $transactions,
                     static function (TransactionInterface $transaction) use ($after, $before) {
@@ -113,8 +115,14 @@ final class AssetsManager
         return $sum / (count($transactions) ?: 1);
     }
 
-    public function sumTransactionsFiltered(?string $type, CarbonInterface $after, CarbonInterface $before, ?array $categories = [], ?array $accounts = [], ?array $excludedCategories = []): float
-    {
+    public function sumTransactionsFiltered(
+        ?string $type,
+        CarbonInterface $after,
+        CarbonInterface $before,
+        ?array $categories = [],
+        ?array $accounts = [],
+        ?array $excludedCategories = []
+    ): float {
         return $this->sumMixedTransactions(
             $this->transactionRepo->getList(
                 $after,
@@ -151,7 +159,7 @@ final class AssetsManager
     public function convert(ValuableInterface $entity): array
     {
         return $this->fixerService->convert(
-            $entity->{'get' . ucfirst($entity->getValuableField())}(),
+            $entity->{'get'.ucfirst($entity->getValuableField())}(),
             $entity->getCurrency(),
             $entity instanceof ExecutableInterface ? $entity->getExecutedAt() : null
         );
@@ -164,7 +172,7 @@ final class AssetsManager
     public function convertTo(ValuableInterface $entity, ?string $toCurrency = null): float
     {
         return $this->fixerService->convertTo(
-            $entity->{'get' . ucfirst($entity->getValuableField())}(),
+            $entity->{'get'.ucfirst($entity->getValuableField())}(),
             $entity->getCurrency(),
             $toCurrency ?? $entity->getCurrency(),
             $entity instanceof ExecutableInterface ? $entity->getExecutedAt() : null

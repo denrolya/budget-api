@@ -313,6 +313,11 @@ class Account implements OwnableInterface
         return $this->transactions;
     }
 
+    public function getTransactionsCount(): int
+    {
+        return $this->transactions->count();
+    }
+
     public function getArchivedAt(): ?CarbonInterface
     {
         return $this->archivedAt ? new CarbonImmutable($this->archivedAt->getTimestamp(), $this->archivedAt->getTimezone()) : null;

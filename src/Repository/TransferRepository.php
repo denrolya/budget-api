@@ -38,8 +38,15 @@ class TransferRepository extends ServiceEntityRepository
      * @param string $order
      * @return Paginator
      */
-    public function getPaginator(?CarbonInterface $after, ?CarbonInterface $before, ?array $accounts = null, ?int $limit = self::LIMIT, int $offset = self::OFFSET, string $orderField = self::ORDER_FIELD, string $order = self::ORDER): Paginator
-    {
+    public function getPaginator(
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+        ?array $accounts = null,
+        ?int $limit = self::LIMIT,
+        int $offset = self::OFFSET,
+        string $orderField = self::ORDER_FIELD,
+        string $order = self::ORDER
+    ): Paginator {
         $qb = $this->getBaseQueryBuilder($after, $before, $accounts, $limit, $offset, $orderField, $order);
 
         return new Paginator(
@@ -59,8 +66,15 @@ class TransferRepository extends ServiceEntityRepository
      *
      * @return QueryBuilder
      */
-    private function getBaseQueryBuilder(?CarbonInterface $after, ?CarbonInterface $before, ?array $accounts = null, ?int $limit = self::LIMIT, int $offset = self::OFFSET, string $orderField = self::ORDER_FIELD, string $order = self::ORDER): QueryBuilder
-    {
+    private function getBaseQueryBuilder(
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+        ?array $accounts = null,
+        ?int $limit = self::LIMIT,
+        int $offset = self::OFFSET,
+        string $orderField = self::ORDER_FIELD,
+        string $order = self::ORDER
+    ): QueryBuilder {
         $qb = $this
             ->createQueryBuilder('t')
             ->setFirstResult($offset)
@@ -69,18 +83,18 @@ class TransferRepository extends ServiceEntityRepository
             ->leftJoin('t.before', 'ta')
             ->orderBy("t.$orderField", $order);
 
-        if($after) {
+        if ($after) {
             $qb->andWhere('DATE(t.executedAt) >= :after')
                 ->setParameter('after', $after->toDateString());
         }
 
-        if($before) {
+        if ($before) {
             $qb->andWhere('DATE(t.executedAt) <= :before')
                 ->setParameter('before', $before->toDateString());
         }
 
 
-        if(!empty($accounts)) {
+        if (!empty($accounts)) {
             $qb->andWhere('(fa.name IN (:accounts) OR ta.name IN (:accounts))')
                 ->setParameter('accounts', $accounts);
         }

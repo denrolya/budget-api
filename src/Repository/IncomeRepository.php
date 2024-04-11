@@ -20,9 +20,23 @@ class IncomeRepository extends TransactionRepository
         parent::__construct($registry, Income::class);
     }
 
-    public function findWithinPeriod(CarbonInterface $after, ?CarbonInterface $before = null, ?int $limit = null, bool $affectingProfitOnly = true, array $categories = [], array $excludedCategories = []): array
-    {
-        $qb = $this->getBaseQueryBuilder($after, $before, $affectingProfitOnly, TransactionInterface::INCOME, [], $categories, $excludedCategories);
+    public function findWithinPeriod(
+        CarbonInterface $after,
+        ?CarbonInterface $before = null,
+        ?int $limit = null,
+        bool $affectingProfitOnly = true,
+        array $categories = [],
+        array $excludedCategories = []
+    ): array {
+        $qb = $this->getBaseQueryBuilder(
+            $after,
+            $before,
+            $affectingProfitOnly,
+            TransactionInterface::INCOME,
+            [],
+            $categories,
+            $excludedCategories
+        );
 
         return $qb->getQuery()->getResult();
     }
