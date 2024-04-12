@@ -98,11 +98,9 @@ services:
             - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue, priority: 11 }
             - { name: doctrine.orm.entity_listener, event: preRemove, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue, priority: 11 }
 
-    App\EventListener\AccountLogger:
-        tags:
-            - { name: doctrine.orm.entity_listener, event: postPersist, entity: 'App\Entity\Transaction', priority: 10 }
-            - { name: doctrine.orm.entity_listener, event: postUpdate, entity: 'App\Entity\Transaction', priority: 10 }
-            - { name: doctrine.orm.entity_listener, event: postRemove, entity: 'App\Entity\Transaction', priority: 10 }
+#    App\EventListener\AccountLogger:
+#        tags:
+#            - { name: doctrine.event_listener, event: onFlush }
 
 when@test:
     services:

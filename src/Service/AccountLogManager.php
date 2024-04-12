@@ -11,6 +11,9 @@ use App\Repository\TransactionRepository;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
+/**
+ * TODO: To be rewritten
+ */
 final class AccountLogManager
 {
     public const BATCH_SIZE = 20;
@@ -36,11 +39,11 @@ final class AccountLogManager
         foreach ($logsToBeRemoved as $i => $log) {
             $this->em->remove($log);
 
-            if (($i % self::BATCH_SIZE) === 0) {
-                $this->em->flush();
-            }
+//            if (($i % self::BATCH_SIZE) === 0) {
+//                $this->em->flush();
+//            }
         }
-        $this->em->flush();
+//        $this->em->flush();
     }
 
     /**
@@ -74,12 +77,12 @@ final class AccountLogManager
                 ? $balance + $amount
                 : $balance - $amount;
 
-            if (($i % self::BATCH_SIZE) === 0) {
-                $this->em->flush();
-            }
+//            if (($i % self::BATCH_SIZE) === 0) {
+//                $this->em->flush();
+//            }
         }
 
-        $this->em->flush();
+//        $this->em->flush();
     }
 
     public function eliminateDuplicates(array $transactions): array

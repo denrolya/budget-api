@@ -4,21 +4,46 @@ namespace App\EventListener;
 
 use App\Entity\TransactionInterface;
 use App\Message\UpdateAccountLogsOnTransactionCreateMessage;
-use App\Message\UpdateAccountLogsOnTransactionUpdateMessage;
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Event\OnFlushEventArgs;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 final readonly class AccountLogger
 {
     public function __construct(
         private MessageBusInterface $bus,
-        private EntityManagerInterface $em,
     ) {
+    }
+
+    public function onFlush(OnFlushEventArgs $args): void
+    {
+        $em = $args->getObjectManager();
+        $uow = $em->getUnitOfWork();
+
+        foreach ($uow->getScheduledEntityInsertions() as $entity) {
+            if ($entity instanceof TransactionInterface) {
+                dump($entity->getAmount());
+                $this->postPersist($entity);
+            }
+        }
+
+        foreach ($uow->getScheduledEntityUpdates() as $entity) {
+            if ($entity instanceof TransactionInterface) {
+                $this->postUpdate($entity);
+            }
+        }
+
+        foreach ($uow->getScheduledEntityDeletions() as $entity) {
+            if ($entity instanceof TransactionInterface) {
+                $this->postRemove($entity);
+            }
+        }
     }
 
     public function postPersist(TransactionInterface $transaction): void
     {
-//        $this->bus->dispatch(new UpdateAccountLogsOnTransactionCreateMessage($transaction->getAccount(), $transaction->getExecutedAt()));
+        $this->bus->dispatch(
+            new UpdateAccountLogsOnTransactionCreateMessage($transaction->getAccount(), $transaction->getExecutedAt())
+        );
     }
 
     /**
