@@ -1,8 +1,7 @@
 <?php
 
-namespace App\DataPersister;
+namespace App\EventListener;
 
-use ApiPlatform\Core\DataPersister\DataPersisterInterface;
 use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
@@ -11,49 +10,49 @@ use App\Entity\IncomeCategory;
 use App\Entity\Transfer;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class TransferDataPersister implements DataPersisterInterface
+final class TransferCreateTransactionsHandler implements ToggleEnabledInterface
 {
+    use ToggleEnabledTrait;
+
     private ExpenseCategory $expenseTransferCategory;
 
     private IncomeCategory $incomeTransferCategory;
 
     private ExpenseCategory $feeExpenseCategory;
 
-    private DataPersisterInterface $decorated;
-
-    public function __construct(EntityManagerInterface $em, DataPersisterInterface $decorated)
-    {
-        $this->decorated = $decorated;
-        $this->expenseTransferCategory = $em->getRepository(ExpenseCategory::class)->findOneBy([
+    public function __construct(
+        private EntityManagerInterface $em,
+    ) {
+        $this->expenseTransferCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
         ]);
-        $this->incomeTransferCategory = $em->getRepository(IncomeCategory::class)->findOneBy([
+        $this->incomeTransferCategory = $this->em->getRepository(IncomeCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
         ]);
-        $this->feeExpenseCategory = $em->getRepository(ExpenseCategory::class)->findOneBy([
+        $this->feeExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER_FEE,
         ]);
     }
 
-    public function supports($data): bool
+    public function prePersist(Transfer $transfer): void
     {
-        return $data instanceof Transfer;
+        if (!$this->enabled) {
+            return;
+        }
+
+        $this->createTransferTransactions($transfer);
     }
 
-    /**
-     * @param Transfer $data
-     * @return object|null
-     */
-    public function persist($data): ?object
+    private function createTransferTransactions(Transfer $transfer): void
     {
-        $from = $data->getFrom();
-        $to = $data->getTo();
-        $amount = $data->getAmount();
-        $executedAt = $data->getExecutedAt();
+        $from = $transfer->getFrom();
+        $to = $transfer->getTo();
+        $amount = $transfer->getAmount();
+        $executedAt = $transfer->getExecutedAt();
 
         $fromExpense = new Expense();
         $toIncome = new Income();
-        $data->setFromExpense(
+        $transfer->setFromExpense(
             $fromExpense
                 ->setCategory($this->expenseTransferCategory)
                 ->setAccount($from)
@@ -62,35 +61,24 @@ final class TransferDataPersister implements DataPersisterInterface
                 ->setNote("Transfer Expense: $from to $to {$from->getCurrency()} $amount")
         );
 
-        $data->setToIncome(
+        $transfer->setToIncome(
             $toIncome
                 ->setCategory($this->incomeTransferCategory)
                 ->setAccount($to)
-                ->setAmount($amount * $data->getRate())
+                ->setAmount($amount * $transfer->getRate())
                 ->setExecutedAt($executedAt)
                 ->setNote("Transfer Income: $from to $to {$from->getCurrency()} $amount")
         );
 
-        if($data->getFee() > 0) {
+        if ($transfer->getFee() > 0) {
             $feeExpense = (new Expense())
                 ->setCategory($this->feeExpenseCategory)
-                ->setAccount($data->getFeeAccount())
-                ->setAmount($data->getFee())
+                ->setAccount($transfer->getFeeAccount())
+                ->setAmount($transfer->getFee())
                 ->setNote("Transfer Fee: $from to $to {$from->getCurrency()} $amount")
                 ->setExecutedAt($executedAt);
 
-            $data->setFeeExpense($feeExpense);
+            $transfer->setFeeExpense($feeExpense);
         }
-
-        return $this->decorated->persist($data);
-    }
-
-    /**
-     * @param Transfer $data
-     * @return void
-     */
-    public function remove($data): void
-    {
-        $this->decorated->remove($data);
     }
 }

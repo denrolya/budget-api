@@ -14,6 +14,7 @@ use App\Traits\TimestampableEntity;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * @ORM\HasLifecycleCallbacks()
@@ -75,22 +76,24 @@ class Transfer implements OwnableInterface
      * @ORM\OneToOne(targetEntity="Expense", cascade={"persist", "remove"}, orphanRemoval=true)
      * @ORM\JoinColumn(name="expense_id", referencedColumnName="id", onDelete="CASCADE")
      */
-    private ?Expense $fromExpense;
+    private ?Expense $fromExpense = null;
 
     /**
      * @ORM\OneToOne(targetEntity="Income", cascade={"persist", "remove"}, orphanRemoval=true)
      * @ORM\JoinColumn(name="income_id", referencedColumnName="id", onDelete="CASCADE")
      */
-    private ?Income $toIncome;
+    private ?Income $toIncome = null;
 
     /**
      * @ORM\Column(type="decimal", precision=50, scale=30)
-     */
+     * @Assert\Type("numeric")
+     * */
     #[Groups(['account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transfer:write'])]
     private float $amount;
 
     /**
      * @ORM\Column(type="decimal", precision=50, scale=30, nullable=false)
+     * @Assert\Type("numeric")
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private float $rate = 0;

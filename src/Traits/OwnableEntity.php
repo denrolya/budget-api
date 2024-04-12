@@ -11,12 +11,11 @@ trait OwnableEntity
 {
     /**
      * @Gedmo\Blameable(on="create")
-     * @Gedmo\Blameable(on="update")
      *
      * @ORM\ManyToOne(targetEntity=User::class)
      * @ORM\JoinColumn(name="owner_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
      */
-    protected ?UserInterface $owner;
+    protected ?UserInterface $owner = null;
 
     public function getOwner(): ?UserInterface
     {

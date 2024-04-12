@@ -3,36 +3,19 @@
 namespace App\Tests\Feature;
 
 use App\Entity\Account;
-use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
-use App\Service\FixerService;
+use App\Tests\BaseApiTest;
 use Carbon\Carbon;
-use Carbon\CarbonInterface;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Exception\ORMException;
-use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
  * @group smoke
  */
-final class ExpenseCRUDTest extends KernelTestCase
+final class ExpenseCRUDTest extends BaseApiTest
 {
     private const ACCOUNT_MONO_UAH_ID = 10;
     private const ACCOUNT_CASH_EUR_ID = 2;
     private const CATEGORY_GROCERIES = 'Groceries';
-
-    private const EXCHANGE_RATES = [
-        'USD' => 1.2,
-        'EUR' => 1.0,
-        'HUF' => 300.0,
-        'UAH' => 30.0,
-        'BTC' => 0.0001,
-    ];
-
-    private ?EntityManagerInterface $em;
-
-    private $mockFixerService;
 
     private Account $testAccount;
 
@@ -40,26 +23,12 @@ final class ExpenseCRUDTest extends KernelTestCase
 
     protected function setUp(): void
     {
-        $kernel = self::bootKernel();
-
-        $this->em = $kernel->getContainer()->get('doctrine')->getManager();
-        $this->createFixerServiceMock();
+        parent::setUp();
 
         $this->testAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_MONO_UAH_ID);
         $this->testCategory = $this->em->getRepository(ExpenseCategory::class)->findOneByName(self::CATEGORY_GROCERIES);
     }
 
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-
-        $this->em->close();
-        $this->em = null;
-    }
-
-    /**
-     * @throws ORMException
-     */
     public function testCreateExpenseUpdatesAccountAndCategory(): void
     {
         $executionDate = Carbon::now()->startOfDay();
@@ -87,7 +56,7 @@ final class ExpenseCRUDTest extends KernelTestCase
 
     public function testCreateExpenseSavedWithConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(2))->method('convert');
+        $this->mockFixerService->expects(self::exactly(1))->method('convert');
 
         $transaction = $this->createExpense(
             amount: 100,
@@ -113,7 +82,7 @@ final class ExpenseCRUDTest extends KernelTestCase
 
     public function testUpdateExpenseAmountUpdatesAccountAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        $this->mockFixerService->expects(self::exactly(2))->method('convert');
 
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals(5516, $this->testAccount->getTransactionsCount());
@@ -161,7 +130,7 @@ final class ExpenseCRUDTest extends KernelTestCase
 
     public function testUpdateExpenseAccountUpdatesAccountsBalancesAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        $this->mockFixerService->expects(self::exactly(2))->method('convert');
 
         $endAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_CASH_EUR_ID);
 
@@ -201,9 +170,51 @@ final class ExpenseCRUDTest extends KernelTestCase
         self::assertEqualsWithDelta(5329.94, $endAccount->getBalance(), 0.01);
     }
 
-    public function testUpdateExpenseExecutedAtDoesNotChangeAccountBalanceAndConvertedValues(): void
+    public function testUpdateExpenseAccountAndAmountUpdatesAccountBalancesAndConvertedValues(): void
     {
         $this->mockFixerService->expects(self::exactly(2))->method('convert');
+
+        $endAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_CASH_EUR_ID);
+
+        self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(5516, $this->testAccount->getTransactionsCount());
+        self::assertEqualsWithDelta(5429.94, $endAccount->getBalance(), 0.01);
+        self::assertEquals(552, $endAccount->getTransactionsCount());
+
+        $transaction = $this->createExpense(
+            amount: 100,
+            account: $this->testAccount,
+            category: $this->testCategory,
+            executedAt: Carbon::now(),
+            note: 'Test transaction'
+        );
+
+        $this->em->persist($transaction);
+        $this->em->flush();
+        $this->em->refresh($this->testAccount);
+
+        self::assertEquals(5517, $this->testAccount->getTransactionsCount());
+        self::assertEquals(100, $transaction->getConvertedValue($this->testAccount->getCurrency()));
+        self::assertEquals(4, $transaction->getConvertedValue('USD'));
+
+        $transaction->setAccount($endAccount)->setAmount(50);
+        $this->em->flush();
+        $this->em->refresh($this->testAccount);
+        $this->em->refresh($endAccount);
+
+        self::assertEquals(50, $transaction->getConvertedValue($endAccount->getCurrency()));
+        self::assertEquals(1500, $transaction->getConvertedValue('UAH'));
+        self::assertEquals(60, $transaction->getConvertedValue('USD'));
+
+        self::assertEquals(5516, $this->testAccount->getTransactionsCount());
+        self::assertEquals(553, $endAccount->getTransactionsCount());
+        self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEqualsWithDelta(5379.94, $endAccount->getBalance(), 0.01);
+    }
+
+    public function testUpdateExpenseExecutedAtDoesNotChangeAccountBalanceAndConvertedValues(): void
+    {
+        $this->mockFixerService->expects(self::exactly(1))->method('convert');
 
         $executionDate = Carbon::now();
 
@@ -306,26 +317,5 @@ final class ExpenseCRUDTest extends KernelTestCase
             ->setNote($note);
 
         return $expense;
-    }
-
-    private function createFixerServiceMock(): void
-    {
-        $mockFixerService = $this->createMock(FixerService::class);
-
-        $mockFixerService
-            ->method('convert')
-            ->willReturnCallback(
-                static function (float $amount, string $fromCurrency, ?CarbonInterface $executionDate = null) {
-                    $convertedValues = [];
-                    foreach (self::EXCHANGE_RATES as $currency => $rate) {
-                        $convertedValues[$currency] = $amount / self::EXCHANGE_RATES[$fromCurrency] * $rate;
-                    }
-
-                    return $convertedValues;
-                }
-            );
-
-        self::getContainer()->set(FixerService::class, $mockFixerService);
-        $this->mockFixerService = $mockFixerService;
     }
 }

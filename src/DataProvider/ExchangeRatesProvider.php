@@ -11,8 +11,9 @@ use Psr\Cache\InvalidArgumentException;
 
 final class ExchangeRatesProvider implements DenormalizedIdentifiersAwareItemDataProviderInterface, RestrictedDataProviderInterface
 {
-    public function __construct(private FixerService $fixer)
-    {
+    public function __construct(
+        private FixerService $fixer
+    ) {
     }
 
     /**

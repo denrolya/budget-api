@@ -17,7 +17,7 @@ trait ExecutableEntity
     public function getExecutedAt(): CarbonInterface|DateTimeInterface
     {
         if($this->executedAt instanceof DateTimeInterface) {
-            return new CarbonImmutable($this->executedAt->getTimestamp(), $this->executedAt->getTimezone());
+            return CarbonImmutable::createFromTimestamp($this->executedAt->getTimestamp(), $this->executedAt->getTimezone());
         }
 
         return $this->executedAt;

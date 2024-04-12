@@ -17,7 +17,7 @@ trait OwnableValuableEntity
      * @ORM\ManyToOne(targetEntity=User::class)
      * @ORM\JoinColumn(name="owner_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
      */
-    protected ?UserInterface $owner;
+    protected ?UserInterface $owner = null;
 
     /**
      * @ORM\Column(type="json", nullable=false)

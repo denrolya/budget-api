@@ -2,53 +2,48 @@
 
 namespace App\EventListener;
 
-use App\Entity\TransactionInterface;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\Account;
+use App\Entity\Transaction;
+use Doctrine\ORM\Event\OnFlushEventArgs;
 
 final class UpdateAccountBalanceOnTransactionEditHandler implements ToggleEnabledInterface
 {
     use ToggleEnabledTrait;
 
-    private EntityManagerInterface $em;
-
-    public function __construct(EntityManagerInterface $em)
+    public function onFlush(OnFlushEventArgs $args): void
     {
-        $this->em = $em;
-    }
+        $em = $args->getObjectManager();
+        $uow = $em->getUnitOfWork();
 
-    public function postUpdate(TransactionInterface $transaction): void
-    {
-        if (!$this->enabled) {
-            return;
-        }
+        foreach ($uow->getScheduledEntityUpdates() as $entity) {
+            if ($entity instanceof Transaction) {
+                $changeSet = $uow->getEntityChangeSet($entity);
 
-        $uow = $this->em->getUnitOfWork();
-        $uow->computeChangeSets();
+                $isAccountChanged = !empty($changeSet['account']);
+                $isAmountChanged = !empty($changeSet['amount']) && ((float)$changeSet['amount'][0] !== (float)$changeSet['amount'][1]);
 
-        $changes = $uow->getEntityChangeSet($transaction);
+                if ($isAccountChanged) {
+                    [$oldAccount, $newAccount] = $changeSet['account'];
 
-        $isAccountChanged = !empty($changes['account']);
-        $isAmountChanged = !empty($changes['amount']) && ((float)$changes['amount'][0] !== (float)$changes['amount'][1]);
+                    if ($isAmountChanged) {
+                        [$oldAmount, $newAmount] = $changeSet['amount'];
+                        $oldAccount->updateBalanceBy($entity->isExpense() ? $oldAmount : -$oldAmount);
+                        $newAccount->updateBalanceBy($entity->isIncome() ? $newAmount : -$newAmount);
+                    } else {
+                        $amount = $entity->getAmount();
+                        $oldAccount->updateBalanceBy($entity->isExpense() ? $amount : -$amount);
+                        $newAccount->updateBalanceBy($entity->isIncome() ? $amount : -$amount);
+                    }
 
-        if (!$isAccountChanged && !$isAmountChanged) {
-            return;
-        }
-
-        $amount = $transaction->getAmount();
-        $oldAmount = $changes['amount'][0] ?? null;
-        $newAmount = $changes['amount'][1] ?? null;
-        $oldAccount = $changes['account'][0] ?? null;
-        $newAccount = $changes['account'][1] ?? null;
-
-        if ($isAccountChanged) {
-            $oldAccount->updateBalanceBy($transaction->isExpense() ? $amount : -$amount);
-            $newAccount->updateBalanceBy($transaction->isIncome() ? $amount : -$amount);
-        }
-
-        if ($isAmountChanged) {
-            $account = $transaction->getAccount();
-            $difference = $oldAmount - $newAmount;
-            $account->updateBalanceBy($transaction->isExpense() ? $difference : -$difference);
+                    $uow->recomputeSingleEntityChangeSet($em->getClassMetadata(Account::class), $oldAccount);
+                    $uow->recomputeSingleEntityChangeSet($em->getClassMetadata(Account::class), $newAccount);
+                } elseif ($isAmountChanged) {
+                    [$oldAmount, $newAmount] = $changeSet['amount'];
+                    $difference = $oldAmount - $newAmount;
+                    $entity->getAccount()->updateBalanceBy($entity->isExpense() ? $difference : -$difference);
+                    $uow->recomputeSingleEntityChangeSet($em->getClassMetadata(Account::class), $entity->getAccount());
+                }
+            }
         }
     }
 }
