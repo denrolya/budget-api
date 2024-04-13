@@ -45,19 +45,20 @@ class CarbonIntervalParamConverter implements ParamConverterInterface
 
     private function createInterval($value, array $options, Request $request): CarbonInterval
     {
-        $value = is_numeric($value) ? (int)$value : (bool)$value;
-
-        switch ($value) {
-            case false:
-                return $request->attributes->get('before')->diffAsCarbonInterval($request->attributes->get('after'));
-            case true:
-                $milliseconds = ($request->attributes->get('before')->timestamp - $request->attributes->get('after')->timestamp) / .06;
-                return CarbonInterval::milliseconds($milliseconds);
-            case '' && $options['default']:
-                return CarbonInterval::createFromDateString($options['default']);
-            default:
-                return CarbonInterval::createFromDateString($value);
+        if($value === 'false' || $value === false || $value === '0' || $value === 0 || (!$value && !array_key_exists('default', $options))) {
+            return $request->attributes->get('before')->diffAsCarbonInterval($request->attributes->get('after'));
         }
+
+        if($value === 'true' || $value === true || $value === '1' || $value === 1) {
+            $milliseconds = ($request->attributes->get('before')->timestamp - $request->attributes->get('after')->timestamp) / .06;
+            return CarbonInterval::milliseconds($milliseconds);
+        }
+
+        if($value === '' && $options['default']) {
+            return CarbonInterval::createFromDateString($options['default']);
+        }
+
+        return CarbonInterval::createFromDateString($value);
     }
 
     /**

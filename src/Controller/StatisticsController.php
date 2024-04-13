@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Expense;
 use App\Entity\Income;
+use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Repository\CategoryRepository;
 use App\Repository\TransactionRepository;
@@ -12,6 +13,7 @@ use App\Traits\SoftDeletableTogglerController;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
@@ -34,9 +36,10 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', default: [], description: 'Filter by categories', nullable: false, allowBlank: false)]
     #[Route('/value-by-period', name: 'value_by_period', methods: ['get'])]
-    public function value(TransactionRepository $transactionRepo, CategoryRepository $categoryRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
+    public function value(EntityManagerInterface $em, CategoryRepository $categoryRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
     {
-        $transactions = $transactionRepo
+        dump($interval, $after, $before);
+        $transactions = $em->getRepository(Transaction::class)
             ->getList(
                 after: $after,
                 before: $before,
