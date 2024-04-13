@@ -17,7 +17,6 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Carbon\CarbonPeriod;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\QueryBuilder;
 use JetBrains\PhpStorm\ArrayShape;
 
 final class StatisticsManager
@@ -40,33 +39,36 @@ final class StatisticsManager
     /**
      * Generates transactions statistics grouped by types. With given interval also grouped by date interval
      */
-    public function calculateTransactionsValueByPeriod(QueryBuilder $transactionsQuery, CarbonPeriod $period): array
-    {
+    public function calculateTransactionsValueByPeriod(
+        CarbonPeriod $period,
+        ?string $type = null,
+        ?array $categories = [],
+        ?array $accounts = [],
+    ): array {
         $result = [];
         $dates = $period->toArray();
 
         foreach ($dates as $index => $after) {
             $before = $index === count($dates) - 1 ? $period->getEndDate() : $dates[$index + 1]->copy()->subSecond();
 
-            $expenses = $transactionsQuery
-                ->andWhere('t INSTANCE OF :type')
-                ->andWhere('t.executedAt >= :after')
-                ->andWhere('t.executedAt <= :before')
-                ->setParameter('type', $this->em->getClassMetadata(Expense::class))
-                ->setParameter('after', $after)
-                ->setParameter('before', $before)
-                ->getQuery()
-                ->getResult();
+            $transactions = $this->transactionRepo->getList(
+                after: $after,
+                before: $before,
+                type: $type,
+                categories: $categories,
+                accounts: $accounts
+            );
 
-            $incomes = $transactionsQuery
-                ->andWhere('t INSTANCE OF :type')
-                ->andWhere('t.executedAt >= :after')
-                ->andWhere('t.executedAt <= :before')
-                ->setParameter('type', $this->em->getClassMetadata(Income::class))
-                ->setParameter('after', $after)
-                ->setParameter('before', $before)
-                ->getQuery()
-                ->getResult();
+            $expenses = [];
+            $incomes = [];
+
+            foreach ($transactions as $transaction) {
+                if ($transaction->getType() === TransactionInterface::EXPENSE) {
+                    $expenses[] = $transaction;
+                } elseif ($transaction->getType() === TransactionInterface::INCOME) {
+                    $incomes[] = $transaction;
+                }
+            }
 
             $result[] = [
                 'after' => $after->timestamp,

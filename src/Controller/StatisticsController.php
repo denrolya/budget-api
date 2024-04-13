@@ -38,17 +38,12 @@ class StatisticsController extends AbstractFOSRestController
     #[Route('/value-by-period', name: 'value_by_period', methods: ['get'])]
     public function value(EntityManagerInterface $em, CategoryRepository $categoryRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
     {
-        $transactionsQuery = $em->getRepository(Transaction::class)
-            ->getListQueryBuilder(
-                type: $type,
-                categories: !empty($categories) ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type) : $categories,
-                accounts: $accounts,
-            );
-
         return $this->view(
             $statisticsManager->calculateTransactionsValueByPeriod(
-                $transactionsQuery,
-                CarbonPeriod:: create($after, $interval, $before)->excludeEndDate()
+                period: CarbonPeriod:: create($after, $interval, $before)->excludeEndDate(),
+                type: $type,
+                categories: !empty($categories) ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type) : $categories,
+                accounts: $accounts
             )
         );
     }
