@@ -58,4 +58,14 @@ class BaseApiTest extends ApiTestCase
         return $this->authToken;
     }
 
+    protected function buildURL(string $path, array $queryParams): string
+    {
+        $url = $path;
+        if (!empty($queryParams)) {
+            $url .= '?'.http_build_query($queryParams);
+        }
+
+        return $url;
+    }
+
 }

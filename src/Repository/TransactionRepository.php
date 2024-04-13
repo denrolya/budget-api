@@ -77,6 +77,34 @@ class TransactionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    public function getListQueryBuilder(
+        ?CarbonInterface $after = null,
+        ?CarbonInterface $before = null,
+        ?string $type = null,
+        ?array $categories = [],
+        ?array $accounts = [],
+        ?array $excludedCategories = [],
+        bool $affectingProfitOnly = true,
+        bool $onlyDrafts = false,
+        string $orderField = self::ORDER_FIELD,
+        string $order = self::ORDER
+    ): QueryBuilder {
+        return $this
+            ->getBaseQueryBuilder(
+                $after,
+                $before,
+                $affectingProfitOnly,
+                $type,
+                $categories,
+                $accounts,
+                $excludedCategories,
+                $onlyDrafts,
+                $orderField,
+                $order
+            );
+    }
+
+
     /**
      * @param CarbonInterface|null $after
      * @param CarbonInterface|null $before

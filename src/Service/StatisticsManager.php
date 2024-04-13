@@ -17,6 +17,7 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Carbon\CarbonPeriod;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use JetBrains\PhpStorm\ArrayShape;
 
 final class StatisticsManager
@@ -28,54 +29,50 @@ final class StatisticsManager
     private ExpenseCategoryRepository $expenseCategoryRepo;
 
     public function __construct(
-        private AssetsManager          $assetsManager,
+        private AssetsManager $assetsManager,
         private EntityManagerInterface $em,
-    )
-    {
+    ) {
         $this->expenseRepo = $this->em->getRepository(Expense::class);
         $this->transactionRepo = $this->em->getRepository(Transaction::class);
         $this->expenseCategoryRepo = $this->em->getRepository(ExpenseCategory::class);
     }
 
     /**
-     * OPTIMIZED BY CHATPGT
      * Generates transactions statistics grouped by types. With given interval also grouped by date interval
      */
-    public function calculateTransactionsValueByPeriod(array $transactions, CarbonPeriod $period): array
+    public function calculateTransactionsValueByPeriod(QueryBuilder $transactionsQuery, CarbonPeriod $period): array
     {
         $result = [];
         $dates = $period->toArray();
 
-        $expenses = array_filter($transactions, static function (TransactionInterface $t) {
-            return $t->isExpense();
-        });
-
-        $incomes = array_filter($transactions, static function (TransactionInterface $t) {
-            return $t->isIncome();
-        });
-
         foreach ($dates as $index => $after) {
-            $before = $index === count($dates) - 1 ? $period->getEndDate() : $dates[$index + 1];
+            $before = $index === count($dates) - 1 ? $period->getEndDate() : $dates[$index + 1]->copy()->subSecond();
 
-            if ($after->equalTo($before)) {
-                continue;
-            }
+            $expenses = $transactionsQuery
+                ->andWhere('t INSTANCE OF :type')
+                ->andWhere('t.executedAt >= :after')
+                ->andWhere('t.executedAt <= :before')
+                ->setParameter('type', $this->em->getClassMetadata(Expense::class))
+                ->setParameter('after', $after)
+                ->setParameter('before', $before)
+                ->getQuery()
+                ->getResult();
+
+            $incomes = $transactionsQuery
+                ->andWhere('t INSTANCE OF :type')
+                ->andWhere('t.executedAt >= :after')
+                ->andWhere('t.executedAt <= :before')
+                ->setParameter('type', $this->em->getClassMetadata(Income::class))
+                ->setParameter('after', $after)
+                ->setParameter('before', $before)
+                ->getQuery()
+                ->getResult();
 
             $result[] = [
                 'after' => $after->timestamp,
                 'before' => $before->timestamp,
-                'expense' => $this->assetsManager->sumTransactions(
-                    array_filter($expenses, static function (TransactionInterface $t) use ($after, $before) {
-                        $transactionDate = $t->getExecutedAt();
-                        return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
-                    })
-                ),
-                'income' => $this->assetsManager->sumTransactions(
-                    array_filter($incomes, static function (TransactionInterface $t) use ($after, $before) {
-                        $transactionDate = $t->getExecutedAt();
-                        return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
-                    })
-                ),
+                'expense' => $this->assetsManager->sumTransactions($expenses),
+                'income' => $this->assetsManager->sumTransactions($incomes),
             ];
         }
 
@@ -124,10 +121,10 @@ final class StatisticsManager
         ];
 
         $dates = $period->toArray();
-        foreach($dates as $key => $after) {
+        foreach ($dates as $key => $after) {
             $before = next($dates);
 
-            if($before === false) {
+            if ($before === false) {
                 $before = $period->getEndDate();
             }
 
@@ -142,19 +139,19 @@ final class StatisticsManager
                 )
             );
 
-            if($key === 0) {
+            if ($key === 0) {
                 $result['min']['value'] = $sum;
                 $result['min']['when'] = $after->copy()->toDateString();
                 $result['max']['value'] = $sum;
                 $result['max']['when'] = $after->copy()->toDateString();
             }
 
-            if($sum < $result['min']['value']) {
+            if ($sum < $result['min']['value']) {
                 $result['min']['value'] = $sum;
                 $result['min']['when'] = $after->copy()->toDateString();
             }
 
-            if($sum > $result['max']['value']) {
+            if ($sum > $result['max']['value']) {
                 $result['max']['value'] = $sum;
                 $result['max']['when'] = $after->copy()->toDateString();
             }
@@ -209,9 +206,12 @@ final class StatisticsManager
     /**
      * Sums categories' transactions and groups them by timeframe within given period
      */
-    public function generateCategoriesOnTimelineStatistics(CarbonPeriod $period, ?array $categories, array $transactions): ?array
-    {
-        if(empty($categories)) {
+    public function generateCategoriesOnTimelineStatistics(
+        CarbonPeriod $period,
+        ?array $categories,
+        array $transactions
+    ): ?array {
+        if (empty($categories)) {
             return null;
         }
 
@@ -219,8 +219,8 @@ final class StatisticsManager
         $start = $period->getStartDate();
         $end = $period->getEndDate();
 
-        foreach($categories as $categoryId) {
-            if(!$category = $this->em->getRepository(Category::class)->find($categoryId)) {
+        foreach ($categories as $categoryId) {
+            if (!$category = $this->em->getRepository(Category::class)->find($categoryId)) {
                 continue;
             }
 
@@ -229,7 +229,8 @@ final class StatisticsManager
             $categoryTransactionsWithinPeriod = array_filter(
                 $transactions,
                 static function (TransactionInterface $transaction) use ($category, $start, $end) {
-                    return $transaction->getCategory()->isChildOf($category) && $transaction->getExecutedAt()->isBetween($start, $end);
+                    return $transaction->getCategory()->isChildOf($category) && $transaction->getExecutedAt(
+                        )->isBetween($start, $end);
                 }
             );
 
@@ -255,7 +256,7 @@ final class StatisticsManager
         $max = 0;
         $result = null;
 
-        foreach($rootCategories as $category) {
+        foreach ($rootCategories as $category) {
             $value = abs(
                 $this->assetsManager->sumTransactions(
                     array_filter(
@@ -267,7 +268,7 @@ final class StatisticsManager
                 )
             );
 
-            if($value > $max) {
+            if ($value > $max) {
                 $max = $value;
                 $result = [
                     'icon' => $category->getIcon(),
@@ -291,7 +292,7 @@ final class StatisticsManager
             ExpenseCategory::CATEGORY_UTILITIES_ELECTRICITY,
         ];
 
-        foreach($categories as $categoryName) {
+        foreach ($categories as $categoryName) {
             /** @var ExpenseCategory $category */
             $category = $this->expenseCategoryRepo->findOneBy(['name' => $categoryName]);
             $data = [
@@ -301,17 +302,18 @@ final class StatisticsManager
                 'values' => [],
             ];
 
-            foreach($dates as $after) {
+            foreach ($dates as $after) {
                 $before = next($dates);
 
-                if($before !== false) {
+                if ($before !== false) {
                     $data['values'][] = $this->assetsManager->sumTransactions(
                         array_filter(
                             $transactions,
                             static function (TransactionInterface $transaction) use ($after, $before, $category) {
                                 $transactionDate = $transaction->getExecutedAt();
 
-                                return $transactionDate->isBetween($after, $before) && $transaction->getCategory()->isChildOf($category);
+                                return $transactionDate->isBetween($after, $before) && $transaction->getCategory(
+                                    )->isChildOf($category);
                             }
                         )
                     );
@@ -333,13 +335,17 @@ final class StatisticsManager
         $rootCategories = $this->em->getRepository(ExpenseCategory::class)->findRootCategories(['name' => 'ASC']);
 
         foreach ($rootCategories as $category) {
-            $categoryTransactions = array_filter($transactionsOrdered, static fn(TransactionInterface $transaction) => $transaction->getCategory()->isChildOf($category));
+            $categoryTransactions = array_filter(
+                $transactionsOrdered,
+                static fn(TransactionInterface $transaction) => $transaction->getCategory()->isChildOf($category)
+            );
 
             foreach ($categoryTransactions as $transaction) {
                 $weekday = $transaction->getExecutedAt()->dayOfWeekIso - 1;
                 $categoryName = $category->getName();
 
-                $result[$weekday]['values'][$categoryName] = ($result[$weekday]['values'][$categoryName] ?? 0) + $transaction->getValue();
+                $result[$weekday]['values'][$categoryName] = ($result[$weekday]['values'][$categoryName] ?? 0) + $transaction->getValue(
+                    );
             }
         }
 
@@ -412,7 +418,8 @@ final class StatisticsManager
                     $transactionDate = $transaction->getExecutedAt();
 
                     return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
-                });
+                }
+            );
 
             $result[] = [
                 'date' => $after->timestamp,
@@ -440,11 +447,14 @@ final class StatisticsManager
                     $transactionDate = $transaction->getExecutedAt();
 
                     return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
-                });
+                }
+            );
 
             $result[] = [
                 'date' => $after->timestamp,
-                'value' => count($transactionsWithinPeriod) !== 0 ? $this->assetsManager->sumTransactions($transactionsWithinPeriod) / count($transactionsWithinPeriod) : 0,
+                'value' => count($transactionsWithinPeriod) !== 0 ? $this->assetsManager->sumTransactions(
+                        $transactionsWithinPeriod
+                    ) / count($transactionsWithinPeriod) : 0,
             ];
         }
 
@@ -473,10 +483,10 @@ final class StatisticsManager
      */
     private function updateValueInCategoryTree(array &$haystack, string $needle, float $value): void
     {
-        foreach($haystack as &$child) {
-            if($child['name'] === $needle) {
+        foreach ($haystack as &$child) {
+            if ($child['name'] === $needle) {
                 $child['value'] = isset($child['value']) ? $child['value'] + $value : $value;
-            } elseif(!empty($child['children'])) {
+            } elseif (!empty($child['children'])) {
                 $this->updateValueInCategoryTree($child['children'], $needle, $value);
             }
         }
@@ -485,9 +495,9 @@ final class StatisticsManager
     private function getRootCategories(?string $type): array
     {
         $categoryClass = Category::class;
-        if($type === Category::EXPENSE_CATEGORY_TYPE) {
+        if ($type === Category::EXPENSE_CATEGORY_TYPE) {
             $categoryClass = ExpenseCategory::class;
-        } elseif($type === Category::INCOME_CATEGORY_TYPE) {
+        } elseif ($type === Category::INCOME_CATEGORY_TYPE) {
             $categoryClass = IncomeCategory::class;
         }
 
@@ -497,7 +507,9 @@ final class StatisticsManager
     private function countWeekdays(CarbonInterface $after, CarbonInterface $before, int $weekday): int
     {
         if ($weekday < 0 || $weekday > 6) {
-            throw new \InvalidArgumentException('Invalid weekday. Please provide a value between 0 and 6 (Sunday to Saturday).');
+            throw new \InvalidArgumentException(
+                'Invalid weekday. Please provide a value between 0 and 6 (Sunday to Saturday).'
+            );
         }
 
         $count = 0;
