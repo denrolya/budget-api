@@ -6,7 +6,6 @@ use App\Entity\Account;
 use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
-use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
@@ -81,8 +80,11 @@ final class StatisticsManager
         return $result;
     }
 
-    public function generateCategoryTreeWithValues(?array $categories, array $transactions, ?string $type = null): array
-    {
+    public function generateCategoryTreeWithValues(
+        array $transactions,
+        string $type = null,
+        array $categories = []
+    ): array {
         $categories = $categories ?: $this->getRootCategories($type);
 
         foreach ($categories as $category) {
@@ -101,7 +103,11 @@ final class StatisticsManager
             $category->setTotal($this->assetsManager->sumTransactions($nestedTransactions));
 
             if (!empty($nestedTransactions) && $category->hasChildren()) {
-                $this->generateCategoryTreeWithValues($category->getChildren()->toArray(), $nestedTransactions);
+                $this->generateCategoryTreeWithValues(
+                    transactions: $nestedTransactions,
+                    type: $type,
+                    categories: $category->getChildren()->toArray()
+                );
             }
         }
 

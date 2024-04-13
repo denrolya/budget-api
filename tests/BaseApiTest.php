@@ -7,10 +7,11 @@ use ApiPlatform\Symfony\Bundle\Test\Client;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
+use Spatie\Snapshots\MatchesSnapshots;
 
 class BaseApiTest extends ApiTestCase
 {
-    use WithMockFixerTrait;
+    use WithMockFixerTrait, MatchesSnapshots;
 
     protected const TEST_USERNAME = 'drolya';
 

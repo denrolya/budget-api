@@ -22,30 +22,33 @@ class CarbonParamConverter implements ParamConverterInterface
     {
         $param = $configuration->getName();
 
-        if(!$request->attributes->has($param)) {
+        if (!$request->attributes->has($param)) {
             return false;
         }
 
         $options = $configuration->getOptions();
         $value = $request->attributes->get($param);
 
-        if(!$value && !array_key_exists('default', $options)) {
+        if (!$value && !array_key_exists('default', $options)) {
             return false;
         }
 
         $invalidDateMessage = 'Invalid date given.';
 
         try {
-            if(!$value && array_key_exists('default', $options)) {
-                $date = (new CarbonImmutable($options['default']))->startOfDay();
-            } elseif($value) {
+            if (!$value && array_key_exists('default', $options)) {
+                $date = CarbonImmutable::parse(($options['default']))->startOfDay();
+            } else {
                 $date = isset($options['format'])
                     ? CarbonImmutable::createFromFormat($options['format'], $value)
-                    : new CarbonImmutable($value);
+                    : CarbonImmutable::parse($value);
 
-                if($param === 'from' || $param === 'after') {
+                $startOfDayParams = ['from', 'after'];
+                $endOfDayParams = ['to', 'before'];
+
+                if (in_array($param, $startOfDayParams)) {
                     $date = $date->startOfDay();
-                } elseif($param === 'to' || $param === 'before') {
+                } elseif (in_array($param, $endOfDayParams)) {
                     $date = $date->endOfDay();
                 }
             }
@@ -66,7 +69,7 @@ class CarbonParamConverter implements ParamConverterInterface
      */
     public function supports(ParamConverter $configuration): bool
     {
-        if(null === $configuration->getClass()) {
+        if (null === $configuration->getClass()) {
             return false;
         }
 

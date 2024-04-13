@@ -62,16 +62,16 @@ class TransactionRepository extends ServiceEntityRepository
     ): Collection|array {
         return $this
             ->getBaseQueryBuilder(
-                $after,
-                $before,
-                $affectingProfitOnly,
-                $type,
-                $categories,
-                $accounts,
-                $excludedCategories,
-                $onlyDrafts,
-                $orderField,
-                $order
+                after: $after,
+                before: $before,
+                affectingProfitOnly: $affectingProfitOnly,
+                type: $type,
+                categories: $categories,
+                accounts: $accounts,
+                excludedCategories: $excludedCategories,
+                onlyDrafts: $onlyDrafts,
+                orderField: $orderField,
+                order: $order
             )
             ->getQuery()
             ->getResult();

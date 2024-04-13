@@ -2,16 +2,16 @@
 
 namespace App\Request\ParamConverter;
 
-use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
-use Exception;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 use Sensio\Bundle\FrameworkExtraBundle\Request\ParamConverter\ParamConverterInterface;
+use Symfony\Component\HttpFoundation\Exception\BadRequestException;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class CarbonIntervalParamConverter implements ParamConverterInterface
 {
+    private const INVALID_INTERVAL_MESSAGE = 'Invalid interval given.';
+
     /**
      * @{inheritdoc}
      *
@@ -23,19 +23,18 @@ class CarbonIntervalParamConverter implements ParamConverterInterface
     {
         $param = $configuration->getName();
 
-        if(!$request->attributes->has($param) || (!($request->attributes->has('before') && $request->attributes->has('after')))) {
-            return false;
+        if (!$request->attributes->has($param)
+            || !$request->attributes->has('before')
+            || !$request->attributes->has('after')
+        ) {
+            throw new BadRequestException(self::INVALID_INTERVAL_MESSAGE);
         }
 
         $options = $configuration->getOptions();
         $value = $request->attributes->get($param);
 
-        $invalidIntervalMessage = 'Invalid interval given.';
-
-        try {
-            $interval = $this->createInterval($value, $options, $request);
-        } catch (Exception $e) {
-            throw new NotFoundHttpException($invalidIntervalMessage);
+        if (!$interval = $this->createInterval($value, $options, $request)) {
+            throw new BadRequestException(self::INVALID_INTERVAL_MESSAGE);
         }
 
         $request->attributes->set($param, $interval);
@@ -43,22 +42,27 @@ class CarbonIntervalParamConverter implements ParamConverterInterface
         return true;
     }
 
-    private function createInterval($value, array $options, Request $request): CarbonInterval
+    private function createInterval($value, array $options, Request $request): CarbonInterval|bool
     {
-        if($value === 'false' || $value === false || $value === '0' || $value === 0 || (!$value && !array_key_exists('default', $options))) {
-            return $request->attributes->get('before')->diffAsCarbonInterval($request->attributes->get('after'));
+        $default = $options['default'] ?? null;
+        $interval = CarbonInterval::createFromDateString($value);
+
+        if ($value === 'false' || $value === false || $value === '0' || $value === 0 || (!$value && !$default)) {
+            $interval = $request->attributes->get('before')->diffAsCarbonInterval($request->attributes->get('after'));
         }
 
-        if($value === 'true' || $value === true || $value === '1' || $value === 1) {
-            $milliseconds = ($request->attributes->get('before')->timestamp - $request->attributes->get('after')->timestamp) / .06;
-            return CarbonInterval::milliseconds($milliseconds);
+        if ($value === 'true' || $value === true || $value === '1' || $value === 1) {
+            $beforeTimestamp = $request->attributes->get('before')->timestamp;
+            $afterTimestamp = $request->attributes->get('after')->timestamp;
+            $milliseconds = ($beforeTimestamp - $afterTimestamp) / .06;
+            $interval = CarbonInterval::milliseconds($milliseconds);
         }
 
-        if($value === '' && $options['default']) {
-            return CarbonInterval::createFromDateString($options['default']);
+        if ($value === '' && $default) {
+            $interval = CarbonInterval::createFromDateString($options['default']);
         }
 
-        return CarbonInterval::createFromDateString($value);
+        return $interval;
     }
 
     /**
@@ -69,7 +73,7 @@ class CarbonIntervalParamConverter implements ParamConverterInterface
      */
     public function supports(ParamConverter $configuration): bool
     {
-        if(null === $configuration->getClass()) {
+        if (null === $configuration->getClass()) {
             return false;
         }
 

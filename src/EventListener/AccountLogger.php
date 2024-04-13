@@ -21,7 +21,6 @@ final readonly class AccountLogger
 
         foreach ($uow->getScheduledEntityInsertions() as $entity) {
             if ($entity instanceof TransactionInterface) {
-                dump($entity->getAmount());
                 $this->postPersist($entity);
             }
         }

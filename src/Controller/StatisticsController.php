@@ -4,7 +4,6 @@ namespace App\Controller;
 
 use App\Entity\Expense;
 use App\Entity\Income;
-use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Repository\CategoryRepository;
 use App\Repository\TransactionRepository;
@@ -30,7 +29,7 @@ class StatisticsController extends AbstractFOSRestController
     #[ParamConverter('after', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'first day of this month'])]
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
     #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this month'])]
-    #[Rest\QueryParam(name: 'interval', default: null, nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'interval', default: false, nullable: false, allowBlank: true)]
     #[ParamConverter('interval', CarbonInterval::class)]
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: true)]
     #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
@@ -52,7 +51,7 @@ class StatisticsController extends AbstractFOSRestController
     #[ParamConverter('after', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'first day of this month'])]
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
     #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this month'])]
-    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: false, allowBlank: false)]
     #[Rest\View(serializerGroups: ['category:tree:read'])]
     #[Route('/category/tree', name: 'category_tree', methods: ['get'])]
     public function categoryTree(TransactionRepository $transactionRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
@@ -60,14 +59,13 @@ class StatisticsController extends AbstractFOSRestController
         $transactions = $transactionRepo->getList(
             after: $after,
             before: $before,
-            type: $type
+            type: $type,
         );
 
         return $this->view(
             $statisticsManager->generateCategoryTreeWithValues(
-                [],
-                $transactions,
-                $type
+                transactions: $transactions,
+                type: $type
             )
         );
     }
