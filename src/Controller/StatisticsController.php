@@ -38,7 +38,6 @@ class StatisticsController extends AbstractFOSRestController
     #[Route('/value-by-period', name: 'value_by_period', methods: ['get'])]
     public function value(EntityManagerInterface $em, CategoryRepository $categoryRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, ?CarbonInterval $interval, ?string $type, array $accounts, array $categories): View
     {
-        dump($interval, $after, $before);
         $transactions = $em->getRepository(Transaction::class)
             ->getList(
                 after: $after,
