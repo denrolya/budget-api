@@ -44,7 +44,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertTrue(
             CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay(CarbonImmutable::now()->endOfMonth())
         );
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
     }
 
     /**
@@ -79,7 +79,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(6807.44, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
 
         $after = CarbonImmutable::parse('2020-01-01');
         $before = CarbonImmutable::parse('2020-01-31');
@@ -104,7 +104,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(9320, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
     }
 
     public function testValueByPeriodWithOneDayInterval(): void
@@ -132,7 +132,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(0, $content[58]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[58]['after'])->isSameDay($before));
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[58]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
 
         $after = CarbonImmutable::parse('2021-02-01');
         $before = CarbonImmutable::parse('2021-02-01');
@@ -152,7 +152,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($before));
         self::assertEqualsWithDelta(69.66, $content[0]['expense'], 0.01);
         self::assertEqualsWithDelta(54.42, $content[0]['income'], 0.01);
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
     }
 
     /**
@@ -187,7 +187,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(5255, $content[8]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[8]['after'])->isSameDay($before->startOfWeek()));
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[8]['before'])->isSameDay($before->endOfDay()));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
 
         $after = CarbonImmutable::parse('2021-02-01');
         $before = CarbonImmutable::parse('2021-02-01');
@@ -207,7 +207,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(54.42, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
     }
 
     /**
@@ -244,7 +244,7 @@ class StatisticsControllerTest extends BaseApiTest
             CarbonImmutable::createFromTimestamp($content[11]['after'])->isSameDay($before->startOfMonth())
         );
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[11]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
 
         $after = CarbonImmutable::parse('2021-01-01');
         $before = CarbonImmutable::parse('2021-01-01');
@@ -264,7 +264,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(2.64, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
     }
 
     public function testValueByPeriodWithCustomInterval(): void
@@ -286,7 +286,9 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(44609.09, $content[0]['expense'], 0.01);
         self::assertEqualsWithDelta(18888.04, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
-        self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($after->addMonths(3)->subDay()));
+        self::assertTrue(
+            CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($after->addMonths(3)->subDay())
+        );
 
         self::assertEqualsWithDelta(7623.7, $content[3]['expense'], 0.01);
         self::assertEqualsWithDelta(22299.48, $content[3]['income'], 0.01);
@@ -294,7 +296,7 @@ class StatisticsControllerTest extends BaseApiTest
             CarbonImmutable::createFromTimestamp($content[3]['after'])->isSameDay($before->subMonths(3))
         );
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[3]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
 
         $after = CarbonImmutable::parse('2021-01-01');
         $before = CarbonImmutable::parse('2021-01-01');
@@ -314,7 +316,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(2.64, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
     }
 
     public function testValueByPeriodWithBooleanInterval(): void
@@ -337,7 +339,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(73306.92, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
 
         $after = CarbonImmutable::parse('2021-01-01');
         $before = CarbonImmutable::parse('2021-12-31');
@@ -356,8 +358,10 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(151.33, $content[0]['expense'], 0.01);
         self::assertEqualsWithDelta(2.64, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
-        self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay(CarbonImmutable::parse('2021-01-07')));
-        $this->assertMatchesSnapshot($response->getContent());
+        self::assertTrue(
+            CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay(CarbonImmutable::parse('2021-01-07'))
+        );
+        $this->assertMatchesSnapshot($content);
 
         $after = CarbonImmutable::parse('2021-01-01');
         $before = CarbonImmutable::parse('2021-12-31');
@@ -376,7 +380,7 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(73306.92, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($before));
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
     }
 
     /**
@@ -426,23 +430,6 @@ class StatisticsControllerTest extends BaseApiTest
      * @throws DecodingExceptionInterface
      * @throws ClientExceptionInterface
      */
-    public function testCategoryTreeWithoutArguments(): void
-    {
-        $response = $this->client->request(Request::METHOD_GET, self::CATEGORY_TREE_URL);
-        self::assertResponseIsSuccessful();
-        $content = $response->toArray();
-
-        self::assertCount(18, $content);
-        $this->assertMatchesSnapshot($response->getContent());
-    }
-
-    /**
-     * @throws TransportExceptionInterface
-     * @throws ServerExceptionInterface
-     * @throws RedirectionExceptionInterface
-     * @throws DecodingExceptionInterface
-     * @throws ClientExceptionInterface
-     */
     public function testCategoryTreeWithBeforeAndAfter(): void
     {
         $after = CarbonImmutable::parse('2021-01-01');
@@ -473,11 +460,52 @@ class StatisticsControllerTest extends BaseApiTest
         self::assertEqualsWithDelta(0, $content[16]['children'][1]['value'], 0.01);
         self::assertEqualsWithDelta(119.56, $content[16]['children'][1]['total'], 0.01);
         self::assertCount(2, $content[16]['children'][1]['children']);
-        $this->assertMatchesSnapshot($response->getContent());
+        $this->assertMatchesSnapshot($content);
     }
 
-    public function testCategoryTreeWithType(): void
+    /**
+     * @throws DecodingExceptionInterface
+     * @throws ClientExceptionInterface
+     * @throws ServerExceptionInterface
+     * @throws RedirectionExceptionInterface
+     * @throws TransportExceptionInterface
+     */
+    public function testCategoryTreeWithBeforeAfterAndType(): void
     {
-        self::markTestIncomplete('This test has not been implemented yet.');
+        $after = CarbonImmutable::parse('2021-01-01');
+        $before = CarbonImmutable::parse('2021-01-31');
+        $response = $this->client->request(
+            Request::METHOD_GET,
+            $this->buildURL(
+                self::CATEGORY_TREE_URL,
+                ['after' => $after->toDateString(), 'before' => $before->toDateString(), 'type' => 'expense']
+            )
+        );
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        self::assertCount(10, $content);
+        self::assertEqualsWithDelta(0, $content[0]['value'], 0.01);
+        self::assertEqualsWithDelta(326.255, $content[0]['total'], 0.01);
+        self::assertCount(9, $content[0]['children']);
+        self::assertEqualsWithDelta(326.25, array_sum(array_column($content['0']['children'], 'total')), 0.01);
+        $this->assertMatchesSnapshot($content);
+
+        $response = $this->client->request(
+            Request::METHOD_GET,
+            $this->buildURL(
+                self::CATEGORY_TREE_URL,
+                ['after' => $after->toDateString(), 'before' => $before->toDateString(), 'type' => 'income']
+            )
+        );
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        self::assertCount(8, $content);
+        self::assertEqualsWithDelta(0, $content[0]['value'], 0.01);
+        self::assertEqualsWithDelta(4.61, $content[0]['total'], 0.01);
+        self::assertCount(4, $content[0]['children']);
+        self::assertEqualsWithDelta(4.61, array_sum(array_column($content['0']['children'], 'value')), 0.01);
+        $this->assertMatchesSnapshot($content);
     }
 }

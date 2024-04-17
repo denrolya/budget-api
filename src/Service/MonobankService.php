@@ -18,6 +18,7 @@ class MonobankService
     private EntityManagerInterface $em;
 
     private IncomeCategory $unknownIncomeCategory;
+
     private ExpenseCategory $unknownExpenseCategory;
 
     public function __construct(EntityManagerInterface $em)

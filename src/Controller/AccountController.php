@@ -49,21 +49,19 @@ class AccountController extends AbstractFOSRestController
 
         $account->setTopExpenseCategories(
             $statisticsManager->generateCategoryTreeWithValues(
-                null,
-                array_filter($accountTransactions, static function (TransactionInterface $transaction) {
+                transactions: array_filter($accountTransactions, static function (TransactionInterface $transaction) {
                     return $transaction->isExpense();
                 }),
-                TransactionInterface::EXPENSE,
+                type: TransactionInterface::EXPENSE,
             )
         );
 
         $account->setTopIncomeCategories(
             $statisticsManager->generateCategoryTreeWithValues(
-                null,
-                array_filter($accountTransactions, static function (TransactionInterface $transaction) {
+                transactions: array_filter($accountTransactions, static function (TransactionInterface $transaction) {
                     return $transaction->isIncome();
                 }),
-                TransactionInterface::INCOME,
+                type: TransactionInterface::INCOME,
             )
         );
 
@@ -80,7 +78,7 @@ class AccountController extends AbstractFOSRestController
                     'X-Token' => $_ENV['MONOBANK_API_KEY'],
                 ],
                 'json' => [
-                    "webHookUrl" => $request->getSchemeAndHttpHost() . '/api/monobank/transactions',
+                    "webHookUrl" => $request->getSchemeAndHttpHost().'/api/monobank/transactions',
                 ],
             ])->getContent();
         } catch (ClientExceptionInterface $e) {

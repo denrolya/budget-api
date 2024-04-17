@@ -50,10 +50,8 @@ final class TransferCreateTransactionsHandler implements ToggleEnabledInterface
         $amount = $transfer->getAmount();
         $executedAt = $transfer->getExecutedAt();
 
-        $fromExpense = new Expense();
-        $toIncome = new Income();
-        $transfer->setFromExpense(
-            $fromExpense
+        $transfer->addTransaction(
+            (new Expense())
                 ->setCategory($this->expenseTransferCategory)
                 ->setAccount($from)
                 ->setAmount($amount)
@@ -61,8 +59,8 @@ final class TransferCreateTransactionsHandler implements ToggleEnabledInterface
                 ->setNote("Transfer Expense: $from to $to {$from->getCurrency()} $amount")
         );
 
-        $transfer->setToIncome(
-            $toIncome
+        $transfer->addTransaction(
+            (new Income())
                 ->setCategory($this->incomeTransferCategory)
                 ->setAccount($to)
                 ->setAmount($amount * $transfer->getRate())
@@ -78,7 +76,7 @@ final class TransferCreateTransactionsHandler implements ToggleEnabledInterface
                 ->setNote("Transfer Fee: $from to $to {$from->getCurrency()} $amount")
                 ->setExecutedAt($executedAt);
 
-            $transfer->setFeeExpense($feeExpense);
+            $transfer->addTransaction($feeExpense);
         }
     }
 }

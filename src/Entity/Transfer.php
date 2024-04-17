@@ -12,6 +12,8 @@ use App\Traits\ExecutableEntity;
 use App\Traits\OwnableEntity;
 use App\Traits\TimestampableEntity;
 use DateTimeInterface;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -25,7 +27,7 @@ use Symfony\Component\Validator\Constraints as Assert;
         'get' => [
             'normalization_context' => ['groups' => 'transfer:collection:read'],
         ],
-        'post'
+        'post',
     ],
     itemOperations: [
         'get' => [
@@ -73,46 +75,29 @@ class Transfer implements OwnableInterface
     private ?Account $to;
 
     /**
-     * @ORM\OneToOne(targetEntity="Expense", cascade={"persist", "remove"}, orphanRemoval=true)
-     * @ORM\JoinColumn(name="expense_id", referencedColumnName="id", onDelete="CASCADE")
-     */
-    private ?Expense $fromExpense = null;
-
-    /**
-     * @ORM\OneToOne(targetEntity="Income", cascade={"persist", "remove"}, orphanRemoval=true)
-     * @ORM\JoinColumn(name="income_id", referencedColumnName="id", onDelete="CASCADE")
-     */
-    private ?Income $toIncome = null;
-
-    /**
-     * @ORM\Column(type="decimal", precision=50, scale=30)
      * @Assert\Type("numeric")
+     *
+     * @ORM\Column(type="decimal", precision=50, scale=30)
      * */
     #[Groups(['account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transfer:write'])]
-    private float $amount;
+    private string $amount = '0';
 
     /**
-     * @ORM\Column(type="decimal", precision=50, scale=30, nullable=false)
      * @Assert\Type("numeric")
+     *
+     * @ORM\Column(type="decimal", precision=50, scale=30, nullable=false)
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
-    private float $rate = 0;
+    private string $rate = '0';
 
     /**
      * @ORM\Column(type="decimal", precision=50, scale=30, nullable=false)
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
-    private float $fee = 0;
-
-    /**
-     * @ORM\OneToOne(targetEntity="Expense", cascade={"persist", "remove"}, orphanRemoval=true)
-     * @ORM\JoinColumn(onDelete="CASCADE")
-     */
-    #[Groups(['transfer:collection:read', 'transfer:write'])]
-    private ?Expense $feeExpense;
+    private string $fee = '0';
 
     #[Groups(['transfer:write'])]
-    private ?Account $feeAccount;
+    private ?Account $feeAccount = null;
 
     /**
      * @ORM\Column(type="text", nullable=true)
@@ -125,6 +110,16 @@ class Transfer implements OwnableInterface
      */
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     protected ?DateTimeInterface $executedAt;
+
+    /**
+     * @ORM\OneToMany(targetEntity=Transaction::class, cascade={"persist","remove"}, mappedBy="transfer", orphanRemoval=true)
+     */
+    private Collection $transactions;
+
+    public function __construct()
+    {
+        $this->transactions = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -155,33 +150,9 @@ class Transfer implements OwnableInterface
         return $this;
     }
 
-    public function getFromExpense(): ?Expense
+    public function getAmount(): float
     {
-        return $this->fromExpense;
-    }
-
-    public function setFromExpense(Expense $fromExpense): self
-    {
-        $this->fromExpense = $fromExpense;
-
-        return $this;
-    }
-
-    public function getToIncome(): ?Income
-    {
-        return $this->toIncome;
-    }
-
-    public function setToIncome(Income $toIncome): self
-    {
-        $this->toIncome = $toIncome;
-
-        return $this;
-    }
-
-    public function getAmount(): ?float
-    {
-        return $this->amount;
+        return (float)$this->amount;
     }
 
     public function setAmount(float $amount): self
@@ -193,7 +164,7 @@ class Transfer implements OwnableInterface
 
     public function getRate(): float
     {
-        return $this->rate;
+        return (float)$this->rate;
     }
 
     public function setRate(float $rate): self
@@ -205,24 +176,12 @@ class Transfer implements OwnableInterface
 
     public function getFee(): float
     {
-        return $this->fee;
+        return (float)$this->fee;
     }
 
     public function setFee(float $fee): self
     {
         $this->fee = $fee;
-
-        return $this;
-    }
-
-    public function getFeeExpense(): ?Expense
-    {
-        return $this->feeExpense;
-    }
-
-    public function setFeeExpense(?Expense $expense): self
-    {
-        $this->feeExpense = $expense;
 
         return $this;
     }
@@ -249,5 +208,63 @@ class Transfer implements OwnableInterface
         $this->note = $note;
 
         return $this;
+    }
+
+    public function addTransaction(TransactionInterface $transaction): self
+    {
+        if (!$this->transactions->contains($transaction)) {
+            $this->transactions[] = $transaction;
+            $transaction->setTransfer($this);
+        }
+
+        return $this;
+    }
+
+    public function removeTransaction(TransactionInterface $transaction): self
+    {
+        if ($this->transactions->contains($transaction)) {
+            $this->transactions->removeElement($transaction);
+            // set the owning side to null (unless already changed)
+            if ($transaction->getTransfer() === $this) {
+                $transaction->setTransfer(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getTransactions(): Collection
+    {
+        return $this->transactions;
+    }
+
+    public function getFeeExpense(): ?Expense
+    {
+        $transaction = $this->transactions->filter(
+            fn(TransactionInterface $transaction) => $transaction->isExpense() && $transaction->getCategory()->getName(
+                ) === Category::CATEGORY_TRANSFER_FEE
+        )->first();
+
+        return $transaction ?: null;
+    }
+
+    public function getFromExpense(): ?Expense
+    {
+        $transaction = $this->transactions->filter(
+            fn(TransactionInterface $transaction) => $transaction->isExpense() && $transaction->getCategory()->getName(
+                ) === Category::CATEGORY_TRANSFER
+        )->first();
+
+        return $transaction ?: null;
+    }
+
+    public function getToIncome(): ?Income
+    {
+        $transaction = $this->transactions->filter(
+            fn(TransactionInterface $transaction) => $transaction->isIncome() && $transaction->getCategory()->getName(
+                ) === Category::CATEGORY_TRANSFER
+        )->first();
+
+        return $transaction ?: null;
     }
 }

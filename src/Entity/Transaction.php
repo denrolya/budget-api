@@ -92,9 +92,9 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\GeneratedValue()
      * @ORM\Column(type="integer")
      */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
-    protected ?int $id;
+    protected ?int $id = null;
 
     /**
      * @Assert\NotBlank()
@@ -102,9 +102,9 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      * @ORM\ManyToOne(targetEntity=Account::class, inversedBy="transactions")
      * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
      */
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
-    protected ?Account $account;
+    protected ?Account $account = null;
 
     /**
      * @var string
@@ -114,7 +114,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
      *
      * @ORM\Column(type="string", length=100)
      */
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Type('float')]
     protected string $amount = '0.0';
@@ -168,10 +168,14 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
 
     /**
      * @ORM\ManyToOne(targetEntity=Debt::class, inversedBy="transactions")
-     * @ORM\JoinColumn(name="debt_id", referencedColumnName="id")
      */
     #[Groups(['transaction:write'])]
     private ?Debt $debt = null;
+
+    /**
+     * @ORM\ManyToOne(targetEntity=Transfer::class, inversedBy="transactions")
+     */
+    private ?Transfer $transfer = null;
 
     #[Groups(['transaction:collection:read', 'debt:collection:read', 'account:item:read'])]
     abstract public function getType(): string;
@@ -292,6 +296,18 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
     public function setDebt(?Debt $debt): self
     {
         $this->debt = $debt;
+
+        return $this;
+    }
+
+    public function getTransfer(): ?Transfer
+    {
+        return $this->transfer;
+    }
+
+    public function setTransfer(?Transfer $transfer): self
+    {
+        $this->transfer = $transfer;
 
         return $this;
     }

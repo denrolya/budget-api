@@ -14,7 +14,7 @@
         "doctrine/annotations": "^1.14",
         "doctrine/doctrine-bundle": "^2.11",
         "doctrine/doctrine-migrations-bundle": "^3.3",
-        "doctrine/orm": "2.16",
+        "doctrine/orm": "~2.16",
         "friendsofsymfony/rest-bundle": "3.7.0",
         "lexik/jwt-authentication-bundle": "^2.20",
         "nelmio/cors-bundle": "^2.4",

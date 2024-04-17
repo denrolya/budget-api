@@ -1,0 +1,104 @@
+-
+    id: 36
+    createdAt: '2019-05-16T12:12:15+00:00'
+    name: Return
+    isTechnical: false
+    children: [{ id: 95, createdAt: '2019-11-07T08:18:51+00:00', name: 'Tax Refund', isTechnical: false, children: {  }, isAffectingProfit: true, icon: 'mdi mdi-cash-refund', color: null, tags: {  }, value: 0.0, total: 0.0, type: income }, { id: 112, createdAt: '2020-03-20T14:15:14+00:00', name: 'Return on Investment', isTechnical: false, children: {  }, isAffectingProfit: true, icon: ion-ios-repeat, color: null, tags: {  }, value: 0.0, total: 0.0, type: income }, { id: 127, createdAt: '2020-09-05T12:06:04+00:00', name: Cashback, isTechnical: false, children: {  }, isAffectingProfit: true, icon: 'mdi mdi-cash-refund', color: null, tags: {  }, value: 4.6194606618943, total: 4.6194606618943, type: income }, { id: 137, createdAt: '2021-02-02T09:33:19+00:00', name: Compensation, isTechnical: false, children: {  }, isAffectingProfit: false, icon: 'mdi mdi-cash-refund', color: null, tags: {  }, value: 0.0, total: 0.0, type: income }]
+    isAffectingProfit: true
+    icon: ion-ios-undo
+    color: null
+    tags: {  }
+    value: 0.0
+    total: 4.6194606618943
+    type: income
+-
+    id: 37
+    createdAt: '2019-05-16T12:12:15+00:00'
+    name: Spouse
+    isTechnical: false
+    children: {  }
+    isAffectingProfit: true
+    icon: ion-ios-woman
+    color: null
+    tags: {  }
+    value: 0.0
+    total: 0.0
+    type: income
+-
+    id: 38
+    createdAt: '2019-05-16T12:12:15+00:00'
+    name: Bonus
+    isTechnical: false
+    children: [{ id: 39, createdAt: '2019-05-16T12:12:15+00:00', name: Unknown, isTechnical: false, children: {  }, isAffectingProfit: true, icon: ion-ios-help-circle, color: null, tags: {  }, value: 1.1740211748913, total: 1.1740211748913, type: income }, { id: 143, createdAt: '2021-10-29T07:56:38+00:00', name: Gift, isTechnical: false, children: {  }, isAffectingProfit: true, icon: null, color: null, tags: {  }, value: 0.0, total: 0.0, type: income }]
+    isAffectingProfit: true
+    icon: ion-ios-gift
+    color: null
+    tags: {  }
+    value: 2.6483733480107
+    total: 3.822394522902
+    type: income
+-
+    id: 41
+    createdAt: '2019-05-16T12:12:15+00:00'
+    name: Sell
+    isTechnical: false
+    children: {  }
+    isAffectingProfit: true
+    icon: 'mdi mdi-cash-plus'
+    color: null
+    tags: {  }
+    value: 0.0
+    total: 0.0
+    type: income
+-
+    id: 44
+    createdAt: '2019-05-22T18:12:00+00:00'
+    name: Salary
+    isTechnical: false
+    children: [{ id: 42, createdAt: '2019-05-16T12:12:15+00:00', name: Advance, isTechnical: false, children: {  }, isAffectingProfit: true, icon: ion-ios-download, color: null, tags: {  }, value: 0.0, total: 0.0, type: income }, { id: 47, createdAt: '2019-06-26T07:22:07+00:00', name: Detalex, isTechnical: false, children: {  }, isAffectingProfit: true, icon: ion-ios-download, color: null, tags: {  }, value: 6799.0, total: 6799.0, type: income }, { id: 65, createdAt: '2019-07-31T12:22:57+00:00', name: Smart-Gamma, isTechnical: false, children: {  }, isAffectingProfit: true, icon: ion-ios-download, color: null, tags: {  }, value: 0.0, total: 0.0, type: income }]
+    isAffectingProfit: true
+    icon: ion-ios-download
+    color: null
+    tags: {  }
+    value: 0.0
+    total: 6799.0
+    type: income
+-
+    id: 48
+    createdAt: '2019-06-27T18:50:42+00:00'
+    name: Trading
+    isTechnical: false
+    children: {  }
+    isAffectingProfit: true
+    icon: ion-ios-trending-up
+    color: null
+    tags: {  }
+    value: 0.0
+    total: 0.0
+    type: income
+-
+    id: 76
+    createdAt: '2019-08-27T07:15:44+00:00'
+    name: Other
+    isTechnical: false
+    children: {  }
+    isAffectingProfit: true
+    icon: ion-ios-pie
+    color: null
+    tags: {  }
+    value: 0.0
+    total: 0.0
+    type: income
+-
+    id: 161
+    createdAt: '2024-01-12T16:07:24+00:00'
+    name: Rent
+    isTechnical: false
+    children: {  }
+    isAffectingProfit: true
+    icon: ion-ios-home
+    color: null
+    tags: {  }
+    value: 0.0
+    total: 0.0
+    type: income
