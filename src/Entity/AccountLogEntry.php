@@ -6,47 +6,36 @@ use App\Repository\AccountLogEntryRepository;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeInterface;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use JMS\Serializer\Annotation as Serializer;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass=AccountLogEntryRepository::class)
- */
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: AccountLogEntryRepository::class)]
 class AccountLogEntry
 {
-    /**
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     #[Groups(['account:item:read'])]
     #[Serializer\Groups(['account:item:read'])]
-    private ?int $id;
+    private ?int $id = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=Account::class, inversedBy="logs")
-     * @ORM\JoinColumn(nullable=false)
-     */
-    private ?Account $account;
+    #[ORM\ManyToOne(targetEntity: Account::class, inversedBy: "logs")]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Account $account = null;
 
-    /**
-     * @ORM\Column(type="string", nullable=true, length=100)
-     */
-    private string $balance = '0.0';
+    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    private string $balance = '0';
 
-    /**
-     * @ORM\Column(type="json", nullable=true)
-     */
+    #[ORM\Column(type: Types::JSON, nullable: true)]
     #[Groups(['account:item:read'])]
     #[Serializer\Groups(['account:item:read'])]
     private array $convertedValues;
 
-    /**
-     * @ORM\Column(type="datetime")
-     */
+    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
     #[Serializer\Type("DateTime<'U'>")]
     #[Serializer\Groups(['account:item:read'])]
     private ?DateTimeInterface $createdAt;
@@ -127,9 +116,7 @@ class AccountLogEntry
         return $this;
     }
 
-    /**
-     * @ORM\PreUpdate
-     */
+    #[ORM\PreUpdate]
     public function preUpdate(PreUpdateEventArgs $event): void
     {
         $em = $event->getEntityManager();

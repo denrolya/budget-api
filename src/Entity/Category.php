@@ -8,28 +8,29 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\ExistsFilter;
 use App\ApiPlatform\DiscriminatorFilter;
+use App\Repository\CategoryRepository;
 use App\Traits\TimestampableEntity;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
+use JMS\Serializer\Annotation as Serializer;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
-use JMS\Serializer\Annotation as Serializer;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass="App\Repository\CategoryRepository")
- * @ORM\Table(
- *     uniqueConstraints={@ORM\UniqueConstraint(name="unique_category", columns={"name", "type"})},
- *     indexes={@ORM\Index(name="category_name_idx", columns={"name"})}),
- * )
- * @ORM\InheritanceType("SINGLE_TABLE")
- * @ORM\DiscriminatorColumn(name="type", type="string")
- * @ORM\DiscriminatorMap({"expense" = ExpenseCategory::class, "income" = IncomeCategory::class})
- */
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: CategoryRepository::class)]
+#[ORM\UniqueConstraint(name: "unique_category", columns: ["name", "type"])]
+#[ORM\Index(columns: ["name"], name: "category_name_idx")]
+#[ORM\InheritanceType("SINGLE_TABLE")]
+#[ORM\DiscriminatorColumn(name: "type", type: "string")]
+#[ORM\DiscriminatorMap([
+    'expense' => ExpenseCategory::class,
+    'income' => IncomeCategory::class,
+])]
 #[ApiResource(
     collectionOperations: [
         'get' => [
@@ -82,103 +83,121 @@ abstract class Category
     public const EXPENSE_CATEGORY_ID_UNKNOWN = 17;
     public const INCOME_CATEGORY_ID_UNKNOWN = 39;
 
-    /**
-     * @ORM\Id()
-     * @ORM\GeneratedValue()
-     * @ORM\Column(type="integer")
-     */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'transaction:collection:read'])]
-    #[Serializer\Groups(['category:collection:read', 'category:tree:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
+    #[Groups([
+        'account:item:read',
+        'debt:collection:read',
+        'category:collection:read',
+        'category:tree:read',
+        'transaction:collection:read',
+    ])]
+    #[Serializer\Groups([
+        'category:collection:read',
+        'category:tree:read',
+        'account:item:read',
+        'transaction:collection:read',
+        'debt:collection:read',
+    ])]
     private ?int $id;
 
-    /**
-     * @Gedmo\Timestampable(on="create")
-     *
-     * @ORM\Column(type="datetime", nullable=true)
-     */
+    #[Gedmo\Timestampable(on: "create")]
+    #[ORM\Column(type: "datetime", nullable: true)]
     #[Groups(['category:collection:read', 'category:tree:read'])]
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     protected ?DateTimeInterface $createdAt;
 
-    /**
-     * @Gedmo\Timestampable(on="update")
-     *
-     * @ORM\Column(type="datetime", nullable=true)
-     */
+    #[Gedmo\Timestampable(on: "update")]
+    #[ORM\Column(type: "datetime", nullable: true)]
     protected ?DateTimeInterface $updatedAt;
 
-    /**
-     * @ORM\Column(type="string", length=255)
-     */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'category:tree:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[ORM\Column(type: "string", length: 255)]
+    #[Groups([
+        'transaction:collection:read',
+        'account:item:read',
+        'debt:collection:read',
+        'category:collection:read',
+        'category:tree:read',
+        'category:write',
+    ])]
+    #[Serializer\Groups([
+        'category:collection:read',
+        'category:tree:read',
+        'account:item:read',
+        'transaction:collection:read',
+        'debt:collection:read',
+    ])]
     private ?string $name;
 
-    /**
-     * @ORM\Column(type="boolean", nullable=false, options={"default": false})
-     */
+    #[ORM\Column(type: Types::BOOLEAN, nullable: false, options: ["default" => false])]
     #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     private bool $isTechnical;
 
-    /**
-     * @ORM\OneToMany(targetEntity=Category::class, mappedBy="parent", cascade={"remove"}, fetch="EXTRA_LAZY")
-     */
+    #[ORM\OneToMany(mappedBy: "parent", targetEntity: Category::class, cascade: ["remove"], fetch: "EXTRA_LAZY")]
     #[Groups(['category:tree:read'])]
     #[Serializer\Groups(['category:tree:read'])]
     private Collection $children;
 
-    /**
-     * Many Categories have One Parent Category.
-     *
-     * @ORM\ManyToOne(targetEntity="Category", inversedBy="children", fetch="EXTRA_LAZY")
-     * @ORM\JoinColumn(name="parent_id", referencedColumnName="id")
-     */
+    #[ORM\ManyToOne(targetEntity: Category::class, fetch: "EXTRA_LAZY", inversedBy: "children")]
+    #[ORM\JoinColumn(name: "parent_id", referencedColumnName: "id")]
     #[Groups(['category:collection:read', 'category:write'])]
     #[Serializer\Groups(['category:collection:read'])]
     private ?Category $parent;
 
-    /**
-     * Many Categories have One Root Category.
-     * @ORM\ManyToOne(targetEntity="Category", fetch="EXTRA_LAZY")
-     * @ORM\JoinColumn(name="root_id", referencedColumnName="id")
-     */
+    #[ORM\ManyToOne(targetEntity: Category::class, fetch: "EXTRA_LAZY")]
+    #[ORM\JoinColumn(name: "root_id", referencedColumnName: "id")]
     #[Groups(['category:collection:read'])]
     #[Serializer\Groups(['category:collection:read'])]
     private ?Category $root;
 
-    /**
-     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="category", orphanRemoval=true, cascade={"remove"}, fetch="EXTRA_LAZY")
-     */
+    #[ORM\OneToMany(mappedBy: "category", targetEntity: Transaction::class, cascade: ["remove"], fetch: "EXTRA_LAZY", orphanRemoval: true)]
+    #[ORM\OrderBy(["executedAt" => "ASC"])]
     private Collection $transactions;
 
-    /**
-     * @ORM\Column(type="boolean", nullable=false)
-     */
+    #[ORM\Column(type: Types::BOOLEAN, nullable: false)]
     #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     private bool $isAffectingProfit = true;
 
-    /**
-     * @ORM\Column(type="string", length=150, nullable=true)
-     */
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'category:tree:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[ORM\Column(type: Types::STRING, length: 150, nullable: true)]
+    #[Groups([
+        'transaction:collection:read',
+        'account:item:read',
+        'debt:collection:read',
+        'category:collection:read',
+        'category:tree:read',
+        'category:write',
+    ])]
+    #[Serializer\Groups([
+        'category:collection:read',
+        'category:tree:read',
+        'account:item:read',
+        'transaction:collection:read',
+        'debt:collection:read',
+    ])]
     private ?string $icon;
 
-    /**
-     * @ORM\Column(type="string", length=150, nullable=true)
-     */
-    #[Groups(['account:item:read', 'debt:collection:read', 'category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'category:tree:read', 'account:item:read', 'debt:collection:read'])]
+    #[ORM\Column(type: Types::STRING, length: 150, nullable: true)]
+    #[Groups([
+        'account:item:read',
+        'debt:collection:read',
+        'category:collection:read',
+        'category:tree:read',
+        'category:write',
+    ])]
+    #[Serializer\Groups([
+        'category:collection:read',
+        'category:tree:read',
+        'account:item:read',
+        'debt:collection:read',
+    ])]
     private ?string $color;
 
-    /**
-     * @Assert\Valid()
-     *
-     * @ORM\ManyToMany(targetEntity=CategoryTag::class, cascade={"persist"}, inversedBy="categories")
-     * @ORM\JoinTable(name="categories_tags")
-     */
+    #[Assert\Valid]
+    #[ORM\ManyToMany(targetEntity: CategoryTag::class, cascade: ["persist"], inversedBy: "categories")]
+    #[ORM\JoinTable(name: "categories_tags")]
     #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     private Collection $tags;
@@ -238,7 +257,7 @@ abstract class Category
 
         $children = $this->getChildren()->getIterator();
         /** @var Category $child */
-        foreach($children as $child) {
+        foreach ($children as $child) {
             $child->setRoot($category ?: $this);
         }
 
@@ -259,7 +278,7 @@ abstract class Category
     {
         $this->parent = $parent;
 
-        if(!$parent) {
+        if (!$parent) {
             $this->setRoot(null);
         } else {
             $this->setRoot($parent->isRoot() ? $parent : $parent->getRoot());
@@ -272,11 +291,11 @@ abstract class Category
     {
         $result = $this->transactions->count();
 
-        if(!$withChildren) {
+        if (!$withChildren) {
             return $result;
         }
 
-        foreach($this->children as $child) {
+        foreach ($this->children as $child) {
             $result += $child->getTransactionsCount();
         }
 
@@ -297,7 +316,7 @@ abstract class Category
 
     public function addTransaction(TransactionInterface $transaction): self
     {
-        if(!$this->transactions->contains($transaction)) {
+        if (!$this->transactions->contains($transaction)) {
             $this->transactions->add($transaction);
         }
 
@@ -306,7 +325,7 @@ abstract class Category
 
     public function removeTransaction(TransactionInterface $transaction): self
     {
-        if($this->transactions->contains($transaction)) {
+        if ($this->transactions->contains($transaction)) {
             $this->transactions->removeElement($transaction);
         }
 
@@ -315,7 +334,7 @@ abstract class Category
 
     public function getTransactions(bool $withDescendants = false): Collection
     {
-        if(!$withDescendants) {
+        if (!$withDescendants) {
             return $this->transactions;
         }
 
@@ -330,7 +349,7 @@ abstract class Category
 
     public function addChildren(Category $category): self
     {
-        if(!$this->children->contains($category)) {
+        if (!$this->children->contains($category)) {
             $this->children->add($category);
         }
 
@@ -339,7 +358,7 @@ abstract class Category
 
     public function removeChildren(Category $category): self
     {
-        if($this->children->contains($category)) {
+        if ($this->children->contains($category)) {
             $this->children->removeElement($category);
         }
 
@@ -399,22 +418,6 @@ abstract class Category
         return $this->getType() === self::EXPENSE_CATEGORY_TYPE;
     }
 
-    public function directAncestorInRootCategory(Category $rootCategory)
-    {
-        if($this->getId() === $rootCategory->getId()) {
-            return $this;
-        }
-        if(!$this->isChildOf($rootCategory)) {
-            return false;
-        }
-
-        $possibleAncestors = $rootCategory->getChildren()->filter(function (Category $category) {
-            return $this->isChildOf($category);
-        });
-
-        return ($possibleAncestors->count() > 0) ? $possibleAncestors->first() : false;
-    }
-
     public function getId(): ?int
     {
         return $this->id;
@@ -425,23 +428,6 @@ abstract class Category
         return $possibleParent->getDescendantsFlat()->contains($this);
     }
 
-    public function getDescendantsTree(): array
-    {
-        $result = [];
-        foreach($this->children as $child) {
-            $result[] = [
-                'id' => $child->getId(),
-                'root' => $child->getRoot()->getId(),
-                'parent' => !$child->isRoot() ? $child->getParent()->getId() : null,
-                'icon' => $child->getIcon(),
-                'name' => $child->getName(),
-                'children' => !$this->hasChildren() ? [] : $child->getDescendantsTree(),
-            ];
-        }
-
-        return $result;
-    }
-
     public function getDescendantsFlat(bool $onlyNames = false): Collection
     {
         $result = [$this];
@@ -450,7 +436,7 @@ abstract class Category
             $result = array_merge($result, $child->getDescendantsFlat()->toArray());
         });
 
-        if($onlyNames) {
+        if ($onlyNames) {
             $result = array_map(static function (Category $category) {
                 return $category->getName();
             }, $result);
@@ -466,8 +452,8 @@ abstract class Category
 
     public function addTag(CategoryTag ...$tags): self
     {
-        foreach($tags as $tag) {
-            if(!$this->tags->contains($tag)) {
+        foreach ($tags as $tag) {
+            if (!$this->tags->contains($tag)) {
                 $this->tags->add($tag);
             }
         }

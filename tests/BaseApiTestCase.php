@@ -5,11 +5,12 @@ namespace App\Tests;
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use ApiPlatform\Symfony\Bundle\Test\Client;
 use App\Entity\User;
+use App\Service\FixerService;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 use Spatie\Snapshots\MatchesSnapshots;
 
-class BaseApiTest extends ApiTestCase
+class BaseApiTestCase extends ApiTestCase
 {
     use WithMockFixerTrait, MatchesSnapshots;
 
@@ -23,9 +24,7 @@ class BaseApiTest extends ApiTestCase
 
     protected function setUp(): void
     {
-        $this->client = $this->createClientWithCredentials();
-        $this->createFixerServiceMock();
-        $this->em = $this->client->getContainer()->get('doctrine')->getManager();
+        $this->reloadClientWithServices();
     }
 
     protected function tearDown(): void
@@ -33,6 +32,7 @@ class BaseApiTest extends ApiTestCase
         parent::tearDown();
         $this->em->close();
         $this->em = null;
+        gc_collect_cycles();
     }
 
     protected function createClientWithCredentials($token = null): Client
@@ -67,6 +67,15 @@ class BaseApiTest extends ApiTestCase
         }
 
         return $url;
+    }
+
+    protected function reloadClientWithServices(): void
+    {
+        self::ensureKernelShutdown();
+        $this->client = $this->createClientWithCredentials();
+        $this->em = $this->client->getContainer()->get('doctrine')->getManager();
+        $this->mockFixerService = $this->createFixerServiceMock();
+        $this->client->getContainer()->set(FixerService::class, $this->mockFixerService);
     }
 
 }

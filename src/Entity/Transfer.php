@@ -8,20 +8,20 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 use App\ApiPlatform\WithDeletedFilter;
+use App\Repository\TransferRepository;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableEntity;
 use App\Traits\TimestampableEntity;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass="App\Repository\TransferRepository")
- */
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: TransferRepository::class)]
 #[ApiResource(
     collectionOperations: [
         'get' => [
@@ -54,66 +54,49 @@ class Transfer implements OwnableInterface
 {
     use TimestampableEntity, OwnableEntity, ExecutableEntity;
 
-    /**
-     * @ORM\Id()
-     * @ORM\GeneratedValue()
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     #[Groups(['transfer:collection:read'])]
     private ?int $id;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Account")
-     */
+    #[ORM\ManyToOne(targetEntity: Account::class)]
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?Account $from;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Account")
-     */
+    #[ORM\ManyToOne(targetEntity: Account::class)]
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?Account $to;
 
-    /**
-     * @Assert\Type("numeric")
-     *
-     * @ORM\Column(type="decimal", precision=50, scale=30)
-     * */
+    #[Assert\Type("numeric")]
+    #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
     #[Groups(['account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transfer:write'])]
     private string $amount = '0';
 
-    /**
-     * @Assert\Type("numeric")
-     *
-     * @ORM\Column(type="decimal", precision=50, scale=30, nullable=false)
-     */
+    #[Assert\Type("numeric")]
+    #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private string $rate = '0';
 
-    /**
-     * @ORM\Column(type="decimal", precision=50, scale=30, nullable=false)
-     */
+    #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private string $fee = '0';
 
     #[Groups(['transfer:write'])]
     private ?Account $feeAccount = null;
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     private ?string $note;
 
-    /**
-     * @ORM\Column(type="datetime", nullable=true)
-     */
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     protected ?DateTimeInterface $executedAt;
 
-    /**
-     * @ORM\OneToMany(targetEntity=Transaction::class, cascade={"persist","remove"}, mappedBy="transfer", orphanRemoval=true)
-     */
+    #[ORM\OneToMany(mappedBy: 'transfer', targetEntity: Transaction::class, cascade: [
+        "persist",
+        "remove",
+    ], orphanRemoval: true)]
     private Collection $transactions;
 
     public function __construct()

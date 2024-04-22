@@ -7,10 +7,10 @@ use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transfer;
 use App\Entity\User;
-use App\Tests\BaseApiTest;
+use App\Tests\BaseApiTestCase;
 use Carbon\CarbonInterface;
 
-class TransferCRUDTest extends BaseApiTest
+class TransferCRUDTest extends BaseApiTestCase
 {
     private Account $accountMonoUAH;
 
@@ -93,11 +93,11 @@ class TransferCRUDTest extends BaseApiTest
         $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
         $fromExpense = $this->em->getRepository(Expense::class)->findOneById($expenseId);
         $toIncome = $this->em->getRepository(Income::class)->findOneById($incomeId);
-        self::assertNotNull($transfer);
+        self::assertNull($transfer);
         self::assertNull($fromExpense);
-        self::assertNotNull($toIncome);
+        self::assertNull($toIncome);
         self::assertEquals($monoUahBalanceBefore, $this->accountMonoUAH->getBalance());
-        self::assertEquals($cashUahBalanceBefore + 100, $this->accountCashUAH->getBalance());
+        self::assertEquals($cashUahBalanceBefore, $this->accountCashUAH->getBalance());
     }
 
     public function testDeleteTransferIncomesDoesNotDeletesRelatedTransferAndUpdatesAccountBalances(): void
@@ -134,10 +134,10 @@ class TransferCRUDTest extends BaseApiTest
         $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
         $fromExpense = $this->em->getRepository(Expense::class)->findOneById($expenseId);
         $toIncome = $this->em->getRepository(Income::class)->findOneById($incomeId);
-        self::assertNotNull($transfer);
-        self::assertNotNull($fromExpense);
+        self::assertNull($transfer);
+        self::assertNull($fromExpense);
         self::assertNull($toIncome);
-        self::assertEquals($monoUahBalanceBefore - 100, $this->accountMonoUAH->getBalance());
+        self::assertEquals($monoUahBalanceBefore, $this->accountMonoUAH->getBalance());
         self::assertEquals($cashUahBalanceBefore, $this->accountCashUAH->getBalance());
     }
 
@@ -254,29 +254,65 @@ class TransferCRUDTest extends BaseApiTest
         $toIncome = $this->em->getRepository(Income::class)->findOneById($incomeId);
         $feeExpense = $this->em->getRepository(Expense::class)->findOneById($feeId);
 
-        self::assertNotNull($fromExpense);
-        self::assertNotNull($toIncome);
+        self::assertNull($fromExpense);
+        self::assertNull($toIncome);
         self::assertNull($feeExpense);
     }
 
-    private function createTransfer(
-        float $amount,
-        Account $from,
-        Account $to,
-        CarbonInterface $executedAt,
-        string $note,
-        float $rate,
-        float $fee = null,
-        Account $feeAccount = null,
-    ): Transfer {
-        return (new Transfer())
-            ->setAmount($amount)
-            ->setFrom($from)
-            ->setTo($to)
-            ->setExecutedAt($executedAt)
-            ->setNote($note)
-            ->setRate($rate)
-            ->setFee($fee)
-            ->setFeeAccount($feeAccount);
+    public function testDeleteTransferDeletesTransactionsAndUpdatesBalances(): void
+    {
+        $cashEurBalanceBefore = $this->accountCashEUR->getBalance();
+        $cashUahBalanceBefore = $this->accountCashUAH->getBalance();
+
+        self::assertEqualsWithDelta(5429.94, $cashEurBalanceBefore, 0.01);
+        self::assertEqualsWithDelta(29605, $cashUahBalanceBefore, 0.01);
+        $response = $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '10',
+                'executedAt' => '2024-03-12T09:35:00Z',
+                'from' => (string)$this->accountCashEUR->getId(),
+                'to' => (string)$this->accountCashUAH->getId(),
+                'note' => '',
+                'rate' => '40',
+                'fee' => '1',
+                'feeAccount' => (string)$this->accountCashEUR->getId(),
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        $transfer = $this->em->getRepository(Transfer::class)->find($content['id']);
+        self::assertNotNull($transfer);
+
+        $transferId = $transfer->getId();
+        $expenseId = $transfer->getFromExpense()->getId();
+        $incomeId = $transfer->getToIncome()->getId();
+        $feeId = $transfer->getFeeExpense()->getId();
+
+        self::assertEquals($cashEurBalanceBefore - 10 - 1, $this->accountCashEUR->getBalance());
+        self::assertEquals($cashUahBalanceBefore + (10*40), $this->accountCashUAH->getBalance());
+        self::assertEquals($this->accountCashEUR->getId(), $transfer->getFromExpense()->getAccount()->getId());
+
+        $this->em->remove($transfer);
+        $this->em->flush();
+        $this->em->refresh($this->accountCashEUR);
+        $this->em->refresh($this->accountCashUAH);
+
+        $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
+        self::assertNull($transfer);
+
+        $fromExpense = $this->em->getRepository(Expense::class)->findOneById($expenseId);
+        self::assertNull($fromExpense);
+
+        $toIncome = $this->em->getRepository(Income::class)->findOneById($incomeId);
+        self::assertNull($toIncome);
+
+        $feeExpense = $this->em->getRepository(Expense::class)->findOneById($feeId);
+        self::assertNull($feeExpense);
+    }
+
+    public function testUpdateTransfer(): void
+    {
+        self::markTestIncomplete('This functionality has not been implemented yet.');
     }
 }

@@ -14,23 +14,26 @@ use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
-use Doctrine\ORM\Event\PreFlushEventArgs;
-use Doctrine\ORM\Event\PreUpdateEventArgs;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
+use JMS\Serializer\Annotation as Serializer;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Serializer\Annotation\SerializedName;
 use Symfony\Component\Validator\Constraints as Assert;
-use JMS\Serializer\Annotation as Serializer;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass=AccountRepository::class)
- * @ORM\InheritanceType("SINGLE_TABLE")
- * @ORM\DiscriminatorColumn(name="type", type="string")
- * @ORM\DiscriminatorMap({"basic" = "Account", "bank" = "BankCardAccount", "internet" = "InternetAccount", "cash" = "CashAccount"})
- */
+
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: AccountRepository::class)]
+#[ORM\InheritanceType("SINGLE_TABLE")]
+#[ORM\DiscriminatorColumn(name: "type", type: "string")]
+#[ORM\DiscriminatorMap([
+    "basic" => self::class,
+    "bank" => BankCardAccount::class,
+    "internet" => InternetAccount::class,
+    "cash" => CashAccount::class,
+])]
 #[ApiResource(
     collectionOperations: [
         'get' => [
@@ -98,51 +101,66 @@ class Account implements OwnableInterface
 
     use TimestampableEntity, OwnableEntity;
 
-    /**
-     * @ORM\Id()
-     * @ORM\GeneratedValue()
-     * @ORM\Column(type="integer")
-     */
-    #[Groups(['account:collection:read', 'account:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read', 'ч:collection:read'])]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
+    #[Groups([
+        'account:collection:read',
+        'account:item:read',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+        'ч:collection:read',
+    ])]
+    #[Serializer\Groups([
+        'account:collection:read',
+        'account:item:read',
+        'transaction:collection:read',
+        'debt:collection:read',
+    ])]
     private ?int $id;
 
-    /**
-     * @Gedmo\Timestampable(on="create")
-     *
-     * @ORM\Column(type="datetime", nullable=false)
-     */
+    #[Gedmo\Timestampable(on: 'create')]
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: false)]
     #[Groups(['account:item:read'])]
     #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
     protected ?DateTimeInterface $createdAt;
 
-    /**
-     * @Gedmo\Timestampable(on="update")
-     *
-     * @ORM\Column(type="datetime", nullable=false)
-     */
+    #[Gedmo\Timestampable(on: 'update')]
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: false)]
     #[Groups(['account:collection:read'])]
     #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
     protected ?DateTimeInterface $updatedAt;
 
-    /**
-     * @Assert\NotBlank()
-     * @ORM\Column(type="string", length=255)
-     */
-    #[Groups(['account:collection:read', 'account:item:read', 'account:write', 'transaction:collection:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[Assert\NotBlank]
+    #[ORM\Column(type: Types::STRING, length: 255)]
+    #[Groups([
+        'account:collection:read',
+        'account:item:read',
+        'account:write',
+        'transaction:collection:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
+    #[Serializer\Groups([
+        'account:collection:read',
+        'account:item:read',
+        'transaction:collection:read',
+        'debt:collection:read',
+    ])]
     private string $name;
 
-    /**
-     * Currency that account is operating with
-     *
-     * @var ?string
-     *
-     * @Assert\NotBlank()
-     * @Assert\Choice({"EUR", "USD", "UAH", "HUF", "BTC", "ETH"})
-     * @ORM\Column(type="string", length=3)
-     */
-    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Assert\NotBlank]
+    #[Assert\Choice(["EUR", "USD", "UAH", "HUF", "BTC", "ETH"])]
+    #[ORM\Column(type: Types::STRING, length: 3)]
+    #[Groups([
+        'account:collection:read',
+        'transaction:collection:read',
+        'account:item:read',
+        'account:write',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
     #[ApiProperty(
         attributes: [
             'openapi_context' => [
@@ -152,45 +170,51 @@ class Account implements OwnableInterface
             ],
         ],
     )]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[Serializer\Groups([
+        'account:collection:read',
+        'account:item:read',
+        'transaction:collection:read',
+        'debt:collection:read',
+    ])]
     private ?string $currency;
 
-    /**
-     * Initial balance of the account
-     *
-     * @ORM\Column(type="string", length=100)
-     */
+    #[ORM\Column(type: Types::STRING, length: 100)]
     #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
     #[Serializer\Type('float')]
     private string $balance = '0.0';
 
-    /**
-     * @ORM\OneToMany(targetEntity="Transaction", mappedBy="account", cascade={"remove"}, orphanRemoval=true)
-     * @ORM\OrderBy({"executedAt" = "ASC"})
-     */
-    private ?Collection $transactions;
+    #[ORM\OneToMany(mappedBy: "account", targetEntity: Transaction::class, cascade: ["remove"], fetch: "EXTRA_LAZY", orphanRemoval: true)]
+    #[ORM\OrderBy(["executedAt" => "ASC"])]
+    private Collection $transactions;
 
-    /**
-     * When the account was archived(excluded from lists)
-     *
-     * @ORM\Column(type="datetime", nullable=true)
-     */
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
     private ?DateTimeInterface $archivedAt;
 
-    /**
-     * @ORM\Column(type="string", length=30)
-     */
-    #[Groups(['account:collection:read', 'transaction:collection:read', 'account:item:read', 'account:write', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[ORM\Column(type: Types::STRING, length: 30)]
+    #[Groups([
+        'account:collection:read',
+        'transaction:collection:read',
+        'account:item:read',
+        'account:write',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
+    #[Serializer\Groups([
+        'account:collection:read',
+        'account:item:read',
+        'transaction:collection:read',
+        'debt:collection:read',
+    ])]
     private string $color;
 
-    /**
-     * @ORM\OneToMany(targetEntity=AccountLogEntry::class, mappedBy="account", fetch="EAGER")
-     * @ORM\OrderBy({"createdAt" = "ASC"})
-     */
+    #[ORM\OneToMany(mappedBy: "account", targetEntity: AccountLogEntry::class, cascade: [
+        "persist",
+        "remove",
+    ], fetch: "EAGER", orphanRemoval: true)]
+    #[ORM\OrderBy(["createdAt" => "ASC"])]
     private ?Collection $logs;
 
     #[Groups(['account:item:read'])]
@@ -217,9 +241,7 @@ class Account implements OwnableInterface
     #[Serializer\Groups(['account:item:read'])]
     private ?array $topIncomeCategories;
 
-    /**
-     * @ORM\Column(type="boolean")
-     */
+    #[ORM\Column(type: Types::BOOLEAN)]
     #[Groups(['account:collection:read', 'account:item:read'])]
     #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
     private bool $isDisplayedOnSidebar = false;
@@ -227,7 +249,7 @@ class Account implements OwnableInterface
     public function __construct()
     {
         $this->transactions = new ArrayCollection();
-        $this->color = '#' . str_pad(dechex(random_int(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT);
+        $this->color = '#'.str_pad(dechex(random_int(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT);
         $this->logs = new ArrayCollection();
     }
 
@@ -294,7 +316,7 @@ class Account implements OwnableInterface
 
     public function addTransaction(Transaction $transaction): self
     {
-        if(!$this->transactions->contains($transaction)) {
+        if (!$this->transactions->contains($transaction)) {
             $this->transactions->add($transaction);
         }
 
@@ -303,7 +325,7 @@ class Account implements OwnableInterface
 
     public function removeTransaction(Transaction $transaction): self
     {
-        if($this->transactions->contains($transaction)) {
+        if ($this->transactions->contains($transaction)) {
             $this->transactions->removeElement($transaction);
         }
 
@@ -322,7 +344,10 @@ class Account implements OwnableInterface
 
     public function getArchivedAt(): ?CarbonInterface
     {
-        return $this->archivedAt ? new CarbonImmutable($this->archivedAt->getTimestamp(), $this->archivedAt->getTimezone()) : null;
+        return $this->archivedAt ? new CarbonImmutable(
+            $this->archivedAt->getTimestamp(),
+            $this->archivedAt->getTimezone()
+        ) : null;
     }
 
     public function setArchivedAt(?DateTimeInterface $archivedAt): self
@@ -356,10 +381,21 @@ class Account implements OwnableInterface
         return 'balance';
     }
 
-    #[Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'transfer:collection:read', 'debt:collection:read'])]
+    #[Groups([
+        'account:collection:read',
+        'account:item:read',
+        'transaction:collection:read',
+        'transfer:collection:read',
+        'debt:collection:read',
+    ])]
     #[Pure]
     #[Serializer\VirtualProperty]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read', 'transaction:collection:read', 'debt:collection:read'])]
+    #[Serializer\Groups([
+        'account:collection:read',
+        'account:item:read',
+        'transaction:collection:read',
+        'debt:collection:read',
+    ])]
     public function getIcon(): string
     {
         $icons = [
@@ -387,7 +423,7 @@ class Account implements OwnableInterface
 
     public function addLog(AccountLogEntry $log): self
     {
-        if(!$this->logs->contains($log)) {
+        if (!$this->logs->contains($log)) {
             $this->logs[] = $log;
             $log->setAccount($this);
         }
@@ -398,7 +434,7 @@ class Account implements OwnableInterface
     public function removeLog(AccountLogEntry $log): self
     {
         // set the owning side to null (unless already changed)
-        if($this->logs->removeElement($log) && $log->getAccount() === $this) {
+        if ($this->logs->removeElement($log) && $log->getAccount() === $this) {
             $log->setAccount(null);
         }
 
@@ -420,19 +456,21 @@ class Account implements OwnableInterface
     #[Serializer\Groups(['account:item:read'])]
     public function getLogsWithinDateRange(?CarbonInterface $from = null, ?CarbonInterface $to = null): array
     {
-        if(!$from && !$to) {
+        if (!$from && !$to) {
             $to = CarbonImmutable::now();
             $from = $to->sub('months', 6)->startOf('day');
         }
 
-        return array_values($this->logs->filter(static function (AccountLogEntry $log) use ($from, $to) {
-            return $log->getCreatedAt()->isBetween($from, $to);
-        })->toArray());
+        return array_values(
+            $this->logs->filter(static function (AccountLogEntry $log) use ($from, $to) {
+                return $log->getCreatedAt()->isBetween($from, $to);
+            })->toArray()
+        );
     }
 
     public function getTopExpenseCategories(): array
     {
-        if($this->topExpenseCategories === null) {
+        if ($this->topExpenseCategories === null) {
             throw new \LogicException('Field topExpenseCategories has not been initialized');
         }
 
@@ -448,7 +486,7 @@ class Account implements OwnableInterface
 
     public function getTopIncomeCategories(): array
     {
-        if($this->topIncomeCategories === null) {
+        if ($this->topIncomeCategories === null) {
             throw new \LogicException('Field topIncomeCategories has not been initialized');
         }
 

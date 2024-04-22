@@ -3,7 +3,7 @@
 namespace App\Tests\Controller;
 
 use App\Entity\Category;
-use App\Tests\BaseApiTest;
+use App\Tests\BaseApiTestCase;
 use Carbon\Carbon;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
@@ -11,7 +11,7 @@ use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
-class TransactionControllerTest extends BaseApiTest
+class TransactionControllerTest extends BaseApiTestCase
 {
     /**
      * @group smoke

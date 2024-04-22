@@ -9,12 +9,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 trait OwnableEntity
 {
-    /**
-     * @Gedmo\Blameable(on="create")
-     *
-     * @ORM\ManyToOne(targetEntity=User::class)
-     * @ORM\JoinColumn(name="owner_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
-     */
+    #[Gedmo\Blameable(on: 'create')]
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'owner_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     protected ?UserInterface $owner = null;
 
     public function getOwner(): ?UserInterface

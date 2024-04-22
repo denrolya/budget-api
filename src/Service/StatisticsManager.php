@@ -100,6 +100,7 @@ final class StatisticsManager
                 $transactions,
                 static fn(TransactionInterface $t) => $t->getCategory()->isChildOf($category)
             );
+
             $category->setTotal($this->assetsManager->sumTransactions($nestedTransactions));
 
             if (!empty($nestedTransactions) && $category->hasChildren()) {
@@ -469,45 +470,13 @@ final class StatisticsManager
         return $result;
     }
 
-    /**
-     * Generated previous period daterange for given dates(previous month, week, day, quarter...)
-     */
-    public function generatePreviousTimeperiod(CarbonInterface $after, CarbonInterface $before): CarbonPeriod
-    {
-        return ($after->isSameDay($after->startOfMonth()) && $before->isSameDay($before->endOfMonth()))
-            ? new CarbonPeriod(
-                $after->sub('month', ($before->year - $after->year + 1) * abs($before->month - $after->month + 1)),
-                $after->sub('days', 1)
-            )
-            : new CarbonPeriod(
-                $after->sub('days', $before->diffInDays($after) + 1),
-                $after->sub('days', 1)
-            );
-    }
-
-    /**
-     * Given category tree generated with ExpenseCategoryRepository::generateCategoryTree
-     * find the needle category and update its value
-     */
-    private function updateValueInCategoryTree(array &$haystack, string $needle, float $value): void
-    {
-        foreach ($haystack as &$child) {
-            if ($child['name'] === $needle) {
-                $child['value'] = isset($child['value']) ? $child['value'] + $value : $value;
-            } elseif (!empty($child['children'])) {
-                $this->updateValueInCategoryTree($child['children'], $needle, $value);
-            }
-        }
-    }
-
     private function getRootCategories(?string $type): array
     {
-        $categoryClass = Category::class;
-        if ($type === Category::EXPENSE_CATEGORY_TYPE) {
-            $categoryClass = ExpenseCategory::class;
-        } elseif ($type === Category::INCOME_CATEGORY_TYPE) {
-            $categoryClass = IncomeCategory::class;
-        }
+        $categoryClass = match ($type) {
+            Category::EXPENSE_CATEGORY_TYPE => ExpenseCategory::class,
+            Category::INCOME_CATEGORY_TYPE => IncomeCategory::class,
+            default => Category::class,
+        };
 
         return $this->em->getRepository($categoryClass)->findRootCategories();
     }

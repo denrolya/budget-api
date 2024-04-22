@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\TransactionInterface;

@@ -5,8 +5,12 @@ namespace App\Repository;
 use App\Entity\Category;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
+use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
+use Carbon\CarbonInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\NonUniqueResultException;
+use Doctrine\ORM\NoResultException;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -22,23 +26,6 @@ class CategoryRepository extends ServiceEntityRepository
         $class = (!$classname) ? Category::class : $classname;
 
         parent::__construct($registry, $class);
-    }
-
-    public function findByTypes(array $types)
-    {
-        $qb = $this->createQueryBuilder('c');
-
-        if (!empty($types) && count($types) === 1) {
-            if (in_array(Category::EXPENSE_CATEGORY_TYPE, $types, true)) {
-                $qb->andWhere('c INSTANCE OF :expenseType')
-                    ->setParameter('expenseType', $this->getEntityManager()->getClassMetadata(Category::class));
-            } elseif (in_array(Category::INCOME_CATEGORY_TYPE, $types, true)) {
-                $qb->andWhere('c INSTANCE OF :incomeType')
-                    ->setParameter('incomeType', $this->getEntityManager()->getClassMetadata(IncomeCategory::class));
-            }
-        }
-
-        return $qb->getQuery()->getResult();
     }
 
     public function findRootCategories(?array $orderBy = null, ?int $limit = null, ?int $offset = null): array
@@ -63,7 +50,7 @@ class CategoryRepository extends ServiceEntityRepository
                 );
 
             if (empty($categories)) {
-                $result[] = $repo->findBy(['root' => null, 'isTechnical' => false]);
+                $result[] = $repo->findBy(['root' => null, 'isTechnical' => false, 'isAffectingProfit' => true]);
             } else {
                 $foundCategories = $repo->findBy(['id' => $categories]);
 
@@ -74,6 +61,81 @@ class CategoryRepository extends ServiceEntityRepository
         }
 
         return array_merge(...$result);
+    }
+
+    public function calculateValue(
+        Category|int $category,
+        string $currency,
+        ?CarbonInterface $after,
+        ?CarbonInterface $before
+    ): ?float
+    {
+        if (is_int($category)) {
+            $category = $this->find($category);
+            if (!$category) {
+                throw new \InvalidArgumentException('Invalid category ID');
+            }
+        }
+
+        $qb = $this
+            ->getEntityManager()
+            ->createQueryBuilder('t')
+            ->from(Transaction::class, 't')
+            ->select('SUM(JSON_EXTRACT(t.convertedValues, :baseCurrency))')
+            ->where('t.category = :categoryId')
+            ->setParameter('baseCurrency', '$.'.$currency)
+            ->setParameter('categoryId', $category->getId());
+
+        if (isset($after, $before)) {
+            $qb->andWhere('DATE(t.executedAt) >= :after')
+                ->setParameter('after', $after)
+                ->andWhere('DATE(t.executedAt) <= :before')
+                ->setParameter('before', $before);
+        }
+
+        return $qb->getQuery()->getSingleScalarResult() ?? 0;
+    }
+
+    /**
+     * New method to calculate category total value using SQL
+     *
+     * @throws NonUniqueResultException
+     * @throws NoResultException
+     */
+    public function calculateTotalValue(
+        $category,
+        string $currency,
+        ?CarbonInterface $after,
+        ?CarbonInterface $before
+    ): float {
+        if (is_int($category)) {
+            $category = $this->find($category);
+            if (!$category) {
+                throw new \InvalidArgumentException('Invalid category ID');
+            }
+        }
+
+        $categoryIds = [
+            $category->getId(),
+            ...$category->getDescendantsFlat()->map(static fn(Category $category) => $category->getId())->toArray(),
+        ];
+        $qb = $this
+            ->getEntityManager()
+            ->createQueryBuilder('t')
+            ->from(Transaction::class, 't')
+            ->select('SUM(JSON_EXTRACT(t.convertedValues, :baseCurrency))')
+            ->where('t.category IN (:categoryIds)')
+            ->setParameter('baseCurrency', '$.'.$currency)
+            ->setParameter('categoryIds', $categoryIds);
+
+        if (isset($after, $before)) {
+            $qb->andWhere('DATE(t.executedAt) >= :after')
+                ->setParameter('after', $after)
+                ->andWhere('DATE(t.executedAt) <= :before')
+                ->setParameter('before', $before);
+        }
+
+        return $qb->getQuery()->getSingleScalarResult() ?? 0;
     }
 }
 

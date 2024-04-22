@@ -10,10 +10,12 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 use App\ApiPlatform\CategoryDeepSearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
 use App\DTO\MonobankResponse;
+use App\Repository\TransactionRepository;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
 use DateTimeInterface;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
@@ -21,13 +23,11 @@ use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 use JMS\Serializer\Annotation as Serializer;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass="App\Repository\TransactionRepository")
- * @ORM\InheritanceType("SINGLE_TABLE")
- * @ORM\DiscriminatorColumn(name="type", type="string")
- * @ORM\DiscriminatorMap({"expense" = "App\Entity\Expense", "income" = "App\Entity\Income"})
- */
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: TransactionRepository::class)]
+#[ORM\InheritanceType("SINGLE_TABLE")]
+#[ORM\DiscriminatorColumn(name: "type", type: "string")]
+#[ORM\DiscriminatorMap(["expense" => Expense::class, "income" => Income::class])]
 #[ApiResource(
     collectionOperations: [
         'get' => [
@@ -87,94 +87,66 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
 {
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
 
-    /**
-     * @ORM\Id()
-     * @ORM\GeneratedValue()
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?int $id = null;
 
-    /**
-     * @Assert\NotBlank()
-     *
-     * @ORM\ManyToOne(targetEntity=Account::class, inversedBy="transactions")
-     * @ORM\JoinColumn(name="account_id", referencedColumnName="id", nullable=false)
-     */
+    #[Assert\NotBlank]
+    #[ORM\ManyToOne(targetEntity: Account::class, inversedBy: "transactions")]
+    #[ORM\JoinColumn(name: "account_id", referencedColumnName: "id", nullable: false)]
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?Account $account = null;
 
-    /**
-     * @var string
-     * @Assert\NotBlank()
-     * @Assert\Type("numeric")
-     * @Assert\GreaterThan(value="0")
-     *
-     * @ORM\Column(type="string", length=100)
-     */
+    #[Assert\NotBlank]
+    #[Assert\Type('numeric')]
+    #[Assert\GreaterThan(value: "0")]
+    #[ORM\Column(type: Types::STRING, length: 100)]
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Type('float')]
     protected string $amount = '0.0';
 
-    /**
-     * @ORM\Column(type="json", nullable=false)
-     */
+    #[ORM\Column(type: Types::JSON, nullable: false)]
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?array $convertedValues = [];
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?string $note;
 
-    /**
-     * @Assert\NotBlank()
-     *
-     * @ORM\Column(type="datetime", nullable=true)
-     */
+    #[Assert\NotBlank]
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?DateTimeInterface $executedAt;
 
-    /**
-     * @Gedmo\Timestampable(on="create")
-     *
-     * @ORM\Column(type="datetime", nullable=true)
-     */
+    #[Gedmo\Timestampable(on: "create")]
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     protected ?DateTimeInterface $createdAt;
 
-    /**
-     * @Assert\NotBlank()
-     *
-     * @ORM\ManyToOne(targetEntity=Category::class, inversedBy="transactions", cascade={"persist"})
-     * @ORM\JoinColumn(name="category_id", referencedColumnName="id", nullable=false)
-     */
+    #[Assert\NotBlank]
+    #[ORM\ManyToOne(targetEntity: Category::class, cascade: ["persist"], inversedBy: "transactions")]
+    #[ORM\JoinColumn(name: "category_id", referencedColumnName: "id", nullable: false)]
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?Category $category;
 
-    /**
-     * @ORM\Column(type="boolean", nullable=false)
-     */
+    #[ORM\Column(type: Types::BOOLEAN, nullable: false)]
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read'])]
     #[Serializer\Groups(['transaction:collection:read'])]
     private bool $isDraft;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=Debt::class, inversedBy="transactions")
-     */
+    #[ORM\ManyToOne(targetEntity: Debt::class, inversedBy: "transactions")]
     #[Groups(['transaction:write'])]
     private ?Debt $debt = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity=Transfer::class, inversedBy="transactions")
-     */
+    #[ORM\ManyToOne(targetEntity: Transfer::class, cascade: ["remove"], inversedBy: "transactions")]
     private ?Transfer $transfer = null;
 
     #[Groups(['transaction:collection:read', 'debt:collection:read', 'account:item:read'])]

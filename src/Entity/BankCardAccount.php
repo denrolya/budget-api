@@ -3,15 +3,15 @@
 namespace App\Entity;
 
 use ApiPlatform\Core\Annotation\ApiResource;
+use App\Repository\BankCardAccountRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use ApiPlatform\Core\Action\NotFoundAction;
 use JMS\Serializer\Annotation as Serializer;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass="App\Repository\BankCardAccountRepository")
- */
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: BankCardAccountRepository::class)]
 #[ApiResource(
     collectionOperations: [
         'post' => [
@@ -30,23 +30,17 @@ use JMS\Serializer\Annotation as Serializer;
 )]
 class BankCardAccount extends Account
 {
-    /**
-     * @ORM\Column(type="string", length=16, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]
     #[Groups(['account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:item:read'])]
     private ?string $cardNumber;
 
-    /**
-     * @ORM\Column(type="string", length=34, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 34, nullable: true)]
     #[Groups(['account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:item:read'])]
     private ?string $iban;
 
-    /**
-     * @ORM\Column(type="string", length=150, nullable=true)
-     */
+    #[ORM\Column(type: Types::STRING, length: 150, nullable: true)]
     #[Groups(['account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:item:read'])]
     private ?string $monobankId;

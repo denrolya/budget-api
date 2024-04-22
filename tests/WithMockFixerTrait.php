@@ -17,9 +17,12 @@ trait WithMockFixerTrait
 
     protected $mockFixerService;
 
-    private function createFixerServiceMock(callable $callback = null): void
+    protected function createFixerServiceMock(callable $callback = null)
     {
-        $mockFixerService = $this->createMock(FixerService::class);
+        $mockFixerService = $this->getMockBuilder(FixerService::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['convert', 'getLatest'])
+            ->getMock();
 
         $defaultCallback = static function (
             float $amount,
@@ -38,7 +41,8 @@ trait WithMockFixerTrait
             ->method('convert')
             ->willReturnCallback($callback ?? $defaultCallback);
 
-        self::getContainer()->set(FixerService::class, $mockFixerService);
-        $this->mockFixerService = $mockFixerService;
+        $mockFixerService->method('getLatest')->willReturn(self::EXCHANGE_RATES);
+
+        return $mockFixerService;
     }
 }

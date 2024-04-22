@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use ApiPlatform\Core\Annotation\ApiResource;
 use ApiPlatform\Core\Annotation\ApiSubresource;
+use App\Repository\DebtRepository;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
 use Carbon\CarbonImmutable;
@@ -17,12 +18,9 @@ use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
 use JMS\Serializer\Annotation as Serializer;
 
-/**
- * @Gedmo\SoftDeleteable(fieldName="closedAt", timeAware=false, hardDelete=false)
- *
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass="App\Repository\DebtRepository")
- */
+#[Gedmo\SoftDeleteable(fieldName: 'closedAt', timeAware: false, hardDelete: false)]
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: DebtRepository::class)]
 #[ApiResource(
     collectionOperations: [
         'get' => [
@@ -53,74 +51,53 @@ class Debt implements OwnableInterface, ValuableInterface
 {
     use TimestampableEntity, OwnableValuableEntity;
 
-    /**
-     * @ORM\Id()
-     * @ORM\GeneratedValue()
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: 'integer')]
     #[Groups(['debt:collection:read'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?int $id;
 
-    /**
-     * @ORM\Column(type="json", nullable=false)
-     */
+    #[ORM\Column(type: 'json', nullable: false)]
     #[Groups(['debt:collection:read'])]
     #[Serializer\Groups(['debt:collection:read'])]
     protected ?array $convertedValues = [];
 
-    /**
-     * @ORM\Column(type="datetime", nullable=true)
-     */
+    #[ORM\Column(type: 'datetime', nullable: true)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     protected ?DateTimeInterface $createdAt;
 
-    /**
-     * @ORM\Column(type="text", nullable=true)
-     */
+    #[ORM\Column(type: 'text', nullable: true)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     protected ?string $note;
 
-    /**
-     * A debtor is the one who owes. Or whom do I owe
-     *
-     * @ORM\Column(type="string", length=255)
-     */
+    #[ORM\Column(type: 'string', length: 255)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?string $debtor;
 
-    /**
-     * @ORM\Column(type="string", length=3)
-     */
+    #[ORM\Column(type: 'string', length: 3)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?string $currency;
 
-    /**
-     * @ORM\Column(type="string", length=100)
-     */
+    #[ORM\Column(type: 'string', length: 100)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     #[Serializer\Type('float')]
     private string $balance = '0.0';
 
-    /**
-     * TODO: Remove transactions from collection:read
-     * @ORM\OneToMany(targetEntity=Transaction::class, mappedBy="debt")
-     * @ORM\OrderBy({"executedAt" = "DESC"})
-     */
+    // TODO: Remove transactions from collection:read
+    #[ORM\OneToMany(mappedBy: 'debt', targetEntity: Transaction::class)]
+    #[ORM\OrderBy(['executedAt' => 'DESC'])]
     #[Groups(['debt:collection:read'])]
     #[ApiSubresource]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?Collection $transactions;
 
-    /**
-     * @var null|DateTimeInterface
-     * @ORM\Column(type="datetime", nullable=true)
-     */
+    #[ORM\Column(type: 'datetime', nullable: true)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?DateTimeInterface $closedAt;

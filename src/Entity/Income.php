@@ -4,15 +4,14 @@ namespace App\Entity;
 
 use ApiPlatform\Core\Action\NotFoundAction;
 use ApiPlatform\Core\Annotation\ApiResource;
+use App\Repository\IncomeRepository;
 use Doctrine\ORM\Mapping as ORM;
+use JMS\Serializer\Annotation as Serializer;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
-use JMS\Serializer\Annotation as Serializer;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass="App\Repository\IncomeRepository")
- */
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: IncomeRepository::class)]
 #[ApiResource(
     collectionOperations: [
         'post' => [
@@ -31,21 +30,15 @@ use JMS\Serializer\Annotation as Serializer;
 )]
 class Income extends Transaction
 {
-    /**
-     * Original expense which this income is compensating
-     *
-     * @ORM\ManyToOne(targetEntity=Expense::class, inversedBy="compensations", fetch="EAGER")
-     */
+    #[ORM\ManyToOne(targetEntity: Expense::class, fetch: "EAGER", inversedBy: "compensations")]
     #[Groups(['transaction:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read'])]
     private ?Expense $originalExpense = null;
 
-    /**
-     * @Assert\IsTrue(message="Invalid category provided")
-     */
+    #[Assert\IsTrue(message: "Invalid category provided")]
     public function isExpenseCategory(): bool
     {
-        if(!$this->category) {
+        if (!$this->category) {
             return false;
         }
 
@@ -75,17 +68,13 @@ class Income extends Transaction
         return $this;
     }
 
-    /**
-     * @ORM\PrePersist()
-     */
+    #[ORM\PrePersist]
     public function updateAccountBalance(): void
     {
         $this->account->increaseBalance($this->amount);
     }
 
-    /**
-     * @ORM\PreRemove()
-     */
+    #[ORM\PreRemove]
     public function restoreAccountBalance(): void
     {
         $this->account->decreaseBalance($this->amount);

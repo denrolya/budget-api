@@ -5,58 +5,45 @@ namespace App\Entity;
 use ApiPlatform\Core\Annotation\ApiProperty;
 use ApiPlatform\Core\Annotation\ApiResource;
 use App\Repository\UserRepository;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use JetBrains\PhpStorm\Pure;
 use JMS\Serializer\Annotation\Groups;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
-/**
- * @ORM\Entity(repositoryClass=UserRepository::class)
- */
 #[ApiResource(
     collectionOperations: [],
     itemOperations: ['get', 'put'],
 )]
+#[ORM\Entity(repositoryClass: UserRepository::class)]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
-    /**
-     * @ORM\Id
-     * @ORM\GeneratedValue
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(type: Types::INTEGER)]
     #[Groups(['user:item:read'])]
     #[ApiProperty(identifier: false)]
-    private ?int $id;
+    private ?int $id = null;
 
-    /**
-     * @ORM\Column(type="string", length=180, unique=true)
-     */
+
+    #[ORM\Column(type: Types::STRING, length: 180, unique: true)]
     #[Groups(['user:item:read'])]
     #[ApiProperty(identifier: true)]
     private ?string $username;
 
-    /**
-     * @ORM\Column(type="json")
-     */
+    #[ORM\Column(type: Types::JSON)]
     #[Groups(['user:item:read'])]
     private ?array $roles = [];
 
-    /**
-     * @var string The hashed password
-     * @ORM\Column(type="string")
-     */
+    #[ORM\Column(type: Types::STRING)]
     private string $password;
 
-    /**
-     * @ORM\Column(name="base_currency", type="string", length=3, nullable=false)
-     */
+    #[ORM\Column(name: 'base_currency', type: Types::STRING, length: 3, nullable: false)]
     #[Groups(['user:item:read', 'user:write'])]
     private string $baseCurrency = 'EUR';
 
-    /**
-     * @ORM\Column(name="dashboard_statistics", type="json")
-     */
+    #[ORM\Column(name: 'dashboard_statistics', type: Types::JSON)]
     #[Groups(['user:item:read', 'user:write'])]
     private array $dashboardStatistics;
 

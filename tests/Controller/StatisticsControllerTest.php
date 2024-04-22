@@ -2,7 +2,7 @@
 
 namespace App\Tests\Controller;
 
-use App\Tests\BaseApiTest;
+use App\Tests\BaseApiTestCase;
 use Carbon\CarbonImmutable;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
@@ -11,7 +11,7 @@ use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
-class StatisticsControllerTest extends BaseApiTest
+class StatisticsControllerTest extends BaseApiTestCase
 {
     private const VALUE_BY_PERIOD_URL = '/api/v2/statistics/value-by-period';
     private const CATEGORY_TREE_URL = '/api/v2/statistics/category/tree';

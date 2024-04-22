@@ -7,10 +7,8 @@ use ApiPlatform\Core\Annotation\ApiResource;
 use App\Repository\IncomeCategoryRepository;
 use Doctrine\ORM\Mapping as ORM;
 
-/**
- * @ORM\HasLifecycleCallbacks()
- * @ORM\Entity(repositoryClass=IncomeCategoryRepository::class)
- */
+#[ORM\HasLifecycleCallbacks]
+#[ORM\Entity(repositoryClass: IncomeCategoryRepository::class)]
 #[ApiResource(
     collectionOperations: [
         'post' => [

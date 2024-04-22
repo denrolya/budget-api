@@ -2,13 +2,12 @@
 
 namespace App\Traits;
 
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 trait ValuableEntity
 {
-    /**
-     * @ORM\Column(type="json")
-     */
+    #[ORM\Column(type: Types::JSON)]
     protected ?array $convertedValues;
 
     public function getValue(): float|null

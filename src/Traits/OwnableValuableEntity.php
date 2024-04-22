@@ -3,28 +3,21 @@
 namespace App\Traits;
 
 use App\Entity\User;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 trait OwnableValuableEntity
 {
-    /**
-     * @Gedmo\Blameable(on="create")
-     * @Gedmo\Blameable(on="update")
-     *
-     * @ORM\ManyToOne(targetEntity=User::class)
-     * @ORM\JoinColumn(name="owner_id", referencedColumnName="id", nullable=false, onDelete="CASCADE")
-     */
+    #[Gedmo\Blameable(on: 'create')]
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: "owner_id", referencedColumnName: "id", nullable: false, onDelete: "CASCADE")]
     protected ?UserInterface $owner = null;
 
-    /**
-     * @ORM\Column(type="json", nullable=false)
-     */
+    #[ORM\Column(type: Types::JSON, nullable: false)]
     protected ?array $convertedValues = [];
 
-    #[Pure]
     public function getValue(): float
     {
         return $this->convertedValues[$this->getOwner()->getBaseCurrency()];
@@ -42,7 +35,6 @@ trait OwnableValuableEntity
         return $this;
     }
 
-    #[Pure]
     public function getConvertedValue(?string $currencyCode = null): float
     {
         return $this->convertedValues[is_null($currencyCode) ? $this->getOwner()->getBaseCurrency() : $currencyCode];

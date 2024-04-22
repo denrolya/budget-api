@@ -5,14 +5,18 @@ namespace App\Tests\Feature;
 use App\Entity\Account;
 use App\Entity\Income;
 use App\Entity\IncomeCategory;
-use App\Tests\BaseApiTest;
+use App\Tests\BaseApiTestCase;
 use Carbon\Carbon;
+use Carbon\CarbonInterface;
 
 /**
  * @group smoke
  */
-final class IncomeCRUDTest extends BaseApiTest
+final class IncomeCRUDTest extends BaseApiTestCase
 {
+    private const TRANSACTION_URL = '/api/transactions';
+    private const INCOME_URL = '/api/transactions/income';
+
     private const ACCOUNT_MONO_UAH_ID = 10;
     private const ACCOUNT_CASH_EUR_ID = 2;
     private const CATEGORY_SALARY = 'Salary';
@@ -37,21 +41,25 @@ final class IncomeCRUDTest extends BaseApiTest
         self::assertEquals(5516, $this->testAccount->getTransactionsCount());
         self::assertEquals(16, $this->testCategory->getTransactionsCount(false));
 
-        $transaction = $this->createIncome(
-            amount: 100,
-            account: $this->testAccount,
-            category: $this->testCategory,
-            executedAt: $executionDate,
-            note: 'Test transaction'
-        );
-
-        $this->em->persist($transaction);
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
+        $response = $this->client->request('POST', self::INCOME_URL, [
+            'json' => [
+                'amount' => '100.0',
+                'executedAt' => $executionDate->toIso8601String(),
+                'category' => (string)$this->testCategory->getId(),
+                'account' => (string)$this->testAccount->getId(),
+                'note' => 'Test transaction',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
 
         self::assertEquals(5517, $this->testAccount->getTransactionsCount());
         self::assertEqualsWithDelta(11378.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals(17, $this->testCategory->getTransactionsCount(false));
+
+        $content = $response->toArray();
+        self::assertArrayHasKey('id', $content);
+        $transaction = $this->em->getRepository(Income::class)->find($content['id']);
+        self::assertInstanceOf(Income::class, $transaction);
 
         self::assertEquals($transaction->getNote(), 'Test transaction');
         self::assertEquals(100, $transaction->getAmount());
@@ -63,26 +71,26 @@ final class IncomeCRUDTest extends BaseApiTest
 
     public function testCreateIncomeSavedWithConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(1))->method('convert');
+        $response = $this->client->request('POST', self::INCOME_URL, [
+            'json' => [
+                'amount' => '100.0',
+                'executedAt' => Carbon::now()->toIso8601String(),
+                'category' => (string)$this->testCategory->getId(),
+                'account' => (string)$this->testAccount->getId(),
+                'note' => 'Test transaction',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
 
-        $transaction = $this->createIncome(
-            amount: 100,
-            account: $this->testAccount,
-            category: $this->testCategory,
-            executedAt: Carbon::now(),
-            note: 'Test transaction'
-        );
+        $content = $response->toArray();
 
-        $this->em->persist($transaction);
-        $this->em->flush();
-
-        self::assertEquals($transaction->getAmount(), $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEquals(4, $transaction->getConvertedValue('USD'));
-        self::assertEquals(1000, $transaction->getConvertedValue('HUF'));
+        self::assertEquals($content['amount'], $content['convertedValues']['UAH']);
+        self::assertEqualsWithDelta(3.33, $content['convertedValues']['EUR'], 0.01);
+        self::assertEquals(4, $content['convertedValues']['USD']);
+        self::assertEquals(1000, $content['convertedValues']['HUF']);
         self::assertEqualsWithDelta(
             0.0003333333333333333,
-            $transaction->getConvertedValue('BTC'),
+            $content['convertedValues']['BTC'],
             0.0000000000000001
         );
     }
@@ -94,7 +102,7 @@ final class IncomeCRUDTest extends BaseApiTest
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals(5516, $this->testAccount->getTransactionsCount());
 
-        $newTransaction = $this->createIncome(
+        $transaction = $this->createIncome(
             amount: 100,
             account: $this->testAccount,
             category: $this->testCategory,
@@ -102,26 +110,42 @@ final class IncomeCRUDTest extends BaseApiTest
             note: 'Test transaction'
         );
 
-        $this->em->persist($newTransaction);
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
-
         self::assertEquals(5517, $this->testAccount->getTransactionsCount());
         self::assertEqualsWithDelta(11378.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals($transaction->getAmount(), $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEquals(4, $transaction->getConvertedValue('USD'));
+        self::assertEquals(1000, $transaction->getConvertedValue('HUF'));
+        self::assertEqualsWithDelta(
+            0.0003333333333333333,
+            $transaction->getConvertedValue('BTC'),
+            0.0000000000000001
+        );
 
-        $newTransaction->setAmount(50);
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
+        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+            'json' => [
+                'amount' => '50',
+                'note' => 'Updated transaction note',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
 
+        $content = $response->toArray();
+        self::assertArrayHasKey('id', $content);
+        $transaction = $this->em->getRepository(Income::class)->find($content['id']);
+        self::assertNotNull($transaction);
+
+        self::assertEquals(50, $transaction->getAmount());
+        self::assertEquals('Updated transaction note', $transaction->getNote());
         self::assertEquals(5517, $this->testAccount->getTransactionsCount());
         self::assertEqualsWithDelta(11328.35, $this->testAccount->getBalance(), 0.01);
-        self::assertEquals($newTransaction->getAmount(), $newTransaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(1.67, $newTransaction->getConvertedValue('EUR'), 0.01);
-        self::assertEquals(2, $newTransaction->getConvertedValue('USD'));
-        self::assertEquals(500, $newTransaction->getConvertedValue('HUF'));
+        self::assertEquals($transaction->getAmount(), $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(1.67, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEquals(2, $transaction->getConvertedValue('USD'));
+        self::assertEquals(500, $transaction->getConvertedValue('HUF'));
         self::assertEqualsWithDelta(
             0.00016666666666666666,
-            $newTransaction->getConvertedValue('BTC'),
+            $transaction->getConvertedValue('BTC'),
             0.0000000000000001
         );
     }
@@ -145,19 +169,24 @@ final class IncomeCRUDTest extends BaseApiTest
             note: 'Test transaction'
         );
 
-        $this->em->persist($transaction);
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
-
         self::assertEquals(5517, $this->testAccount->getTransactionsCount());
         self::assertEquals(100, $transaction->getConvertedValue($this->testAccount->getCurrency()));
         self::assertEquals(4, $transaction->getConvertedValue('USD'));
 
-        $transaction->setAccount($endAccount);
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
-        $this->em->refresh($endAccount);
+        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+            'json' => [
+                'account' => (string)$endAccount->getId(),
+                'note' => 'Updated transaction note',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
 
+        $content = $response->toArray();
+        self::assertArrayHasKey('id', $content);
+        $transaction = $this->em->getRepository(Income::class)->find($content['id']);
+        self::assertNotNull($transaction);
+
+        self::assertEquals('Updated transaction note', $transaction->getNote());
         self::assertEquals(100, $transaction->getConvertedValue($endAccount->getCurrency()));
         self::assertEquals(3000, $transaction->getConvertedValue('UAH'));
         self::assertEquals(120, $transaction->getConvertedValue('USD'));
@@ -187,19 +216,25 @@ final class IncomeCRUDTest extends BaseApiTest
             note: 'Test transaction'
         );
 
-        $this->em->persist($transaction);
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
-
         self::assertEquals(5517, $this->testAccount->getTransactionsCount());
         self::assertEquals(100, $transaction->getConvertedValue($this->testAccount->getCurrency()));
         self::assertEquals(4, $transaction->getConvertedValue('USD'));
 
-        $transaction->setAccount($endAccount)->setAmount(50);
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
-        $this->em->refresh($endAccount);
+        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+            'json' => [
+                'account' => (string)$endAccount->getId(),
+                'amount' => '50',
+                'note' => 'Updated transaction note',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
 
+        $content = $response->toArray();
+        self::assertArrayHasKey('id', $content);
+        $transaction = $this->em->getRepository(Income::class)->find($content['id']);
+        self::assertNotNull($transaction);
+
+        self::assertEquals('Updated transaction note', $transaction->getNote());
         self::assertEquals(50, $transaction->getConvertedValue($endAccount->getCurrency()));
         self::assertEquals(1500, $transaction->getConvertedValue('UAH'));
         self::assertEquals(60, $transaction->getConvertedValue('USD'));
@@ -210,13 +245,14 @@ final class IncomeCRUDTest extends BaseApiTest
         self::assertEqualsWithDelta(5479.94, $endAccount->getBalance(), 0.01);
     }
 
-    public function testUpdateIncomeExecutedAtDoesNotChangeAccountBalanceAndConvertedValues(): void
+    public function testUpdateIncomeExecutedAtDoesNotChangeAccountBalance(): void
     {
-        $this->mockFixerService->expects(self::exactly(1))->method('convert');
+        $this->mockFixerService->expects(self::exactly(2))->method('convert');
 
         $executionDate = Carbon::now();
 
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(5516, $this->testAccount->getTransactionsCount());
 
         $transaction = $this->createIncome(
             amount: 100,
@@ -225,17 +261,26 @@ final class IncomeCRUDTest extends BaseApiTest
             executedAt: $executionDate,
             note: 'Test transaction'
         );
-        $this->em->persist($transaction);
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
+
         $convertedValues = $transaction->getConvertedValues();
 
+        self::assertEquals(5517, $this->testAccount->getTransactionsCount());
         self::assertEqualsWithDelta(11378.35, $this->testAccount->getBalance(), 0.01);
 
-        $transaction->setExecutedAt($executionDate->subMonth());
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
+        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+            'json' => [
+                'executedAt' => $executionDate->subMonth()->toIso8601String(),
+                'note' => 'Updated transaction note',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
 
+        $content = $response->toArray();
+        self::assertArrayHasKey('id', $content);
+        $transaction = $this->em->getRepository(Income::class)->find($content['id']);
+        self::assertNotNull($transaction);
+
+        self::assertEquals(5517, $this->testAccount->getTransactionsCount());
         self::assertEqualsWithDelta(11378.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals($convertedValues, $transaction->getConvertedValues());
     }
@@ -254,23 +299,29 @@ final class IncomeCRUDTest extends BaseApiTest
             note: 'Test transaction'
         );
 
-        $this->em->persist($transaction);
-        $this->em->flush();
+        $transactionId = $transaction->getId();
 
         self::assertEqualsWithDelta(11378.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals(17, $this->testCategory->getTransactionsCount(false));
 
-        $this->em->remove($transaction);
-        $this->em->flush();
-        $this->em->refresh($this->testAccount);
+        $this->client->request('DELETE', self::TRANSACTION_URL.'/'.$transactionId);
+        self::assertResponseIsSuccessful();
+
+        $transaction = $this->em->getRepository(Income::class)->find($transactionId);
+        self::assertNull($transaction);
 
         self::assertEquals(5516, $this->testAccount->getTransactionsCount());
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals(16, $this->testCategory->getTransactionsCount(false));
     }
 
-    private function createIncome($amount, $account, $category, $executedAt, $note): Income
-    {
+    private function createIncome(
+        float $amount,
+        Account $account,
+        IncomeCategory $category,
+        CarbonInterface $executedAt,
+        ?string $note = null
+    ): Income {
         $income = new Income();
         $income
             ->setAccount($account)
@@ -279,6 +330,9 @@ final class IncomeCRUDTest extends BaseApiTest
             ->setCategory($category)
             ->setOwner($account->getOwner())
             ->setNote($note);
+
+        $this->em->persist($income);
+        $this->em->flush();
 
         return $income;
     }
