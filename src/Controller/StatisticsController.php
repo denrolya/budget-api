@@ -126,7 +126,7 @@ class StatisticsController extends AbstractFOSRestController
         $transactions = $transactionRepo->getList(
             after: $after,
             before: $before,
-            type: $type
+            type: $type,
         );
 
         return $this->view(

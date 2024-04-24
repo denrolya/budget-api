@@ -338,7 +338,6 @@ final class StatisticsManager
     public function generateTransactionsValueByCategoriesByWeekdays(array $transactionsOrdered): array
     {
         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
         $result = array_map(static fn($day) => ['name' => $day, 'values' => []], $days);
 
         $rootCategories = $this->em->getRepository(ExpenseCategory::class)->findRootCategories(['name' => 'ASC']);
@@ -359,9 +358,9 @@ final class StatisticsManager
         }
 
         foreach ($result as $index => &$weekdayData) {
-            $weekdaysCount = $this->countWeekdays(
-                $transactionsOrdered[0]->getExecutedAt(),
+            $weekdaysCount = $this->countWeekdaysBetweenDates(
                 end($transactionsOrdered)->getExecutedAt(),
+                $transactionsOrdered[0]->getExecutedAt(),
                 $index
             );
 
@@ -481,7 +480,7 @@ final class StatisticsManager
         return $this->em->getRepository($categoryClass)->findRootCategories();
     }
 
-    private function countWeekdays(CarbonInterface $after, CarbonInterface $before, int $weekday): int
+    private function countWeekdaysBetweenDates(CarbonInterface $after, CarbonInterface $before, int $weekday): int
     {
         if ($weekday < 0 || $weekday > 6) {
             throw new \InvalidArgumentException(
