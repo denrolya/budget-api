@@ -5,6 +5,7 @@ namespace App\Tests\Feature;
 use App\Entity\Account;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
+use App\Entity\IncomeCategory;
 use App\Tests\BaseApiTestCase;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -20,10 +21,13 @@ final class ExpenseCRUDTest extends BaseApiTestCase
     private const ACCOUNT_MONO_UAH_ID = 10;
     private const ACCOUNT_CASH_EUR_ID = 2;
     private const CATEGORY_GROCERIES = 'Groceries';
+    private const CATEGORY_COMPENSATION = 'Compensation';
 
     private Account $testAccount;
 
     private ExpenseCategory $testCategory;
+
+    private IncomeCategory $compensationCategory;
 
     protected function setUp(): void
     {
@@ -31,6 +35,7 @@ final class ExpenseCRUDTest extends BaseApiTestCase
 
         $this->testAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_MONO_UAH_ID);
         $this->testCategory = $this->em->getRepository(ExpenseCategory::class)->findOneByName(self::CATEGORY_GROCERIES);
+        $this->compensationCategory = $this->em->getRepository(IncomeCategory::class)->findOneByName(self::CATEGORY_COMPENSATION);
     }
 
     public function testCreateExpenseUpdatesAccountAndCategory(): void
@@ -319,7 +324,50 @@ final class ExpenseCRUDTest extends BaseApiTestCase
 
     public function testCreateExpenseWithCompensationsProperlyCalculatesValueAndAccountBalances(): void
     {
-        self::markTestIncomplete('This test has not been implemented yet.');
+        $executionDate = Carbon::now()->startOfDay();
+
+        self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(5516, $this->testAccount->getTransactionsCount());
+        self::assertEquals(464, $this->testCategory->getTransactionsCount(false));
+        self::assertEquals(301, $this->compensationCategory->getTransactionsCount(false));
+
+        $response = $this->client->request('POST', self::EXPENSE_URL, [
+            'json' => [
+                'amount' => '100.0',
+                'executedAt' => $executionDate->toIso8601String(),
+                'category' => (string)$this->testCategory->getId(),
+                'account' => (string)$this->testAccount->getId(),
+                'note' => 'Test transaction',
+                'compensations' => [[
+                    'amount' => '50.0',
+                    'account' => (string)$this->testAccount->getId(),
+                    'category' => (string)$this->compensationCategory->getId(),
+                    'note' => 'Test compensation',
+                    'executedAt' => $executionDate->toIso8601String(),
+                ]]
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        self::assertEquals(5518, $this->testAccount->getTransactionsCount());
+        self::assertEqualsWithDelta(11228.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(465, $this->testCategory->getTransactionsCount(false));
+        self::assertEquals(302, $this->compensationCategory->getTransactionsCount(false));
+
+        $content = $response->toArray();
+        self::assertArrayHasKey('id', $content);
+        $transaction = $this->em->getRepository(Expense::class)->find($content['id']);
+        self::assertInstanceOf(Expense::class, $transaction);
+
+        self::assertEquals($transaction->getNote(), 'Test transaction');
+        self::assertEquals(100, $transaction->getAmount());
+        self::assertEquals($this->testAccount, $transaction->getAccount());
+        self::assertEquals($this->testCategory, $transaction->getCategory());
+        self::assertEquals($this->testAccount->getOwner(), $transaction->getOwner());
+        self::assertTrue($executionDate->eq($transaction->getExecutedAt()));
+        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
     }
 
     public function testUpdateExpenseWithCompensationsAmountRecalculatesValueAndAccountBalances(): void

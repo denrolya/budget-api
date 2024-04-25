@@ -6,6 +6,7 @@ use App\Entity\Expense;
 use App\Entity\TransactionInterface;
 use App\Service\FixerService;
 use Psr\Cache\InvalidArgumentException;
+use function PHPUnit\Framework\isEmpty;
 
 final class UpdateTransactionWithCompensationsValueHandler implements ToggleEnabledInterface
 {
@@ -45,6 +46,15 @@ final class UpdateTransactionWithCompensationsValueHandler implements ToggleEnab
         );
 
         foreach ($transaction->getCompensations() as $compensation) {
+            if (isEmpty($compensation->getConvertedValues())) {
+                $compensationValues = $this->fixerService->convert(
+                    amount: $compensation->getAmount(),
+                    fromCurrency: $compensation->getCurrency(),
+                    executionDate: $compensation->getExecutedAt()
+                );
+
+                $compensation->setConvertedValues($compensationValues);
+            }
             $currencies = array_keys($transactionValue);
             foreach ($currencies as $currency) {
                 $transactionValue[$currency] -= $compensation->getConvertedValue($currency);
