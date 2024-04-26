@@ -94,9 +94,9 @@ services:
 
     App\EventListener\UpdateTransactionWithCompensationsValueHandler:
         tags:
-            - { name: doctrine.orm.entity_listener, event: preUpdate, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue, priority: 11 }
-            - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue, priority: 11 }
-            - { name: doctrine.orm.entity_listener, event: preRemove, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue, priority: 11 }
+            - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue }
+            - { name: doctrine.orm.entity_listener, event: preUpdate, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue }
+            - { name: doctrine.orm.entity_listener, event: preRemove, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue }
 
 #    App\EventListener\AccountLogger:
 #        tags:

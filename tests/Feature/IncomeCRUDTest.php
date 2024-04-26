@@ -314,26 +314,4 @@ final class IncomeCRUDTest extends BaseApiTestCase
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals(16, $this->testCategory->getTransactionsCount(false));
     }
-
-    private function createIncome(
-        float $amount,
-        Account $account,
-        IncomeCategory $category,
-        CarbonInterface $executedAt,
-        ?string $note = null
-    ): Income {
-        $income = new Income();
-        $income
-            ->setAccount($account)
-            ->setAmount($amount)
-            ->setExecutedAt($executedAt)
-            ->setCategory($category)
-            ->setOwner($account->getOwner())
-            ->setNote($note);
-
-        $this->em->persist($income);
-        $this->em->flush();
-
-        return $income;
-    }
 }

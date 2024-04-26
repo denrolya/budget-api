@@ -54,6 +54,7 @@ use JMS\Serializer\Annotation as Serializer;
         ],
         'put' => [
             'requirements' => ['id' => '\d+'],
+            'normalization_context' => ['groups' => 'transaction:collection:read'],
         ],
         'delete' => [
             'requirements' => ['id' => '\d+'],

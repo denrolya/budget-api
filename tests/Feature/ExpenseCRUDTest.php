@@ -8,7 +8,6 @@ use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Tests\BaseApiTestCase;
 use Carbon\Carbon;
-use Carbon\CarbonInterface;
 
 /**
  * @group smoke
@@ -35,7 +34,9 @@ final class ExpenseCRUDTest extends BaseApiTestCase
 
         $this->testAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_MONO_UAH_ID);
         $this->testCategory = $this->em->getRepository(ExpenseCategory::class)->findOneByName(self::CATEGORY_GROCERIES);
-        $this->compensationCategory = $this->em->getRepository(IncomeCategory::class)->findOneByName(self::CATEGORY_COMPENSATION);
+        $this->compensationCategory = $this->em->getRepository(IncomeCategory::class)->findOneByName(
+            self::CATEGORY_COMPENSATION
+        );
     }
 
     public function testCreateExpenseUpdatesAccountAndCategory(): void
@@ -324,6 +325,7 @@ final class ExpenseCRUDTest extends BaseApiTestCase
 
     public function testCreateExpenseWithCompensationsProperlyCalculatesValueAndAccountBalances(): void
     {
+        $this->mockFixerService->expects(self::exactly(8))->method('convert');
         $executionDate = Carbon::now()->startOfDay();
 
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
@@ -338,21 +340,30 @@ final class ExpenseCRUDTest extends BaseApiTestCase
                 'category' => (string)$this->testCategory->getId(),
                 'account' => (string)$this->testAccount->getId(),
                 'note' => 'Test transaction',
-                'compensations' => [[
-                    'amount' => '50.0',
-                    'account' => (string)$this->testAccount->getId(),
-                    'category' => (string)$this->compensationCategory->getId(),
-                    'note' => 'Test compensation',
-                    'executedAt' => $executionDate->toIso8601String(),
-                ]]
+                'compensations' => [
+                    [
+                        'amount' => '25.0',
+                        'executedAt' => $executionDate->toIso8601String(),
+                        'category' => (string)$this->compensationCategory->getId(),
+                        'account' => (string)$this->testAccount->getId(),
+                        'note' => 'Test compensation',
+                    ],
+                    [
+                        'amount' => '25.0',
+                        'executedAt' => $executionDate->toIso8601String(),
+                        'category' => (string)$this->compensationCategory->getId(),
+                        'account' => (string)$this->testAccount->getId(),
+                        'note' => 'Test compensation',
+                    ],
+                ],
             ],
         ]);
         self::assertResponseIsSuccessful();
 
-        self::assertEquals(5518, $this->testAccount->getTransactionsCount());
+        self::assertEquals(5519, $this->testAccount->getTransactionsCount());
         self::assertEqualsWithDelta(11228.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals(465, $this->testCategory->getTransactionsCount(false));
-        self::assertEquals(302, $this->compensationCategory->getTransactionsCount(false));
+        self::assertEquals(303, $this->compensationCategory->getTransactionsCount(false));
 
         $content = $response->toArray();
         self::assertArrayHasKey('id', $content);
@@ -365,14 +376,79 @@ final class ExpenseCRUDTest extends BaseApiTestCase
         self::assertEquals($this->testCategory, $transaction->getCategory());
         self::assertEquals($this->testAccount->getOwner(), $transaction->getOwner());
         self::assertTrue($executionDate->eq($transaction->getExecutedAt()));
+        self::assertCount(2, $transaction->getCompensations());
+
+        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
         self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
-        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
+
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[1]->getConvertedValue('USD'), 0.01);
     }
 
     public function testUpdateExpenseWithCompensationsAmountRecalculatesValueAndAccountBalances(): void
     {
-        self::markTestIncomplete('This test has not been implemented yet.');
+        $this->mockFixerService->expects(self::exactly(10))->method('convert');
+        $transaction = $this->createExpense(
+            amount: 100,
+            account: $this->testAccount,
+            category: $this->testCategory,
+            executedAt: Carbon::now(),
+            note: 'Test transaction',
+            compensations: [
+                [
+                    'amount' => 25,
+                    'account' => $this->testAccount,
+                    'executedAt' => Carbon::now(),
+                    'note' => 'Test compensation',
+                ],
+                [
+                    'amount' => 25,
+                    'account' => $this->testAccount,
+                    'executedAt' => Carbon::now(),
+                    'note' => 'Test compensation',
+                ],
+            ]
+        );
+
+        $transactionId = $transaction->getId();
+
+        self::assertCount(2, $transaction->getCompensations());
+        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[1]->getConvertedValue('USD'), 0.01);
+
+        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
+            'json' => [
+                'amount' => '50',
+                'note' => 'Updated transaction note',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        self::assertEquals(5519, $this->testAccount->getTransactionsCount());
+        self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(465, $this->testCategory->getTransactionsCount(false));
+        self::assertEquals(303, $this->compensationCategory->getTransactionsCount(false));
+
+        $content = $response->toArray();
+        self::assertArrayHasKey('id', $content);
+        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
+        self::assertInstanceOf(Expense::class, $transaction);
+
+        self::assertEquals('Updated transaction note', $transaction->getNote());
+        self::assertEquals(50, $transaction->getAmount());
+        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
+
+
     }
 
     public function testDeleteExpenseWithCompensationsRemovesCompensationsAndUpdatesAccountBalances(): void
@@ -393,27 +469,5 @@ final class ExpenseCRUDTest extends BaseApiTestCase
     public function testDeleteCompensationToExpenseRecalculatesValueAndAccountBalances(): void
     {
         self::markTestIncomplete('This test has not been implemented yet.');
-    }
-
-    private function createExpense(
-        float $amount,
-        Account $account,
-        ExpenseCategory $category,
-        CarbonInterface $executedAt,
-        ?string $note = null
-    ): Expense {
-        $expense = new Expense();
-        $expense
-            ->setAccount($account)
-            ->setAmount($amount)
-            ->setExecutedAt($executedAt)
-            ->setCategory($category)
-            ->setOwner($account->getOwner())
-            ->setNote($note);
-
-        $this->em->persist($expense);
-        $this->em->flush();
-
-        return $expense;
     }
 }

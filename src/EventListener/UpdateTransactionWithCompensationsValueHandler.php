@@ -5,18 +5,21 @@ namespace App\EventListener;
 use App\Entity\Expense;
 use App\Entity\TransactionInterface;
 use App\Service\FixerService;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\UnitOfWork;
 use Psr\Cache\InvalidArgumentException;
-use function PHPUnit\Framework\isEmpty;
 
 final class UpdateTransactionWithCompensationsValueHandler implements ToggleEnabledInterface
 {
     use ToggleEnabledTrait;
 
-    private FixerService $fixerService;
+    private UnitOfWork $uow;
 
-    public function __construct(FixerService $fixerService)
-    {
-        $this->fixerService = $fixerService;
+    public function __construct(
+        private FixerService $fixerService,
+        private EntityManagerInterface $em,
+    ) {
+        $this->uow = $em->getUnitOfWork();
     }
 
     public function updateTransactionWithCompensationsValue(TransactionInterface $transaction): void
@@ -46,7 +49,7 @@ final class UpdateTransactionWithCompensationsValueHandler implements ToggleEnab
         );
 
         foreach ($transaction->getCompensations() as $compensation) {
-            if (isEmpty($compensation->getConvertedValues())) {
+            if (empty($compensation->getConvertedValues())) {
                 $compensationValues = $this->fixerService->convert(
                     amount: $compensation->getAmount(),
                     fromCurrency: $compensation->getCurrency(),
@@ -62,5 +65,8 @@ final class UpdateTransactionWithCompensationsValueHandler implements ToggleEnab
         }
 
         $transaction->setConvertedValues($transactionValue);
+        if (!empty($this->uow->getEntityChangeSet($transaction))) {
+            $this->uow->recomputeSingleEntityChangeSet($this->em->getClassMetadata(Expense::class), $transaction);
+        }
     }
 }
