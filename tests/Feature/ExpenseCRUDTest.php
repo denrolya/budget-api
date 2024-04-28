@@ -325,7 +325,7 @@ final class ExpenseCRUDTest extends BaseApiTestCase
 
     public function testCreateExpenseWithCompensationsProperlyCalculatesValueAndAccountBalances(): void
     {
-        $this->mockFixerService->expects(self::exactly(8))->method('convert');
+        $this->mockFixerService->expects(self::exactly(7))->method('convert');
         $executionDate = Carbon::now()->startOfDay();
 
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
@@ -390,7 +390,7 @@ final class ExpenseCRUDTest extends BaseApiTestCase
 
     public function testUpdateExpenseWithCompensationsAmountRecalculatesValueAndAccountBalances(): void
     {
-        $this->mockFixerService->expects(self::exactly(10))->method('convert');
+        $this->mockFixerService->expects(self::exactly(8))->method('convert');
         $transaction = $this->createExpense(
             amount: 100,
             account: $this->testAccount,
@@ -444,26 +444,194 @@ final class ExpenseCRUDTest extends BaseApiTestCase
 
         self::assertEquals('Updated transaction note', $transaction->getNote());
         self::assertEquals(50, $transaction->getAmount());
-        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
-        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
-
-
+        self::assertEqualsWithDelta(0, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(0, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(0, $transaction->getConvertedValue('UAH'));
     }
 
     public function testDeleteExpenseWithCompensationsRemovesCompensationsAndUpdatesAccountBalances(): void
     {
-        self::markTestIncomplete('This test has not been implemented yet.');
+        self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(5516, $this->testAccount->getTransactionsCount());
+        self::assertEquals(464, $this->testCategory->getTransactionsCount(false));
+        self::assertEquals(301, $this->compensationCategory->getTransactionsCount(false));
+
+        $transaction = $this->createExpense(
+            amount: 100,
+            account: $this->testAccount,
+            category: $this->testCategory,
+            executedAt: Carbon::now(),
+            note: 'Test transaction',
+            compensations: [
+                [
+                    'amount' => 25,
+                    'account' => $this->testAccount,
+                    'executedAt' => Carbon::now(),
+                    'note' => 'Test compensation',
+                ],
+                [
+                    'amount' => 25,
+                    'account' => $this->testAccount,
+                    'executedAt' => Carbon::now(),
+                    'note' => 'Test compensation',
+                ],
+            ]
+        );
+
+        self::assertCount(2, $transaction->getCompensations());
+        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[1]->getConvertedValue('USD'), 0.01);
+
+        $this->client->request('DELETE', self::TRANSACTION_URL.'/'.$transaction->getId());
+        self::assertResponseIsSuccessful();
+
+        self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(5516, $this->testAccount->getTransactionsCount());
+        self::assertEquals(464, $this->testCategory->getTransactionsCount(false));
+        self::assertEquals(301, $this->compensationCategory->getTransactionsCount(false));
     }
 
-    public function testAddCompensationToExpenseRecalculatesValueAndAccountBalances(): void
+    public function testAddCompensationToExpenseAndUpdateAmountRecalculatesValuesAndAccountBalances(): void
     {
-        self::markTestIncomplete('This test has not been implemented yet.');
+        $this->mockFixerService->expects(self::exactly(10))->method('convert');
+        $transaction = $this->createExpense(
+            amount: 100,
+            account: $this->testAccount,
+            category: $this->testCategory,
+            executedAt: Carbon::now(),
+            note: 'Test transaction',
+            compensations: [
+                [
+                    'amount' => 25,
+                    'account' => $this->testAccount,
+                    'executedAt' => Carbon::now(),
+                    'note' => 'Test compensation',
+                ],
+                [
+                    'amount' => 25,
+                    'account' => $this->testAccount,
+                    'executedAt' => Carbon::now(),
+                    'note' => 'Test compensation',
+                ],
+            ]
+        );
+
+        self::assertCount(2, $transaction->getCompensations());
+        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[1]->getConvertedValue('USD'), 0.01);
+
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+            'json' => [
+                'compensations' => [
+                    ...$transaction->getCompensations()->map(function ($compensation) use ($transaction) {
+                        return [
+                            'id' => '/api/transactions/'.$compensation->getId(),
+                            '@type' => 'Income',
+                            'originalExpense' => '/api/expenses/'.$transaction->getId(),
+                        ];
+                    })->toArray(),
+                    [
+                        'amount' => '10',
+                        'executedAt' => Carbon::now()->toIso8601String(),
+                        'category' => (string)$this->compensationCategory->getId(),
+                        'account' => (string)$this->testAccount->getId(),
+                        'type' => 'income',
+                        'note' => 'New Compensation',
+                    ],
+                ],
+                'amount' => '150',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $transaction = $this->em->getRepository(Expense::class)->find($transaction->getId());
+        self::assertCount(3, $transaction->getCompensations());
+        self::assertEqualsWithDelta(11188.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(90, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(3.6, $transaction->getConvertedValue('USD'), 0.01);
+
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(0.33, $transaction->getCompensations()[2]->getConvertedValue('EUR'), 0.01);
+
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[1]->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(0.4, $transaction->getCompensations()[2]->getConvertedValue('USD'), 0.01);
+
     }
 
     public function testUpdateCompensationToExpenseRecalculatesValueAndAccountBalances(): void
     {
-        self::markTestIncomplete('This test has not been implemented yet.');
+        $this->mockFixerService->expects(self::exactly(9))->method('convert');
+        self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(5516, $this->testAccount->getTransactionsCount());
+
+        $transaction = $this->createExpense(
+            amount: 100,
+            account: $this->testAccount,
+            category: $this->testCategory,
+            executedAt: Carbon::now(),
+            note: 'Test transaction',
+            compensations: [
+                [
+                    'amount' => 25,
+                    'account' => $this->testAccount,
+                    'executedAt' => Carbon::now(),
+                    'note' => 'Test compensation',
+                ],
+                [
+                    'amount' => 25,
+                    'account' => $this->testAccount,
+                    'executedAt' => Carbon::now(),
+                    'note' => 'Test compensation',
+                ],
+            ]
+        );
+
+        self::assertCount(2, $transaction->getCompensations());
+        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[1]->getConvertedValue('USD'), 0.01);
+
+        $this->client->request(
+            'PUT',
+            self::TRANSACTION_URL.'/'.$transaction->getCompensations()[1]->getId(),
+            [
+                'json' => [
+                    'amount' => '50',
+                    'note' => 'Updated Compensation'
+                ],
+            ]
+        );
+        self::assertResponseIsSuccessful();
+
+        $transaction = $this->em->getRepository(Expense::class)->find($transaction->getId());
+        self::assertCount(2, $transaction->getCompensations());
+        self::assertEqualsWithDelta(11253.35, $this->testAccount->getBalance(), 0.01);
+        self::assertEquals(25, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(0.83, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(1, $transaction->getConvertedValue('USD'), 0.01);
+
+        self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(1.66, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
+
+        self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
+        self::assertEqualsWithDelta(2, $transaction->getCompensations()[1]->getConvertedValue('USD'), 0.01);
     }
 
     public function testDeleteCompensationToExpenseRecalculatesValueAndAccountBalances(): void

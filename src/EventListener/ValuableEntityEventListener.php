@@ -3,6 +3,9 @@
 namespace App\EventListener;
 
 use App\Entity\ExecutableInterface;
+use App\Entity\Expense;
+use App\Entity\Income;
+use App\Entity\Transaction;
 use App\Entity\ValuableInterface;
 use App\Service\AssetsManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -23,7 +26,7 @@ final readonly class ValuableEntityEventListener
     public function prePersist(LifecycleEventArgs $args): void
     {
         $entity = $args->getObject();
-        if (!$entity instanceof ValuableInterface) {
+        if ((!$entity instanceof ValuableInterface) || ($entity instanceof Transaction)) {
             return;
         }
 
@@ -33,20 +36,10 @@ final readonly class ValuableEntityEventListener
     /**
      * @throws InvalidArgumentException
      */
-    private function setConvertedValues($entity): void
-    {
-        $entity->setConvertedValues(
-            $this->assetsManager->convert($entity)
-        );
-    }
-
-    /**
-     * @throws InvalidArgumentException
-     */
     public function preUpdate(LifecycleEventArgs $args): void
     {
         $entity = $args->getObject();
-        if (!$entity instanceof ValuableInterface) {
+        if ((!$entity instanceof ValuableInterface) || ($entity instanceof Transaction)) {
             return;
         }
 
@@ -65,8 +58,16 @@ final readonly class ValuableEntityEventListener
             }
         }
 
-        // TODO: Check if this is an expense with compensations it's value will be updated in another event, so here it should be skipped
-
         $this->setConvertedValues($entity);
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function setConvertedValues($entity): void
+    {
+        $entity->setConvertedValues(
+            $this->assetsManager->convert($entity)
+        );
     }
 }

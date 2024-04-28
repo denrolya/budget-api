@@ -4,6 +4,8 @@ namespace App\Service;
 
 use App\Entity\Category;
 use App\Entity\ExecutableInterface;
+use App\Entity\Expense;
+use App\Entity\Income;
 use App\Entity\Transaction;
 use App\Entity\TransactionInterface;
 use App\Entity\ValuableInterface;

@@ -197,9 +197,9 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
         return (float)$this->amount;
     }
 
-    public function setAmount(string $amount): TransactionInterface
+    public function setAmount(string|float $amount): TransactionInterface
     {
-        $this->amount = $amount;
+        $this->amount = (string)$amount;
 
         return $this;
     }
