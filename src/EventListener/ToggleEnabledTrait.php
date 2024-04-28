@@ -10,4 +10,9 @@ trait ToggleEnabledTrait
     {
         $this->enabled = $enabled;
     }
+
+    public function isEnabled(): bool
+    {
+        return $this->enabled;
+    }
 }

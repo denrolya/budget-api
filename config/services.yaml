@@ -79,11 +79,6 @@ services:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
 
-    App\EventListener\ValuableEntityEventListener:
-        tags:
-            - { name: doctrine.event_listener, event: prePersist }
-            - { name: doctrine.event_listener, event: preUpdate }
-
     App\EventListener\TransferCreateTransactionsHandler:
         tags:
             - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Transfer', method: prePersist }
@@ -92,11 +87,21 @@ services:
         tags:
             - { name: doctrine.event_listener, event: onFlush }
 
-    App\EventListener\UpdateTransactionWithCompensationsValueHandler:
+    App\EventListener\ValuableEntityEventListener:
         tags:
-            - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue }
-            - { name: doctrine.orm.entity_listener, event: preUpdate, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue }
-            - { name: doctrine.orm.entity_listener, event: preRemove, entity: 'App\Entity\Transaction', method: updateTransactionWithCompensationsValue }
+            - { name: doctrine.event_listener, event: prePersist }
+            - { name: doctrine.event_listener, event: preUpdate }
+
+    App\EventListener\UpdateIncomeValueHandler:
+        tags:
+            - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Income', method: prePersist }
+            - { name: doctrine.orm.entity_listener, event: preUpdate, entity: 'App\Entity\Income', method: preUpdate }
+            - { name: doctrine.orm.entity_listener, event: preRemove, entity: 'App\Entity\Income', method: preRemove }
+
+    App\EventListener\UpdateExpenseValueHandler:
+        tags:
+            - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Expense', method: prePersist }
+            - { name: doctrine.orm.entity_listener, event: preUpdate, entity: 'App\Entity\Expense', method: preUpdate }
 
 #    App\EventListener\AccountLogger:
 #        tags:

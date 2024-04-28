@@ -8,7 +8,6 @@ use App\Entity\Income;
 use App\Entity\Transfer;
 use App\Entity\User;
 use App\Tests\BaseApiTestCase;
-use Carbon\CarbonInterface;
 
 class TransferCRUDTest extends BaseApiTestCase
 {
@@ -290,7 +289,7 @@ class TransferCRUDTest extends BaseApiTestCase
         $feeId = $transfer->getFeeExpense()->getId();
 
         self::assertEquals($cashEurBalanceBefore - 10 - 1, $this->accountCashEUR->getBalance());
-        self::assertEquals($cashUahBalanceBefore + (10*40), $this->accountCashUAH->getBalance());
+        self::assertEquals($cashUahBalanceBefore + (10 * 40), $this->accountCashUAH->getBalance());
         self::assertEquals($this->accountCashEUR->getId(), $transfer->getFromExpense()->getAccount()->getId());
 
         $this->em->remove($transfer);
