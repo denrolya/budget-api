@@ -9,7 +9,7 @@ use App\Entity\Transfer;
 use App\Entity\User;
 use App\Tests\BaseApiTestCase;
 
-class TransferCRUDTest extends BaseApiTestCase
+class TransferFeatureTest extends BaseApiTestCase
 {
     private Account $accountMonoUAH;
 

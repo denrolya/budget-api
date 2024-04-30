@@ -4,7 +4,7 @@ namespace App\EventListener;
 
 use App\Entity\Account;
 use App\Entity\Expense;
-use App\Entity\TransactionInterface;
+use App\Entity\Transaction;
 use App\Service\FixerService;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Psr\Cache\InvalidArgumentException;
@@ -28,7 +28,7 @@ final class UpdateAccountBalanceOnTransactionEditHandler implements ToggleEnable
         $uow = $em->getUnitOfWork();
 
         foreach ($uow->getScheduledEntityUpdates() as $entity) {
-            if (!is_a($entity, TransactionInterface::class)) {
+            if (!is_a($entity, Transaction::class)) {
                 continue;
             }
 

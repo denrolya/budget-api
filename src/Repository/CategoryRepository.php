@@ -6,7 +6,6 @@ use App\Entity\Category;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
-use App\Entity\TransactionInterface;
 use Carbon\CarbonInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\NonUniqueResultException;
@@ -39,14 +38,14 @@ class CategoryRepository extends ServiceEntityRepository
 
     public function getCategoriesWithDescendantsByType(?array $categories = [], string $type = null): array
     {
-        $types = $type ? [$type] : [TransactionInterface::EXPENSE, TransactionInterface::INCOME];
+        $types = $type ? [$type] : [Transaction::EXPENSE, Transaction::INCOME];
         $result = [];
 
         foreach ($types as $t) {
             $repo = $this
                 ->getEntityManager()
                 ->getRepository(
-                    $t === TransactionInterface::EXPENSE ? ExpenseCategory::class : IncomeCategory::class
+                    $t === Transaction::EXPENSE ? ExpenseCategory::class : IncomeCategory::class
                 );
 
             if (empty($categories)) {
@@ -68,8 +67,7 @@ class CategoryRepository extends ServiceEntityRepository
         string $currency,
         ?CarbonInterface $after,
         ?CarbonInterface $before
-    ): ?float
-    {
+    ): ?float {
         if (is_int($category)) {
             $category = $this->find($category);
             if (!$category) {

@@ -314,7 +314,7 @@ abstract class Category
         return $this;
     }
 
-    public function addTransaction(TransactionInterface $transaction): self
+    public function addTransaction(Transaction $transaction): self
     {
         if (!$this->transactions->contains($transaction)) {
             $this->transactions->add($transaction);
@@ -323,7 +323,7 @@ abstract class Category
         return $this;
     }
 
-    public function removeTransaction(TransactionInterface $transaction): self
+    public function removeTransaction(Transaction $transaction): self
     {
         if ($this->transactions->contains($transaction)) {
             $this->transactions->removeElement($transaction);

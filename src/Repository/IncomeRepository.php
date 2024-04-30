@@ -3,7 +3,7 @@
 namespace App\Repository;
 
 use App\Entity\Income;
-use App\Entity\TransactionInterface;
+use App\Entity\Transaction;
 use Carbon\CarbonInterface;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -32,7 +32,7 @@ class IncomeRepository extends TransactionRepository
             $after,
             $before,
             $affectingProfitOnly,
-            TransactionInterface::INCOME,
+            Transaction::INCOME,
             [],
             $categories,
             $excludedCategories

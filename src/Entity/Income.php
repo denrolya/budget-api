@@ -48,7 +48,7 @@ class Income extends Transaction
     #[Groups(['transaction:collection:read', 'debt:collection:read'])]
     public function getType(): string
     {
-        return TransactionInterface::INCOME;
+        return Transaction::INCOME;
     }
 
     public function isRevenue(): bool

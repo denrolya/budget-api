@@ -4,7 +4,6 @@ namespace App\Controller;
 
 use App\Entity\Account;
 use App\Entity\Transaction;
-use App\Entity\TransactionInterface;
 use App\Service\StatisticsManager;
 use Doctrine\Persistence\ManagerRegistry;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
@@ -49,19 +48,19 @@ class AccountController extends AbstractFOSRestController
 
         $account->setTopExpenseCategories(
             $statisticsManager->generateCategoryTreeWithValues(
-                transactions: array_filter($accountTransactions, static function (TransactionInterface $transaction) {
+                transactions: array_filter($accountTransactions, static function (Transaction $transaction) {
                     return $transaction->isExpense();
                 }),
-                type: TransactionInterface::EXPENSE,
+                type: Transaction::EXPENSE,
             )
         );
 
         $account->setTopIncomeCategories(
             $statisticsManager->generateCategoryTreeWithValues(
-                transactions: array_filter($accountTransactions, static function (TransactionInterface $transaction) {
+                transactions: array_filter($accountTransactions, static function (Transaction $transaction) {
                     return $transaction->isIncome();
                 }),
-                type: TransactionInterface::INCOME,
+                type: Transaction::INCOME,
             )
         );
 

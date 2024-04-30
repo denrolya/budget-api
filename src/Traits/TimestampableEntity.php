@@ -3,7 +3,6 @@
 namespace App\Traits;
 
 use Carbon\CarbonImmutable;
-use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
@@ -18,13 +17,9 @@ trait TimestampableEntity
     #[ORM\Column(type: "datetime", nullable: false)]
     protected ?DateTimeInterface $updatedAt;
 
-    public function getUpdatedAt()
+    public function getUpdatedAt(): ?CarbonImmutable
     {
-        if($this->updatedAt instanceof DateTimeInterface) {
-            return new CarbonImmutable($this->updatedAt->getTimestamp(), $this->updatedAt->getTimezone());
-        }
-
-        return $this->updatedAt;
+        return ($this->updatedAt instanceof DateTimeInterface) ? CarbonImmutable::instance($this->updatedAt) : null;
     }
 
     public function setUpdatedAt(DateTimeInterface $updatedAt): self
@@ -38,18 +33,14 @@ trait TimestampableEntity
     {
         $this->setUpdatedAt(CarbonImmutable::now());
 
-        if($this->getCreatedAt() === null) {
+        if ($this->getCreatedAt() === null) {
             $this->setCreatedAt(CarbonImmutable::now());
         }
     }
 
-    public function getCreatedAt(): ?CarbonInterface
+    public function getCreatedAt(): ?CarbonImmutable
     {
-        if($this->createdAt instanceof DateTimeInterface) {
-            return new CarbonImmutable($this->createdAt->getTimestamp(), $this->createdAt->getTimezone());
-        }
-
-        return $this->createdAt;
+        return ($this->createdAt instanceof DateTimeInterface) ? CarbonImmutable::instance($this->createdAt) : null;
     }
 
     public function setCreatedAt(DateTimeInterface $createdAt): self

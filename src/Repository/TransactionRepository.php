@@ -8,7 +8,6 @@ use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
-use App\Entity\TransactionInterface;
 use App\Pagination\Paginator;
 use Carbon\CarbonInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -153,14 +152,14 @@ class TransactionRepository extends ServiceEntityRepository
                 ->setParameter('before', $before->toDateString());
         }
 
-        if ($type && !in_array($type, [TransactionInterface::EXPENSE, TransactionInterface::INCOME], true)) {
+        if ($type && !in_array($type, [Transaction::EXPENSE, Transaction::INCOME], true)) {
             throw new InvalidArgumentException('Invalid transaction type');
         }
 
-        if ($type === TransactionInterface::EXPENSE) {
+        if ($type === Transaction::EXPENSE) {
             $qb->andWhere('t INSTANCE OF :type')
                 ->setParameter('type', $this->getEntityManager()->getClassMetadata(Expense::class));
-        } elseif ($type === TransactionInterface::INCOME) {
+        } elseif ($type === Transaction::INCOME) {
             $qb->andWhere('t INSTANCE OF :type')
                 ->setParameter('type', $this->getEntityManager()->getClassMetadata(Income::class));
         }

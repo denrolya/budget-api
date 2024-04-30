@@ -12,7 +12,7 @@ trait ValuableEntity
 
     public function getValue(): float|null
     {
-        return $this->convertedValue($this->getOwner()->getBaseCurrency());
+        return $this->getConvertedValue($this->getOwner()->getBaseCurrency());
     }
 
     public function getConvertedValue(string $currencyCode): float

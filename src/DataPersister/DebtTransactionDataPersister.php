@@ -4,7 +4,7 @@ namespace App\DataPersister;
 
 use ApiPlatform\Core\DataPersister\DataPersisterInterface;
 use ApiPlatform\Core\DataPersister\ResumableDataPersisterInterface;
-use App\Entity\TransactionInterface;
+use App\Entity\Transaction;
 use App\Service\AssetsManager;
 use Psr\Cache\InvalidArgumentException;
 
@@ -12,14 +12,13 @@ final class DebtTransactionDataPersister implements DataPersisterInterface, Resu
 {
     public function __construct(
         private DataPersisterInterface $decorated,
-        private AssetsManager          $assetsManager,
-    )
-    {
+        private AssetsManager $assetsManager,
+    ) {
     }
 
     public function supports($data): bool
     {
-        return $data instanceof TransactionInterface && $data->getDebt() !== null;
+        return $data instanceof Transaction && $data->getDebt() !== null;
     }
 
     /**

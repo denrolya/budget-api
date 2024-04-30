@@ -9,7 +9,6 @@ use App\Entity\Account;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
-use App\Entity\TransactionInterface;
 use App\Repository\TransactionRepository;
 use App\Service\StatisticsManager;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,11 +21,10 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
     private TransactionRepository $transactionRepo;
 
     public function __construct(
-        private StatisticsManager         $statisticsManager,
+        private StatisticsManager $statisticsManager,
         private ItemDataProviderInterface $itemDataProvider,
-        EntityManagerInterface            $em
-    )
-    {
+        EntityManagerInterface $em
+    ) {
         $this->transactionRepo = $em->getRepository(Transaction::class);
     }
 
@@ -35,17 +33,17 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
         /** @var Account $account */
         $account = $this->itemDataProvider->getItem($resourceClass, $id, $operationName, $context);
 
-        if(!$account) {
+        if (!$account) {
             return null;
         }
 
-        $expenses = $this->transactionRepo->getList(null, null, TransactionInterface::EXPENSE, null, [$account]);
-        $incomes = $this->transactionRepo->getList(null, null, TransactionInterface::INCOME, null, [$account]);
+        $expenses = $this->transactionRepo->getList(null, null, Transaction::EXPENSE, null, [$account]);
+        $incomes = $this->transactionRepo->getList(null, null, Transaction::INCOME, null, [$account]);
 
         $lastTransactionAt = $this->transactionRepo->findOneBy([
             'account' => $account,
         ], [
-            'executedAt' => 'DESC'
+            'executedAt' => 'DESC',
         ]);
 
         $account
@@ -61,6 +59,7 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
 
     public function supports(string $resourceClass, string $operationName = null, array $context = []): bool
     {
-        return $resourceClass === Account::class && (array_key_exists('groups', $context) && $context['groups'] === 'account:item:read');
+        return $resourceClass === Account::class
+            && (array_key_exists('groups', $context) && $context['groups'] === 'account:item:read');
     }
 }

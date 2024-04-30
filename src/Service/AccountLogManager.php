@@ -5,7 +5,7 @@ namespace App\Service;
 use App\Entity\Account;
 use App\Entity\AccountLogEntry;
 use App\Entity\Expense;
-use App\Entity\TransactionInterface;
+use App\Entity\Transaction;
 use App\Repository\AccountLogEntryRepository;
 use App\Repository\TransactionRepository;
 use DateTimeInterface;
@@ -61,7 +61,7 @@ final class AccountLogManager
         $transactions = $this->eliminateDuplicates(
             array_filter(
                 $transactionsBeforeLastLog,
-                static function (TransactionInterface $transaction) use ($removedTransactionId) {
+                static function (Transaction $transaction) use ($removedTransactionId) {
                     return $transaction->getId() !== $removedTransactionId;
                 }
             )
@@ -122,7 +122,7 @@ final class AccountLogManager
             ];
         }
 
-        uasort($result, static function (TransactionInterface $a, TransactionInterface $b) {
+        uasort($result, static function (Transaction $a, Transaction $b) {
             // TODO: uasort(): Returning bool from comparison function is deprecated, return an integer less than, equal to, or greater than zero
             return $a->getExecutedAt()->isBefore($b->getExecutedAt());
         });
@@ -130,7 +130,7 @@ final class AccountLogManager
         return $result;
     }
 
-    public function createAccountLogFromTransaction(TransactionInterface $transaction, $balance): AccountLogEntry
+    public function createAccountLogFromTransaction(Transaction $transaction, $balance): AccountLogEntry
     {
         $account = $transaction->getAccount();
 

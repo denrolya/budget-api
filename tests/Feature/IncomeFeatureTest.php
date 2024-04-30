@@ -7,12 +7,11 @@ use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Tests\BaseApiTestCase;
 use Carbon\Carbon;
-use Carbon\CarbonInterface;
 
 /**
  * @group smoke
  */
-final class IncomeCRUDTest extends BaseApiTestCase
+final class IncomeFeatureTest extends BaseApiTestCase
 {
     private const TRANSACTION_URL = '/api/transactions';
     private const INCOME_URL = '/api/transactions/income';

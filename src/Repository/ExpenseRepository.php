@@ -4,7 +4,7 @@ namespace App\Repository;
 
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
-use App\Entity\TransactionInterface;
+use App\Entity\Transaction;
 use Carbon\CarbonInterface;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -27,7 +27,7 @@ class ExpenseRepository extends TransactionRepository
             null,
             null,
             true,
-            TransactionInterface::EXPENSE,
+            Transaction::EXPENSE,
             [],
             $categories
         );
@@ -51,7 +51,7 @@ class ExpenseRepository extends TransactionRepository
             $after,
             $before,
             $affectingProfitOnly,
-            TransactionInterface::EXPENSE,
+            Transaction::EXPENSE,
             $categories,
             [],
             $excludedCategories

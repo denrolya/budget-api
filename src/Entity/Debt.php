@@ -12,11 +12,13 @@ use Carbon\CarbonInterface;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
 use Symfony\Component\Serializer\Annotation\Groups;
 use JMS\Serializer\Annotation as Serializer;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[Gedmo\SoftDeleteable(fieldName: 'closedAt', timeAware: false, hardDelete: false)]
 #[ORM\HasLifecycleCallbacks]
@@ -78,6 +80,7 @@ class Debt implements OwnableInterface, ValuableInterface
     #[Serializer\Groups(['debt:collection:read'])]
     private ?string $debtor;
 
+    #[Assert\NotBlank]
     #[ORM\Column(type: 'string', length: 3)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
@@ -97,7 +100,7 @@ class Debt implements OwnableInterface, ValuableInterface
     #[Serializer\Groups(['debt:collection:read'])]
     private ?Collection $transactions;
 
-    #[ORM\Column(type: 'datetime', nullable: true)]
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?DateTimeInterface $closedAt;
@@ -188,27 +191,28 @@ class Debt implements OwnableInterface, ValuableInterface
         return $this->transactions;
     }
 
+    public function getTransactionsCount(): int
+    {
+        return $this->transactions->count();
+    }
+
     public function getIncomes(): Collection
     {
         return $this->transactions->filter(function (Transaction $transaction) {
-            return $transaction->getType() === TransactionInterface::INCOME;
+            return $transaction->getType() === Transaction::INCOME;
         });
     }
 
     public function getExpenses(): Collection
     {
         return $this->transactions->filter(function (Transaction $transaction) {
-            return $transaction->getType() === TransactionInterface::EXPENSE;
+            return $transaction->getType() === Transaction::EXPENSE;
         });
     }
 
-    public function getClosedAt(): CarbonInterface|DateTimeInterface|null
+    public function getClosedAt(): ?CarbonImmutable
     {
-        if($this->closedAt instanceof DateTimeInterface) {
-            return CarbonImmutable::instance($this->closedAt);
-        }
-
-        return $this->closedAt;
+        return ($this->closedAt instanceof DateTimeInterface) ? CarbonImmutable::instance($this->closedAt) : null;
     }
 
     public function setClosedAt(?DateTimeInterface $closedAt): self

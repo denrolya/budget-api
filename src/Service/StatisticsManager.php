@@ -8,7 +8,6 @@ use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
-use App\Entity\TransactionInterface;
 use App\Repository\ExpenseCategoryRepository;
 use App\Repository\ExpenseRepository;
 use App\Repository\TransactionRepository;
@@ -62,9 +61,9 @@ final class StatisticsManager
             $incomes = [];
 
             foreach ($transactions as $transaction) {
-                if ($transaction->getType() === TransactionInterface::EXPENSE) {
+                if ($transaction->getType() === Transaction::EXPENSE) {
                     $expenses[] = $transaction;
-                } elseif ($transaction->getType() === TransactionInterface::INCOME) {
+                } elseif ($transaction->getType() === Transaction::INCOME) {
                     $incomes[] = $transaction;
                 }
             }
@@ -91,14 +90,14 @@ final class StatisticsManager
             $categoryId = $category->getId();
             $categoryTransactions = array_filter(
                 $transactions,
-                static fn(TransactionInterface $t) => $t->getCategory()->getId() === $categoryId
+                static fn(Transaction $t) => $t->getCategory()->getId() === $categoryId
             );
             $value = $this->assetsManager->sumTransactions($categoryTransactions);
             $category->setValue($value);
 
             $nestedTransactions = array_filter(
                 $transactions,
-                static fn(TransactionInterface $t) => $t->getCategory()->isChildOf($category)
+                static fn(Transaction $t) => $t->getCategory()->isChildOf($category)
             );
 
             $category->setTotal($this->assetsManager->sumTransactions($nestedTransactions));
@@ -140,7 +139,7 @@ final class StatisticsManager
             $sum = $this->assetsManager->sumTransactions(
                 array_filter(
                     $transactions,
-                    static function (TransactionInterface $transaction) use ($after, $before) {
+                    static function (Transaction $transaction) use ($after, $before) {
                         $transactionDate = $transaction->getExecutedAt();
 
                         return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
@@ -237,7 +236,7 @@ final class StatisticsManager
 
             $categoryTransactionsWithinPeriod = array_filter(
                 $transactions,
-                static function (TransactionInterface $transaction) use ($category, $start, $end) {
+                static function (Transaction $transaction) use ($category, $start, $end) {
                     return $transaction->getCategory()->isChildOf($category) && $transaction->getExecutedAt(
                         )->isBetween($start, $end);
                 }
@@ -270,7 +269,7 @@ final class StatisticsManager
                 $this->assetsManager->sumTransactions(
                     array_filter(
                         $transactions,
-                        static function (TransactionInterface $transaction) use ($category) {
+                        static function (Transaction $transaction) use ($category) {
                             return $transaction->getCategory()->isChildOf($category);
                         }
                     )
@@ -318,7 +317,7 @@ final class StatisticsManager
                     $data['values'][] = $this->assetsManager->sumTransactions(
                         array_filter(
                             $transactions,
-                            static function (TransactionInterface $transaction) use ($after, $before, $category) {
+                            static function (Transaction $transaction) use ($after, $before, $category) {
                                 $transactionDate = $transaction->getExecutedAt();
 
                                 return $transactionDate->isBetween($after, $before) && $transaction->getCategory(
@@ -345,7 +344,7 @@ final class StatisticsManager
         foreach ($rootCategories as $category) {
             $categoryTransactions = array_filter(
                 $transactionsOrdered,
-                static fn(TransactionInterface $transaction) => $transaction->getCategory()->isChildOf($category)
+                static fn(Transaction $transaction) => $transaction->getCategory()->isChildOf($category)
             );
 
             foreach ($categoryTransactions as $transaction) {
@@ -388,7 +387,7 @@ final class StatisticsManager
     public function calculateMonthIncomes(CarbonInterface $month): float
     {
         return $this->assetsManager->sumTransactionsFiltered(
-            TransactionInterface::INCOME,
+            Transaction::INCOME,
             $month->startOfMonth(),
             $month->endOfMonth()
         );
@@ -400,7 +399,7 @@ final class StatisticsManager
     public function calculateAverageDailyExpenseWithinPeriod(CarbonInterface $after, CarbonInterface $before): float
     {
         $expenseSum = $this->assetsManager->sumTransactionsFiltered(
-            TransactionInterface::EXPENSE,
+            Transaction::EXPENSE,
             $after,
             $before,
             [ExpenseCategory::CATEGORY_RENT]
@@ -422,7 +421,7 @@ final class StatisticsManager
 
             $transactionsWithinPeriod = array_filter(
                 $transactions,
-                static function (TransactionInterface $transaction) use ($after, $before) {
+                static function (Transaction $transaction) use ($after, $before) {
                     $transactionDate = $transaction->getExecutedAt();
 
                     return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
@@ -451,7 +450,7 @@ final class StatisticsManager
 
             $transactionsWithinPeriod = array_filter(
                 $transactions,
-                static function (TransactionInterface $transaction) use ($after, $before) {
+                static function (Transaction $transaction) use ($after, $before) {
                     $transactionDate = $transaction->getExecutedAt();
 
                     return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);

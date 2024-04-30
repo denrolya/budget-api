@@ -2,10 +2,9 @@
 
 namespace App\Controller;
 
-use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\Income;
-use App\Entity\TransactionInterface;
+use App\Entity\Transaction;
 use App\Repository\CategoryRepository;
 use App\Repository\TransactionRepository;
 use App\Service\StatisticsManager;
@@ -119,7 +118,7 @@ class StatisticsController extends AbstractFOSRestController
     #[ParamConverter('after', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'first day of this year'])]
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
     #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this year'])]
-    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: TransactionInterface::EXPENSE, nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: Transaction::EXPENSE, nullable: true, allowBlank: false)]
     #[Route('/by-weekdays', name: 'by_weekdays', methods: ['get'])]
     public function transactionsValueByWeekdays(TransactionRepository $transactionRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
     {
@@ -138,7 +137,7 @@ class StatisticsController extends AbstractFOSRestController
     #[ParamConverter('after', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'first day of this year'])]
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
     #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this year'])]
-    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: TransactionInterface::EXPENSE, nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: Transaction::EXPENSE, nullable: true, allowBlank: false)]
     #[Route('/top-value-category', name: 'top_value_category', methods: ['get'])]
     public function topValueCategory(TransactionRepository $transactionRepo, StatisticsManager $statisticsManager, CarbonImmutable $after, CarbonImmutable $before, string $type): View
     {

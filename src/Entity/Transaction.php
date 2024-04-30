@@ -84,9 +84,13 @@ use JMS\Serializer\Annotation as Serializer;
     ],
     'disabled' => false,
 ])]
-abstract class Transaction implements TransactionInterface, OwnableInterface, ExecutableInterface
+abstract class Transaction implements OwnableInterface
 {
     use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
+
+    public const INCOME = 'income';
+    public const REVENUE = 'revenue';
+    public const EXPENSE = 'expense';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -185,7 +189,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
         return $this->account;
     }
 
-    public function setAccount(Account $account): TransactionInterface
+    public function setAccount(Account $account): self
     {
         $this->account = $account;
 
@@ -197,7 +201,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
         return (float)$this->amount;
     }
 
-    public function setAmount(string|float $amount): TransactionInterface
+    public function setAmount(string|float $amount): self
     {
         $this->amount = (string)$amount;
 
@@ -209,7 +213,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
         return $this->note;
     }
 
-    public function setNote(?string $note): TransactionInterface
+    public function setNote(?string $note): self
     {
         $this->note = $note;
 
@@ -236,7 +240,7 @@ abstract class Transaction implements TransactionInterface, OwnableInterface, Ex
         return $this->category;
     }
 
-    public function setCategory(Category $category): TransactionInterface
+    public function setCategory(Category $category): self
     {
         $this->category = $category;
         $this->category->updateTimestamps();

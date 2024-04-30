@@ -54,7 +54,7 @@ class Expense extends Transaction
     #[Groups(['transaction:collection:read', 'debt:collection:read'])]
     public function getType(): string
     {
-        return TransactionInterface::EXPENSE;
+        return Transaction::EXPENSE;
     }
 
     public function isLoss(): bool

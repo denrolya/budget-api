@@ -193,7 +193,7 @@ class Transfer implements OwnableInterface
         return $this;
     }
 
-    public function addTransaction(TransactionInterface $transaction): self
+    public function addTransaction(Transaction $transaction): self
     {
         if (!$this->transactions->contains($transaction)) {
             $this->transactions[] = $transaction;
@@ -203,7 +203,7 @@ class Transfer implements OwnableInterface
         return $this;
     }
 
-    public function removeTransaction(TransactionInterface $transaction): self
+    public function removeTransaction(Transaction $transaction): self
     {
         if ($this->transactions->contains($transaction)) {
             $this->transactions->removeElement($transaction);
@@ -224,7 +224,7 @@ class Transfer implements OwnableInterface
     public function getFeeExpense(): ?Expense
     {
         $transaction = $this->transactions->filter(
-            fn(TransactionInterface $transaction) => $transaction->isExpense() && $transaction->getCategory()->getName(
+            fn(Transaction $transaction) => $transaction->isExpense() && $transaction->getCategory()->getName(
                 ) === Category::CATEGORY_TRANSFER_FEE
         )->first();
 
@@ -234,7 +234,7 @@ class Transfer implements OwnableInterface
     public function getFromExpense(): ?Expense
     {
         $transaction = $this->transactions->filter(
-            fn(TransactionInterface $transaction) => $transaction->isExpense() && $transaction->getCategory()->getName(
+            fn(Transaction $transaction) => $transaction->isExpense() && $transaction->getCategory()->getName(
                 ) === Category::CATEGORY_TRANSFER
         )->first();
 
@@ -244,7 +244,7 @@ class Transfer implements OwnableInterface
     public function getToIncome(): ?Income
     {
         $transaction = $this->transactions->filter(
-            fn(TransactionInterface $transaction) => $transaction->isIncome() && $transaction->getCategory()->getName(
+            fn(Transaction $transaction) => $transaction->isIncome() && $transaction->getCategory()->getName(
                 ) === Category::CATEGORY_TRANSFER
         )->first();
 

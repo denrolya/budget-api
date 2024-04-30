@@ -2,7 +2,7 @@
 
 namespace App\EventListener;
 
-use App\Entity\TransactionInterface;
+use App\Entity\Transaction;
 use App\Message\UpdateAccountLogsOnTransactionCreateMessage;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -20,25 +20,25 @@ final readonly class AccountLogger
         $uow = $em->getUnitOfWork();
 
         foreach ($uow->getScheduledEntityInsertions() as $entity) {
-            if ($entity instanceof TransactionInterface) {
+            if ($entity instanceof Transaction) {
                 $this->postPersist($entity);
             }
         }
 
         foreach ($uow->getScheduledEntityUpdates() as $entity) {
-            if ($entity instanceof TransactionInterface) {
+            if ($entity instanceof Transaction) {
                 $this->postUpdate($entity);
             }
         }
 
         foreach ($uow->getScheduledEntityDeletions() as $entity) {
-            if ($entity instanceof TransactionInterface) {
+            if ($entity instanceof Transaction) {
                 $this->postRemove($entity);
             }
         }
     }
 
-    public function postPersist(TransactionInterface $transaction): void
+    public function postPersist(Transaction $transaction): void
     {
         $this->bus->dispatch(
             new UpdateAccountLogsOnTransactionCreateMessage($transaction->getAccount(), $transaction->getExecutedAt())
@@ -48,10 +48,10 @@ final readonly class AccountLogger
     /**
      * Should invoke logging only if account, amount or execution date was changed;
      *
-     * @param TransactionInterface $transaction
+     * @param Transaction $transaction
      * @return void
      */
-    public function postUpdate(TransactionInterface $transaction): void
+    public function postUpdate(Transaction $transaction): void
     {
         $uow = $this->em->getUnitOfWork();
         $uow->computeChangeSets();
@@ -86,7 +86,7 @@ final readonly class AccountLogger
 //        $this->bus->dispatch(new UpdateAccountLogsOnTransactionUpdateMessage($transaction->getId()));
     }
 
-    public function postRemove(TransactionInterface $transaction): void
+    public function postRemove(Transaction $transaction): void
     {
 //        $account = $transaction->getAccount();
 //        $executionDate = $transaction->getExecutedAt();

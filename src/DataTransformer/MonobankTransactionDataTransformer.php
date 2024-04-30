@@ -4,19 +4,19 @@ namespace App\DataTransformer;
 
 use ApiPlatform\Core\DataTransformer\DataTransformerInterface;
 use App\Entity\Transaction;
-use App\Entity\TransactionInterface;
 use App\Service\MonobankService;
 
 final class MonobankTransactionDataTransformer implements DataTransformerInterface
 {
-    public function __construct(private MonobankService $monobankService)
-    {
+    public function __construct(
+        private MonobankService $monobankService
+    ) {
     }
 
     /**
      * {@inheritdoc}
      */
-    public function transform($object, string $to, array $context = []): TransactionInterface
+    public function transform($object, string $to, array $context = []): Transaction
     {
         return $this->monobankService->convertStatementItemToDraftTransaction(
             $object->accountId,
@@ -29,7 +29,7 @@ final class MonobankTransactionDataTransformer implements DataTransformerInterfa
      */
     public function supportsTransformation($data, string $to, array $context = []): bool
     {
-        if($data instanceof Transaction) {
+        if ($data instanceof Transaction) {
             return false;
         }
 

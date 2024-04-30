@@ -3,11 +3,8 @@
 namespace App\Service;
 
 use App\Entity\Category;
-use App\Entity\ExecutableInterface;
-use App\Entity\Expense;
-use App\Entity\Income;
+use App\Entity\Debt;
 use App\Entity\Transaction;
-use App\Entity\TransactionInterface;
 use App\Entity\ValuableInterface;
 use App\Pagination\Paginator;
 use App\Repository\TransactionRepository;
@@ -95,7 +92,7 @@ final class AssetsManager
             if ($before !== false) {
                 $transactionsByDate = array_filter(
                     $transactions,
-                    static function (TransactionInterface $transaction) use ($after, $before) {
+                    static function (Transaction $transaction) use ($after, $before) {
                         return $transaction->getExecutedAt()->startOfDay()->between($after, $before);
                     }
                 );
@@ -110,7 +107,7 @@ final class AssetsManager
 
     public function calculateAverageTransaction(array $transactions = []): float
     {
-        $sum = array_reduce($transactions, static function (float $acc, TransactionInterface $transaction) {
+        $sum = array_reduce($transactions, static function (float $acc, Transaction $transaction) {
             return $acc + $transaction->getValue();
         }, 0);
 
@@ -139,7 +136,7 @@ final class AssetsManager
 
     public function sumMixedTransactions(array $transactions, ?string $currency = null): float
     {
-        return array_reduce($transactions, static function ($carry, TransactionInterface $transaction) use ($currency) {
+        return array_reduce($transactions, static function ($carry, Transaction $transaction) use ($currency) {
             return $carry + ($transaction->getConvertedValue($currency) * ($transaction->isExpense() ? -1 : 1));
         }, 0);
     }
@@ -149,7 +146,7 @@ final class AssetsManager
      */
     public function sumTransactions(array $transactions, ?string $currency = null): float
     {
-        return array_reduce($transactions, static function ($carry, TransactionInterface $transaction) use ($currency) {
+        return array_reduce($transactions, static function ($carry, Transaction $transaction) use ($currency) {
             return $carry + $transaction->getConvertedValue($currency);
         }, 0);
     }
@@ -158,12 +155,12 @@ final class AssetsManager
      * Generates array of converted values to all base fiat currencies
      * @throws InvalidArgumentException
      */
-    public function convert(ValuableInterface $entity): array
+    public function convert(Transaction|Debt $entity): array
     {
         return $this->fixerService->convert(
             $entity->{'get'.ucfirst($entity->getValuableField())}(),
             $entity->getCurrency(),
-            $entity instanceof ExecutableInterface ? $entity->getExecutedAt() : null
+            $entity instanceof Transaction ? $entity->getExecutedAt() : null
         );
     }
 
@@ -171,13 +168,13 @@ final class AssetsManager
      * Converts entity's value to a specified(or base if null given) currency
      * @throws InvalidArgumentException
      */
-    public function convertTo(ValuableInterface $entity, ?string $toCurrency = null): float
+    public function convertTo(Transaction|Debt $entity, ?string $toCurrency = null): float
     {
         return $this->fixerService->convertTo(
             $entity->{'get'.ucfirst($entity->getValuableField())}(),
             $entity->getCurrency(),
             $toCurrency ?? $entity->getCurrency(),
-            $entity instanceof ExecutableInterface ? $entity->getExecutedAt() : null
+            $entity instanceof Transaction ? $entity->getExecutedAt() : null
         );
     }
 }
