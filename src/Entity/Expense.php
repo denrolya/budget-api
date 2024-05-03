@@ -90,16 +90,4 @@ class Expense extends Transaction
 
         return $this;
     }
-
-    #[ORM\PrePersist]
-    public function updateAccountBalance(): void
-    {
-        $this->account->decreaseBalance($this->amount);
-    }
-
-    #[ORM\PreRemove]
-    public function restoreAccountBalance(): void
-    {
-        $this->account->increaseBalance($this->amount);
-    }
 }

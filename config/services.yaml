@@ -75,15 +75,11 @@ services:
         bind:
             $decorated: '@api_platform.doctrine.orm.data_persister'
 
-    App\DataPersister\DebtTransactionDataPersister:
-        bind:
-            $decorated: '@api_platform.doctrine.orm.data_persister'
-
     App\EventListener\TransferCreateTransactionsHandler:
         tags:
             - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Transfer', method: prePersist }
 
-    App\EventListener\UpdateAccountBalanceOnTransactionEditHandler:
+    App\EventListener\TransactionListener:
         tags:
             - { name: doctrine.event_listener, event: onFlush }
 
@@ -92,20 +88,9 @@ services:
             - { name: doctrine.event_listener, event: prePersist }
             - { name: doctrine.event_listener, event: preUpdate }
 
-    App\EventListener\UpdateIncomeValueHandler:
+    App\EventListener\AccountLogger:
         tags:
-            - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Income', method: prePersist }
-            - { name: doctrine.orm.entity_listener, event: preUpdate, entity: 'App\Entity\Income', method: preUpdate }
-            - { name: doctrine.orm.entity_listener, event: preRemove, entity: 'App\Entity\Income', method: preRemove }
-
-    App\EventListener\UpdateExpenseValueHandler:
-        tags:
-            - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Expense', method: prePersist }
-            - { name: doctrine.orm.entity_listener, event: preUpdate, entity: 'App\Entity\Expense', method: preUpdate }
-
-#    App\EventListener\AccountLogger:
-#        tags:
-#            - { name: doctrine.event_listener, event: onFlush }
+            - { name: doctrine.event_listener, event: onFlush }
 
 when@test:
     services:

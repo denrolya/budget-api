@@ -5,6 +5,7 @@ namespace App\DataTransformer;
 use ApiPlatform\Core\DataTransformer\DataTransformerInterface;
 use App\Entity\Transaction;
 use App\Service\MonobankService;
+use InvalidArgumentException;
 
 final class MonobankTransactionDataTransformer implements DataTransformerInterface
 {
@@ -16,12 +17,18 @@ final class MonobankTransactionDataTransformer implements DataTransformerInterfa
     /**
      * {@inheritdoc}
      */
-    public function transform($object, string $to, array $context = []): Transaction
+    public function transform($object, string $to, array $context = []): Transaction|bool
     {
-        return $this->monobankService->convertStatementItemToDraftTransaction(
-            $object->accountId,
-            $object->statementItem
-        );
+        try {
+            $transaction = $this->monobankService->convertStatementItemToDraftTransaction(
+                $object->accountId,
+                $object->statementItem
+            );
+        } catch (\InvalidArgumentException $e) {
+            return false;
+        }
+
+        return $transaction;
     }
 
     /**

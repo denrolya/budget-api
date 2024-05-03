@@ -7,15 +7,22 @@ use App\Message\UpdateAccountLogsOnTransactionCreateMessage;
 use Doctrine\ORM\Event\OnFlushEventArgs;
 use Symfony\Component\Messenger\MessageBusInterface;
 
-final readonly class AccountLogger
+final class AccountLogger implements ToggleEnabledInterface
 {
+    use ToggleEnabledTrait;
+
     public function __construct(
         private MessageBusInterface $bus,
     ) {
+        $this->setEnabled(false);
     }
 
     public function onFlush(OnFlushEventArgs $args): void
     {
+        if (!$this->isEnabled()) {
+            return;
+        }
+
         $em = $args->getObjectManager();
         $uow = $em->getUnitOfWork();
 
@@ -40,6 +47,10 @@ final readonly class AccountLogger
 
     public function postPersist(Transaction $transaction): void
     {
+        if (!$this->isEnabled()) {
+            return;
+        }
+
         $this->bus->dispatch(
             new UpdateAccountLogsOnTransactionCreateMessage($transaction->getAccount(), $transaction->getExecutedAt())
         );
@@ -53,6 +64,10 @@ final readonly class AccountLogger
      */
     public function postUpdate(Transaction $transaction): void
     {
+        if (!$this->isEnabled()) {
+            return;
+        }
+
         $uow = $this->em->getUnitOfWork();
         $uow->computeChangeSets();
 
@@ -88,6 +103,10 @@ final readonly class AccountLogger
 
     public function postRemove(Transaction $transaction): void
     {
+        if (!$this->isEnabled()) {
+            return;
+        }
+
 //        $account = $transaction->getAccount();
 //        $executionDate = $transaction->getExecutedAt();
 

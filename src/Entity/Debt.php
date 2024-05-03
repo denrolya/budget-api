@@ -16,8 +16,8 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
-use Symfony\Component\Serializer\Annotation\Groups;
 use JMS\Serializer\Annotation as Serializer;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[Gedmo\SoftDeleteable(fieldName: 'closedAt', timeAware: false, hardDelete: false)]
@@ -55,60 +55,59 @@ class Debt implements OwnableInterface, ValuableInterface
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: 'integer')]
+    #[ORM\Column(type: Types::INTEGER)]
     #[Groups(['debt:collection:read'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?int $id;
 
-    #[ORM\Column(type: 'json', nullable: false)]
-    #[Groups(['debt:collection:read'])]
-    #[Serializer\Groups(['debt:collection:read'])]
-    protected ?array $convertedValues = [];
-
-    #[ORM\Column(type: 'datetime', nullable: true)]
-    #[Groups(['debt:collection:read', 'debt:write'])]
-    #[Serializer\Groups(['debt:collection:read'])]
-    protected ?DateTimeInterface $createdAt;
-
-    #[ORM\Column(type: 'text', nullable: true)]
-    #[Groups(['debt:collection:read', 'debt:write'])]
-    #[Serializer\Groups(['debt:collection:read'])]
-    protected ?string $note;
-
-    #[ORM\Column(type: 'string', length: 255)]
+    #[Assert\NotBlank]
+    #[ORM\Column(type: Types::STRING, length: 255)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?string $debtor;
 
     #[Assert\NotBlank]
-    #[ORM\Column(type: 'string', length: 3)]
+    #[ORM\Column(type: Types::STRING, length: 3)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?string $currency;
 
-    #[ORM\Column(type: 'string', length: 100)]
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
-    #[Serializer\Type('float')]
+    protected ?string $note;
+
+    #[ORM\Column(type: Types::STRING, length: 100)]
+    #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Serializer\Groups(['debt:collection:read'])]
+    #[Serializer\Type(Types::FLOAT)]
     private string $balance = '0.0';
 
     // TODO: Remove transactions from collection:read
-    #[ORM\OneToMany(mappedBy: 'debt', targetEntity: Transaction::class)]
+    #[ORM\OneToMany(mappedBy: 'debt', targetEntity: Transaction::class, cascade: ['persist'], fetch: 'EXTRA_LAZY')]
     #[ORM\OrderBy(['executedAt' => 'DESC'])]
     #[Groups(['debt:collection:read'])]
     #[ApiSubresource]
     #[Serializer\Groups(['debt:collection:read'])]
-    private ?Collection $transactions;
+    private Collection $transactions;
+
+    #[ORM\Column(type: Types::JSON, nullable: false)]
+    #[Groups(['debt:collection:read'])]
+    #[Serializer\Groups(['debt:collection:read'])]
+    protected ?array $convertedValues = [];
+
+    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
+    #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Serializer\Groups(['debt:collection:read'])]
+    protected ?DateTimeInterface $createdAt;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?DateTimeInterface $closedAt;
 
-    #[Pure]
-    public function __construct(string $debtor = null)
+    public function __construct()
     {
-        $this->debtor = $debtor;
         $this->transactions = new ArrayCollection();
     }
 
@@ -169,7 +168,7 @@ class Debt implements OwnableInterface, ValuableInterface
 
     public function addTransaction(Transaction $transaction): self
     {
-        if(!$this->transactions->contains($transaction)) {
+        if (!$this->transactions->contains($transaction)) {
             $this->transactions->add($transaction);
         }
 
@@ -178,7 +177,7 @@ class Debt implements OwnableInterface, ValuableInterface
 
     public function removeTransaction(Transaction $transaction): self
     {
-        if($this->transactions->contains($transaction)) {
+        if ($this->transactions->contains($transaction)) {
             $this->transactions->removeElement($transaction);
         }
 

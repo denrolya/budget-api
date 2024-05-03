@@ -8,8 +8,10 @@ use App\Service\AssetsManager;
 use Doctrine\Persistence\Event\LifecycleEventArgs;
 use Psr\Cache\InvalidArgumentException;
 
-final readonly class ValuableEntityEventListener
+final class ValuableEntityEventListener implements ToggleEnabledInterface
 {
+    use ToggleEnabledTrait;
+
     public function __construct(
         private AssetsManager $assetsManager,
     ) {
@@ -20,6 +22,10 @@ final readonly class ValuableEntityEventListener
      */
     public function prePersist(LifecycleEventArgs $args): void
     {
+        if (!$this->isEnabled()) {
+            return;
+        }
+
         $entity = $args->getObject();
         if ((!$entity instanceof ValuableInterface) || ($entity instanceof Transaction)) {
             return;
@@ -33,6 +39,10 @@ final readonly class ValuableEntityEventListener
      */
     public function preUpdate(LifecycleEventArgs $args): void
     {
+        if (!$this->isEnabled()) {
+            return;
+        }
+
         $entity = $args->getObject();
         if ((!$entity instanceof ValuableInterface) || ($entity instanceof Transaction)) {
             return;

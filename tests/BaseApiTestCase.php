@@ -5,6 +5,7 @@ namespace App\Tests;
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use ApiPlatform\Symfony\Bundle\Test\Client;
 use App\Entity\Account;
+use App\Entity\Debt;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\Income;
@@ -20,17 +21,42 @@ class BaseApiTestCase extends ApiTestCase
 {
     use WithMockFixerTrait, MatchesSnapshots;
 
+    protected const EXPENSE_URL = '/api/transactions/expense';
+    protected const INCOME_URL = '/api/transactions/income';
+    protected const TRANSACTION_URL = '/api/transactions';
+    protected const TRANSACTION_LIST_URL = '/api/v2/transaction';
+    protected const DEBT_URL = '/api/debts';
+
+    protected const ACCOUNT_CASH_EUR_ID = 2;
+    protected const ACCOUNT_MONO_UAH_ID = 10;
+    protected const CATEGORY_EXPENSE_GROCERIES = 'Groceries';
+    protected const CATEGORY_INCOME_COMPENSATION = 'Compensation';
+    protected const CATEGORY_INCOME_SALARY = 'Salary';
+
     protected const TEST_USERNAME = 'drolya';
 
     protected Client $client;
 
     protected ?EntityManagerInterface $em;
 
+    protected Account $accountMonoUAH;
+
+    protected Account $accountCashUAH;
+
+    protected Account $accountCashEUR;
+
+    protected User $testUser;
+
     private ?string $authToken = null;
 
     protected function setUp(): void
     {
         $this->reloadClientWithServices();
+
+        $this->accountCashUAH = $this->em->getRepository(Account::class)->find(4);
+        $this->accountCashEUR = $this->em->getRepository(Account::class)->find(2);
+        $this->accountMonoUAH = $this->em->getRepository(Account::class)->find(10);
+        $this->testUser = $this->em->getRepository(User::class)->findOneByUsername(self::TEST_USERNAME);
     }
 
     protected function tearDown(): void
@@ -89,8 +115,9 @@ class BaseApiTestCase extends ApiTestCase
         Account $account,
         ExpenseCategory $category,
         CarbonInterface $executedAt,
-        ?string $note = null,
+        string $note = null,
         array $compensations = [],
+        Debt $debt = null,
     ): Expense {
         $expense = new Expense();
         $expense
@@ -100,6 +127,10 @@ class BaseApiTestCase extends ApiTestCase
             ->setAccount($account)
             ->setNote($note)
             ->setOwner($account->getOwner());
+
+        if ($debt) {
+            $expense->setDebt($debt);
+        }
 
         foreach ($compensations as $compensation) {
             $income = new Income();
@@ -125,7 +156,8 @@ class BaseApiTestCase extends ApiTestCase
         Account $account,
         IncomeCategory $category,
         CarbonInterface $executedAt,
-        ?string $note = null
+        string $note = null,
+        Debt $debt = null,
     ): Income {
         $income = new Income();
         $income
@@ -135,6 +167,10 @@ class BaseApiTestCase extends ApiTestCase
             ->setCategory($category)
             ->setOwner($account->getOwner())
             ->setNote($note);
+
+        if ($debt) {
+            $income->setDebt($debt);
+        }
 
         $this->em->persist($income);
         $this->em->flush();

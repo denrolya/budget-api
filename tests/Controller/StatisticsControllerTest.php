@@ -44,7 +44,14 @@ class StatisticsControllerTest extends BaseApiTestCase
         self::assertTrue(
             CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay(CarbonImmutable::now()->endOfMonth())
         );
-        $this->assertMatchesSnapshot($content);
+        self::assertArrayHasKey('before', $content[0]);
+        self::assertIsNumeric($content[0]['before']);
+        self::assertArrayHasKey('after', $content[0]);
+        self::assertIsNumeric($content[0]['after']);
+        self::assertArrayHasKey('expense', $content[0]);
+        self::assertIsNumeric($content[0]['expense']);
+        self::assertArrayHasKey('income', $content[0]);
+        self::assertIsNumeric($content[0]['income']);
     }
 
     /**

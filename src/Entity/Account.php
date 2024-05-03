@@ -181,7 +181,7 @@ class Account implements OwnableInterface
     #[ORM\Column(type: Types::STRING, length: 100)]
     #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
-    #[Serializer\Type('float')]
+    #[Serializer\Type(Types::FLOAT)]
     private string $balance = '0.0';
 
     #[ORM\OneToMany(mappedBy: "account", targetEntity: Transaction::class, cascade: ["remove"], fetch: "EXTRA_LAZY", orphanRemoval: true)]

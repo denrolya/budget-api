@@ -55,15 +55,15 @@ abstract class BaseUpdateTransactionValueHandler
     /**
      * @throws InvalidArgumentException
      */
-    protected function recalculateExpenseWithCompensationsValue(Expense $originalExpense, int $removedCompensationId = null): void
+    protected function recalculateExpenseWithCompensationsValue(Expense $expense, int $removedCompensationId = null): void
     {
         $transactionValue = $this->fixerService->convert(
-            amount: $originalExpense->getAmount(),
-            fromCurrency: $originalExpense->getCurrency(),
-            executionDate: $originalExpense->getExecutedAt()
+            amount: $expense->getAmount(),
+            fromCurrency: $expense->getCurrency(),
+            executionDate: $expense->getExecutedAt()
         );
 
-        foreach ($originalExpense->getCompensations() as $compensation) {
+        foreach ($expense->getCompensations() as $compensation) {
             if ($removedCompensationId && $compensation->getId() !== $removedCompensationId) {
                 continue;
             }
@@ -89,12 +89,12 @@ abstract class BaseUpdateTransactionValueHandler
             }
         }
 
-        $originalExpense->setConvertedValues($transactionValue);
-        $changeSet = $this->uow->getEntityChangeSet($originalExpense);
+        $expense->setConvertedValues($transactionValue);
+        $changeSet = $this->uow->getEntityChangeSet($expense);
         if (!empty($changeSet)) {
             $this->uow->recomputeSingleEntityChangeSet(
-                $this->em->getClassMetadata(get_class($originalExpense)),
-                $originalExpense
+                $this->em->getClassMetadata(get_class($expense)),
+                $expense
             );
         }
     }

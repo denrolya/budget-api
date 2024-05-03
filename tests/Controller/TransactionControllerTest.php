@@ -3,6 +3,7 @@
 namespace App\Tests\Controller;
 
 use App\Entity\Category;
+use App\Entity\Transaction;
 use App\Tests\BaseApiTestCase;
 use Carbon\Carbon;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
@@ -24,10 +25,10 @@ class TransactionControllerTest extends BaseApiTestCase
      */
     public function testAuthorizedUserCanAccessListOfTransactions(): void
     {
-        $this->client->request('GET', '/api/v2/transaction', ['headers' => ['authorization' => null]]);
+        $this->client->request('GET', self::TRANSACTION_LIST_URL, ['headers' => ['authorization' => null]]);
         self::assertResponseStatusCodeSame(401);
 
-        $response = $this->client->request('GET', '/api/v2/transaction');
+        $response = $this->client->request('GET', self::TRANSACTION_LIST_URL);
         self::assertResponseIsSuccessful();
 
         $content = $response->toArray();
@@ -47,48 +48,107 @@ class TransactionControllerTest extends BaseApiTestCase
      */
     public function testTransactionsListPagination(): void
     {
-        $response = $this->client->request('GET', '/api/v2/transaction');
+        $after = Carbon::parse('2021-01-01')->startOfDay();
+        $before = Carbon::parse('2021-01-31')->endOfDay();
+
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+        ]));
+        self::assertResponseIsSuccessful();
         $content = $response->toArray();
+        self::assertCount(30, $content['list']);
+        self::assertEqualsWithDelta(5525.58, $content['totalValue'], 0.01);
+        self::assertEquals(124, $content['count']);
+
         $totalValue = $content['totalValue'];
         $count = $content['count'];
 
-        $response = $this->client->request('GET', '/api/v2/transaction?perPage=1');
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'perPage' => 1,
+        ]));
+        self::assertResponseIsSuccessful();
         $content = $response->toArray();
         self::assertCount(1, $content['list']);
         self::assertEquals($totalValue, $content['totalValue']);
         self::assertEquals($count, $content['count']);
 
-        $response = $this->client->request('GET', '/api/v2/transaction?perPage=1&page=2');
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'perPage' => 1,
+            'page' => 2,
+        ]));
+        self::assertResponseIsSuccessful();
         $content = $response->toArray();
         self::assertCount(1, $content['list']);
         self::assertEquals($totalValue, $content['totalValue']);
         self::assertEquals($count, $content['count']);
 
-        $response = $this->client->request('GET', '/api/v2/transaction?perPage=2&page=2');
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'perPage' => 2,
+            'page' => 2,
+        ]));
+        self::assertResponseIsSuccessful();
         $content = $response->toArray();
         self::assertCount(2, $content['list']);
         self::assertEquals($totalValue, $content['totalValue']);
         self::assertEquals($count, $content['count']);
 
-        $response = $this->client->request('GET', '/api/v2/transaction?perPage=0');
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'perPage' => 0,
+        ]));
+        self::assertResponseIsSuccessful();
         $content = $response->toArray();
-        self::assertCount($count, $content['list']);
+        self::assertEquals($totalValue, $content['totalValue']);
+        self::assertEquals($count, $content['count']);
 
-        $response = $this->client->request('GET', '/api/v2/transaction?perPage=1&page=100');
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'perPage' => 1,
+            'page' => 150,
+        ]));
+        self::assertResponseIsSuccessful();
         $content = $response->toArray();
         self::assertCount(0, $content['list']);
 
-        $response = $this->client->request('GET', '/api/v2/transaction?perPage=100&page=1');
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'perPage' => 150,
+            'page' => 1,
+        ]));
+        self::assertResponseIsSuccessful();
         $content = $response->toArray();
         self::assertCount($count, $content['list']);
 
-        $response = $this->client->request('GET', '/api/v2/transaction?perPage=100&page=2');
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'perPage' => 150,
+            'page' => 2,
+        ]));
+        self::assertResponseIsSuccessful();
         $content = $response->toArray();
         self::assertCount(0, $content['list']);
 
-        $response = $this->client->request('GET', '/api/v2/transaction?page=0');
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'page' => 0,
+        ]));
+        self::assertResponseIsSuccessful();
         $content = $response->toArray();
-        self::assertCount($count, $content['list']);
+        self::assertCount(30, $content['list']);
+        self::assertEquals($totalValue, $content['totalValue']);
+        self::assertEquals($count, $content['count']);
     }
 
     /**
@@ -106,7 +166,10 @@ class TransactionControllerTest extends BaseApiTestCase
         $before = Carbon::parse('2021-01-31')->endOfDay();
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}"
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+            ])
         );
         self::assertResponseIsSuccessful();
 
@@ -121,7 +184,11 @@ class TransactionControllerTest extends BaseApiTestCase
         $lastPageNumber = ceil($content['count'] / 30);
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&page={$lastPageNumber}",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'page' => $lastPageNumber,
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -138,7 +205,11 @@ class TransactionControllerTest extends BaseApiTestCase
         $before = Carbon::parse('2021-01-31')->endOfDay();
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&accounts[]=10",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'accounts[]' => 10,
+            ]),
         );
         self::assertResponseIsSuccessful();
 
@@ -151,7 +222,11 @@ class TransactionControllerTest extends BaseApiTestCase
 
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&accounts[]=10&accounts[]=4",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'accounts' => [10, 4],
+            ]),
         );
         self::assertResponseIsSuccessful();
 
@@ -164,9 +239,9 @@ class TransactionControllerTest extends BaseApiTestCase
 
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&accounts[]=100&accounts[]=xsss&accounts[]=-1",
+            self::TRANSACTION_LIST_URL."?after={$after->toDateString()}&before={$before->toDateString()}&accounts[]=100&accounts[]=xsss&accounts[]=-1",
         );
-        self::assertResponseStatusCodeSame(200);
+        self::assertResponseIsSuccessful();
 
         $content = $response->toArray();
         self::assertCount(0, $content['list']);
@@ -181,7 +256,11 @@ class TransactionControllerTest extends BaseApiTestCase
         $before = Carbon::parse('2021-01-31')->endOfDay();
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&categories[]=1",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'categories' => [1],
+            ]),
         );
         self::assertResponseIsSuccessful();
 
@@ -202,7 +281,11 @@ class TransactionControllerTest extends BaseApiTestCase
         $testCategories = [1, 2];
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&categories[]=1&categories[]=2",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'categories' => [1, 2],
+            ]),
         );
         self::assertResponseIsSuccessful();
 
@@ -221,7 +304,7 @@ class TransactionControllerTest extends BaseApiTestCase
 
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&categories[]=100&categories[]=xsss&categories[]=-1",
+            self::TRANSACTION_LIST_URL."?after={$after->toDateString()}&before={$before->toDateString()}&categories[]=100&categories[]=xsss&categories[]=-1",
         );
         self::assertResponseStatusCodeSame(200);
 
@@ -237,7 +320,12 @@ class TransactionControllerTest extends BaseApiTestCase
         $before = Carbon::parse('2022-01-31')->endOfDay();
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&categories[]=1&withNestedCategories=1",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'withNestedCategories' => 1,
+                'categories' => [1],
+            ]),
         );
         self::assertResponseIsSuccessful();
 
@@ -246,7 +334,8 @@ class TransactionControllerTest extends BaseApiTestCase
         self::assertCount(30, $content['list']);
         self::assertEqualsWithDelta(-5179.92, $content['totalValue'], 0.01);
 
-        $nestedCategoriesIds = $category->getDescendantsFlat()->map(fn(Category $category) => $category->getId()
+        $nestedCategoriesIds = $category->getDescendantsFlat()->map(
+            fn(Category $category) => $category->getId()
         )->toArray();
         self::assertContains($content['list'][0]['category']['id'], $nestedCategoriesIds);
         self::assertContains($content['list'][14]['category']['id'], $nestedCategoriesIds);
@@ -254,7 +343,12 @@ class TransactionControllerTest extends BaseApiTestCase
 
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&categories[]=1&withNestedCategories=0",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'withNestedCategories' => 0,
+                'categories' => [1],
+            ]),
         );
         self::assertResponseIsSuccessful();
 
@@ -272,7 +366,11 @@ class TransactionControllerTest extends BaseApiTestCase
         $before = Carbon::parse('2021-01-31')->endOfDay();
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&isDraft=1",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'isDraft' => 1,
+            ]),
         );
         self::assertResponseIsSuccessful();
 
@@ -282,7 +380,11 @@ class TransactionControllerTest extends BaseApiTestCase
 
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&isDraft=0",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'isDraft' => 0,
+            ]),
         );
         self::assertResponseIsSuccessful();
 
@@ -298,7 +400,11 @@ class TransactionControllerTest extends BaseApiTestCase
         $before = Carbon::parse('2021-01-31')->endOfDay();
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&type=expense",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'type' => Transaction::EXPENSE,
+            ]),
         );
         self::assertResponseIsSuccessful();
 
@@ -309,7 +415,11 @@ class TransactionControllerTest extends BaseApiTestCase
 
         $response = $this->client->request(
             'GET',
-            "/api/v2/transaction?after={$after->toDateString()}&before={$before->toDateString()}&type=income",
+            $this->buildURL(self::TRANSACTION_LIST_URL, [
+                'after' => $after->toDateString(),
+                'before' => $before->toDateString(),
+                'type' => Transaction::INCOME,
+            ]),
         );
         self::assertResponseIsSuccessful();
 

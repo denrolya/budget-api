@@ -2,33 +2,13 @@
 
 namespace App\Tests\Feature;
 
-use App\Entity\Account;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transfer;
-use App\Entity\User;
 use App\Tests\BaseApiTestCase;
 
 class TransferFeatureTest extends BaseApiTestCase
 {
-    private Account $accountMonoUAH;
-
-    private Account $accountCashUAH;
-
-    private Account $accountCashEUR;
-
-    private User $testUser;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->accountCashUAH = $this->em->getRepository(Account::class)->find(4);
-        $this->accountCashEUR = $this->em->getRepository(Account::class)->find(2);
-        $this->accountMonoUAH = $this->em->getRepository(Account::class)->find(10);
-        $this->testUser = $this->em->getRepository(User::class)->find(2);
-    }
-
     public function testCreateTransferCreatesTransactions(): void
     {
         $monoUahBalanceBefore = $this->accountMonoUAH->getBalance();
@@ -212,6 +192,7 @@ class TransferFeatureTest extends BaseApiTestCase
         self::assertEquals($cashUahBalanceBefore + 100, $transfer->getToIncome()->getAccount()->getBalance());
         self::assertEquals(10, $transfer->getFee());
         self::assertEquals($this->accountMonoUAH->getId(), $transfer->getFeeAccount()->getId());
+        self::assertEquals('Transfer Fee', $transfer->getFeeExpense()->getCategory()->getName());
     }
 
     public function testDeleteTransferFee(): void

@@ -112,7 +112,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\Column(type: Types::STRING, length: 100)]
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Type('float')]
+    #[Serializer\Type(Types::FLOAT)]
     protected string $amount = '0.0';
 
     #[ORM\Column(type: Types::JSON, nullable: false)]
@@ -147,7 +147,7 @@ abstract class Transaction implements OwnableInterface
     #[Serializer\Groups(['transaction:collection:read'])]
     private bool $isDraft;
 
-    #[ORM\ManyToOne(targetEntity: Debt::class, inversedBy: "transactions")]
+    #[ORM\ManyToOne(targetEntity: Debt::class, cascade: ["persist"], inversedBy: "transactions")]
     #[Groups(['transaction:write'])]
     private ?Debt $debt = null;
 

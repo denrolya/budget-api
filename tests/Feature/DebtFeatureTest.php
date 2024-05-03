@@ -2,12 +2,10 @@
 
 namespace App\Tests\Feature;
 
-use App\Entity\Account;
 use App\Entity\Category;
 use App\Entity\Debt;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
-use App\Entity\User;
 use App\Tests\BaseApiTestCase;
 use Carbon\CarbonImmutable;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
@@ -21,27 +19,14 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
  */
 final class DebtFeatureTest extends BaseApiTestCase
 {
-    protected const EXPENSE_URL = '/api/transactions/expense';
-    protected const INCOME_URL = '/api/transactions/income';
-    protected const DEBT_URL = '/api/debts';
-
-    protected const ACCOUNT_MONO_UAH_ID = 10;
-    protected const CATEGORY_GROCERIES = 'Groceries';
-    protected const CATEGORY_COMPENSATION = 'Compensation';
-
-    private Account $testAccount;
-
     private IncomeCategory $debtIncomeCategory;
-    private ExpenseCategory $debtExpenseCategory;
 
-    private User $testUser;
+    private ExpenseCategory $debtExpenseCategory;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->testUser = $this->em->getRepository(User::class)->findOneById(2);
-        $this->testAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_MONO_UAH_ID);
         $this->debtIncomeCategory = $this->em->getRepository(IncomeCategory::class)->findOneByName(
             Category::CATEGORY_DEBT
         );
@@ -84,7 +69,9 @@ final class DebtFeatureTest extends BaseApiTestCase
             'createdAt' => $createdAt->toIso8601String(),
         ], $content);
         self::assertArrayHasKey('id', $content);
+
         $debt = $this->em->getRepository(Debt::class)->find($content['id']);
+
         self::assertInstanceOf(Debt::class, $debt);
     }
 
@@ -93,7 +80,7 @@ final class DebtFeatureTest extends BaseApiTestCase
      */
     public function testAddExpenseToDebtUpdatedBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        $this->mockFixerService->expects(self::exactly(3))->method('convert');
         self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
 
         $debt = $this->createDebt(
@@ -111,7 +98,7 @@ final class DebtFeatureTest extends BaseApiTestCase
                 'note' => 'Test expense',
                 'debt' => $debt->getId(),
                 'executedAt' => CarbonImmutable::now()->toIso8601String(),
-                'account' => $this->testAccount->getId(),
+                'account' => $this->accountMonoUAH->getId(),
                 'category' => $this->debtExpenseCategory->getId(),
             ],
         ]);
@@ -127,9 +114,173 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEqualsWithDelta(0.4, $debt->getConvertedValue('USD'), 0.01);
     }
 
-    public function testAddIncomeToDebtUpdatedBalanceAndConvertedValues(): void
+    public function testUpdateExpenseAmountUpdatesBalanceAndConvertedValues(): void
     {
         $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
+
+        $expense = $this->createExpense(
+            amount: 10,
+            account: $this->accountMonoUAH,
+            category: $this->debtExpenseCategory,
+            executedAt: CarbonImmutable::now(),
+            note: 'Test expense',
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+        );
+
+        $debt = $expense->getDebt();
+
+        // TODO: Get rid of this refresh. It has smth to do with how $transactions property is initialized in Debt entity.
+        $this->em->refresh($debt);
+
+        self::assertEquals(113, $this->debtExpenseCategory->getTransactionsCount());
+        self::assertNotNull($debt->getId());
+        self::assertNotNull($expense->getId());
+        self::assertEquals($expense->getDebt(), $debt);
+        self::assertEquals(1, $debt->getTransactionsCount());
+        self::assertEquals(10, $debt->getBalance());
+        self::assertEquals(10, $debt->getConvertedValue('UAH'));
+
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
+            'json' => [
+                'amount' => '20'
+            ]
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->em->refresh($debt);
+
+        self::assertEquals(113, $this->debtExpenseCategory->getTransactionsCount());
+        self::assertEquals(20, $debt->getBalance());
+        self::assertEquals(20, $debt->getConvertedValue('UAH'));
+    }
+
+    public function testUpdateExpenseAccountUpdatesBalanceAndConvertedValues(): void
+    {
+        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
+
+        $expense = $this->createExpense(
+            amount: 10,
+            account: $this->accountCashEUR,
+            category: $this->debtExpenseCategory,
+            executedAt: CarbonImmutable::now(),
+            note: 'Test expense',
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+        );
+
+        $debt = $expense->getDebt();
+
+        // TODO: Get rid of this refresh. It has smth to do with how $transactions property is initialized in Debt entity.
+        $this->em->refresh($debt);
+
+        self::assertEquals(113, $this->debtExpenseCategory->getTransactionsCount());
+        self::assertNotNull($debt->getId());
+        self::assertNotNull($expense->getId());
+        self::assertEquals($expense->getDebt(), $debt);
+        self::assertEquals(1, $debt->getTransactionsCount());
+        self::assertEquals(300, $debt->getBalance());
+        self::assertEquals(300, $debt->getConvertedValue('UAH'));
+
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
+            'json' => [
+                'account' => $this->accountCashUAH->getId(),
+            ]
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->em->refresh($debt);
+
+        self::assertEquals(113, $this->debtExpenseCategory->getTransactionsCount());
+        self::assertEquals(10, $debt->getBalance());
+        self::assertEquals(10, $debt->getConvertedValue('UAH'));
+    }
+
+    public function testUpdateExpenseAmountAndAccountUpdatesBalanceAndConvertedValues(): void
+    {
+        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
+
+        $expense = $this->createExpense(
+            amount: 10,
+            account: $this->accountCashUAH,
+            category: $this->debtExpenseCategory,
+            executedAt: CarbonImmutable::now(),
+            note: 'Test expense',
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+        );
+
+        $debt = $expense->getDebt();
+
+        // TODO: Get rid of this refresh. It has smth to do with how $transactions property is initialized in Debt entity.
+        $this->em->refresh($debt);
+
+        self::assertEquals(113, $this->debtExpenseCategory->getTransactionsCount());
+        self::assertNotNull($debt->getId());
+        self::assertNotNull($expense->getId());
+        self::assertEquals($expense->getDebt(), $debt);
+        self::assertEquals(1, $debt->getTransactionsCount());
+        self::assertEquals(10, $debt->getBalance());
+        self::assertEquals(10, $debt->getConvertedValue('UAH'));
+
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
+            'json' => [
+                'amount' => '20',
+                'account' => $this->accountCashEUR->getId(),
+            ]
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->em->refresh($debt);
+
+        self::assertEquals(113, $this->debtExpenseCategory->getTransactionsCount());
+        self::assertEquals(600, $debt->getBalance());
+        self::assertEquals(600, $debt->getConvertedValue('UAH'));
+    }
+
+    public function testRemoveExpenseUpdatesBalanceAndConvertedValues(): void
+    {
+        $this->mockFixerService->expects(self::exactly(3))->method('convert');
+        self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
+
+        $expense = $this->createExpense(
+            amount: 10,
+            account: $this->accountMonoUAH,
+            category: $this->debtExpenseCategory,
+            executedAt: CarbonImmutable::now(),
+            note: 'Test expense',
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+        );
+
+        $debt = $expense->getDebt();
+
+        // TODO: Get rid of this refresh. It has smth to do with how $transactions property is initialized in Debt entity.
+        $this->em->refresh($debt);
+
+        self::assertEquals(113, $this->debtExpenseCategory->getTransactionsCount());
+        self::assertNotNull($debt->getId());
+        self::assertNotNull($expense->getId());
+        self::assertEquals($expense->getDebt(), $debt);
+        self::assertEquals(1, $debt->getTransactionsCount());
+        self::assertEquals(10, $debt->getBalance());
+        self::assertEquals(10, $debt->getConvertedValue('UAH'));
+
+        $this->client->request('DELETE', self::TRANSACTION_URL.'/'.$expense->getId());
+        self::assertResponseIsSuccessful();
+
+        $this->em->refresh($debt);
+
+        self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
+        self::assertEquals(0, $debt->getBalance());
+        self::assertEquals(0, $debt->getConvertedValue('UAH'));
+    }
+
+    /**
+     * @throws TransportExceptionInterface
+     */
+    public function testAddIncomeToDebtUpdatedBalanceAndConvertedValues(): void
+    {
+        $this->mockFixerService->expects(self::exactly(3))->method('convert');
         self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
 
         $debt = $this->createDebt(
@@ -147,7 +298,7 @@ final class DebtFeatureTest extends BaseApiTestCase
                 'note' => 'Test income',
                 'debt' => $debt->getId(),
                 'executedAt' => CarbonImmutable::now()->toIso8601String(),
-                'account' => $this->testAccount->getId(),
+                'account' => $this->accountMonoUAH->getId(),
                 'category' => $this->debtIncomeCategory->getId(),
             ],
         ]);
@@ -163,14 +314,163 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEqualsWithDelta(-0.4, $debt->getConvertedValue('USD'), 0.01);
     }
 
-    public function testRemoveExpenseUpdatesBalanceAndConvertedValues(): void
+    public function testUpdateIncomeAmountUpdatesBalanceAndConvertedValues(): void
     {
-        self::markTestIncomplete('Implement this test');
+        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
+
+        $income = $this->createIncome(
+            amount: 10,
+            account: $this->accountMonoUAH,
+            category: $this->debtIncomeCategory,
+            executedAt: CarbonImmutable::now(),
+            note: 'Test income',
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+        );
+
+        $debt = $income->getDebt();
+
+        // TODO: Get rid of this refresh. It has smth to do with how $transactions property is initialized in Debt entity.
+        $this->em->refresh($debt);
+
+        self::assertEquals(83, $this->debtIncomeCategory->getTransactionsCount());
+        self::assertNotNull($debt->getId());
+        self::assertNotNull($income->getId());
+        self::assertEquals($income->getDebt(), $debt);
+        self::assertEquals(1, $debt->getTransactionsCount());
+        self::assertEquals(-10, $debt->getBalance());
+        self::assertEquals(-10, $debt->getConvertedValue('UAH'));
+
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
+            'json' => [
+                'amount' => '20'
+            ]
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->em->refresh($debt);
+
+        self::assertEquals(83, $this->debtIncomeCategory->getTransactionsCount());
+        self::assertEquals(-20, $debt->getBalance());
+        self::assertEquals(-20, $debt->getConvertedValue('UAH'));
+    }
+
+    public function testUpdateIncomeAccountUpdatesBalanceAndConvertedValues(): void
+    {
+        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
+
+        $income = $this->createIncome(
+            amount: 10,
+            account: $this->accountCashEUR,
+            category: $this->debtIncomeCategory,
+            executedAt: CarbonImmutable::now(),
+            note: 'Test income',
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+        );
+
+        $debt = $income->getDebt();
+
+        // TODO: Get rid of this refresh. It has smth to do with how $transactions property is initialized in Debt entity.
+        $this->em->refresh($debt);
+
+        self::assertEquals(83, $this->debtIncomeCategory->getTransactionsCount());
+        self::assertNotNull($debt->getId());
+        self::assertNotNull($income->getId());
+        self::assertEquals($income->getDebt(), $debt);
+        self::assertEquals(1, $debt->getTransactionsCount());
+        self::assertEquals(-300, $debt->getBalance());
+        self::assertEquals(-300, $debt->getConvertedValue('UAH'));
+
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
+            'json' => [
+                'account' => $this->accountCashUAH->getId(),
+            ]
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->em->refresh($debt);
+
+        self::assertEquals(83, $this->debtIncomeCategory->getTransactionsCount());
+        self::assertEquals(-10, $debt->getBalance());
+        self::assertEquals(-10, $debt->getConvertedValue('UAH'));
+    }
+
+    public function testUpdateIncomeAmountAndAccountUpdatesBalanceAndConvertedValues(): void
+    {
+        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
+
+        $income = $this->createIncome(
+            amount: 10,
+            account: $this->accountCashUAH,
+            category: $this->debtIncomeCategory,
+            executedAt: CarbonImmutable::now(),
+            note: 'Test income',
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+        );
+
+        $debt = $income->getDebt();
+
+        // TODO: Get rid of this refresh. It has smth to do with how $transactions property is initialized in Debt entity.
+        $this->em->refresh($debt);
+
+        self::assertNotNull($debt->getId());
+        self::assertNotNull($income->getId());
+        self::assertEquals($income->getDebt(), $debt);
+        self::assertEquals(1, $debt->getTransactionsCount());
+        self::assertEquals(-10, $debt->getBalance());
+        self::assertEquals(-10, $debt->getConvertedValue('UAH'));
+
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
+            'json' => [
+                'amount' => '20',
+                'account' => $this->accountCashEUR->getId(),
+            ]
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->em->refresh($debt);
+
+        self::assertEquals(83, $this->debtIncomeCategory->getTransactionsCount());
+        self::assertEquals(-600, $debt->getBalance());
+        self::assertEquals(-600, $debt->getConvertedValue('UAH'));
     }
 
     public function testRemoveIncomeUpdatesBalanceAndConvertedValues(): void
     {
-        self::markTestIncomplete('Implement this test');
+        $this->mockFixerService->expects(self::exactly(3))->method('convert');
+        self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
+
+        $income = $this->createIncome(
+            amount: 10,
+            account: $this->accountMonoUAH,
+            category: $this->debtIncomeCategory,
+            executedAt: CarbonImmutable::now(),
+            note: 'Test income',
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+        );
+
+        $debt = $income->getDebt();
+
+        $this->em->refresh($debt);
+
+        self::assertEquals(83, $this->debtIncomeCategory->getTransactionsCount());
+        self::assertNotNull($debt->getId());
+        self::assertNotNull($income->getId());
+        self::assertEquals($income->getDebt(), $debt);
+        self::assertEquals(1, $debt->getTransactionsCount());
+        self::assertEquals(-10, $debt->getBalance());
+        self::assertEquals(-10, $debt->getConvertedValue('UAH'));
+
+        $this->client->request('DELETE', self::TRANSACTION_URL.'/'.$income->getId());
+        self::assertResponseIsSuccessful();
+
+        $this->em->refresh($debt);
+
+        self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
+        self::assertEquals(0, $debt->getBalance());
+        self::assertEquals(0, $debt->getConvertedValue('UAH'));
     }
 
     public function testCloseDebtShouldDoWhat(): void
@@ -185,7 +485,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
         $content = $response->toArray();
         self::assertCount(6, $content);
-        foreach($content as $debt) {
+        foreach ($content as $debt) {
             self::assertArrayHasKey('id', $debt);
             self::assertArrayHasKey('debtor', $debt);
             self::assertArrayHasKey('balance', $debt);
@@ -199,7 +499,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testFetchListOfClosedDebts(): void
     {
-        self::markTestIncomplete('Implement this test');
+        self::markTestIncomplete('Functionality is not implemented yet.');
     }
 
     public function testFetchListOfAllDebts(): void
@@ -209,7 +509,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
         $content = $response->toArray();
         self::assertCount(65, $content);
-        foreach($content as $debt) {
+        foreach ($content as $debt) {
             self::assertArrayHasKey('id', $debt);
             self::assertArrayHasKey('debtor', $debt);
             self::assertArrayHasKey('balance', $debt);
@@ -220,8 +520,13 @@ final class DebtFeatureTest extends BaseApiTestCase
         }
     }
 
-    private function createDebt(string $debtor, float $initialBalance, string $currency, string $note, ?CarbonImmutable $createdAt = null): Debt
-    {
+    private function createDebt(
+        string $debtor,
+        float $initialBalance,
+        string $currency,
+        string $note,
+        ?CarbonImmutable $createdAt = null
+    ): Debt {
         $debt = (new Debt())
             ->setDebtor($debtor)
             ->setBalance($initialBalance)
