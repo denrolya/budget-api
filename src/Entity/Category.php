@@ -181,6 +181,7 @@ abstract class Category
 
     #[ORM\Column(type: Types::STRING, length: 150, nullable: true)]
     #[Groups([
+        'transaction:collection:read',
         'account:item:read',
         'debt:collection:read',
         'category:collection:read',
@@ -191,6 +192,7 @@ abstract class Category
         'category:collection:read',
         'category:tree:read',
         'account:item:read',
+        'transaction:collection:read',
         'debt:collection:read',
     ])]
     private ?string $color;

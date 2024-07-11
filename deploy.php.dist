@@ -9,6 +9,7 @@ set('application', 'api');
 set('http_user', 'www-data');
 set('host_address', '{HOST}');
 set('port', {PORT})
+set('repo', {repo});
 set('remote_url', 'http://{{ host_address }}:{{ port }}');
 
 set('db', [
@@ -36,7 +37,7 @@ host('production')
     ->configFile('~/.ssh/config')
     ->identityFile('~/.ssh/id_rsa')
     ->multiplexing(true)
-    ->set('repository', 'git@bitbucket.org:drolya/api.git')
+    ->set('repository', '{{repo}}')
     ->set('branch', 'master')
     ->set('clear_paths', [])
     ->set('symfony_env', 'prod')

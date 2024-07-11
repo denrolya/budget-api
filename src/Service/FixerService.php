@@ -12,7 +12,7 @@ use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * TODO: After 00:00 in Ukraine it is impossible to fetch rates, cause fixer's timezone is couple of hours ago
+ * TODO: After 00:00 in EET it is impossible to fetch rates, cause fixer's timezone is couple of hours ago
  */
 class FixerService
 {

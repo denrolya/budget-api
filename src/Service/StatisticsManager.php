@@ -169,7 +169,6 @@ final class StatisticsManager
     }
 
     /**
-     * OPTIMIZED BY CHATPGT
      * Generates account value distribution statistics within given transactions array
      */
     public function generateAccountDistributionStatistics(array $transactions): array
