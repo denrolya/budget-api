@@ -93,6 +93,7 @@ class Transfer implements OwnableInterface
     #[Groups(['transfer:collection:read', 'transfer:write'])]
     protected ?DateTimeInterface $executedAt;
 
+    #[Groups(['transfer:collection:read'])]
     #[ORM\OneToMany(mappedBy: 'transfer', targetEntity: Transaction::class, cascade: [
         "persist",
         "remove",

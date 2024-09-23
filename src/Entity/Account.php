@@ -110,13 +110,14 @@ class Account implements OwnableInterface
         'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
-        'ч:collection:read',
+        'transaction:collection:read',
     ])]
     #[Serializer\Groups([
         'account:collection:read',
         'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
+        'transfer:collection:read'
     ])]
     private ?int $id;
 
@@ -385,7 +386,6 @@ class Account implements OwnableInterface
         'account:collection:read',
         'account:item:read',
         'transaction:collection:read',
-        'transfer:collection:read',
         'debt:collection:read',
     ])]
     #[Pure]

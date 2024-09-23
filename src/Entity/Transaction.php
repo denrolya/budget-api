@@ -95,14 +95,14 @@ abstract class Transaction implements OwnableInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?int $id = null;
 
     #[Assert\NotBlank]
     #[ORM\ManyToOne(targetEntity: Account::class, inversedBy: "transactions")]
     #[ORM\JoinColumn(name: "account_id", referencedColumnName: "id", nullable: false)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?Account $account = null;
 
@@ -110,25 +110,25 @@ abstract class Transaction implements OwnableInterface
     #[Assert\Type('numeric')]
     #[Assert\GreaterThan(value: "0")]
     #[ORM\Column(type: Types::STRING, length: 100)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     #[Serializer\Type(Types::FLOAT)]
     protected string $amount = '0.0';
 
     #[ORM\Column(type: Types::JSON, nullable: false)]
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     protected ?array $convertedValues = [];
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     protected ?string $note;
 
     #[Assert\NotBlank]
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     protected ?DateTimeInterface $executedAt;
 
     #[Gedmo\Timestampable(on: "create")]
@@ -138,8 +138,8 @@ abstract class Transaction implements OwnableInterface
     #[Assert\NotBlank]
     #[ORM\ManyToOne(targetEntity: Category::class, cascade: ["persist"], inversedBy: "transactions")]
     #[ORM\JoinColumn(name: "category_id", referencedColumnName: "id", nullable: false)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     protected ?Category $category;
 
     #[ORM\Column(type: Types::BOOLEAN, nullable: false)]
@@ -154,7 +154,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\ManyToOne(targetEntity: Transfer::class, cascade: ["remove"], inversedBy: "transactions")]
     private ?Transfer $transfer = null;
 
-    #[Groups(['transaction:collection:read', 'debt:collection:read', 'account:item:read'])]
+    #[Groups(['transaction:collection:read', 'debt:collection:read', 'account:item:read', 'transfer:collection:read'])]
     abstract public function getType(): string;
 
     #[Pure]

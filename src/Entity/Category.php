@@ -92,6 +92,7 @@ abstract class Category
         'category:collection:read',
         'category:tree:read',
         'transaction:collection:read',
+        'transfer:collection:read'
     ])]
     #[Serializer\Groups([
         'category:collection:read',
@@ -99,6 +100,7 @@ abstract class Category
         'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
+        'transfer:collection:read'
     ])]
     private ?int $id;
 
