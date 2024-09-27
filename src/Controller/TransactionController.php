@@ -21,13 +21,14 @@ class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'accounts', description: 'Filter by accounts', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'excludedCategories', description: 'Exclude categories from list', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'withNestedCategories', default: true, description: 'Filter by category and its children', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'isDraft', default: false, description: 'Show only draft transactions', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: Paginator::PER_PAGE, description: 'Results per page')]
     #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1, description: 'Page number')]
     #[Rest\View(serializerGroups: ['transaction:collection:read'])]
     #[Route('', name: 'collection_read', methods:['get'] )]
-    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?array $accounts, ?array $categories, bool $withNestedCategories = true, ?string $type = null, $isDraft = false, int $perPage = Paginator::PER_PAGE, int $page = 1): View
+    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?array $accounts, ?array $categories, ?array $excludedCategories, bool $withNestedCategories = true, ?string $type = null, $isDraft = false, int $perPage = Paginator::PER_PAGE, int $page = 1): View
     {
         return $this->view(
             $assetsManager->generateTransactionPaginationData(
@@ -35,6 +36,7 @@ class TransactionController extends AbstractFOSRestController
                 before: $before,
                 type: $type,
                 categories: $categories,
+                excludedCategories: $excludedCategories,
                 accounts: $accounts,
                 withChildCategories: $withNestedCategories,
                 onlyDrafts: $isDraft,
