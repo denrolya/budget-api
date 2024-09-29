@@ -19,6 +19,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
+use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: TransferRepository::class)]
@@ -57,7 +58,8 @@ class Transfer implements OwnableInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['transfer:collection:read'])]
+    #[Groups(['transfer:collection:read', 'transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read'])]
     private ?int $id;
 
     #[ORM\ManyToOne(targetEntity: Account::class)]

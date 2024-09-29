@@ -151,6 +151,7 @@ abstract class Transaction implements OwnableInterface
     #[Groups(['transaction:write'])]
     private ?Debt $debt = null;
 
+    #[Serializer\Groups(['transaction:collection:read'])]
     #[ORM\ManyToOne(targetEntity: Transfer::class, cascade: ["remove"], inversedBy: "transactions")]
     private ?Transfer $transfer = null;
 
