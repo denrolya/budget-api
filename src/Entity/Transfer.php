@@ -7,6 +7,7 @@ use ApiPlatform\Core\Annotation\ApiResource;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
+use App\ApiPlatform\TransferAccountsFilter;
 use App\ApiPlatform\WithDeletedFilter;
 use App\Repository\TransferRepository;
 use App\Traits\ExecutableEntity;
@@ -48,9 +49,10 @@ use JMS\Serializer\Annotation as Serializer;
     paginationItemsPerPage: 20,
 )]
 #[ApiFilter(DateFilter::class, properties: ['executedAt'])]
-#[ApiFilter(SearchFilter::class, properties: ['note' => 'ipartial', 'account' => 'exact', 'category' => 'exact'])]
+#[ApiFilter(SearchFilter::class, properties: ['note' => 'ipartial', 'category' => 'exact'])]
 #[ApiFilter(RangeFilter::class, properties: ['amount'])]
 #[ApiFilter(WithDeletedFilter::class)]
+#[ApiFilter(TransferAccountsFilter::class)]
 class Transfer implements OwnableInterface
 {
     use TimestampableEntity, OwnableEntity, ExecutableEntity;

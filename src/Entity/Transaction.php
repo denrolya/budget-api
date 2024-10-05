@@ -6,6 +6,7 @@ use ApiPlatform\Core\Annotation\ApiFilter;
 use ApiPlatform\Core\Annotation\ApiResource;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 use App\ApiPlatform\CategoryDeepSearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
@@ -68,6 +69,7 @@ use JMS\Serializer\Annotation as Serializer;
 #[ApiFilter(DateFilter::class, properties: ['executedAt'])]
 #[ApiFilter(SearchFilter::class, properties: ['account.id' => 'exact', 'category.id' => 'exact'])]
 #[ApiFilter(BooleanFilter::class, properties: ['isDraft', 'category.isAffectingProfit'])]
+#[ApiFilter(RangeFilter::class, properties: ['amount'])]
 #[ApiFilter(CategoryDeepSearchFilter::class)]
 #[ApiFilter(DiscriminatorFilter::class, arguments: [
     'types' => [
