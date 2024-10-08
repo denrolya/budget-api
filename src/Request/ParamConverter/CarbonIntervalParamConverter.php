@@ -45,7 +45,11 @@ class CarbonIntervalParamConverter implements ParamConverterInterface
     private function createInterval($value, array $options, Request $request): CarbonInterval|bool
     {
         $default = $options['default'] ?? null;
-        $interval = CarbonInterval::createFromDateString($value);
+        if (strpos($value, 'P') === 0) {
+            $interval = CarbonInterval::instance(new \DateInterval($value));
+        } else {
+            $interval = CarbonInterval::createFromDateString($value);
+        }
 
         if ($value === 'false' || $value === false || $value === '0' || $value === 0 || (!$value && !$default)) {
             $interval = $request->attributes->get('before')->diffAsCarbonInterval($request->attributes->get('after'));

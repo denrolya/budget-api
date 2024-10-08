@@ -112,7 +112,7 @@ class TransactionRepository extends ServiceEntityRepository
      * @param array<Category|int>|null $categories
      * @param array<Account|int>|null $accounts
      * @param array<Category|int>|null $excludedCategories
-     * @param bool $onlyDrafts
+     * @param bool|null $isDraft
      * @param string $orderField
      * @param string $order
      * @return QueryBuilder
@@ -125,7 +125,7 @@ class TransactionRepository extends ServiceEntityRepository
         ?array $categories = [],
         ?array $accounts = [],
         ?array $excludedCategories = [],
-        bool $onlyDrafts = false,
+        ?bool $isDraft = null,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER
     ): QueryBuilder {
@@ -133,9 +133,12 @@ class TransactionRepository extends ServiceEntityRepository
             ->createQueryBuilder('t')
             ->leftJoin('t.category', 'c')
             ->orderBy("t.$orderField", $order)
-            ->addOrderBy('t.id', $order)
-            ->andWhere('t.isDraft = :onlyDrafts')
-            ->setParameter('onlyDrafts', $onlyDrafts);
+            ->addOrderBy('t.id', $order);
+
+        if ($isDraft !== null) {
+            $qb->andWhere('t.isDraft = :onlyDrafts')
+                ->setParameter('onlyDrafts', $isDraft);
+        }
 
         if ($affectingProfitOnly) {
             $qb->andWhere('c.isAffectingProfit = :affectingProfitOnly')
@@ -193,7 +196,7 @@ class TransactionRepository extends ServiceEntityRepository
         ?array $categories = [],
         ?array $accounts = [],
         ?array $excludedCategories = [],
-        bool $onlyDrafts = false,
+        ?bool $isDraft = null,
         ?int $limit = Paginator::PER_PAGE,
         int $offset = 0,
         string $orderField = self::ORDER_FIELD,
@@ -207,7 +210,7 @@ class TransactionRepository extends ServiceEntityRepository
             $categories,
             $accounts,
             $excludedCategories,
-            $onlyDrafts,
+            $isDraft,
             $orderField,
             $order
         );

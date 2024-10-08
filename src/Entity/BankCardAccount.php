@@ -30,6 +30,11 @@ use JMS\Serializer\Annotation as Serializer;
 )]
 class BankCardAccount extends Account
 {
+    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    #[Groups(['account:item:read', 'account:write'])]
+    #[Serializer\Groups(['account:item:read'])]
+    private ?string $bankName;
+
     #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]
     #[Groups(['account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:item:read'])]
@@ -44,6 +49,18 @@ class BankCardAccount extends Account
     #[Groups(['account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:item:read'])]
     private ?string $monobankId;
+
+    public function getBankName(): ?string
+    {
+        return $this->bankName;
+    }
+
+    public function setBankName(string $bankName): self
+    {
+        $this->bankName = $bankName;
+
+        return $this;
+    }
 
     public function getCardNumber(): ?string
     {
