@@ -42,7 +42,7 @@ class TransactionRepository extends ServiceEntityRepository
      * @param array<Account|int>|null $accounts
      * @param array<Category|int>|null $excludedCategories
      * @param bool $affectingProfitOnly
-     * @param bool $onlyDrafts
+     * @param bool|null $isDraft
      * @param string $orderField
      * @param string $order
      * @return Collection|array
@@ -55,7 +55,7 @@ class TransactionRepository extends ServiceEntityRepository
         ?array $accounts = [],
         ?array $excludedCategories = [],
         bool $affectingProfitOnly = true,
-        bool $onlyDrafts = false,
+        ?bool $isDraft = null,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER
     ): Collection|array {
@@ -68,7 +68,7 @@ class TransactionRepository extends ServiceEntityRepository
                 categories: $categories,
                 accounts: $accounts,
                 excludedCategories: $excludedCategories,
-                onlyDrafts: $onlyDrafts,
+                isDraft: $isDraft,
                 orderField: $orderField,
                 order: $order
             )
@@ -84,7 +84,7 @@ class TransactionRepository extends ServiceEntityRepository
         ?array $accounts = [],
         ?array $excludedCategories = [],
         bool $affectingProfitOnly = true,
-        bool $onlyDrafts = false,
+        ?bool $isDraft = null,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER
     ): QueryBuilder {
@@ -97,7 +97,7 @@ class TransactionRepository extends ServiceEntityRepository
                 $categories,
                 $accounts,
                 $excludedCategories,
-                $onlyDrafts,
+                $isDraft,
                 $orderField,
                 $order
             );
@@ -136,8 +136,8 @@ class TransactionRepository extends ServiceEntityRepository
             ->addOrderBy('t.id', $order);
 
         if ($isDraft !== null) {
-            $qb->andWhere('t.isDraft = :onlyDrafts')
-                ->setParameter('onlyDrafts', $isDraft);
+            $qb->andWhere('t.isDraft = :isDraft')
+                ->setParameter('isDraft', $isDraft);
         }
 
         if ($affectingProfitOnly) {
