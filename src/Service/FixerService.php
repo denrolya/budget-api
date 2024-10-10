@@ -5,37 +5,39 @@ namespace App\Service;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use JetBrains\PhpStorm\ArrayShape;
+use JsonException;
 use Psr\Cache\InvalidArgumentException;
+use RuntimeException;
 use Symfony\Component\Security\Core\Security;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
+use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
  * TODO: After 00:00 in EET it is impossible to fetch rates, cause fixer's timezone is couple of hours ago
  */
-class FixerService
+class FixerService extends BaseExchangeRatesProvider
 {
-    private const MONTH_IN_SECONDS = 2678400;
-    private const AVAILABLE_CURRENCIES = ['EUR', 'USD', 'HUF', 'UAH', 'BTC'];
+    private string $apiKey;
 
     private Security $security;
-
-    private HttpClientInterface $client;
-
-    private CacheInterface $cache;
-
-    private string $apiKey;
 
     public function __construct(
         HttpClientInterface $fixerClient,
         string $fixerApiKey,
         CacheInterface $cache,
-        Security $security
+        Security $security,
+        array $allowedCurrencies,
+        string $baseCurrency
     ) {
+        parent::__construct($fixerClient, $cache, $allowedCurrencies, $baseCurrency);
+
         $this->apiKey = $fixerApiKey;
-        $this->client = $fixerClient;
-        $this->cache = $cache;
         $this->security = $security;
     }
 
@@ -70,12 +72,12 @@ class FixerService
      */
     public function convert(float $amount, string $fromCurrency, ?CarbonInterface $executionDate = null): array
     {
-        if (!in_array($fromCurrency, self::AVAILABLE_CURRENCIES)) {
+        if (!in_array($fromCurrency, $this->allowedCurrencies, true)) {
             return [];
         }
 
         $values = [];
-        foreach (self::AVAILABLE_CURRENCIES as $currency) {
+        foreach ($this->allowedCurrencies as $currency) {
             $values[$currency] = $this->convertTo(
                 $amount,
                 $fromCurrency,
@@ -121,7 +123,7 @@ class FixerService
     }
 
     /**
-     * Get the latest exchange rates and store them in cache
+     * Get the latest exchange rates and store them in cache.
      *
      * @return array
      * @throws InvalidArgumentException
@@ -130,24 +132,16 @@ class FixerService
     {
         $now = CarbonImmutable::now();
         $dateString = $now->toDateString();
-        $requestParams = $this->getRequestParams();
-        $client = $this->client;
 
-        return $this->cache->get(
-            "fixer.$dateString",
-            static function (ItemInterface $item) use ($requestParams, $client) {
-                $item->expiresAfter(self::MONTH_IN_SECONDS);
-                $response = $client->request('GET', '/latest', [
-                    'query' => $requestParams,
-                ])->getContent();
+        return $this->cache->get( "fixer.$dateString", function (ItemInterface $item) {
+            $item->expiresAfter(self::CACHE_EXPIRY_SECONDS);
 
-                return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
-            }
-        );
+            return $this->fetchRates( '/latest');
+        });
     }
 
     /**
-     * Get exchange rates on a given date
+     * Get exchange rates on a given date.
      *
      * @param CarbonInterface $date
      * @return array|null
@@ -156,20 +150,12 @@ class FixerService
     public function getHistorical(CarbonInterface $date): ?array
     {
         $dateString = $date->toDateString();
-        $requestParams = $this->getRequestParams();
-        $client = $this->client;
 
-        return $this->cache->get(
-            "fixer.$dateString",
-            static function (ItemInterface $item) use ($requestParams, $client, $dateString) {
-                $item->expiresAfter(self::MONTH_IN_SECONDS);
-                $response = $client->request('GET', '/'.$dateString, [
-                    'query' => $requestParams,
-                ])->getContent();
+        return $this->cache->get("fixer.$dateString", function (ItemInterface $item) use ($dateString) {
+            $item->expiresAfter(self::CACHE_EXPIRY_SECONDS);
 
-                return json_decode($response, true, 512, JSON_THROW_ON_ERROR)['rates'];
-            }
-        );
+            return $this->fetchRates('/' . $dateString);
+        });
     }
 
     /**
@@ -198,13 +184,37 @@ class FixerService
         return array_key_exists($currencyCode, $rates);
     }
 
+    /**
+     * Fetch exchange rates from the external API.
+     *
+     * @param string $endpoint
+     * @return array
+     * @throws JsonException
+     */
+    protected function fetchRates(string $endpoint): array
+    {
+        $queryParams = $this->getRequestParams();
+        try {
+            $response = $this->client->request('GET', $endpoint, [
+                'query' => $queryParams,
+            ])->getContent();
+
+            $data = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+
+            return $data['rates'] ?? [];
+        } catch (HttpExceptionInterface | TransportExceptionInterface $e) {
+            throw new RuntimeException('Failed to fetch rates from the Fixer API: ' . $e->getMessage(), $e->getCode(), $e);
+        }
+    }
+
+
     #[ArrayShape(['access_key' => "string", 'base' => "string", 'symbols' => "string"])]
     private function getRequestParams(): array
     {
         return [
             'access_key' => $this->apiKey,
-            'base' => 'EUR',
-            'symbols' => implode(',', self::AVAILABLE_CURRENCIES),
+            'base' => $this->baseCurrency,
+            'symbols' => implode(',', $this->allowedCurrencies),
         ];
     }
 }

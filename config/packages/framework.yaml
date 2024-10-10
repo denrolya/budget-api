@@ -33,6 +33,12 @@ framework:
                 base_uri: '%env(FIXER_BASE_URL)%'
                 headers:
                     apiKey: '%env(FIXER_API_KEY)%'
+            wise_client:
+                base_uri: '%env(WISE_BASE_URL)%'
+                headers:
+                    Authorization: 'Bearer %env(WISE_API_KEY)%'
+            monobank_client:
+                base_uri: '%env(MONOBANK_BASE_URL)%'
     cache:
         pools:
             doctrine.result_cache_pool:

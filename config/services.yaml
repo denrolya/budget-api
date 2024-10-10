@@ -5,6 +5,13 @@
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
     container.dumper.inline_factories: true
+    base_currency: 'EUR'
+    allowed_currencies:
+        - EUR
+        - USD
+        - UAH
+        - HUF
+        - BTC
 
 services:
     # default configuration for services in *this* file
@@ -12,9 +19,12 @@ services:
         autowire: true      # Automatically injects dependencies in your services.
         autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
         bind:
+            $baseCurrency: '%base_currency%'
             $fixerApiKey: "%env(FIXER_API_KEY)%"
+            $wiseApiKey: "%env(WISE_API_KEY)%"
             $collectionDataProvider: '@api_platform.doctrine.orm.default.collection_data_provider'
             $itemDataProvider: '@api_platform.doctrine.orm.default.item_data_provider'
+            $allowedCurrencies: '%allowed_currencies%'
 
     # This here is to fix FOSRestBundlev3.7.0; v3.6.0 works without this
     sensio_framework_extra.view.listener:
@@ -99,6 +109,8 @@ when@test:
             autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
             bind:
                 $fixerApiKey: "dummy_api_key"
+                $allowedCurrencies: ['EUR', 'USD', 'UAH', 'HUF', 'BTC']
+                $baseCurrency: 'EUR'
 
         App\Service\FixerService:
             public: true
