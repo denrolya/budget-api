@@ -28,8 +28,12 @@ class TransactionRepositoryTest extends KernelTestCase
     protected function tearDown(): void
     {
         parent::tearDown();
+        $this->em->clear();
         $this->em->close();
         $this->em = null;
+        self::ensureKernelShutdown();
+        gc_enable();
+        gc_collect_cycles();
     }
 
     /**

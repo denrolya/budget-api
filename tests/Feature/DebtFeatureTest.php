@@ -45,7 +45,7 @@ final class DebtFeatureTest extends BaseApiTestCase
      */
     public function testCreateDebt(): void
     {
-        $this->mockFixerService->expects(self::exactly(1))->method('convert');
+        $this->mockFixerService->expects(self::once())->method('convert');
 
         $createdAt = CarbonImmutable::now();
         $response = $this->client->request('POST', self::DEBT_URL, [
@@ -92,7 +92,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
         self::assertNotNull($debt->getId());
 
-        $response = $this->client->request('POST', self::EXPENSE_URL, [
+        $this->client->request('POST', self::EXPENSE_URL, [
             'json' => [
                 'amount' => '10',
                 'note' => 'Test expense',
