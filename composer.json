@@ -110,7 +110,7 @@
         "deploy":           "vendor/bin/dep deploy",
         "db2loc":           "vendor/bin/dep database:copy:to_local",
         "db2rem":           "vendor/bin/dep database:copy:to_remote",
-        "phpstan":          "vendor/bin/phpstan analyse -c phpstan.neon"
+        "phpstan":          "vendor/bin/phpstan analyse"
     },
     "conflict":          {
         "symfony/symfony": "*"

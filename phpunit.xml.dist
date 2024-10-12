@@ -35,7 +35,11 @@
 
     <extensions>
         <extension class="DAMA\DoctrineTestBundle\PHPUnit\PHPUnitExtension"/>
-<!--        <extension class="App\Tests\ResourceUsageListener" file="tests/ResourceUsageListener.php"/>-->
+        <extension class="App\Tests\ResourceUsageListener" file="tests/ResourceUsageListener.php">
+            <arguments>
+                <boolean>false</boolean>
+            </arguments>
+        </extension>
     </extensions>
 
     <!-- Run `composer require symfony/panther` before enabling this extension -->
