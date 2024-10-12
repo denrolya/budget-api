@@ -7,22 +7,21 @@ require 'recipe/symfony4.php';
 // Project name
 set('application', 'api');
 set('http_user', 'www-data');
-set('host_address', '{HOST}');
-set('port', {PORT})
-set('repo', {repo});
+set('host_address', 'INSERT_HOSTNAME');
+set('repo', 'INSERT_GITHUB_REPO_URL');
 set('remote_url', 'http://{{ host_address }}:{{ port }}');
 
 set('db', [
     'local' => [
-        'name' => '{DB_NAME_LOCAL}',
-        'username' => '{USERNAME_LOCAL}',
-        'password' => '{PASSWORD_LOCAL}'
+        'name' => 'INSERT_LOCAL_DB_NAME',
+        'username' => 'INSERT_USERNAME_LOCAL',
+        'password' => 'INSERT_PASSWORD_LOCAL'
     ],
     'production' => [
         'host' => get('host_address'),
-        'name' => '{DB_NAME_REMOTE}',
-        'username' => '{USERNAME_REMOTE}',
-        'password' => '{PASSWORD_REMOTE}'
+        'name' => 'INSERT_DB_NAME_REMOTE',
+        'username' => 'INSERT_USERNAME_REMOTE',
+        'password' => 'INSERT_PASSWORD_REMOTE'
     ]
 ]);
 
@@ -33,7 +32,7 @@ set('git_tty', false);
 host('production')
     ->hostname(get('host_address'))
     ->stage('production')
-    ->user('{USERNAME}')
+    ->user('INSERT_USERNAME')
     ->configFile('~/.ssh/config')
     ->identityFile('~/.ssh/id_rsa')
     ->multiplexing(true)
@@ -53,6 +52,7 @@ after('deploy:failed', 'deploy:unlock'); // [Optional] if deploy fails automatic
 
 // Tasks
 task('deploy', [
+    'deploy:run_tests',
     'deploy:info',
     'deploy:prepare',
     'deploy:lock',
@@ -67,6 +67,20 @@ task('deploy', [
     'deploy:unlock',
     'cleanup',
 ])->desc('Deploy Application');
+
+task('deploy:run_tests', function () {
+    writeln('<info>Running local tests...</info>');
+    try {
+        runLocally('composer test', [
+            'timeout' => 600,  // Adjust the timeout as needed
+            'tty' => true      // Allows real-time output from the test runner
+        ]);
+        writeln('<info>All tests passed.</info>');
+    } catch (\Exception $e) {
+        writeln('<error>Tests failed. Deployment aborted.</error>');
+        throw $e; // Re-throw the exception to halt the deployment
+    }
+})->desc('Run local tests before deployment');
 
 task('database:copy:to_local', function () {
     $dumpFilename = 'dump-' . time() . '.sql';

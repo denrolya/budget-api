@@ -49,6 +49,10 @@
         "doctrine/doctrine-fixtures-bundle":  "^3.5",
         "jms/serializer-bundle":              "^5.4",
         "justinrainbow/json-schema":          "^5.2",
+        "phpstan/phpstan":                    "^1.12",
+        "phpstan/phpstan-doctrine":           "^1.5",
+        "phpstan/phpstan-strict-rules":       "^1.6",
+        "phpstan/phpstan-symfony":            "^1.4",
         "phpunit/php-code-coverage":          "^9.2",
         "phpunit/phpunit":                    "^9.6",
         "roave/security-advisories":          "dev-latest",
@@ -100,9 +104,13 @@
         "post-update-cmd":  [
             "@auto-scripts"
         ],
-        "test":             "phpunit --colors --testdox --verbose",
+        "test":             "phpunit",
+        "test-verbose":     "phpunit --colors --testdox --verbose",
         "test-clover":      "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-clover=coverage/coverage.xml",
-        "deploy":           "vendor/bin/dep deploy"
+        "deploy":           "vendor/bin/dep deploy",
+        "db2loc":           "vendor/bin/dep database:copy:to_local",
+        "db2rem":           "vendor/bin/dep database:copy:to_remote",
+        "phpstan":          "vendor/bin/phpstan analyse -c phpstan.neon"
     },
     "conflict":          {
         "symfony/symfony": "*"

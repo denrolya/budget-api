@@ -19,10 +19,9 @@ use DateTimeInterface;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use JetBrains\PhpStorm\Pure;
+use JMS\Serializer\Annotation as Serializer;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
-use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: TransactionRepository::class)]
@@ -104,33 +103,77 @@ abstract class Transaction implements OwnableInterface
     #[Assert\NotBlank]
     #[ORM\ManyToOne(targetEntity: Account::class, inversedBy: "transactions")]
     #[ORM\JoinColumn(name: "account_id", referencedColumnName: "id", nullable: false)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups([
+        'transaction:collection:read',
+        'transaction:write',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
-    protected ?Account $account = null;
+    protected Account $account;
 
     #[Assert\NotBlank]
     #[Assert\Type('numeric')]
     #[Assert\GreaterThan(value: "0")]
     #[ORM\Column(type: Types::STRING, length: 100)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups([
+        'transaction:collection:read',
+        'transaction:write',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
+    #[Serializer\Groups([
+        'transaction:collection:read',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
     #[Serializer\Type(Types::FLOAT)]
     protected string $amount = '0.0';
 
     #[ORM\Column(type: Types::JSON, nullable: false)]
     #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups([
+        'transaction:collection:read',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
     protected ?array $convertedValues = [];
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups([
+        'transaction:collection:read',
+        'transaction:write',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
+    #[Serializer\Groups([
+        'transaction:collection:read',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
     protected ?string $note;
 
     #[Assert\NotBlank]
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups([
+        'transaction:collection:read',
+        'transaction:write',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
+    #[Serializer\Groups([
+        'transaction:collection:read',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
     protected ?DateTimeInterface $executedAt;
 
     #[Gedmo\Timestampable(on: "create")]
@@ -140,9 +183,20 @@ abstract class Transaction implements OwnableInterface
     #[Assert\NotBlank]
     #[ORM\ManyToOne(targetEntity: Category::class, cascade: ["persist"], inversedBy: "transactions")]
     #[ORM\JoinColumn(name: "category_id", referencedColumnName: "id", nullable: false)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    protected ?Category $category;
+    #[Groups([
+        'transaction:collection:read',
+        'transaction:write',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
+    #[Serializer\Groups([
+        'transaction:collection:read',
+        'account:item:read',
+        'debt:collection:read',
+        'transfer:collection:read',
+    ])]
+    protected Category $category;
 
     #[ORM\Column(type: Types::BOOLEAN, nullable: false)]
     #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read'])]
@@ -160,7 +214,6 @@ abstract class Transaction implements OwnableInterface
     #[Groups(['transaction:collection:read', 'debt:collection:read', 'account:item:read', 'transfer:collection:read'])]
     abstract public function getType(): string;
 
-    #[Pure]
     public function __construct(bool $isDraft = false)
     {
         $this->isDraft = $isDraft;
@@ -176,7 +229,6 @@ abstract class Transaction implements OwnableInterface
         return $this->id;
     }
 
-    #[Pure]
     public function getRootCategory(): Category
     {
         return $this->category->isRoot() ? $this->category : $this->category->getRoot();
@@ -187,7 +239,7 @@ abstract class Transaction implements OwnableInterface
         return $this->getAccount()->getCurrency();
     }
 
-    public function getAccount(): ?Account
+    public function getAccount(): Account
     {
         return $this->account;
     }
@@ -238,7 +290,7 @@ abstract class Transaction implements OwnableInterface
         return $this->getCategory()->getName() === Category::CATEGORY_DEBT;
     }
 
-    public function getCategory(): ?Category
+    public function getCategory(): Category
     {
         return $this->category;
     }

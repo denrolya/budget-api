@@ -1,0 +1,52 @@
+includes:
+    - vendor/phpstan/phpstan-symfony/extension.neon
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+#    - vendor/phpstan/phpstan-phpunit/extension.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+    # Add other extensions as needed
+
+parameters:
+    level: max
+    paths:
+        - src
+        - tests
+
+    strictRules:
+        booleansInConditions: false
+
+    # Include directories for Symfony Config and helper functions
+    scanDirectories:
+        - var/cache/dev/Symfony/Config
+    scanFiles:
+        - vendor/symfony/dependency-injection/Loader/Configurator/ContainerConfigurator.php
+
+    symfony:
+        container_xml_path: var/cache/dev/App_KernelDevDebugContainer.xml
+#        console_application_loader: tests/console-application.php
+
+    excludePaths:
+        analyse:
+            - %currentWorkingDirectory%/src/Migrations/*
+            - %currentWorkingDirectory%/tests/bootstrap.php
+            - %currentWorkingDirectory%/tests/Fixtures/*
+            - %currentWorkingDirectory%/var/*
+            - %currentWorkingDirectory%/vendor/*
+
+    ignoreErrors:
+        # Remove or minimize ignores to catch more issues
+        # Only ignore specific known false positives
+        - '#^Call to an undefined method Symfony\\Component\\DependencyInjection\\ContainerInterface::get\(\)$#'
+
+    treatPhpDocTypesAsCertain: true
+
+    # Enable reporting of all errors
+    reportUnmatchedIgnoredErrors: true
+
+
+    # Configure Doctrine extensions if using Doctrine
+    doctrine:
+        reportDynamicQueryBuilders: true
+        reportUnknownTypes: true
+        literalString: true
+
+
