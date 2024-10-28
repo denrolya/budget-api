@@ -13,7 +13,7 @@ final class ValuableEntityEventListener implements ToggleEnabledInterface
     use ToggleEnabledTrait;
 
     public function __construct(
-        private AssetsManager $assetsManager,
+        private readonly AssetsManager $assetsManager,
     ) {
     }
 

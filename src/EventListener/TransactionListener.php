@@ -12,6 +12,9 @@ use Psr\Cache\InvalidArgumentException;
 
 final class TransactionListener extends BaseUpdateTransactionValueHandler implements ToggleEnabledInterface
 {
+    /**
+     * @throws InvalidArgumentException
+     */
     public function onFlush(OnFlushEventArgs $args): void
     {
         if (!$this->isEnabled()) {

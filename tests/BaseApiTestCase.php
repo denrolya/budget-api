@@ -33,7 +33,7 @@ class BaseApiTestCase extends ApiTestCase
     protected const CATEGORY_INCOME_COMPENSATION = 'Compensation';
     protected const CATEGORY_INCOME_SALARY = 'Salary';
 
-    protected const TEST_USERNAME = 'drolya';
+    protected const TEST_USERNAME = 'test_user';
 
     protected Client $client;
 

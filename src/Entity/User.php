@@ -26,7 +26,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ApiProperty(identifier: false)]
     private ?int $id = null;
 
-
     #[ORM\Column(type: Types::STRING, length: 180, unique: true)]
     #[Groups(['user:item:read'])]
     #[ApiProperty(identifier: true)]

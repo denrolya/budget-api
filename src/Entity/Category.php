@@ -152,7 +152,7 @@ abstract class Category
     #[ORM\JoinColumn(name: "root_id", referencedColumnName: "id")]
     #[Groups(['category:collection:read'])]
     #[Serializer\Groups(['category:collection:read'])]
-    private ?Category $root;
+    private ?Category $root = null;
 
     #[ORM\OneToMany(mappedBy: "category", targetEntity: Transaction::class, cascade: ["remove"], fetch: "EXTRA_LAZY", orphanRemoval: true)]
     #[ORM\OrderBy(["executedAt" => "ASC"])]

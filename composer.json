@@ -44,26 +44,27 @@
         "symfony/yaml":                         "5.4.*"
     },
     "require-dev":       {
-        "dama/doctrine-test-bundle":          "^8.0",
-        "deployer/deployer":                  "^6.9",
-        "doctrine/doctrine-fixtures-bundle":  "^3.5",
-        "jms/serializer-bundle":              "^5.4",
-        "justinrainbow/json-schema":          "^5.2",
-        "phpstan/phpstan":                    "^1.12",
-        "phpstan/phpstan-doctrine":           "^1.5",
-        "phpstan/phpstan-strict-rules":       "^1.6",
-        "phpstan/phpstan-symfony":            "^1.4",
-        "phpunit/php-code-coverage":          "^9.2",
-        "phpunit/phpunit":                    "^9.6",
-        "roave/security-advisories":          "dev-latest",
+        "dama/doctrine-test-bundle": "^8.0",
+        "deployer/deployer": "^6.9",
+        "doctrine/doctrine-fixtures-bundle": "^3.5",
+        "fakerphp/faker": "^1.23",
+        "jms/serializer-bundle": "^5.4",
+        "justinrainbow/json-schema": "^5.2",
+        "phpstan/phpstan": "^1.12",
+        "phpstan/phpstan-doctrine": "^1.5",
+        "phpstan/phpstan-strict-rules": "^1.6",
+        "phpstan/phpstan-symfony": "^1.4",
+        "phpunit/php-code-coverage": "^9.2",
+        "phpunit/phpunit": "^9.6",
+        "roave/security-advisories": "dev-latest",
         "spatie/phpunit-snapshot-assertions": "^4.2",
-        "symfony/browser-kit":                "5.4.*",
-        "symfony/css-selector":               "5.4.*",
-        "symfony/debug-bundle":               "5.4.*",
-        "symfony/maker-bundle":               "^1.50",
-        "symfony/phpunit-bridge":             "^6.4",
-        "symfony/stopwatch":                  "5.4.*",
-        "symfony/web-profiler-bundle":        "5.4.*"
+        "symfony/browser-kit": "5.4.*",
+        "symfony/css-selector": "5.4.*",
+        "symfony/debug-bundle": "5.4.*",
+        "symfony/maker-bundle": "^1.50",
+        "symfony/phpunit-bridge": "^6.4",
+        "symfony/stopwatch": "5.4.*",
+        "symfony/web-profiler-bundle": "5.4.*"
     },
     "config":            {
         "allow-plugins":       {
@@ -110,7 +111,13 @@
         "deploy":           "vendor/bin/dep deploy",
         "db2loc":           "vendor/bin/dep database:copy:to_local",
         "db2rem":           "vendor/bin/dep database:copy:to_remote",
-        "phpstan":          "vendor/bin/phpstan analyse"
+        "phpstan":          "vendor/bin/phpstan analyse",
+        "load-test-fixtures": [
+            "bin/console doctrine:database:drop --force --env=test",
+            "bin/console doctrine:database:create --env=test",
+            "bin/console doctrine:schema:create --env=test",
+            "bin/console doctrine:fixtures:load --env=test --no-interaction"
+        ]
     },
     "conflict":          {
         "symfony/symfony": "*"
