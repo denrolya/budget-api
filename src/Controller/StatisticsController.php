@@ -84,6 +84,7 @@ class StatisticsController extends AbstractFOSRestController
             after: $after,
             before: $before,
             categories: !empty($categories) ? $categoryRepo->getCategoriesWithDescendantsByType($categories) : $categories,
+            affectingProfitOnly: false,
         );
 
         return $this->view(
