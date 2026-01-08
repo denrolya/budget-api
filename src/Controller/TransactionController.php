@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Service\CSVExporter;
 use App\Pagination\Paginator;
 use App\Service\AssetsManager;
 use Carbon\CarbonImmutable;
@@ -10,14 +11,21 @@ use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpFoundation\Response;
 
 #[Route('/api/v2/transaction', name: 'api_v2_transaction_')]
 class TransactionController extends AbstractFOSRestController
 {
     #[Rest\QueryParam(name: 'after', description: 'After date', nullable: true)]
-    #[ParamConverter('after', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'first day of this month'])]
+    #[ParamConverter('after', class: CarbonImmutable::class, options: [
+        'format' => 'Y-m-d',
+        'default' => 'first day of this month',
+    ])]
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
-    #[ParamConverter('before', class: CarbonImmutable::class, options: ['format' => 'Y-m-d', 'default' => 'last day of this month'])]
+    #[ParamConverter('before', class: CarbonImmutable::class, options: [
+        'format' => 'Y-m-d',
+        'default' => 'last day of this month',
+    ])]
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'accounts', description: 'Filter by accounts', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
@@ -27,22 +35,86 @@ class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: Paginator::PER_PAGE, description: 'Results per page')]
     #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1, description: 'Page number')]
     #[Rest\View(serializerGroups: ['transaction:collection:read'])]
-    #[Route('', name: 'collection_read', methods:['get'] )]
-    public function list(AssetsManager $assetsManager, CarbonImmutable $after, CarbonImmutable $before, ?array $accounts, ?array $categories, ?array $excludedCategories, bool $withNestedCategories = true, ?string $type = null, $isDraft = null, int $perPage = Paginator::PER_PAGE, int $page = 1): View
-    {
+    #[Route('', name: 'collection_read', methods: ['get'])]
+    public function list(
+        AssetsManager $assetsManager,
+        CarbonImmutable $after,
+        CarbonImmutable $before,
+        ?array $accounts,
+        ?array $categories,
+        ?array $excludedCategories,
+        bool $withNestedCategories = true,
+        ?string $type = null,
+        $isDraft = null,
+        int $perPage = Paginator::PER_PAGE,
+        int $page = 1
+    ): View {
         return $this->view(
             $assetsManager->generateTransactionPaginationData(
                 after: $after,
                 before: $before,
                 type: $type,
                 categories: $categories,
-                excludedCategories: $excludedCategories,
                 accounts: $accounts,
+                excludedCategories: $excludedCategories,
                 withChildCategories: $withNestedCategories,
                 isDraft: $isDraft,
                 perPage: $perPage,
                 page: $page
             )
         );
+    }
+
+    #[Rest\QueryParam(name: 'after', description: 'After date', nullable: true)]
+    #[ParamConverter('after', class: CarbonImmutable::class, options: [
+        'format' => 'Y-m-d',
+        'default' => 'first day of this month',
+    ])]
+    #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
+    #[ParamConverter('before', class: CarbonImmutable::class, options: [
+        'format' => 'Y-m-d',
+        'default' => 'last day of this month',
+    ])]
+    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'accounts', description: 'Filter by accounts', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'excludedCategories', description: 'Exclude categories from list', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'withNestedCategories', default: true, description: 'Filter by category and its children', nullable: false, allowBlank: false)]
+    #[Rest\QueryParam(name: 'isDraft', default: null, description: 'Show only draft transactions', nullable: true, allowBlank: true)]
+    #[Route('/export.csv', name: 'api_v2_transaction_collection_export_csv', methods: ['get'])]
+    public function exportCsv(
+        CSVExporter $exporter,
+        CarbonImmutable $after,
+        CarbonImmutable $before,
+        ?array $accounts,
+        ?array $categories,
+        ?array $excludedCategories,
+        bool $withNestedCategories = true,
+        ?string $type = null,
+        $isDraft = null
+    ): Response {
+        $isDraftBool = null;
+        if ($isDraft !== null && $isDraft !== '') {
+            $isDraftBool = filter_var($isDraft, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        }
+
+        $response = $exporter->stream(
+            after: $after,
+            before: $before,
+            type: $type,
+            categoryFilter: $categories,
+            accountFilter: $accounts,
+            excludedCategories: $excludedCategories,
+            withNestedCategories: $withNestedCategories,
+            isDraft: $isDraftBool,
+            affectingProfitOnly: true
+        );
+
+        $filename = sprintf('transactions_%s_%s.csv', $after->format('Ymd'), $before->format('Ymd'));
+        $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
+        $response->headers->set('Content-Disposition', sprintf('attachment; filename="%s"', $filename));
+        $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+
+        return $response;
     }
 }

@@ -15,7 +15,6 @@ use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Carbon\CarbonPeriod;
 use Doctrine\ORM\EntityManagerInterface;
-use JetBrains\PhpStorm\ArrayShape;
 
 final class StatisticsManager
 {
@@ -114,7 +113,6 @@ final class StatisticsManager
         return $categories;
     }
 
-    #[ArrayShape(['min' => 'array', 'max' => 'array'])]
     public function generateMinMaxByIntervalExpenseStatistics(array $transactions, CarbonPeriod $period): array
     {
         $result = [

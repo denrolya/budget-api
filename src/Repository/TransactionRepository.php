@@ -76,33 +76,6 @@ class TransactionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    public function getListQueryBuilder(
-        ?CarbonInterface $after = null,
-        ?CarbonInterface $before = null,
-        ?string $type = null,
-        ?array $categories = [],
-        ?array $accounts = [],
-        ?array $excludedCategories = [],
-        bool $affectingProfitOnly = true,
-        ?bool $isDraft = null,
-        string $orderField = self::ORDER_FIELD,
-        string $order = self::ORDER
-    ): QueryBuilder {
-        return $this
-            ->getBaseQueryBuilder(
-                $after,
-                $before,
-                $affectingProfitOnly,
-                $type,
-                $categories,
-                $accounts,
-                $excludedCategories,
-                $isDraft,
-                $orderField,
-                $order
-            );
-    }
-
 
     /**
      * @param CarbonInterface|null $after
@@ -185,9 +158,6 @@ class TransactionRepository extends ServiceEntityRepository
         return $qb;
     }
 
-    /**
-     * TODO: Replace $offset with $page
-     */
     public function getPaginator(
         ?CarbonInterface $after,
         ?CarbonInterface $before,
@@ -198,7 +168,7 @@ class TransactionRepository extends ServiceEntityRepository
         ?array $excludedCategories = [],
         ?bool $isDraft = null,
         ?int $limit = Paginator::PER_PAGE,
-        int $offset = 0,
+        int $page = 1,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER
     ): Paginator {
@@ -215,31 +185,7 @@ class TransactionRepository extends ServiceEntityRepository
             $order
         );
 
-        return (new Paginator($qb, $limit))->paginate(($offset / $limit) + 1);
-    }
-
-    public function findWithinPeriodByAccount(
-        Account $account,
-        CarbonInterface $after,
-        ?CarbonInterface $before = null
-    ): array {
-        $qb = $this->createQueryBuilder('t')
-            ->leftJoin('t.account', 'a')
-            ->andWhere('DATE(t.executedAt) >= :after')
-            ->andWhere('a.id = :account')
-            ->setParameter('after', $after->toDateString())
-            ->setParameter('account', $account->getId());
-
-        if ($before) {
-            $qb
-                ->andWhere('DATE(t.executedAt) <= :before')
-                ->setParameter('before', $before->toDateString());
-        }
-
-        return $qb
-            ->orderBy('t.'.self::ORDER_FIELD, 'ASC')
-            ->getQuery()
-            ->getResult();
+        return (new Paginator($qb, $limit))->paginate($page);
     }
 
     public function findWithinPeriod(CarbonInterface $after, ?CarbonInterface $before = null): array

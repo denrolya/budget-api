@@ -19,10 +19,10 @@ use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JetBrains\PhpStorm\Pure;
 use JMS\Serializer\Annotation as Serializer;
+use Random\RandomException;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Serializer\Annotation\SerializedName;
 use Symfony\Component\Validator\Constraints as Assert;
-
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: AccountRepository::class)]
@@ -37,7 +37,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     collectionOperations: [
         'get' => [
-            'normalization_context' => ['groups' => 'account:collection:read'],
+            'normalization_context' => ['groups' => 'account:collection:read', 'account:write'],
         ],
         'post' => [
             'normalization_context' => ['groups' => 'account:write'],
@@ -60,7 +60,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(PropertyFilter::class)]
 #[Serializer\Discriminator([
     'field' => 'type',
-    'groups' => ['account:collection:read', 'account:item:read', 'debt:collection:read'],
+    'groups' => ['account:collection:read', 'account:write', 'account:item:read', 'debt:collection:read'],
     'map' => [
         'basic' => Account::class,
         'bank' => BankCardAccount::class,
@@ -106,7 +106,7 @@ class Account implements OwnableInterface
     #[ORM\Column(type: Types::INTEGER)]
     #[Groups([
         'account:collection:read',
-        'account:item:read',
+        'account:write',
         'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
@@ -114,29 +114,31 @@ class Account implements OwnableInterface
     ])]
     #[Serializer\Groups([
         'account:collection:read',
+        'account:write',
         'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
-        'transfer:collection:read'
+        'transfer:collection:read',
     ])]
     private ?int $id;
 
     #[Gedmo\Timestampable(on: 'create')]
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: false)]
     #[Groups(['account:item:read'])]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
+    #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     protected ?DateTimeInterface $createdAt;
 
     #[Gedmo\Timestampable(on: 'update')]
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: false)]
-    #[Groups(['account:collection:read'])]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     protected ?DateTimeInterface $updatedAt;
 
     #[Assert\NotBlank]
     #[ORM\Column(type: Types::STRING, length: 255)]
     #[Groups([
         'account:collection:read',
+        'account:write',
         'account:item:read',
         'account:write',
         'transaction:collection:read',
@@ -145,6 +147,7 @@ class Account implements OwnableInterface
     ])]
     #[Serializer\Groups([
         'account:collection:read',
+        'account:write',
         'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
@@ -156,6 +159,7 @@ class Account implements OwnableInterface
     #[ORM\Column(type: Types::STRING, length: 3)]
     #[Groups([
         'account:collection:read',
+        'account:write',
         'transaction:collection:read',
         'account:item:read',
         'account:write',
@@ -173,6 +177,7 @@ class Account implements OwnableInterface
     )]
     #[Serializer\Groups([
         'account:collection:read',
+        'account:write',
         'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
@@ -180,8 +185,8 @@ class Account implements OwnableInterface
     private ?string $currency;
 
     #[ORM\Column(type: Types::STRING, length: 100)]
-    #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write', 'account:item:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     #[Serializer\Type(Types::FLOAT)]
     private string $balance = '0.0';
 
@@ -190,13 +195,14 @@ class Account implements OwnableInterface
     private Collection $transactions;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write', 'account:item:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     private ?DateTimeInterface $archivedAt;
 
     #[ORM\Column(type: Types::STRING, length: 30)]
     #[Groups([
         'account:collection:read',
+        'account:write',
         'transaction:collection:read',
         'account:item:read',
         'account:write',
@@ -205,6 +211,7 @@ class Account implements OwnableInterface
     ])]
     #[Serializer\Groups([
         'account:collection:read',
+        'account:write',
         'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
@@ -243,10 +250,13 @@ class Account implements OwnableInterface
     private ?array $topIncomeCategories;
 
     #[ORM\Column(type: Types::BOOLEAN)]
-    #[Groups(['account:collection:read', 'account:item:read'])]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
+    #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     private bool $isDisplayedOnSidebar = false;
 
+    /**
+     * @throws RandomException
+     */
     public function __construct()
     {
         $this->transactions = new ArrayCollection();
@@ -254,7 +264,8 @@ class Account implements OwnableInterface
         $this->logs = new ArrayCollection();
     }
 
-    #[Pure] public function __toString(): string
+    #[Pure]
+    public function __toString(): string
     {
         return $this->getName() ?: 'New Account';
     }
@@ -302,17 +313,17 @@ class Account implements OwnableInterface
 
     public function updateBalanceBy(float $amount): self
     {
-        return $this->setBalance($this->balance + $amount);
+        return $this->setBalance((float)$this->balance + $amount);
     }
 
     public function increaseBalance(float $amount): self
     {
-        return $this->setBalance($this->balance + $amount);
+        return $this->setBalance((float)$this->balance + $amount);
     }
 
     public function decreaseBalance(float $amount): self
     {
-        return $this->setBalance($this->balance - $amount);
+        return $this->setBalance((float)$this->balance - $amount);
     }
 
     public function addTransaction(Transaction $transaction): self
@@ -384,6 +395,7 @@ class Account implements OwnableInterface
 
     #[Groups([
         'account:collection:read',
+        'account:write',
         'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
@@ -392,6 +404,7 @@ class Account implements OwnableInterface
     #[Serializer\VirtualProperty]
     #[Serializer\Groups([
         'account:collection:read',
+        'account:write',
         'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
@@ -512,7 +525,7 @@ class Account implements OwnableInterface
         return $this;
     }
 
-    #[Groups(['account:collection:read', 'account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     public function getType(): string
     {
         return self::ACCOUNT_TYPE_BASIC;

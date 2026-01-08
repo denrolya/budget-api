@@ -5,7 +5,6 @@ namespace App\Service;
 use App\Entity\Category;
 use App\Entity\Debt;
 use App\Entity\Transaction;
-use App\Entity\ValuableInterface;
 use App\Pagination\Paginator;
 use App\Repository\TransactionRepository;
 use Carbon\CarbonInterface;
@@ -58,7 +57,7 @@ final class AssetsManager
                 $excludedCategories,
                 $isDraft,
                 $perPage,
-                ($page - 1) * $perPage,
+                $page,
                 $orderField,
                 $order
             );

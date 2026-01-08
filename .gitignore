@@ -6,6 +6,7 @@ backups
 php.ini
 coverage/
 .sonar/
+tmp/
 ###< other ###
 
 ###> deployer/deployer ###
