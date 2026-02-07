@@ -38,28 +38,38 @@ final class AssetsManager
         ?array $excludedCategories = [],
         bool $withChildCategories = true,
         ?bool $isDraft = null,
+        ?string $note = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+        ?array $debts = null,
+        ?array $currencies = null,
         int $perPage = Paginator::PER_PAGE,
         int $page = 1,
         string $orderField = TransactionRepository::ORDER_FIELD,
-        string $order = TransactionRepository::ORDER
+        string $order = TransactionRepository::ORDER,
     ): array {
         $paginator = $this
             ->transactionRepo
             ->getPaginator(
-                $after,
-                $before,
-                false,
-                $type,
-                ($withChildCategories && !empty($categories))
+                after: $after,
+                before: $before,
+                affectingProfitOnly: false,
+                type: $type,
+                categories: ($withChildCategories && !empty($categories))
                     ? $this->em->getRepository(Category::class)->getCategoriesWithDescendantsByType($categories, $type)
-                    : $categories,
-                $accounts,
-                $excludedCategories,
-                $isDraft,
-                $perPage,
-                $page,
-                $orderField,
-                $order
+                    : ($categories ?? []),
+                accounts: $accounts ?? [],
+                excludedCategories: $excludedCategories ?? [],
+                isDraft: $isDraft,
+                note: $note,
+                amountGte: $amountGte,
+                amountLte: $amountLte,
+                debts: $debts ?? [],
+                currencies: $currencies,
+                limit: $perPage,
+                page: $page,
+                orderField: $orderField,
+                order: $order,
             );
 
         $list = $paginator->getResults();

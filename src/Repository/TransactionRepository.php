@@ -4,14 +4,12 @@ namespace App\Repository;
 
 use App\Entity\Account;
 use App\Entity\AccountLogEntry;
-use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
 use App\Pagination\Paginator;
 use Carbon\CarbonInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
@@ -27,25 +25,16 @@ class TransactionRepository extends ServiceEntityRepository
     public const ORDER_FIELD = 'executedAt';
     public const ORDER = 'DESC';
 
+    private const ALLOWED_ORDER_FIELDS = ['executedAt', 'id', 'amount', 'createdAt'];
+    private const ALLOWED_ORDER_DIRECTIONS = ['ASC', 'DESC'];
+
     public function __construct(ManagerRegistry $registry, ?string $classname = null)
     {
-        $class = (!$classname) ? Transaction::class : $classname;
-
-        parent::__construct($registry, $class);
+        parent::__construct($registry, $classname ?: Transaction::class);
     }
 
     /**
-     * @param CarbonInterface|null $after
-     * @param CarbonInterface|null $before
-     * @param string|null $type
-     * @param array<Category|int>|null $categories
-     * @param array<Account|int>|null $accounts
-     * @param array<Category|int>|null $excludedCategories
-     * @param bool $affectingProfitOnly
-     * @param bool|null $isDraft
-     * @param string $orderField
-     * @param string $order
-     * @return Collection|array
+     * @return array<Transaction>
      */
     public function getList(
         ?CarbonInterface $after = null,
@@ -56,39 +45,121 @@ class TransactionRepository extends ServiceEntityRepository
         ?array $excludedCategories = [],
         bool $affectingProfitOnly = true,
         ?bool $isDraft = null,
+        ?string $note = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+        array $debts = [],
+        ?array $currencies = null,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER
-    ): Collection|array {
-        return $this
-            ->getBaseQueryBuilder(
-                after: $after,
-                before: $before,
-                affectingProfitOnly: $affectingProfitOnly,
-                type: $type,
-                categories: $categories,
-                accounts: $accounts,
-                excludedCategories: $excludedCategories,
-                isDraft: $isDraft,
-                orderField: $orderField,
-                order: $order
-            )
+    ): array {
+        return $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            affectingProfitOnly: $affectingProfitOnly,
+            type: $type,
+            categories: $categories,
+            accounts: $accounts,
+            excludedCategories: $excludedCategories,
+            isDraft: $isDraft,
+            note: $note,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+            debts: $debts,
+            currencies: $currencies,
+            orderField: $orderField,
+            order: $order
+        )
             ->getQuery()
             ->getResult();
     }
 
+    public function getPaginator(
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+        bool $affectingProfitOnly = false,
+        ?string $type = null,
+        ?array $categories = [],
+        ?array $accounts = [],
+        ?array $excludedCategories = [],
+        ?bool $isDraft = null,
+        ?string $note = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+        array $debts = [],
+        ?array $currencies = null,
+        ?int $limit = Paginator::PER_PAGE,
+        int $page = 1,
+        string $orderField = self::ORDER_FIELD,
+        string $order = self::ORDER
+    ): Paginator {
+        $qb = $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            affectingProfitOnly: $affectingProfitOnly,
+            type: $type,
+            categories: $categories,
+            accounts: $accounts,
+            excludedCategories: $excludedCategories,
+            isDraft: $isDraft,
+            note: $note,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+            debts: $debts,
+            currencies: $currencies,
+            orderField: $orderField,
+            order: $order
+        );
+
+        return (new Paginator($qb, $limit))->paginate($page);
+    }
 
     /**
-     * @param CarbonInterface|null $after
-     * @param CarbonInterface|null $before
-     * @param bool $affectingProfitOnly
-     * @param string|null $type
-     * @param array<Category|int>|null $categories
-     * @param array<Account|int>|null $accounts
-     * @param array<Category|int>|null $excludedCategories
-     * @param bool|null $isDraft
-     * @param string $orderField
-     * @param string $order
-     * @return QueryBuilder
+     * Compatibility wrapper: find by executedAt range.
+     *
+     * @return array<Transaction>
+     */
+    public function findWithinPeriod(CarbonInterface $after, ?CarbonInterface $before = null): array
+    {
+        return $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            affectingProfitOnly: false,
+            // keep default ordering
+            orderField: self::ORDER_FIELD,
+            order: self::ORDER
+        )
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * NOTE: name preserved to avoid breaking callers, but semantics are "after last log".
+     *
+     * @return array<Transaction>
+     */
+    public function findBeforeLastLog(Account $account): array
+    {
+        $qb = $this->createQueryBuilder('t')
+            ->andWhere('t.account = :account')
+            ->setParameter('account', $account)
+            ->orderBy('t.executedAt', 'DESC');
+
+        $lastLogEntry = $this->getEntityManager()
+            ->getRepository(AccountLogEntry::class)
+            ->findOneBy(['account' => $account], ['createdAt' => 'DESC']);
+
+        if ($lastLogEntry) {
+            // comparing executedAt to log createdAt — preserved as-is
+            $qb->andWhere('t.executedAt > :date')
+                ->setParameter('date', $lastLogEntry->getCreatedAt());
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * Single source of truth for listing filters.
      */
     protected function getBaseQueryBuilder(
         ?CarbonInterface $after,
@@ -99,47 +170,93 @@ class TransactionRepository extends ServiceEntityRepository
         ?array $accounts = [],
         ?array $excludedCategories = [],
         ?bool $isDraft = null,
+        ?string $note = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+        array $debts = [],
+        ?array $currencies = [],
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER
     ): QueryBuilder {
-        $qb = $this
-            ->createQueryBuilder('t')
-            ->leftJoin('t.category', 'c')
+        $orderField = $this->assertOrderField($orderField);
+        $order = $this->assertOrderDirection($order);
+
+        if (!is_string($type) || $type === '') {
+            $type = null;
+        }
+
+        $qb = $this->createQueryBuilder('t')
             ->orderBy("t.$orderField", $order)
             ->addOrderBy('t.id', $order);
 
-        if ($isDraft !== null) {
-            $qb->andWhere('t.isDraft = :isDraft')
-                ->setParameter('isDraft', $isDraft);
+        $this->applyDraftFilter($qb, $isDraft);
+        $this->applyExecutedAtRange($qb, $after, $before);
+        $this->applyTypeFilter($qb, $type);
+        $this->applyInFilters($qb, $accounts, $categories, $excludedCategories, $debts);
+        $this->applyAffectingProfitFilter($qb, $affectingProfitOnly);
+        $this->applyNoteFilter($qb, $note);
+        $this->applyAmountRangeFilter($qb, $amountGte, $amountLte);
+        $this->applyCurrencyFilter($qb, $currencies);
+
+        return $qb;
+    }
+
+    private function assertOrderField(string $orderField): string
+    {
+        if (!in_array($orderField, self::ALLOWED_ORDER_FIELDS, true)) {
+            throw new InvalidArgumentException('Invalid order field');
         }
 
-        if ($affectingProfitOnly) {
-            $qb->andWhere('c.isAffectingProfit = :affectingProfitOnly')
-                ->setParameter('affectingProfitOnly', $affectingProfitOnly);
+        return $orderField;
+    }
+
+    private function assertOrderDirection(string $order): string
+    {
+        $order = strtoupper($order);
+
+        if (!in_array($order, self::ALLOWED_ORDER_DIRECTIONS, true)) {
+            throw new InvalidArgumentException('Invalid order direction');
         }
 
-        if ($after) {
-            $qb->andWhere('DATE(t.executedAt) >= :after')
-                ->setParameter('after', $after->toDateString());
+        return $order;
+    }
+
+    private function applyDraftFilter(QueryBuilder $qb, ?bool $isDraft): void
+    {
+        if ($isDraft === null) {
+            return;
         }
 
-        if ($before) {
-            $qb->andWhere('DATE(t.executedAt) <= :before')
-                ->setParameter('before', $before->toDateString());
+        $qb->andWhere('t.isDraft = :isDraft')
+            ->setParameter('isDraft', $isDraft);
+    }
+
+    private function applyTypeFilter(QueryBuilder $qb, ?string $type): void
+    {
+        if ($type === null) {
+            return;
         }
 
-        if ($type && !in_array($type, [Transaction::EXPENSE, Transaction::INCOME], true)) {
+        if (!in_array($type, [Transaction::EXPENSE, Transaction::INCOME], true)) {
             throw new InvalidArgumentException('Invalid transaction type');
         }
 
         if ($type === Transaction::EXPENSE) {
-            $qb->andWhere('t INSTANCE OF :type')
-                ->setParameter('type', $this->getEntityManager()->getClassMetadata(Expense::class));
-        } elseif ($type === Transaction::INCOME) {
-            $qb->andWhere('t INSTANCE OF :type')
-                ->setParameter('type', $this->getEntityManager()->getClassMetadata(Income::class));
+            $qb->andWhere($qb->expr()->isInstanceOf('t', Expense::class));
+
+            return;
         }
 
+        $qb->andWhere($qb->expr()->isInstanceOf('t', Income::class));
+    }
+
+    private function applyInFilters(
+        QueryBuilder $qb,
+        array $accounts,
+        array $categories,
+        array $excludedCategories,
+        array $debts
+    ): void {
         if (!empty($accounts)) {
             $qb->andWhere('t.account IN (:accounts)')
                 ->setParameter('accounts', $accounts);
@@ -155,78 +272,99 @@ class TransactionRepository extends ServiceEntityRepository
                 ->setParameter('excludedCategories', $excludedCategories);
         }
 
-        return $qb;
+        if (!empty($debts)) {
+            $qb->andWhere('t.debt IN (:debts)')
+                ->setParameter('debts', $debts);
+        }
     }
 
-    public function getPaginator(
+    private function applyAffectingProfitFilter(QueryBuilder $qb, bool $affectingProfitOnly): void
+    {
+        if (!$affectingProfitOnly) {
+            return;
+        }
+
+        // join only when needed
+        $qb->innerJoin('t.category', 'c')
+            ->andWhere('c.isAffectingProfit = :affectingProfitOnly')
+            ->setParameter('affectingProfitOnly', true);
+    }
+
+    private function applyNoteFilter(QueryBuilder $qb, ?string $note): void
+    {
+        if (!is_string($note)) {
+            return;
+        }
+
+        $needle = trim($note);
+        if ($needle === '') {
+            return;
+        }
+
+        // escape LIKE special chars: \ % _
+        $needle = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $needle);
+
+        $qb->andWhere('t.note LIKE :note')
+            ->setParameter('note', '%'.$needle.'%');
+    }
+
+    private function applyAmountRangeFilter(QueryBuilder $qb, ?float $amountGte, ?float $amountLte): void
+    {
+        if ($amountGte !== null) {
+            $qb->andWhere('t.amount >= :amountGte')
+                ->setParameter('amountGte', $amountGte, \Doctrine\DBAL\Types\Types::FLOAT);
+        }
+
+        if ($amountLte !== null) {
+            $qb->andWhere('t.amount <= :amountLte')
+                ->setParameter('amountLte', $amountLte, \Doctrine\DBAL\Types\Types::FLOAT);
+        }
+    }
+
+    private function applyExecutedAtRange(
+        QueryBuilder $qb,
         ?CarbonInterface $after,
-        ?CarbonInterface $before,
-        bool $affectingProfitOnly = false,
-        ?string $type = null,
-        ?array $categories = [],
-        ?array $accounts = [],
-        ?array $excludedCategories = [],
-        ?bool $isDraft = null,
-        ?int $limit = Paginator::PER_PAGE,
-        int $page = 1,
-        string $orderField = self::ORDER_FIELD,
-        string $order = self::ORDER
-    ): Paginator {
-        $qb = $this->getBaseQueryBuilder(
-            $after,
-            $before,
-            $affectingProfitOnly,
-            $type,
-            $categories,
-            $accounts,
-            $excludedCategories,
-            $isDraft,
-            $orderField,
-            $order
-        );
-
-        return (new Paginator($qb, $limit))->paginate($page);
-    }
-
-    public function findWithinPeriod(CarbonInterface $after, ?CarbonInterface $before = null): array
-    {
-        $qb = $this->createQueryBuilder('t')
-            ->andWhere('DATE(t.executedAt) >= :after')
-            ->setParameter('after', $after->toDateString());
-
-        if ($before) {
-            $qb
-                ->andWhere('DATE(t.executedAt) <= :before')
-                ->setParameter('before', $before->toDateString());
+        ?CarbonInterface $before
+    ): void {
+        if ($after !== null) {
+            $qb->andWhere('t.executedAt >= :afterStart')
+                ->setParameter('afterStart', $after->copy()->startOfDay());
         }
 
-        return $qb
-            ->orderBy('t.'.self::ORDER_FIELD, self::ORDER)
-            ->getQuery()
-            ->getResult();
+        if ($before !== null) {
+            $qb->andWhere('t.executedAt < :beforeEndExclusive')
+                ->setParameter('beforeEndExclusive', $before->copy()->addDay()->startOfDay());
+        }
     }
 
-    public function findBeforeLastLog(Account $account): array
+    private function applyCurrencyFilter(QueryBuilder $qb, ?array $currencies): void
     {
-        $qb = $this->createQueryBuilder('t')
-            ->leftJoin('t.account', 'a')
-            ->where('a.id = :account')
-            ->setParameter('account', $account)
-            ->orderBy('t.executedAt', 'DESC');
-
-        $lastLogEntry = $this->getEntityManager()->getRepository(AccountLogEntry::class)->findOneBy([
-            'account' => $account,
-        ], [
-            'createdAt' => 'DESC',
-        ]);
-
-        if ($lastLogEntry) {
-            $qb
-                ->andWhere('t.executedAt > :date')
-                ->setParameter('date', $lastLogEntry->getCreatedAt()->toDateTimeString());
+        if (!$currencies) {
+            return;
         }
 
+        $normalized = [];
+        foreach ($currencies as $c) {
+            if (!is_string($c)) {
+                continue;
+            }
+            $code = strtoupper(trim($c));
+            if ($code === '') {
+                continue;
+            }
+            if (!preg_match('/^[A-Z]{3}$/', $code)) {
+                throw new InvalidArgumentException('Invalid currency');
+            }
+            $normalized[] = $code;
+        }
 
-        return $qb->getQuery()->getResult();
+        $normalized = array_values(array_unique($normalized));
+        if ($normalized === []) {
+            return;
+        }
+
+        $qb->innerJoin('t.account', 'a')
+            ->andWhere('a.currency IN (:currencies)')
+            ->setParameter('currencies', $normalized);
     }
 }

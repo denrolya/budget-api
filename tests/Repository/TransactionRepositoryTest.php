@@ -273,13 +273,13 @@ class TransactionRepositoryTest extends KernelTestCase
 
     public function testGetListWithInvalidOrderFieldArguments(): void
     {
-        $this->expectException(QueryException::class);
+        $this->expectException(\InvalidArgumentException::class);
         $this->repo->getList(orderField: 'invalid', order: 'ASC');
     }
 
     public function testGetListWithInvalidOrderArgument(): void
     {
-        $this->expectException(QueryException::class);
+        $this->expectException(\InvalidArgumentException::class);
         $this->repo->getList(orderField: 'executedAt', order: 'INVALID');
     }
 }

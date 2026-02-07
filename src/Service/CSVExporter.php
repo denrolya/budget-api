@@ -27,6 +27,7 @@ final readonly class CSVExporter
         bool $withNestedCategories,
         ?bool $isDraft,
         bool $affectingProfitOnly = true,
+        array $currencies = [],
     ): StreamedResponse {
         $categoryFilter = $this->normalizeIdsOrEntities($categoryFilter);
         $accountFilter = $this->normalizeIdsOrEntities($accountFilter);
@@ -44,7 +45,8 @@ final readonly class CSVExporter
             $accountFilter,
             $excludedCategories,
             $isDraft,
-            $affectingProfitOnly
+            $affectingProfitOnly,
+            $currencies,
         ) {
             $out = fopen('php://output', 'wb');
 
@@ -81,12 +83,12 @@ final readonly class CSVExporter
                 excludedCategories: $excludedCategories,
                 affectingProfitOnly: $affectingProfitOnly,
                 isDraft: $isDraft,
+                currencies: $currencies,
                 orderField: TransactionRepository::ORDER_FIELD,
                 order: TransactionRepository::ORDER
             );
 
             foreach ($items as $tx) {
-                /** @var Transaction $tx */
                 $account = $tx->getAccount();
                 $category = $tx->getCategory();
 

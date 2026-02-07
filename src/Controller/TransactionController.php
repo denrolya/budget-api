@@ -2,16 +2,16 @@
 
 namespace App\Controller;
 
-use App\Service\CSVExporter;
 use App\Pagination\Paginator;
 use App\Service\AssetsManager;
+use App\Service\CSVExporter;
 use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
-use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/transaction', name: 'api_v2_transaction_')]
 class TransactionController extends AbstractFOSRestController
@@ -32,6 +32,11 @@ class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'excludedCategories', description: 'Exclude categories from list', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'withNestedCategories', default: true, description: 'Filter by category and its children', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'isDraft', default: null, description: 'Show only draft transactions', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'currencies', description: 'Filter by account currencies (e.g. EUR,HUF)', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'note', description: 'Search in note (substring)', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'amount[gte]', description: 'Amount >=', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'amount[lte]', description: 'Amount <=', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'debts', description: 'Filter by debts (ids)', nullable: true, allowBlank: true)]
     #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: Paginator::PER_PAGE, description: 'Results per page')]
     #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1, description: 'Page number')]
     #[Rest\View(serializerGroups: ['transaction:collection:read'])]
@@ -46,9 +51,35 @@ class TransactionController extends AbstractFOSRestController
         bool $withNestedCategories = true,
         ?string $type = null,
         $isDraft = null,
+        ?string $note = null,
+        ?array $amount = null, // expects amount[gte], amount[lte]
+        ?array $currencies = null,
+        ?array $debts = null,         // can be "1,2,3" or array depending on your client
         int $perPage = Paginator::PER_PAGE,
         int $page = 1
     ): View {
+        $amountGte = null;
+        $amountLte = null;
+
+        if (is_array($amount)) {
+            if (isset($amount['gte']) && is_numeric($amount['gte'])) {
+                $amountGte = (float)$amount['gte'];
+            }
+            if (isset($amount['lte']) && is_numeric($amount['lte'])) {
+                $amountLte = (float)$amount['lte'];
+            }
+        }
+
+        // normalize debts -> array (ids)
+        $debtsNormalized = [];
+        if (is_array($debts)) {
+            $debtsNormalized = $debts;
+        } elseif (is_string($debts) && trim($debts) !== '') {
+            $debtsNormalized = array_map('trim', explode(',', $debts));
+        } elseif (is_numeric($debts)) {
+            $debtsNormalized = [(string)$debts];
+        }
+
         return $this->view(
             $assetsManager->generateTransactionPaginationData(
                 after: $after,
@@ -59,8 +90,13 @@ class TransactionController extends AbstractFOSRestController
                 excludedCategories: $excludedCategories,
                 withChildCategories: $withNestedCategories,
                 isDraft: $isDraft,
+                note: (is_string($note) && trim($note) !== '') ? trim($note) : null,
+                amountGte: $amountGte,
+                amountLte: $amountLte,
+                debts: $debts,
+                currencies: $currencies,
                 perPage: $perPage,
-                page: $page
+                page: $page,
             )
         );
     }
@@ -81,6 +117,7 @@ class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'excludedCategories', description: 'Exclude categories from list', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'withNestedCategories', default: true, description: 'Filter by category and its children', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'isDraft', default: null, description: 'Show only draft transactions', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'currencies', description: 'Filter by account currencies (e.g. EUR,HUF)', nullable: true, allowBlank: false)]
     #[Route('/export.csv', name: 'api_v2_transaction_collection_export_csv', methods: ['get'])]
     public function exportCsv(
         CSVExporter $exporter,
@@ -89,9 +126,10 @@ class TransactionController extends AbstractFOSRestController
         ?array $accounts,
         ?array $categories,
         ?array $excludedCategories,
-        bool $withNestedCategories = true,
+        ?bool $withNestedCategories = true,
         ?string $type = null,
-        $isDraft = null
+        ?bool $isDraft = null,
+        ?array $currencies = null,
     ): Response {
         $isDraftBool = null;
         if ($isDraft !== null && $isDraft !== '') {
@@ -107,7 +145,8 @@ class TransactionController extends AbstractFOSRestController
             excludedCategories: $excludedCategories,
             withNestedCategories: $withNestedCategories,
             isDraft: $isDraftBool,
-            affectingProfitOnly: true
+            affectingProfitOnly: true,
+            currencies: $currencies,
         );
 
         $filename = sprintf('transactions_%s_%s.csv', $after->format('Ymd'), $before->format('Ymd'));
