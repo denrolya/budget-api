@@ -79,16 +79,16 @@ class TransactionRepository extends ServiceEntityRepository
         ?CarbonInterface $before,
         bool $affectingProfitOnly = false,
         ?string $type = null,
-        ?array $categories = [],
-        ?array $accounts = [],
-        ?array $excludedCategories = [],
+        ?array $categories = null,
+        ?array $accounts = null,
+        ?array $excludedCategories = null,
         ?bool $isDraft = null,
         ?string $note = null,
         ?float $amountGte = null,
         ?float $amountLte = null,
-        array $debts = [],
+        ?array $debts = null,
         ?array $currencies = null,
-        ?int $limit = Paginator::PER_PAGE,
+        int $limit = Paginator::PER_PAGE,
         int $page = 1,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER
@@ -125,7 +125,6 @@ class TransactionRepository extends ServiceEntityRepository
             after: $after,
             before: $before,
             affectingProfitOnly: false,
-            // keep default ordering
             orderField: self::ORDER_FIELD,
             order: self::ORDER
         )
@@ -150,7 +149,6 @@ class TransactionRepository extends ServiceEntityRepository
             ->findOneBy(['account' => $account], ['createdAt' => 'DESC']);
 
         if ($lastLogEntry) {
-            // comparing executedAt to log createdAt — preserved as-is
             $qb->andWhere('t.executedAt > :date')
                 ->setParameter('date', $lastLogEntry->getCreatedAt());
         }
@@ -166,15 +164,15 @@ class TransactionRepository extends ServiceEntityRepository
         ?CarbonInterface $before,
         bool $affectingProfitOnly = false,
         ?string $type = null,
-        ?array $categories = [],
-        ?array $accounts = [],
-        ?array $excludedCategories = [],
+        ?array $categories = null,
+        ?array $accounts = null,
+        ?array $excludedCategories = null,
         ?bool $isDraft = null,
         ?string $note = null,
         ?float $amountGte = null,
         ?float $amountLte = null,
-        array $debts = [],
-        ?array $currencies = [],
+        ?array $debts = null,
+        ?array $currencies = null,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER
     ): QueryBuilder {
@@ -252,27 +250,27 @@ class TransactionRepository extends ServiceEntityRepository
 
     private function applyInFilters(
         QueryBuilder $qb,
-        array $accounts,
-        array $categories,
-        array $excludedCategories,
-        array $debts
+        ?array $accounts,
+        ?array $categories,
+        ?array $excludedCategories,
+        ?array $debts
     ): void {
-        if (!empty($accounts)) {
+        if ($accounts) {
             $qb->andWhere('t.account IN (:accounts)')
                 ->setParameter('accounts', $accounts);
         }
 
-        if (!empty($categories)) {
+        if ($categories) {
             $qb->andWhere('t.category IN (:categories)')
                 ->setParameter('categories', $categories);
         }
 
-        if (!empty($excludedCategories)) {
+        if ($excludedCategories) {
             $qb->andWhere('t.category NOT IN (:excludedCategories)')
                 ->setParameter('excludedCategories', $excludedCategories);
         }
 
-        if (!empty($debts)) {
+        if ($debts) {
             $qb->andWhere('t.debt IN (:debts)')
                 ->setParameter('debts', $debts);
         }
@@ -311,13 +309,13 @@ class TransactionRepository extends ServiceEntityRepository
     private function applyAmountRangeFilter(QueryBuilder $qb, ?float $amountGte, ?float $amountLte): void
     {
         if ($amountGte !== null) {
-            $qb->andWhere('t.amount >= :amountGte')
-                ->setParameter('amountGte', $amountGte, \Doctrine\DBAL\Types\Types::FLOAT);
+            $qb->andWhere('(t.amount + 0) >= :amountGte')
+                ->setParameter('amountGte', $amountGte);
         }
 
         if ($amountLte !== null) {
-            $qb->andWhere('t.amount <= :amountLte')
-                ->setParameter('amountLte', $amountLte, \Doctrine\DBAL\Types\Types::FLOAT);
+            $qb->andWhere('(t.amount + 0) <= :amountLte')
+                ->setParameter('amountLte', $amountLte);
         }
     }
 

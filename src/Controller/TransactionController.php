@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Pagination\Paginator;
@@ -10,11 +12,12 @@ use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\ParamConverter;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/transaction', name: 'api_v2_transaction_')]
-class TransactionController extends AbstractFOSRestController
+final class TransactionController extends AbstractFOSRestController
 {
     #[Rest\QueryParam(name: 'after', description: 'After date', nullable: true)]
     #[ParamConverter('after', class: CarbonImmutable::class, options: [
@@ -29,56 +32,70 @@ class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'accounts', description: 'Filter by accounts', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'excludedCategories', description: 'Exclude categories from list', nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'withNestedCategories', default: true, description: 'Filter by category and its children', nullable: false, allowBlank: false)]
-    #[Rest\QueryParam(name: 'isDraft', default: null, description: 'Show only draft transactions', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'currencies', description: 'Filter by account currencies (e.g. EUR,HUF)', nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'note', description: 'Search in note (substring)', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'amount[gte]', description: 'Amount >=', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'amount[lte]', description: 'Amount <=', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'debts', description: 'Filter by debts (ids)', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: Paginator::PER_PAGE, description: 'Results per page')]
-    #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1, description: 'Page number')]
+    #[Rest\QueryParam(name: 'excludedCategories', description: 'Exclude categories', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'currencies', description: 'Filter by currencies', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'debts', description: 'Filter by debts', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(
+        name: 'amount[gte]',
+        description: 'Amount >= value (numeric)',
+        nullable: true,
+        allowBlank: true
+    )]
+    #[Rest\QueryParam(
+        name: 'amount[lte]',
+        description: 'Amount <= value (numeric)',
+        nullable: true,
+        allowBlank: true
+    )]
+    #[Rest\QueryParam(
+        name: 'withNestedCategories',
+        requirements: '^(0|1|true|false)$',
+        default: true,
+        description: 'Include nested categories',
+        nullable: true,
+        allowBlank: false
+    )]
+    #[Rest\QueryParam(
+        name: 'isDraft',
+        requirements: '^(0|1|true|false)$',
+        default: null,
+        description: 'true=only draft, false=only non-draft, null=all',
+        nullable: true,
+        allowBlank: false
+    )]
+    #[Rest\QueryParam(name: 'note', description: 'Search substring in note', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: Paginator::PER_PAGE)]
+    #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1)]
     #[Rest\View(serializerGroups: ['transaction:collection:read'])]
-    #[Route('', name: 'collection_read', methods: ['get'])]
+    #[Route('', name: 'collection_read', methods: ['GET'])]
     public function list(
+        Request $request,
         AssetsManager $assetsManager,
         CarbonImmutable $after,
         CarbonImmutable $before,
-        ?array $accounts,
-        ?array $categories,
-        ?array $excludedCategories,
-        bool $withNestedCategories = true,
         ?string $type = null,
-        $isDraft = null,
-        ?string $note = null,
-        ?array $amount = null, // expects amount[gte], amount[lte]
+        ?array $accounts = null,
+        ?array $categories = null,
+        ?array $excludedCategories = null,
         ?array $currencies = null,
-        ?array $debts = null,         // can be "1,2,3" or array depending on your client
+        ?array $debts = null,
+        bool $withNestedCategories = true,
+        ?bool $isDraft = null,
+        ?string $note = null,
         int $perPage = Paginator::PER_PAGE,
         int $page = 1
     ): View {
-        $amountGte = null;
-        $amountLte = null;
 
-        if (is_array($amount)) {
-            if (isset($amount['gte']) && is_numeric($amount['gte'])) {
-                $amountGte = (float)$amount['gte'];
-            }
-            if (isset($amount['lte']) && is_numeric($amount['lte'])) {
-                $amountLte = (float)$amount['lte'];
-            }
+        // ----- amount parsing (cannot be done via QueryParam) -----
+        $amount = $request->query->all('amount');
+        $amountGte = isset($amount['gte']) && is_numeric($amount['gte']) ? (float) $amount['gte'] : null;
+        $amountLte = isset($amount['lte']) && is_numeric($amount['lte']) ? (float) $amount['lte'] : null;
+
+        if ($amountGte !== null && $amountLte !== null && $amountGte > $amountLte) {
+            throw new \InvalidArgumentException('amount[gte] cannot be greater than amount[lte]');
         }
 
-        // normalize debts -> array (ids)
-        $debtsNormalized = [];
-        if (is_array($debts)) {
-            $debtsNormalized = $debts;
-        } elseif (is_string($debts) && trim($debts) !== '') {
-            $debtsNormalized = array_map('trim', explode(',', $debts));
-        } elseif (is_numeric($debts)) {
-            $debtsNormalized = [(string)$debts];
-        }
+        $note = (is_string($note) && trim($note) !== '') ? trim($note) : null;
 
         return $this->view(
             $assetsManager->generateTransactionPaginationData(
@@ -90,7 +107,7 @@ class TransactionController extends AbstractFOSRestController
                 excludedCategories: $excludedCategories,
                 withChildCategories: $withNestedCategories,
                 isDraft: $isDraft,
-                note: (is_string($note) && trim($note) !== '') ? trim($note) : null,
+                note: $note,
                 amountGte: $amountGte,
                 amountLte: $amountLte,
                 debts: $debts,
@@ -111,30 +128,54 @@ class TransactionController extends AbstractFOSRestController
         'format' => 'Y-m-d',
         'default' => 'last day of this month',
     ])]
-    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'accounts', description: 'Filter by accounts', nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'excludedCategories', description: 'Exclude categories from list', nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'withNestedCategories', default: true, description: 'Filter by category and its children', nullable: false, allowBlank: false)]
-    #[Rest\QueryParam(name: 'isDraft', default: null, description: 'Show only draft transactions', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'currencies', description: 'Filter by account currencies (e.g. EUR,HUF)', nullable: true, allowBlank: false)]
-    #[Route('/export.csv', name: 'api_v2_transaction_collection_export_csv', methods: ['get'])]
+    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true)]
+    #[Rest\QueryParam(name: 'accounts', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'categories', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'excludedCategories', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'currencies', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'debts', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'amount[gte]', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'amount[lte]', nullable: true, allowBlank: true)]
+
+    #[Rest\QueryParam(
+        name: 'withNestedCategories',
+        requirements: '^(0|1|true|false)$',
+        default: true,
+        nullable: true
+    )]
+    #[Rest\QueryParam(
+        name: 'isDraft',
+        requirements: '^(0|1|true|false)$',
+        default: null,
+        nullable: true
+    )]
+    #[Rest\QueryParam(name: 'note', nullable: true, allowBlank: true)]
+    #[Route('/export.csv', name: 'collection_export_csv', methods: ['GET'])]
     public function exportCsv(
+        Request $request,
         CSVExporter $exporter,
         CarbonImmutable $after,
         CarbonImmutable $before,
-        ?array $accounts,
-        ?array $categories,
-        ?array $excludedCategories,
-        ?bool $withNestedCategories = true,
         ?string $type = null,
-        ?bool $isDraft = null,
+        ?array $accounts = null,
+        ?array $categories = null,
+        ?array $excludedCategories = null,
         ?array $currencies = null,
+        ?array $debts = null,
+        bool $withNestedCategories = true,
+        ?bool $isDraft = null,
+        ?string $note = null,
     ): Response {
-        $isDraftBool = null;
-        if ($isDraft !== null && $isDraft !== '') {
-            $isDraftBool = filter_var($isDraft, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        $amount = $request->query->all('amount');
+        $amountGte = isset($amount['gte']) && is_numeric($amount['gte']) ? (float) $amount['gte'] : null;
+        $amountLte = isset($amount['lte']) && is_numeric($amount['lte']) ? (float) $amount['lte'] : null;
+
+        if ($amountGte !== null && $amountLte !== null && $amountGte > $amountLte) {
+            throw new \InvalidArgumentException('amount[gte] cannot be greater than amount[lte]');
         }
+
+        $note = (is_string($note) && trim($note) !== '') ? trim($note) : null;
 
         $response = $exporter->stream(
             after: $after,
@@ -144,9 +185,13 @@ class TransactionController extends AbstractFOSRestController
             accountFilter: $accounts,
             excludedCategories: $excludedCategories,
             withNestedCategories: $withNestedCategories,
-            isDraft: $isDraftBool,
+            isDraft: $isDraft,
             affectingProfitOnly: true,
             currencies: $currencies,
+            note: $note,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+            debts: $debts,
         );
 
         $filename = sprintf('transactions_%s_%s.csv', $after->format('Ymd'), $before->format('Ymd'));

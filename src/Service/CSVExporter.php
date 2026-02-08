@@ -2,7 +2,6 @@
 
 namespace App\Service;
 
-use App\Entity\Transaction;
 use App\Repository\CategoryRepository;
 use App\Repository\TransactionRepository;
 use Carbon\CarbonInterface;
@@ -28,6 +27,10 @@ final readonly class CSVExporter
         ?bool $isDraft,
         bool $affectingProfitOnly = true,
         array $currencies = [],
+        ?string $note = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+        ?array $debts = null,
     ): StreamedResponse {
         $categoryFilter = $this->normalizeIdsOrEntities($categoryFilter);
         $accountFilter = $this->normalizeIdsOrEntities($accountFilter);
@@ -47,6 +50,10 @@ final readonly class CSVExporter
             $isDraft,
             $affectingProfitOnly,
             $currencies,
+            $note,
+            $amountGte,
+            $amountLte,
+            $debts
         ) {
             $out = fopen('php://output', 'wb');
 
@@ -83,6 +90,10 @@ final readonly class CSVExporter
                 excludedCategories: $excludedCategories,
                 affectingProfitOnly: $affectingProfitOnly,
                 isDraft: $isDraft,
+                note: $note,
+                amountGte: $amountGte,
+                amountLte: $amountLte,
+                debts: $debts,
                 currencies: $currencies,
                 orderField: TransactionRepository::ORDER_FIELD,
                 order: TransactionRepository::ORDER

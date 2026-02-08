@@ -30,19 +30,19 @@ final class AssetsManager
 
     #[ArrayShape(['list' => 'mixed', 'totalValue' => 'float', 'count' => 'mixed'])]
     public function generateTransactionPaginationData(
-        CarbonInterface $after,
-        CarbonInterface $before,
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
         ?string $type = null,
         ?array $categories = null,
         ?array $accounts = null,
-        ?array $excludedCategories = [],
+        ?array $excludedCategories = null,
         bool $withChildCategories = true,
         ?bool $isDraft = null,
         ?string $note = null,
         ?float $amountGte = null,
         ?float $amountLte = null,
         ?array $debts = null,
-        ?array $currencies = null,
+        ?array $currencies = null, // ok if repo treats null as no filter
         int $perPage = Paginator::PER_PAGE,
         int $page = 1,
         string $orderField = TransactionRepository::ORDER_FIELD,
