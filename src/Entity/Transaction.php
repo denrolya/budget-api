@@ -10,6 +10,7 @@ use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
 use App\ApiPlatform\CategoryDeepSearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
+use App\ApiPlatform\Action\TransactionBulkCreateAction;
 use App\DTO\MonobankResponse;
 use App\Repository\TransactionRepository;
 use App\Traits\ExecutableEntity;
@@ -45,6 +46,45 @@ use Symfony\Component\Validator\Constraints as Assert;
             'status' => 200,
             'denormalization_context' => ['groups' => 'transaction:write'],
             'normalization_context' => ['groups' => 'transaction:collection:read'],
+        ],
+        'post_bulk' => [
+            'method' => 'POST',
+            'path' => '/transactions/bulk',
+            'controller' => TransactionBulkCreateAction::class,
+            'deserialize' => false,
+            'status' => 201,
+            'swagger_context' => [
+                'summary' => 'Bulk create transactions',
+                'description' => 'Create multiple income/expense transactions in a single request.',
+                'requestBody' => [
+                    'required' => true,
+                    'content' => [
+                        'application/json' => [
+                            'schema' => [
+                                'type' => 'array',
+                                'items' => [
+                                    '$ref' => '#/components/schemas/Transaction-Write',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+                'responses' => [
+                    '201' => [
+                        'description' => 'Transactions created',
+                        'content' => [
+                            'application/json' => [
+                                'schema' => [
+                                    'type' => 'array',
+                                    'items' => [
+                                        '$ref' => '#/components/schemas/Transaction-Read',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
         ],
     ],
     itemOperations: [

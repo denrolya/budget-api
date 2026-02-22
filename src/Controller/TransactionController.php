@@ -201,4 +201,34 @@ final class TransactionController extends AbstractFOSRestController
 
         return $response;
     }
+
+    #[Route('', name: 'collection_create_bulk', methods: ['POST'])]
+    #[Rest\View(statusCode: Response::HTTP_CREATED, serializerGroups: ['transaction:read'])]
+    public function bulkCreate(Request $request): View
+    {
+        $data = json_decode($request->getContent(), true);
+        
+        if (!is_array($data)) {
+            throw new \InvalidArgumentException('Request body must be a JSON array of transactions');
+        }
+        
+        if (empty($data)) {
+            throw new \InvalidArgumentException('At least one transaction is required');
+        }
+        
+        $transactions = [];
+        foreach ($data as $item) {
+            $transaction = $this->container->get('serializer')->denormalize(
+                $item,
+                $item['type'] === 'expense' ? Expense::class : Income::class,
+                'json'
+            );
+            $this->container->get('doctrine.orm.entity_manager')->persist($transaction);
+            $transactions[] = $transaction;
+        }
+        
+        $this->container->get('doctrine.orm.entity_manager')->flush();
+        
+        return $this->view($transactions);
+    }
 }
