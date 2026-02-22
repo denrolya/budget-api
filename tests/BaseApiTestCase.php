@@ -24,6 +24,7 @@ class BaseApiTestCase extends ApiTestCase
     protected const EXPENSE_URL = '/api/transactions/expense';
     protected const INCOME_URL = '/api/transactions/income';
     protected const TRANSACTION_URL = '/api/transactions';
+    protected const TRANSACTION_BULK_CREATE_URL = '/api/transactions/bulk';
     protected const TRANSACTION_LIST_URL = '/api/v2/transaction';
     protected const DEBT_URL = '/api/debts';
 
