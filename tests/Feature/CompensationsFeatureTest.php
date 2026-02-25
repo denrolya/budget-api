@@ -7,6 +7,7 @@ use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Tests\BaseApiTestCase;
+use App\Tests\WithMockAssetsManagerTrait;
 use Carbon\Carbon;
 
 /**
@@ -14,6 +15,8 @@ use Carbon\Carbon;
  */
 final class CompensationsFeatureTest extends BaseApiTestCase
 {
+    protected bool $useAssetsManagerMock = true;
+
     protected const ACCOUNT_MONO_UAH_ID = 10;
     protected const CATEGORY_GROCERIES = 'Groceries';
     protected const CATEGORY_COMPENSATION = 'Compensation';
@@ -37,7 +40,7 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
     public function testCreateExpenseWithCompensationsProperlyCalculatesValueAndAccountBalances(): void
     {
-        $this->mockFixerService->expects(self::exactly(9))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(9))->method('convert');
         $executionDate = Carbon::now()->startOfDay();
 
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
@@ -102,7 +105,7 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
     public function testUpdateExpenseWithCompensationsAmountRecalculatesValueAndAccountBalances(): void
     {
-        $this->mockFixerService->expects(self::exactly(10))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(10))->method('convert');
         $transaction = $this->createExpense(
             amount: 100,
             account: $this->testAccount,
@@ -211,7 +214,7 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
     public function testAddCompensationToExpenseAndUpdateAmountRecalculatesValuesAndAccountBalances(): void
     {
-        $this->mockFixerService->expects(self::exactly(13))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(13))->method('convert');
         $transaction = $this->createExpense(
             amount: 100,
             account: $this->testAccount,
@@ -288,7 +291,7 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
     public function testUpdateCompensationAmountRecalculatesValueAndAccountBalances(): void
     {
-        $this->mockFixerService->expects(self::exactly(11))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(11))->method('convert');
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals(5516, $this->testAccount->getTransactionsCount());
 
@@ -357,7 +360,7 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
     public function testDeleteCompensationToExpenseRecalculatesValueAndAccountBalances(): void
     {
-        $this->mockFixerService->expects(self::exactly(10))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(10))->method('convert');
         self::assertEqualsWithDelta(11278.35, $this->testAccount->getBalance(), 0.01);
         self::assertEquals(5516, $this->testAccount->getTransactionsCount());
 

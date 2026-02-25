@@ -2,36 +2,43 @@
 
 namespace App\ApiPlatform\Action;
 
+use JsonException;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
+use App\Service\AssetsManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Serializer\Exception\ExceptionInterface;
 use Symfony\Component\Serializer\SerializerInterface;
-use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\Validator\ConstraintViolationInterface;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 #[AsController]
-final class TransactionBulkCreateAction
+final readonly class TransactionBulkCreateAction
 {
     public function __construct(
         private EntityManagerInterface $em,
         private SerializerInterface $serializer,
         private ValidatorInterface $validator,
+        private AssetsManager $assetsManager,
     ) {
     }
 
+    /**
+     * @throws ExceptionInterface
+     */
     public function __invoke(Request $request): Response
     {
         $raw = $request->getContent();
 
         try {
             $payload = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
+        } catch (JsonException) {
             throw new BadRequestHttpException('Invalid JSON body');
         }
 
@@ -78,6 +85,19 @@ final class TransactionBulkCreateAction
                 continue;
             }
 
+            // At this point the transaction is valid. Now resolve and apply converted values.
+            try {
+                $convertedValues = $this->assetsManager->convert($transaction);
+            } catch (\Throwable $e) {
+                $errors[$index][] = sprintf(
+                    'Failed to resolve exchange rates: %s',
+                    $e->getMessage()
+                );
+                continue;
+            }
+
+            $transaction->setConvertedValues($convertedValues);
+
             $this->em->persist($transaction);
             $transactions[] = $transaction;
         }
@@ -85,7 +105,7 @@ final class TransactionBulkCreateAction
         if ($errors) {
             return new JsonResponse(
                 [
-                    'detail' => 'Validation failed for one or more items',
+                    'detail' => 'Validation or conversion failed for one or more items',
                     'errors' => $errors,
                 ],
                 Response::HTTP_BAD_REQUEST
@@ -114,7 +134,7 @@ final class TransactionBulkCreateAction
     {
         return match ($type) {
             Transaction::EXPENSE => Expense::class,
-            Transaction::INCOME  => Income::class,
+            Transaction::INCOME => Income::class,
             default => null,
         };
     }

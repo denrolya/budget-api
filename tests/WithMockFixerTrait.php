@@ -17,7 +17,7 @@ trait WithMockFixerTrait
 
     protected $mockFixerService;
 
-    protected function createFixerServiceMock(callable $callback = null)
+    protected function createFixerServiceMock(callable $callback = null): \PHPUnit\Framework\MockObject\MockObject
     {
         $mockFixerService = $this->getMockBuilder(FixerService::class)
             ->disableOriginalConstructor()

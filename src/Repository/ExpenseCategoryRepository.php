@@ -11,6 +11,7 @@ use Doctrine\Persistence\ManagerRegistry;
  * @method ExpenseCategory|null findOneBy(array $criteria, array $orderBy = null)
  * @method ExpenseCategory[]    findAll()
  * @method ExpenseCategory[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @method ExpenseCategory[]    findOneByName(string $name)
  */
 class ExpenseCategoryRepository extends CategoryRepository
 {

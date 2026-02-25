@@ -13,6 +13,8 @@ use Carbon\Carbon;
  */
 final class IncomeFeatureTest extends BaseApiTestCase
 {
+    protected bool $useAssetsManagerMock = true;
+    
     private IncomeCategory $testCategory;
 
     protected function setUp(): void
@@ -88,7 +90,7 @@ final class IncomeFeatureTest extends BaseApiTestCase
 
     public function testUpdateIncomeAmountUpdatesAccountAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(2))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
         self::assertEqualsWithDelta(11278.35, $this->accountMonoUAH->getBalance(), 0.01);
         self::assertEquals(5516, $this->accountMonoUAH->getTransactionsCount());
@@ -143,7 +145,7 @@ final class IncomeFeatureTest extends BaseApiTestCase
 
     public function testUpdateIncomeAccountUpdatesAccountsBalancesAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(2))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
         $endAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_CASH_EUR_ID);
 
@@ -190,7 +192,7 @@ final class IncomeFeatureTest extends BaseApiTestCase
 
     public function testUpdateIncomeAccountAndAmountUpdatesAccountBalancesAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(2))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
         $endAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_CASH_EUR_ID);
 
@@ -238,7 +240,7 @@ final class IncomeFeatureTest extends BaseApiTestCase
 
     public function testUpdateIncomeExecutedAtDoesNotChangeAccountBalance(): void
     {
-        $this->mockFixerService->expects(self::exactly(2))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
         $executionDate = Carbon::now();
 

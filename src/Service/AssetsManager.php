@@ -7,25 +7,27 @@ use App\Entity\Debt;
 use App\Entity\Transaction;
 use App\Pagination\Paginator;
 use App\Repository\TransactionRepository;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Carbon\CarbonPeriod;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\NonUniqueResultException;
 use JetBrains\PhpStorm\ArrayShape;
 use Psr\Cache\InvalidArgumentException;
 
-final class AssetsManager
+class AssetsManager
 {
     private EntityManagerInterface $em;
 
-    private FixerService $fixerService;
-
     private TransactionRepository $transactionRepo;
 
-    public function __construct(EntityManagerInterface $em, FixerService $fixerService)
+    private ExchangeRateSnapshotResolver $fxRateSnapshotResolver;
+
+    public function __construct(EntityManagerInterface $em, ExchangeRateSnapshotResolver $snapshotResolver)
     {
         $this->em = $em;
-        $this->fixerService = $fixerService;
         $this->transactionRepo = $this->em->getRepository(Transaction::class);
+        $this->fxRateSnapshotResolver = $snapshotResolver;
     }
 
     #[ArrayShape(['list' => 'mixed', 'totalValue' => 'float', 'count' => 'mixed'])]
@@ -161,29 +163,77 @@ final class AssetsManager
     }
 
     /**
-     * Generates array of converted values to all base fiat currencies
+     * @throws NonUniqueResultException
      * @throws InvalidArgumentException
      */
     public function convert(Transaction|Debt $entity): array
     {
-        return $this->fixerService->convert(
-            $entity->{'get'.ucfirst($entity->getValuableField())}(),
-            $entity->getCurrency(),
-            $entity instanceof Transaction ? $entity->getExecutedAt() : null
-        );
+        $amount = (float)$entity->{'get'.ucfirst($entity->getValuableField())}();
+        $fromCurrency = strtoupper($entity->getCurrency());
+
+        $date = $this->resolveFxDate($entity);
+        $snapshot = $this->fxRateSnapshotResolver->getClosestOrFetch($date);
+
+        $result = [];
+        foreach ($snapshot->getAvailableCurrencies() as $currency) {
+            $value = $snapshot->convert($amount, $fromCurrency, $currency);
+            if ($value !== null) {
+                $result[$currency] = $value;
+            }
+        }
+
+        return $result;
     }
 
     /**
-     * Converts entity's value to a specified(or base if null given) currency
      * @throws InvalidArgumentException
+     * @throws NonUniqueResultException
      */
     public function convertTo(Transaction|Debt $entity, ?string $toCurrency = null): float
     {
-        return $this->fixerService->convertTo(
-            $entity->{'get'.ucfirst($entity->getValuableField())}(),
-            $entity->getCurrency(),
-            $toCurrency ?? $entity->getCurrency(),
-            $entity instanceof Transaction ? $entity->getExecutedAt() : null
-        );
+        $amount = (float)$entity->{'get'.ucfirst($entity->getValuableField())}();
+        $fromCurrency = strtoupper($entity->getCurrency());
+        $toCurrencyNormalized = strtoupper($toCurrency ?? $fromCurrency);
+
+        $date = $this->resolveFxDate($entity);
+        $snapshot = $this->fxRateSnapshotResolver->getClosestOrFetch($date);
+
+        if ($fromCurrency === $toCurrencyNormalized) {
+            return $amount;
+        }
+
+        $value = $snapshot->convert($amount, $fromCurrency, $toCurrencyNormalized);
+        if ($value === null) {
+            throw new \InvalidArgumentException(
+                sprintf(
+                    'Missing conversion rate %s -> %s on %s',
+                    $fromCurrency,
+                    $toCurrencyNormalized,
+                    $snapshot->getEffectiveAt()->format('Y-m-d')
+                )
+            );
+        }
+
+        return $value;
+    }
+
+    /**
+     * Resolves date for FX lookup.
+     * - For Transaction: executedAt
+     * - For Debt (or others): "now" (latest available rate)
+     */
+    private function resolveFxDate(Transaction|Debt $entity): \DateTimeInterface
+    {
+        if ($entity instanceof Transaction) {
+            $date = $entity->getExecutedAt();
+            if ($date instanceof \DateTimeInterface) {
+                return $date;
+            }
+
+            throw new \InvalidArgumentException('Transaction has no valid executedAt date for FX lookup.');
+        }
+
+        // For Debt (and any non-Transaction Valuable entity) we use "now" as FX date.
+        return CarbonImmutable::now();
     }
 }

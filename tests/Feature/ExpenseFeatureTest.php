@@ -6,6 +6,7 @@ use App\Entity\Account;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Tests\BaseApiTestCase;
+use App\Tests\WithMockAssetsManagerTrait;
 use Carbon\Carbon;
 
 /**
@@ -13,6 +14,8 @@ use Carbon\Carbon;
  */
 final class ExpenseFeatureTest extends BaseApiTestCase
 {
+    protected bool $useAssetsManagerMock = true;
+
     private ExpenseCategory $testCategory;
 
     protected function setUp(): void
@@ -62,7 +65,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
     public function testCreateExpenseSavedWithConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::once())->method('convert');
+        $this->mockAssetsManager->expects(self::once())->method('convert');
 
         $response = $this->client->request('POST', self::EXPENSE_URL, [
             'json' => [
@@ -90,7 +93,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
     public function testUpdateExpenseAmountUpdatesAccountAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(2))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
         self::assertEqualsWithDelta(11278.35, $this->accountMonoUAH->getBalance(), 0.01);
         self::assertEquals(5516, $this->accountMonoUAH->getTransactionsCount());
@@ -145,7 +148,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
     public function testUpdateExpenseAccountUpdatesAccountsBalances(): void
     {
-        $this->mockFixerService->expects(self::exactly(2))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
         $endAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_CASH_EUR_ID);
 
@@ -192,7 +195,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
     public function testUpdateExpenseAccountAndAmountUpdatesAccountBalancesAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(2))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
         $endAccount = $this->em->getRepository(Account::class)->find(self::ACCOUNT_CASH_EUR_ID);
 
@@ -240,7 +243,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
     public function testUpdateExpenseExecutedAtDoesNotChangeAccountBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(2))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
         $executionDate = Carbon::now();
 

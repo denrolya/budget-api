@@ -11,6 +11,7 @@ use App\Entity\ExpenseCategory;
 use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\User;
+use App\Service\AssetsManager;
 use App\Service\FixerService;
 use Carbon\CarbonInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,7 +20,7 @@ use Spatie\Snapshots\MatchesSnapshots;
 
 class BaseApiTestCase extends ApiTestCase
 {
-    use WithMockFixerTrait, MatchesSnapshots;
+    use WithMockFixerTrait, WithMockAssetsManagerTrait, MatchesSnapshots;
 
     protected const EXPENSE_URL = '/api/transactions/expense';
     protected const INCOME_URL = '/api/transactions/income';
@@ -108,10 +109,19 @@ class BaseApiTestCase extends ApiTestCase
     protected function reloadClientWithServices(): void
     {
         self::ensureKernelShutdown();
+
         $this->client = $this->createClientWithCredentials();
-        $this->em = $this->client->getContainer()->get('doctrine')->getManager();
+        $container = $this->client->getContainer();
+
+        $this->em = $container->get('doctrine')->getManager();
+
         $this->mockFixerService = $this->createFixerServiceMock();
-        $this->client->getContainer()->set(FixerService::class, $this->mockFixerService);
+        $container->set(FixerService::class, $this->mockFixerService);
+
+        if (property_exists($this, 'useAssetsManagerMock') && $this->useAssetsManagerMock) {
+            $this->mockAssetsManager = $this->createAssetsManagerMock();
+            $container->set(AssetsManager::class, $this->mockAssetsManager);
+        }
     }
 
     protected function createExpense(

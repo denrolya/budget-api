@@ -11,16 +11,10 @@ use RuntimeException;
 use Symfony\Component\Security\Core\Security;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
-use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
-/**
- * TODO: After 00:00 in EET it is impossible to fetch rates, cause fixer's timezone is couple of hours ago
- */
 class FixerService extends BaseExchangeRatesProvider
 {
     private string $apiKey;
@@ -56,8 +50,8 @@ class FixerService extends BaseExchangeRatesProvider
         return $this->convertTo(
             $amount,
             $currencyCode,
-            $this->security->getUser()->getBaseCurrency(),
-            $executionDate->copy()
+            $this->security->getUser()?->getBaseCurrency(),
+            $executionDate?->copy()
         );
     }
 
@@ -133,10 +127,10 @@ class FixerService extends BaseExchangeRatesProvider
         $now = CarbonImmutable::now();
         $dateString = $now->toDateString();
 
-        return $this->cache->get( "fixer.$dateString", function (ItemInterface $item) {
+        return $this->cache->get("fixer.$dateString", function (ItemInterface $item) {
             $item->expiresAfter(self::CACHE_EXPIRY_SECONDS);
 
-            return $this->fetchRates( '/latest');
+            return $this->fetchRates('/latest');
         });
     }
 
@@ -154,7 +148,7 @@ class FixerService extends BaseExchangeRatesProvider
         return $this->cache->get("fixer.$dateString", function (ItemInterface $item) use ($dateString) {
             $item->expiresAfter(self::CACHE_EXPIRY_SECONDS);
 
-            return $this->fetchRates('/' . $dateString);
+            return $this->fetchRates('/'.$dateString);
         });
     }
 
@@ -202,8 +196,10 @@ class FixerService extends BaseExchangeRatesProvider
             $data = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
 
             return $data['rates'] ?? [];
-        } catch (HttpExceptionInterface | TransportExceptionInterface $e) {
-            throw new RuntimeException('Failed to fetch rates from the Fixer API: ' . $e->getMessage(), $e->getCode(), $e);
+        } catch (HttpExceptionInterface|TransportExceptionInterface $e) {
+            throw new RuntimeException(
+                'Failed to fetch rates from the Fixer API: '.$e->getMessage(), $e->getCode(), $e
+            );
         }
     }
 

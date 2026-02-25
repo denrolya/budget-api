@@ -19,6 +19,8 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
  */
 final class DebtFeatureTest extends BaseApiTestCase
 {
+    protected bool $useAssetsManagerMock = true;
+
     private IncomeCategory $debtIncomeCategory;
 
     private ExpenseCategory $debtExpenseCategory;
@@ -45,7 +47,7 @@ final class DebtFeatureTest extends BaseApiTestCase
      */
     public function testCreateDebt(): void
     {
-        $this->mockFixerService->expects(self::once())->method('convert');
+        $this->mockAssetsManager->expects(self::once())->method('convert');
 
         $createdAt = CarbonImmutable::now();
         $response = $this->client->request('POST', self::DEBT_URL, [
@@ -80,7 +82,7 @@ final class DebtFeatureTest extends BaseApiTestCase
      */
     public function testAddExpenseToDebtUpdatedBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(3))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(3))->method('convert');
         self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
 
         $debt = $this->createDebt(
@@ -116,7 +118,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testUpdateExpenseAmountUpdatesBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(4))->method('convert');
         self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
 
         $expense = $this->createExpense(
@@ -143,8 +145,8 @@ final class DebtFeatureTest extends BaseApiTestCase
 
         $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
             'json' => [
-                'amount' => '20'
-            ]
+                'amount' => '20',
+            ],
         ]);
         self::assertResponseIsSuccessful();
 
@@ -157,7 +159,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testUpdateExpenseAccountUpdatesBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(4))->method('convert');
         self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
 
         $expense = $this->createExpense(
@@ -185,7 +187,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
             'json' => [
                 'account' => $this->accountCashUAH->getId(),
-            ]
+            ],
         ]);
         self::assertResponseIsSuccessful();
 
@@ -198,7 +200,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testUpdateExpenseAmountAndAccountUpdatesBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(4))->method('convert');
         self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
 
         $expense = $this->createExpense(
@@ -227,7 +229,7 @@ final class DebtFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '20',
                 'account' => $this->accountCashEUR->getId(),
-            ]
+            ],
         ]);
         self::assertResponseIsSuccessful();
 
@@ -240,7 +242,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testRemoveExpenseUpdatesBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(3))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(3))->method('convert');
         self::assertEquals(112, $this->debtExpenseCategory->getTransactionsCount());
 
         $expense = $this->createExpense(
@@ -280,7 +282,7 @@ final class DebtFeatureTest extends BaseApiTestCase
      */
     public function testAddIncomeToDebtUpdatedBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(3))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(3))->method('convert');
         self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
 
         $debt = $this->createDebt(
@@ -316,7 +318,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testUpdateIncomeAmountUpdatesBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(4))->method('convert');
         self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
 
         $income = $this->createIncome(
@@ -343,8 +345,8 @@ final class DebtFeatureTest extends BaseApiTestCase
 
         $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
             'json' => [
-                'amount' => '20'
-            ]
+                'amount' => '20',
+            ],
         ]);
         self::assertResponseIsSuccessful();
 
@@ -357,7 +359,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testUpdateIncomeAccountUpdatesBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(4))->method('convert');
         self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
 
         $income = $this->createIncome(
@@ -385,7 +387,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
             'json' => [
                 'account' => $this->accountCashUAH->getId(),
-            ]
+            ],
         ]);
         self::assertResponseIsSuccessful();
 
@@ -398,7 +400,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testUpdateIncomeAmountAndAccountUpdatesBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(4))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(4))->method('convert');
         self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
 
         $income = $this->createIncome(
@@ -426,7 +428,7 @@ final class DebtFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '20',
                 'account' => $this->accountCashEUR->getId(),
-            ]
+            ],
         ]);
         self::assertResponseIsSuccessful();
 
@@ -439,7 +441,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testRemoveIncomeUpdatesBalanceAndConvertedValues(): void
     {
-        $this->mockFixerService->expects(self::exactly(3))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(3))->method('convert');
         self::assertEquals(82, $this->debtIncomeCategory->getTransactionsCount());
 
         $income = $this->createIncome(

@@ -3,10 +3,12 @@
 namespace App\Tests\ApiPlatform\Action;
 
 use App\Entity\Account;
+use App\Entity\ExchangeRateSnapshot;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
 use App\Tests\BaseApiTestCase;
+use DateTimeImmutable;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -15,6 +17,40 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
 class BulkTransactionCreateActionTest extends BaseApiTestCase
 {
+    /**
+     * Create a snapshot for a given date (YYYY-MM-DD) if it does not exist yet.
+     * This is only to guarantee rates for the happy-path tests that use 2026-02-22.
+     */
+    private function createExchangeRateSnapshot(string $date): void
+    {
+        $effectiveAt = new DateTimeImmutable($date.' 00:00:00');
+
+        $repo = $this->em->getRepository(ExchangeRateSnapshot::class);
+        $existing = $repo->findOneBy(['effectiveAt' => $effectiveAt]);
+        if ($existing instanceof ExchangeRateSnapshot) {
+            return;
+        }
+
+        $snapshot = new ExchangeRateSnapshot();
+        $snapshot->setEffectiveAt($effectiveAt);
+
+        // Minimal consistent dummy rates
+        $snapshot->setUsdPerEur('1.10');  // 1 EUR = 1.10 USD
+        $snapshot->setHufPerEur('400');   // 1 EUR = 400 HUF
+        $snapshot->setUahPerEur('40');    // 1 EUR = 40 UAH
+
+        $this->em->persist($snapshot);
+        $this->em->flush();
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // All happy-path tests use 2026-02-22 as executedAt
+        $this->createExchangeRateSnapshot('2026-02-22');
+    }
+
     /**
      * @group transactions
      * @group bulk
@@ -99,6 +135,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     }
 
     /**
+     * Payload is an object instead of array: must fail with 400 and clear message.
+     *
      * @group transactions
      * @group bulk
      *
@@ -126,13 +164,12 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $content = $response->toArray(false);
 
         self::assertArrayHasKey('detail', $content);
-        // Current behavior: non-array payload is treated as invalid items
-        self::assertSame('Validation failed for one or more items', $content['detail']);
-        self::assertArrayHasKey('errors', $content);
-        self::assertIsArray($content['errors']);
+        self::assertSame('Validation or conversion failed for one or more items', $content['detail']);
     }
 
     /**
+     * One invalid item should fail the whole bulk and nothing must be persisted.
+     *
      * @group transactions
      * @group bulk
      *
@@ -173,6 +210,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
         $content = $response->toArray(false);
 
+        self::assertArrayHasKey('detail', $content);
+        self::assertSame('Validation or conversion failed for one or more items', $content['detail']);
         self::assertArrayHasKey('errors', $content);
         self::assertArrayHasKey('1', $content['errors']);
 
@@ -186,6 +225,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     }
 
     /**
+     * An empty array payload should fail with a clear message.
+     *
      * @group transactions
      * @group bulk
      *
@@ -210,6 +251,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     }
 
     /**
+     * Unsupported transaction type must result in an error and nothing persisted.
+     *
      * @group transactions
      * @group bulk
      *
@@ -241,6 +284,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
         $content = $response->toArray(false);
 
+        self::assertArrayHasKey('detail', $content);
+        self::assertSame('Validation or conversion failed for one or more items', $content['detail']);
         self::assertArrayHasKey('errors', $content);
         self::assertArrayHasKey('0', $content['errors']);
 
@@ -248,11 +293,13 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         self::assertIsArray($firstItemErrors);
         self::assertNotEmpty($firstItemErrors);
 
-        $firstMessage = (string) $firstItemErrors[0];
+        $firstMessage = (string)$firstItemErrors[0];
         self::assertStringContainsStringIgnoringCase('type', $firstMessage);
     }
 
     /**
+     * Expense with embedded compensations should persist expense and linked income(s).
+     *
      * @group transactions
      * @group bulk
      *
@@ -317,6 +364,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     }
 
     /**
+     * Bulk create must update account balance and set convertedValues on transactions.
+     *
      * @group transactions
      * @group bulk
      *
@@ -386,5 +435,60 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
         self::assertIsArray($convertedValues);
         self::assertNotEmpty($convertedValues);
+    }
+
+    /**
+     * If no snapshot exists for a past date (before the earliest snapshot), conversion must fail and nothing is persisted.
+     *
+     * @group transactions
+     * @group bulk
+     *
+     * @throws TransportExceptionInterface
+     * @throws ServerExceptionInterface
+     * @throws RedirectionExceptionInterface
+     * @throws DecodingExceptionInterface
+     * @throws ClientExceptionInterface
+     */
+    public function testBulkCreateFailsWhenNoExchangeRateSnapshotForPastDate(): void
+    {
+        $note = 'bulk-no-rates-should-fail';
+
+        $payload = [
+            [
+                'type' => 'expense',
+                'account' => 25,
+                'amount' => '100',
+                'category' => 21,
+                // date intentionally before any reasonable baseline (e.g. fixtures start at 1991-01-01)
+                'executedAt' => '1980-01-01T10:00:00.000Z',
+                'isDraft' => false,
+                'note' => $note,
+            ],
+        ];
+
+        $response = $this->client->request('POST', self::TRANSACTION_BULK_CREATE_URL, [
+            'json' => $payload,
+        ]);
+
+        self::assertResponseStatusCodeSame(400);
+
+        $content = $response->toArray(false);
+
+        self::assertArrayHasKey('detail', $content);
+        self::assertSame('Validation or conversion failed for one or more items', $content['detail']);
+        self::assertArrayHasKey('errors', $content);
+        self::assertArrayHasKey('0', $content['errors']);
+
+        $firstErrors = $content['errors']['0'];
+        self::assertIsArray($firstErrors);
+        self::assertNotEmpty($firstErrors);
+
+        $message = (string)$firstErrors[0];
+        self::assertStringContainsString('Failed to resolve exchange rates', $message);
+        self::assertStringContainsString('1980-01-01', $message);
+
+        $transactionRepository = $this->em->getRepository(Transaction::class);
+        $transaction = $transactionRepository->findOneBy(['note' => $note]);
+        self::assertNull($transaction);
     }
 }

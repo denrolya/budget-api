@@ -115,3 +115,6 @@ when@test:
 
         App\Service\FixerService:
             public: true
+
+        App\Service\AssetsManager:
+            public: true
