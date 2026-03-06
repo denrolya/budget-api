@@ -37,7 +37,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     collectionOperations: [
         'get' => [
-            'normalization_context' => ['groups' => 'account:collection:read', 'account:write'],
+            'normalization_context' => ['groups' => ['account:collection:read']],
         ],
         'post' => [
             'normalization_context' => ['groups' => 'account:write'],
@@ -140,7 +140,6 @@ class Account implements OwnableInterface
         'account:collection:read',
         'account:write',
         'account:item:read',
-        'account:write',
         'transaction:collection:read',
         'debt:collection:read',
         'transfer:collection:read',
@@ -160,9 +159,8 @@ class Account implements OwnableInterface
     #[Groups([
         'account:collection:read',
         'account:write',
-        'transaction:collection:read',
         'account:item:read',
-        'account:write',
+        'transaction:collection:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
@@ -185,7 +183,7 @@ class Account implements OwnableInterface
     private ?string $currency;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
-    #[Groups(['account:collection:read', 'account:write', 'account:item:read', 'account:write'])]
+    #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     #[Serializer\Type(Types::FLOAT)]
     private string $balance = '0.0';
@@ -195,7 +193,7 @@ class Account implements OwnableInterface
     private Collection $transactions;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    #[Groups(['account:collection:read', 'account:write', 'account:item:read', 'account:write'])]
+    #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     private ?DateTimeInterface $archivedAt;
 
@@ -203,9 +201,8 @@ class Account implements OwnableInterface
     #[Groups([
         'account:collection:read',
         'account:write',
-        'transaction:collection:read',
         'account:item:read',
-        'account:write',
+        'transaction:collection:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
@@ -399,6 +396,7 @@ class Account implements OwnableInterface
         'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
+        'transfer:collection:read',
     ])]
     #[Pure]
     #[Serializer\VirtualProperty]

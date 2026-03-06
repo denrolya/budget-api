@@ -56,53 +56,52 @@ class Debt implements OwnableInterface, ValuableInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['debt:collection:read'])]
+    #[Groups(['debt:collection:read', 'debt:item:read'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?int $id;
 
     #[Assert\NotBlank]
     #[ORM\Column(type: Types::STRING, length: 255)]
-    #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Groups(['debt:collection:read', 'debt:item:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?string $debtor;
 
     #[Assert\NotBlank]
     #[ORM\Column(type: Types::STRING, length: 3)]
-    #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Groups(['debt:collection:read', 'debt:item:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?string $currency;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Groups(['debt:collection:read', 'debt:item:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     protected ?string $note;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
-    #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Groups(['debt:collection:read', 'debt:item:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     #[Serializer\Type(Types::FLOAT)]
     private string $balance = '0.0';
 
-    // TODO: Remove transactions from collection:read
     #[ORM\OneToMany(mappedBy: 'debt', targetEntity: Transaction::class, cascade: ['persist'], fetch: 'EXTRA_LAZY')]
     #[ORM\OrderBy(['executedAt' => 'DESC'])]
-    #[Groups(['debt:collection:read'])]
+    #[Groups(['debt:collection:read', 'debt:item:read'])]
     #[ApiSubresource]
     #[Serializer\Groups(['debt:collection:read'])]
     private Collection $transactions;
 
     #[ORM\Column(type: Types::JSON, nullable: false)]
-    #[Groups(['debt:collection:read'])]
+    #[Groups(['debt:collection:read', 'debt:item:read'])]
     #[Serializer\Groups(['debt:collection:read'])]
     protected ?array $convertedValues = [];
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Groups(['debt:collection:read', 'debt:item:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     protected ?DateTimeInterface $createdAt;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    #[Groups(['debt:collection:read', 'debt:write'])]
+    #[Groups(['debt:collection:read', 'debt:item:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     private ?DateTimeInterface $closedAt;
 

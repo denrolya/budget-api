@@ -136,7 +136,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
     protected ?int $id = null;
 
@@ -145,6 +145,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\JoinColumn(name: "account_id", referencedColumnName: "id", nullable: false)]
     #[Groups([
         'transaction:collection:read',
+        'transaction:item:read',
         'transaction:write',
         'account:item:read',
         'debt:collection:read',
@@ -159,6 +160,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
     #[Groups([
         'transaction:collection:read',
+        'transaction:item:read',
         'transaction:write',
         'account:item:read',
         'debt:collection:read',
@@ -174,7 +176,7 @@ abstract class Transaction implements OwnableInterface
     protected string $amount = '0.0';
 
     #[ORM\Column(type: Types::JSON, nullable: false)]
-    #[Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     #[Serializer\Groups([
         'transaction:collection:read',
         'account:item:read',
@@ -186,6 +188,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups([
         'transaction:collection:read',
+        'transaction:item:read',
         'transaction:write',
         'account:item:read',
         'debt:collection:read',
@@ -203,6 +206,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups([
         'transaction:collection:read',
+        'transaction:item:read',
         'transaction:write',
         'account:item:read',
         'debt:collection:read',
@@ -225,6 +229,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\JoinColumn(name: "category_id", referencedColumnName: "id", nullable: false)]
     #[Groups([
         'transaction:collection:read',
+        'transaction:item:read',
         'transaction:write',
         'account:item:read',
         'debt:collection:read',
@@ -239,7 +244,7 @@ abstract class Transaction implements OwnableInterface
     protected Category $category;
 
     #[ORM\Column(type: Types::BOOLEAN, nullable: false)]
-    #[Groups(['transaction:collection:read', 'transaction:write', 'account:item:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:item:read', 'transaction:write', 'account:item:read'])]
     #[Serializer\Groups(['transaction:collection:read'])]
     private bool $isDraft;
 
@@ -251,7 +256,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\ManyToOne(targetEntity: Transfer::class, cascade: ["remove"], inversedBy: "transactions")]
     private ?Transfer $transfer = null;
 
-    #[Groups(['transaction:collection:read', 'debt:collection:read', 'account:item:read', 'transfer:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:item:read', 'debt:collection:read', 'account:item:read', 'transfer:collection:read'])]
     abstract public function getType(): string;
 
     public function __construct(bool $isDraft = false)

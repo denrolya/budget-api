@@ -45,7 +45,7 @@ class Income extends Transaction
         return get_class($this->category) === IncomeCategory::class;
     }
 
-    #[Groups(['transaction:collection:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'debt:collection:read', 'transfer:collection:read'])]
     public function getType(): string
     {
         return Transaction::INCOME;

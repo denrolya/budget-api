@@ -122,6 +122,7 @@ abstract class Category
         'category:collection:read',
         'category:tree:read',
         'category:write',
+        'transfer:collection:read',
     ])]
     #[Serializer\Groups([
         'category:collection:read',
