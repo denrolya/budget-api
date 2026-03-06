@@ -1,16 +1,15 @@
 <?php
-
-namespace App\DataFixtures;
+namespace App\DataFixtures\Dev;
 
 use App\Entity\Account;
-use App\Entity\Expense;
-use App\Entity\ExpenseCategory;
+use App\Entity\Income;
+use App\Entity\IncomeCategory;
 use Carbon\CarbonImmutable;
 use Doctrine\Persistence\ObjectManager;
 use Faker\Factory;
 use Random\RandomException;
 
-class ExpenseFixtures extends BaseTransactionFixtures
+class IncomeFixtures extends BaseTransactionFixtures
 {
     /**
      * @throws RandomException
@@ -18,13 +17,13 @@ class ExpenseFixtures extends BaseTransactionFixtures
     public function load(ObjectManager $manager): void
     {
         $faker = Factory::create();
-        $user = $this->getReference('test_user');
+        $user = $this->getReference('dev_user');
         $allowedCurrencies = $this->params->get('allowed_currencies');
 
         // Disable listeners
         $this->disableListeners();
 
-        $categories = $manager->getRepository(ExpenseCategory::class)->findAll();
+        $categories = $manager->getRepository(IncomeCategory::class)->findAll();
         $accounts = $manager->getRepository(Account::class)->findAll();
 
         foreach ($accounts as $account) {
@@ -39,9 +38,8 @@ class ExpenseFixtures extends BaseTransactionFixtures
                 }
 
                 $amount = $faker->randomFloat(2, 50, 5000);
-                $transaction = new Expense();
-                $transaction
-                    ->setAccount($account)
+                $transaction = new Income();
+                $transaction->setAccount($account)
                     ->setCategory($category)
                     ->setOwner($user)
                     ->setAmount((string)$amount)

@@ -5,7 +5,9 @@ namespace App\Tests\ApiPlatform\Action;
 use App\Entity\Account;
 use App\Entity\ExchangeRateSnapshot;
 use App\Entity\Expense;
+use App\Entity\ExpenseCategory;
 use App\Entity\Income;
+use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Tests\BaseApiTestCase;
 use DateTimeImmutable;
@@ -17,6 +19,10 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
 class BulkTransactionCreateActionTest extends BaseApiTestCase
 {
+    private ExpenseCategory $testExpenseCategory;
+
+    private IncomeCategory $testIncomeCategory;
+
     /**
      * Create a snapshot for a given date (YYYY-MM-DD) if it does not exist yet.
      * This is only to guarantee rates for the happy-path tests that use 2026-02-22.
@@ -49,6 +55,9 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
         // All happy-path tests use 2026-02-22 as executedAt
         $this->createExchangeRateSnapshot('2026-02-22');
+
+        $this->testExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneByName('Groceries');
+        $this->testIncomeCategory = $this->em->getRepository(IncomeCategory::class)->findOneByName('Compensation');
     }
 
     /**
@@ -83,21 +92,25 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      */
     public function testBulkCreateSuccessWithMixedTypes(): void
     {
+        $accountId = $this->accountCashEUR->getId();
+        $expenseCategoryId = $this->testExpenseCategory->getId();
+        $incomeCategoryId = $this->testIncomeCategory->getId();
+
         $payload = [
             [
                 'type' => 'expense',
-                'account' => 25,
+                'account' => $accountId,
                 'amount' => '123.45',
-                'category' => 21,
+                'category' => $expenseCategoryId,
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-test-expense-1',
             ],
             [
                 'type' => 'income',
-                'account' => 25,
+                'account' => $accountId,
                 'amount' => '500.00',
-                'category' => 137,
+                'category' => $incomeCategoryId,
                 'executedAt' => '2026-02-22T13:25:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-test-income-1',
@@ -151,9 +164,9 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $response = $this->client->request('POST', self::TRANSACTION_BULK_CREATE_URL, [
             'json' => [
                 'type' => 'expense',
-                'account' => 25,
+                'account' => $this->accountCashEUR->getId(),
                 'amount' => '100',
-                'category' => 21,
+                'category' => $this->testExpenseCategory->getId(),
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
             ],
@@ -181,21 +194,25 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      */
     public function testBulkCreateFailsOnInvalidItemAndDoesNotPersistAnything(): void
     {
+        $accountId = $this->accountCashEUR->getId();
+        $expenseCategoryId = $this->testExpenseCategory->getId();
+        $incomeCategoryId = $this->testIncomeCategory->getId();
+
         $payload = [
             [
                 'type' => 'expense',
-                'account' => 25,
+                'account' => $accountId,
                 'amount' => '100',
-                'category' => 21,
+                'category' => $expenseCategoryId,
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-ok-should-not-persist-on-error',
             ],
             [
                 'type' => 'income',
-                'account' => 25,
+                'account' => $accountId,
                 'amount' => '-50',
-                'category' => 137,
+                'category' => $incomeCategoryId,
                 'executedAt' => '2026-02-22T13:25:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-invalid-amount',
@@ -267,9 +284,9 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $payload = [
             [
                 'type' => 'unsupported',
-                'account' => 25,
+                'account' => $this->accountCashEUR->getId(),
                 'amount' => '100',
-                'category' => 21,
+                'category' => $this->testExpenseCategory->getId(),
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-unsupported-type',
@@ -311,24 +328,25 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      */
     public function testBulkCreateWithCompensationsPersistsExpenseAndLinkedIncomes(): void
     {
+        $accountId = $this->accountCashEUR->getId();
         $expenseNote = 'bulk-expense-with-compensation';
         $compensationNote = 'bulk-compensation-income';
 
         $payload = [
             [
                 'type' => 'expense',
-                'account' => 25,
+                'account' => $accountId,
                 'amount' => '100',
-                'category' => 21,
+                'category' => $this->testExpenseCategory->getId(),
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
                 'note' => $expenseNote,
                 'compensations' => [
                     [
                         'type' => 'income',
-                        'account' => 25,
+                        'account' => $accountId,
                         'amount' => '50',
-                        'category' => 137,
+                        'category' => $this->testIncomeCategory->getId(),
                         'executedAt' => '2026-02-22T13:25:00.000Z',
                         'isDraft' => false,
                         'note' => $compensationNote,
@@ -377,10 +395,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      */
     public function testBulkCreateUpdatesAccountBalanceAndSetsConvertedValues(): void
     {
-        /** @var Account|null $accountBefore */
-        $accountBefore = $this->em->getRepository(Account::class)->find(25);
-        self::assertNotNull($accountBefore, 'Account #25 must exist in test fixtures.');
-        $balanceBefore = $accountBefore->getBalance();
+        $accountId = $this->accountCashEUR->getId();
+        $balanceBefore = $this->accountCashEUR->getBalance();
 
         $incomeNote = 'bulk-balance-check-income';
         $expenseNote = 'bulk-balance-check-expense';
@@ -388,18 +404,18 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $payload = [
             [
                 'type' => 'income',
-                'account' => 25,
+                'account' => $accountId,
                 'amount' => '500',
-                'category' => 137,
+                'category' => $this->testIncomeCategory->getId(),
                 'executedAt' => '2026-02-22T13:25:00.000Z',
                 'isDraft' => false,
                 'note' => $incomeNote,
             ],
             [
                 'type' => 'expense',
-                'account' => 25,
+                'account' => $accountId,
                 'amount' => '100',
-                'category' => 21,
+                'category' => $this->testExpenseCategory->getId(),
                 'executedAt' => '2026-02-22T13:26:00.000Z',
                 'isDraft' => false,
                 'note' => $expenseNote,
@@ -415,8 +431,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $this->em->clear();
 
         /** @var Account|null $accountAfter */
-        $accountAfter = $this->em->getRepository(Account::class)->find(25);
-        self::assertNotNull($accountAfter, 'Account #25 must exist after bulk creation.');
+        $accountAfter = $this->em->getRepository(Account::class)->find($accountId);
+        self::assertNotNull($accountAfter, 'Account must exist after bulk creation.');
         $balanceAfter = $accountAfter->getBalance();
 
         self::assertEqualsWithDelta($balanceBefore + 400.0, $balanceAfter, 0.01);
@@ -456,9 +472,9 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $payload = [
             [
                 'type' => 'expense',
-                'account' => 25,
+                'account' => $this->accountCashEUR->getId(),
                 'amount' => '100',
-                'category' => 21,
+                'category' => $this->testExpenseCategory->getId(),
                 // date intentionally before any reasonable baseline (e.g. fixtures start at 1991-01-01)
                 'executedAt' => '1980-01-01T10:00:00.000Z',
                 'isDraft' => false,

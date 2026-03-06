@@ -6,8 +6,6 @@ use ApiPlatform\Core\DataProvider\DenormalizedIdentifiersAwareItemDataProviderIn
 use ApiPlatform\Core\DataProvider\ItemDataProviderInterface;
 use ApiPlatform\Core\DataProvider\RestrictedDataProviderInterface;
 use App\Entity\Account;
-use App\Entity\ExpenseCategory;
-use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Repository\TransactionRepository;
 use App\Service\StatisticsManager;
@@ -48,10 +46,16 @@ final class AccountItemProvider implements DenormalizedIdentifiersAwareItemDataP
 
         $account
             ->setTopExpenseCategories(
-                $this->statisticsManager->generateCategoryTreeWithValues(null, $expenses, ExpenseCategory::class)
+                $this->statisticsManager->generateCategoryTreeWithValues(
+                    transactions: $expenses,
+                    type: Transaction::EXPENSE,
+                )
             )
             ->setTopIncomeCategories(
-                $this->statisticsManager->generateCategoryTreeWithValues(null, $incomes, IncomeCategory::class)
+                $this->statisticsManager->generateCategoryTreeWithValues(
+                    transactions: $incomes,
+                    type: Transaction::INCOME,
+                )
             );
 
         return $account;

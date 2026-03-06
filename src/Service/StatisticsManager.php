@@ -2,7 +2,6 @@
 
 namespace App\Service;
 
-use App\Entity\Account;
 use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
@@ -24,6 +23,9 @@ final class StatisticsManager
 
     private ExpenseCategoryRepository $expenseCategoryRepo;
 
+    /** Lazily populated once per request from buildDescendantMap(). */
+    private ?array $descendantMap = null;
+
     public function __construct(
         private AssetsManager $assetsManager,
         private EntityManagerInterface $em,
@@ -34,7 +36,8 @@ final class StatisticsManager
     }
 
     /**
-     * Generates transactions statistics grouped by types. With given interval also grouped by date interval
+     * Generates transactions statistics grouped by types. With given interval also grouped by date interval.
+     * Single DB query for the full range; PHP partitioning per interval.
      */
     public function calculateTransactionsValueByPeriod(
         CarbonPeriod $period,
@@ -44,22 +47,33 @@ final class StatisticsManager
     ): array {
         $result = [];
         $dates = $period->toArray();
+        $count = count($dates);
+
+        $allTransactions = $this->transactionRepo->getList(
+            after: $period->getStartDate(),
+            before: $period->getEndDate(),
+            type: $type,
+            categories: $categories,
+            accounts: $accounts,
+        );
 
         foreach ($dates as $index => $after) {
-            $before = $index === count($dates) - 1 ? $period->getEndDate() : $dates[$index + 1]->copy()->subSecond();
-
-            $transactions = $this->transactionRepo->getList(
-                after: $after,
-                before: $before,
-                type: $type,
-                categories: $categories,
-                accounts: $accounts
-            );
+            $isLast = $index === $count - 1;
+            $before = $isLast ? $period->getEndDate() : $dates[$index + 1]->copy()->subSecond();
+            // Exclusive upper bound that matches the repo's applyExecutedAtRange semantics
+            $nextBound = $isLast
+                ? $period->getEndDate()->copy()->addDay()->startOfDay()
+                : $dates[$index + 1];
 
             $expenses = [];
             $incomes = [];
 
-            foreach ($transactions as $transaction) {
+            foreach ($allTransactions as $transaction) {
+                $executedAt = $transaction->getExecutedAt();
+                if (!$executedAt->greaterThanOrEqualTo($after) || !$executedAt->lessThan($nextBound)) {
+                    continue;
+                }
+
                 if ($transaction->getType() === Transaction::EXPENSE) {
                     $expenses[] = $transaction;
                 } elseif ($transaction->getType() === Transaction::INCOME) {
@@ -78,6 +92,10 @@ final class StatisticsManager
         return $result;
     }
 
+    /**
+     * Builds category tree and sets value/total on each node.
+     * Uses a pre-built descendant ID map instead of recursive getDescendantsFlat() / isChildOf() calls.
+     */
     public function generateCategoryTreeWithValues(
         array $transactions,
         string $type = null,
@@ -85,30 +103,17 @@ final class StatisticsManager
     ): array {
         $categories = $categories ?: $this->getRootCategories($type);
 
-        foreach ($categories as $category) {
-            $categoryId = $category->getId();
-            $categoryTransactions = array_filter(
-                $transactions,
-                static fn(Transaction $t) => $t->getCategory()->getId() === $categoryId
-            );
-            $value = $this->assetsManager->sumTransactions($categoryTransactions);
-            $category->setValue($value);
-
-            $nestedTransactions = array_filter(
-                $transactions,
-                static fn(Transaction $t) => $t->getCategory()->isChildOf($category)
-            );
-
-            $category->setTotal($this->assetsManager->sumTransactions($nestedTransactions));
-
-            if (!empty($nestedTransactions) && $category->hasChildren()) {
-                $this->generateCategoryTreeWithValues(
-                    transactions: $nestedTransactions,
-                    type: $type,
-                    categories: $category->getChildren()->toArray()
-                );
-            }
+        if (empty($categories) || empty($transactions)) {
+            return $categories;
         }
+
+        // Index once; shared across all recursion levels.
+        $transactionsByCatId = [];
+        foreach ($transactions as $transaction) {
+            $transactionsByCatId[$transaction->getCategory()->getId()][] = $transaction;
+        }
+
+        $this->hydrateCategoryValues($categories, $transactionsByCatId, $this->getDescendantMap());
 
         return $categories;
     }
@@ -167,18 +172,18 @@ final class StatisticsManager
     }
 
     /**
-     * Generates account value distribution statistics within given transactions array
+     * Generates account value distribution statistics within given transactions array.
      */
     public function generateAccountDistributionStatistics(array $transactions): array
     {
         $result = [];
         $accountExpenses = [];
 
-        // Group transactions by account
         foreach ($transactions as $transaction) {
             $accountId = $transaction->getAccount()->getId();
             if (!isset($accountExpenses[$accountId])) {
                 $accountExpenses[$accountId] = [
+                    'account' => $transaction->getAccount(),
                     'currency' => $transaction->getAccount()->getCurrency(),
                     'transactions' => [],
                 ];
@@ -186,7 +191,7 @@ final class StatisticsManager
             $accountExpenses[$accountId]['transactions'][] = $transaction;
         }
 
-        foreach ($accountExpenses as $accountId => $accountData) {
+        foreach ($accountExpenses as $accountData) {
             $amount = $this->assetsManager->sumTransactions($accountData['transactions'], $accountData['currency']);
             $value = $this->assetsManager->sumTransactions($accountData['transactions']);
 
@@ -194,22 +199,18 @@ final class StatisticsManager
                 continue;
             }
 
-            $account = $this->em->getRepository(Account::class)->find($accountId);
-
-            if ($account) {
-                $result[] = [
-                    'account' => $account,
-                    'amount' => $amount,
-                    'value' => $value,
-                ];
-            }
+            $result[] = [
+                'account' => $accountData['account'],
+                'amount' => $amount,
+                'value' => $value,
+            ];
         }
 
         return $result;
     }
 
     /**
-     * Sums categories' transactions and groups them by timeframe within given period
+     * Sums categories' transactions and groups them by timeframe within given period.
      */
     public function generateCategoriesOnTimelineStatistics(
         CarbonPeriod $period,
@@ -224,54 +225,73 @@ final class StatisticsManager
         $start = $period->getStartDate();
         $end = $period->getEndDate();
 
+        $descendantMap = $this->getDescendantMap();
+
+        // Index by category ID, pre-filtered to period bounds.
+        $transactionsByCatId = [];
+        foreach ($transactions as $transaction) {
+            if ($transaction->getExecutedAt()->isBetween($start, $end)) {
+                $transactionsByCatId[$transaction->getCategory()->getId()][] = $transaction;
+            }
+        }
+
         foreach ($categories as $categoryId) {
             if (!$category = $this->em->getRepository(Category::class)->find($categoryId)) {
                 continue;
             }
 
-            $name = $category->getName();
+            $descendantIds = $descendantMap[(int) $categoryId] ?? [(int) $categoryId];
 
-            $categoryTransactionsWithinPeriod = array_filter(
-                $transactions,
-                static function (Transaction $transaction) use ($category, $start, $end) {
-                    return $transaction->getCategory()->isChildOf($category) && $transaction->getExecutedAt(
-                        )->isBetween($start, $end);
+            $categoryTransactions = [];
+            foreach ($descendantIds as $descId) {
+                foreach ($transactionsByCatId[$descId] ?? [] as $t) {
+                    $categoryTransactions[] = $t;
                 }
-            );
+            }
 
-            $result[$name] = $this->sumTransactionsByDateInterval($categoryTransactionsWithinPeriod, $period);
+            $result[$category->getName()] = $this->sumTransactionsByDateInterval($categoryTransactions, $period);
         }
 
         return $result;
     }
 
     /**
-     * Find transaction category that holds the biggest cumulative value
-     * Used for: mainIncomeSource
+     * Find transaction category that holds the biggest cumulative value.
+     * Used for: mainIncomeSource.
      */
     public function generateTopValueCategoryStatistics(array $transactions): ?array
     {
+        if (empty($transactions)) {
+            return null;
+        }
+
         $rootCategories = $this->em
             ->getRepository(Category::class)
             ->findBy([
                 'root' => null,
                 'isAffectingProfit' => true,
-                'isTechnical' => false,
             ]);
+
+        $descendantMap = $this->getDescendantMap();
         $max = 0;
         $result = null;
 
+        $transactionsByCatId = [];
+        foreach ($transactions as $transaction) {
+            $transactionsByCatId[$transaction->getCategory()->getId()][] = $transaction;
+        }
+
         foreach ($rootCategories as $category) {
-            $value = abs(
-                $this->assetsManager->sumTransactions(
-                    array_filter(
-                        $transactions,
-                        static function (Transaction $transaction) use ($category) {
-                            return $transaction->getCategory()->isChildOf($category);
-                        }
-                    )
-                )
-            );
+            $descendantIds = $descendantMap[$category->getId()] ?? [$category->getId()];
+
+            $subtreeTransactions = [];
+            foreach ($descendantIds as $descId) {
+                foreach ($transactionsByCatId[$descId] ?? [] as $t) {
+                    $subtreeTransactions[] = $t;
+                }
+            }
+
+            $value = abs($this->assetsManager->sumTransactions($subtreeTransactions));
 
             if ($value > $max) {
                 $max = $value;
@@ -290,16 +310,25 @@ final class StatisticsManager
     {
         $result = [];
         $dates = $period->toArray();
-        $categories = [
+        $descendantMap = $this->getDescendantMap();
+
+        $categoryNames = [
             ExpenseCategory::CATEGORY_UTILITIES,
             ExpenseCategory::CATEGORY_UTILITIES_GAS,
             ExpenseCategory::CATEGORY_UTILITIES_WATER,
             ExpenseCategory::CATEGORY_UTILITIES_ELECTRICITY,
         ];
 
-        foreach ($categories as $categoryName) {
+        $transactionsByCatId = [];
+        foreach ($transactions as $transaction) {
+            $transactionsByCatId[$transaction->getCategory()->getId()][] = $transaction;
+        }
+
+        foreach ($categoryNames as $categoryName) {
             /** @var ExpenseCategory $category */
             $category = $this->expenseCategoryRepo->findOneBy(['name' => $categoryName]);
+            $descendantIds = $descendantMap[$category->getId()] ?? [$category->getId()];
+
             $data = [
                 'name' => $categoryName,
                 'icon' => $category->getIcon(),
@@ -307,22 +336,22 @@ final class StatisticsManager
                 'values' => [],
             ];
 
-            foreach ($dates as $after) {
-                $before = next($dates);
-
-                if ($before !== false) {
-                    $data['values'][] = $this->assetsManager->sumTransactions(
-                        array_filter(
-                            $transactions,
-                            static function (Transaction $transaction) use ($after, $before, $category) {
-                                $transactionDate = $transaction->getExecutedAt();
-
-                                return $transactionDate->isBetween($after, $before) && $transaction->getCategory(
-                                    )->isChildOf($category);
-                            }
-                        )
-                    );
+            foreach ($dates as $index => $after) {
+                if (!isset($dates[$index + 1])) {
+                    break;
                 }
+                $before = $dates[$index + 1];
+
+                $periodTransactions = [];
+                foreach ($descendantIds as $descId) {
+                    foreach ($transactionsByCatId[$descId] ?? [] as $t) {
+                        if ($t->getExecutedAt()->isBetween($after, $before)) {
+                            $periodTransactions[] = $t;
+                        }
+                    }
+                }
+
+                $data['values'][] = $this->assetsManager->sumTransactions($periodTransactions);
             }
 
             $result[] = $data;
@@ -337,19 +366,23 @@ final class StatisticsManager
         $result = array_map(static fn($day) => ['name' => $day, 'values' => []], $days);
 
         $rootCategories = $this->em->getRepository(ExpenseCategory::class)->findRootCategories(['name' => 'ASC']);
+        $descendantMap = $this->getDescendantMap();
+
+        $transactionsByCatId = [];
+        foreach ($transactionsOrdered as $transaction) {
+            $transactionsByCatId[$transaction->getCategory()->getId()][] = $transaction;
+        }
 
         foreach ($rootCategories as $category) {
-            $categoryTransactions = array_filter(
-                $transactionsOrdered,
-                static fn(Transaction $transaction) => $transaction->getCategory()->isChildOf($category)
-            );
+            $categoryName = $category->getName();
+            $descendantIds = $descendantMap[$category->getId()] ?? [$category->getId()];
 
-            foreach ($categoryTransactions as $transaction) {
-                $weekday = $transaction->getExecutedAt()->dayOfWeekIso - 1;
-                $categoryName = $category->getName();
-
-                $result[$weekday]['values'][$categoryName] = ($result[$weekday]['values'][$categoryName] ?? 0) + $transaction->getValue(
-                    );
+            foreach ($descendantIds as $descId) {
+                foreach ($transactionsByCatId[$descId] ?? [] as $transaction) {
+                    $weekday = $transaction->getExecutedAt()->dayOfWeekIso - 1;
+                    $result[$weekday]['values'][$categoryName] =
+                        ($result[$weekday]['values'][$categoryName] ?? 0) + $transaction->getValue();
+                }
             }
         }
 
@@ -367,7 +400,7 @@ final class StatisticsManager
     }
 
     /**
-     * Calculates the sum of expenses made today converted to base currency
+     * Calculates the sum of expenses made today converted to base currency.
      */
     public function calculateTodayExpenses(): float
     {
@@ -379,7 +412,7 @@ final class StatisticsManager
     }
 
     /**
-     * Calculate the sum of total month incomes
+     * Calculate the sum of total month incomes.
      */
     public function calculateMonthIncomes(CarbonInterface $month): float
     {
@@ -391,7 +424,7 @@ final class StatisticsManager
     }
 
     /**
-     * Calculate average daily expense for given period converted to base currency
+     * Calculate average daily expense for given period converted to base currency.
      */
     public function calculateAverageDailyExpenseWithinPeriod(CarbonInterface $after, CarbonInterface $before): float
     {
@@ -474,6 +507,57 @@ final class StatisticsManager
         };
 
         return $this->em->getRepository($categoryClass)->findRootCategories();
+    }
+
+    /**
+     * Lazily builds and caches a map of categoryId → [self + all descendant ids] for the current request.
+     * Single DB query; eliminates all getDescendantsFlat() / isChildOf() recursive loads.
+     */
+    private function getDescendantMap(): array
+    {
+        if ($this->descendantMap === null) {
+            $this->descendantMap = $this->em->getRepository(Category::class)->buildDescendantMap();
+        }
+
+        return $this->descendantMap;
+    }
+
+    /**
+     * Recursively hydrates setValue/setTotal on each category using a pre-built descendant ID map.
+     * Eliminates isChildOf() — no per-transaction recursive DB queries.
+     */
+    private function hydrateCategoryValues(
+        array $categories,
+        array $transactionsByCatId,
+        array $descendantMap
+    ): void {
+        foreach ($categories as $category) {
+            $catId = $category->getId();
+            $descendantIds = $descendantMap[$catId] ?? [$catId];
+
+            // Direct value: only transactions assigned to this exact category.
+            $category->setValue(
+                $this->assetsManager->sumTransactions($transactionsByCatId[$catId] ?? [])
+            );
+
+            // Total value: all transactions in the subtree (self + descendants).
+            $subtree = [];
+            foreach ($descendantIds as $descId) {
+                foreach ($transactionsByCatId[$descId] ?? [] as $t) {
+                    $subtree[] = $t;
+                }
+            }
+            $category->setTotal($this->assetsManager->sumTransactions($subtree));
+
+            // Recurse into children — one EXTRA_LAZY SELECT per non-leaf, not per-transaction.
+            if (count($descendantIds) > 1 && $category->hasChildren()) {
+                $this->hydrateCategoryValues(
+                    $category->getChildren()->toArray(),
+                    $transactionsByCatId,
+                    $descendantMap
+                );
+            }
+        }
     }
 
     private function countWeekdaysBetweenDates(CarbonInterface $after, CarbonInterface $before, int $weekday): int

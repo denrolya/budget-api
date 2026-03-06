@@ -184,7 +184,7 @@ class Account implements OwnableInterface
     ])]
     private ?string $currency;
 
-    #[ORM\Column(type: Types::STRING, length: 100)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
     #[Groups(['account:collection:read', 'account:write', 'account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
     #[Serializer\Type(Types::FLOAT)]
@@ -304,9 +304,9 @@ class Account implements OwnableInterface
         return (float)$this->balance;
     }
 
-    public function setBalance($balance): self
+    public function setBalance(string|float|int $balance): self
     {
-        $this->balance = $balance;
+        $this->balance = (string)$balance;
 
         return $this;
     }

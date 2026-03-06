@@ -132,11 +132,6 @@ abstract class Category
     ])]
     private ?string $name;
 
-    #[ORM\Column(type: Types::BOOLEAN, nullable: false, options: ["default" => false])]
-    #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
-    private bool $isTechnical;
-
     #[ORM\OneToMany(mappedBy: "parent", targetEntity: Category::class, cascade: ["remove"], fetch: "EXTRA_LAZY")]
     #[Groups(['category:tree:read'])]
     #[Serializer\Groups(['category:tree:read'])]
@@ -219,13 +214,12 @@ abstract class Category
     abstract public function getType(): string;
 
     #[Pure]
-    public function __construct(string $name = null, bool $isTechnical = false)
+    public function __construct(string $name = null)
     {
         $this->name = $name;
         $this->transactions = new ArrayCollection();
         $this->children = new ArrayCollection();
         $this->tags = new ArrayCollection();
-        $this->isTechnical = $isTechnical;
     }
 
     public function __toString(): string
@@ -304,18 +298,6 @@ abstract class Category
         }
 
         return $result;
-    }
-
-    public function getIsTechnical(): bool
-    {
-        return $this->isTechnical;
-    }
-
-    public function setIsTechnical(bool $isTechnical): self
-    {
-        $this->isTechnical = $isTechnical;
-
-        return $this;
     }
 
     public function addTransaction(Transaction $transaction): self

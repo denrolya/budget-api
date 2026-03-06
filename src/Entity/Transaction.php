@@ -156,7 +156,7 @@ abstract class Transaction implements OwnableInterface
     #[Assert\NotBlank]
     #[Assert\Type('numeric')]
     #[Assert\GreaterThan(value: "0")]
-    #[ORM\Column(type: Types::STRING, length: 100)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
     #[Groups([
         'transaction:collection:read',
         'transaction:write',
@@ -296,7 +296,7 @@ abstract class Transaction implements OwnableInterface
         return (float)$this->amount;
     }
 
-    public function setAmount(string|float $amount): self
+    public function setAmount(string|float|int $amount): self
     {
         $this->amount = (string)$amount;
 
@@ -367,7 +367,15 @@ abstract class Transaction implements OwnableInterface
 
     public function setDebt(?Debt $debt): self
     {
+        if ($this->debt !== null && $this->debt !== $debt) {
+            $this->debt->removeTransaction($this);
+        }
+
         $this->debt = $debt;
+
+        if ($debt !== null) {
+            $debt->addTransaction($this);
+        }
 
         return $this;
     }

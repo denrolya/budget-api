@@ -1,12 +1,11 @@
 <?php
-
-namespace App\DataFixtures;
+namespace App\DataFixtures\Dev;
 
 use App\Entity\ExchangeRateSnapshot;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 
-final class ExchangeRateSnapshotFixtures extends Fixture
+final class ExchangeRateFixtures extends Fixture
 {
     /**
      * Static snapshot definitions used across dev and test.

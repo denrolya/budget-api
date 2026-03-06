@@ -157,6 +157,66 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns the net converted value of matching transactions in the given base currency.
+     * Incomes are positive, expenses are negative. Uses SQL SUM — no object hydration.
+     */
+    public function sumConverted(
+        string $baseCurrency,
+        ?CarbonInterface $after = null,
+        ?CarbonInterface $before = null,
+        bool $affectingProfitOnly = false,
+        ?string $type = null,
+        ?array $categories = null,
+        ?array $accounts = null,
+        ?array $excludedCategories = null,
+        ?bool $isDraft = null,
+        ?string $note = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+        ?array $debts = null,
+        ?array $currencies = null,
+    ): float {
+        $jsonPath = '$.' . $baseCurrency;
+
+        $sum = function (string $forType) use (
+            $jsonPath, $after, $before, $affectingProfitOnly,
+            $categories, $accounts, $excludedCategories,
+            $isDraft, $note, $amountGte, $amountLte, $debts, $currencies
+        ): float {
+            return (float) ($this->getBaseQueryBuilder(
+                after: $after,
+                before: $before,
+                affectingProfitOnly: $affectingProfitOnly,
+                type: $forType,
+                categories: $categories,
+                accounts: $accounts,
+                excludedCategories: $excludedCategories,
+                isDraft: $isDraft,
+                note: $note,
+                amountGte: $amountGte,
+                amountLte: $amountLte,
+                debts: $debts,
+                currencies: $currencies,
+            )
+                ->select('SUM(JSON_EXTRACT(t.convertedValues, :jsonPath))')
+                ->setParameter('jsonPath', $jsonPath)
+                ->getQuery()
+                ->getSingleScalarResult() ?? 0);
+        };
+
+        if ($type === Transaction::INCOME) {
+            return $sum(Transaction::INCOME);
+        }
+
+        if ($type === Transaction::EXPENSE) {
+            return -$sum(Transaction::EXPENSE);
+        }
+
+        // Mixed: net = income − expense
+        return $sum(Transaction::INCOME) - $sum(Transaction::EXPENSE);
+    }
+
+    /**
      * Single source of truth for listing filters.
      */
     protected function getBaseQueryBuilder(
@@ -309,12 +369,12 @@ class TransactionRepository extends ServiceEntityRepository
     private function applyAmountRangeFilter(QueryBuilder $qb, ?float $amountGte, ?float $amountLte): void
     {
         if ($amountGte !== null) {
-            $qb->andWhere('(t.amount + 0) >= :amountGte')
+            $qb->andWhere('t.amount >= :amountGte')
                 ->setParameter('amountGte', $amountGte);
         }
 
         if ($amountLte !== null) {
-            $qb->andWhere('(t.amount + 0) <= :amountLte')
+            $qb->andWhere('t.amount <= :amountLte')
                 ->setParameter('amountLte', $amountLte);
         }
     }

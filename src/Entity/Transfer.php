@@ -143,9 +143,9 @@ class Transfer implements OwnableInterface
         return (float)$this->amount;
     }
 
-    public function setAmount(float $amount): self
+    public function setAmount(string|float|int $amount): self
     {
-        $this->amount = $amount;
+        $this->amount = (string)$amount;
 
         return $this;
     }
@@ -155,9 +155,9 @@ class Transfer implements OwnableInterface
         return (float)$this->rate;
     }
 
-    public function setRate(float $rate): self
+    public function setRate(string|float|int $rate): self
     {
-        $this->rate = $rate;
+        $this->rate = (string)$rate;
 
         return $this;
     }
@@ -167,9 +167,9 @@ class Transfer implements OwnableInterface
         return (float)$this->fee;
     }
 
-    public function setFee(float $fee): self
+    public function setFee(string|float|int $fee): self
     {
-        $this->fee = $fee;
+        $this->fee = (string)$fee;
 
         return $this;
     }

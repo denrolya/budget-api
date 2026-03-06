@@ -14,15 +14,33 @@ final class TransferCreateTransactionsHandler implements ToggleEnabledInterface
 {
     use ToggleEnabledTrait;
 
-    private ExpenseCategory $expenseTransferCategory;
+    private ?ExpenseCategory $expenseTransferCategory = null;
 
-    private IncomeCategory $incomeTransferCategory;
+    private ?IncomeCategory $incomeTransferCategory = null;
 
-    private ExpenseCategory $feeExpenseCategory;
+    private ?ExpenseCategory $feeExpenseCategory = null;
 
     public function __construct(
         private EntityManagerInterface $em,
     ) {
+    }
+
+    public function prePersist(Transfer $transfer): void
+    {
+        if (!$this->enabled) {
+            return;
+        }
+
+        $this->initCategories();
+        $this->createTransferTransactions($transfer);
+    }
+
+    private function initCategories(): void
+    {
+        if ($this->expenseTransferCategory !== null) {
+            return;
+        }
+
         $this->expenseTransferCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
         ]);
@@ -32,15 +50,6 @@ final class TransferCreateTransactionsHandler implements ToggleEnabledInterface
         $this->feeExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER_FEE,
         ]);
-    }
-
-    public function prePersist(Transfer $transfer): void
-    {
-        if (!$this->enabled) {
-            return;
-        }
-
-        $this->createTransferTransactions($transfer);
     }
 
     private function createTransferTransactions(Transfer $transfer): void

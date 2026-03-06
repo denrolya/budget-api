@@ -1,6 +1,5 @@
 <?php
-
-namespace App\DataFixtures;
+namespace App\DataFixtures\Dev;
 
 use App\Entity\IncomeCategory;
 use Carbon\CarbonImmutable;
@@ -16,73 +15,63 @@ class IncomeCategoryFixtures extends Fixture implements DependentFixtureInterfac
         $categories = [
             [
                 'name' => 'Return',
-                'isTechnical' => false,
                 'isAffectingProfit' => true,
                 'children' => [
-                    ['name' => 'Tax Refund', 'isTechnical' => false, 'isAffectingProfit' => true],
-                    ['name' => 'Return on Investment', 'isTechnical' => false, 'isAffectingProfit' => true],
-                    ['name' => 'Cashback', 'isTechnical' => false, 'isAffectingProfit' => true],
-                    ['name' => 'Compensation', 'isTechnical' => false, 'isAffectingProfit' => false],
+                    ['name' => 'Tax Refund', 'isAffectingProfit' => true],
+                    ['name' => 'Return on Investment', 'isAffectingProfit' => true],
+                    ['name' => 'Cashback', 'isAffectingProfit' => true],
+                    ['name' => 'Compensation', 'isAffectingProfit' => false],
                 ],
             ],
             [
                 'name' => 'Spouse',
-                'isTechnical' => false,
                 'isAffectingProfit' => true,
                 'children' => [],
             ],
             [
                 'name' => 'Bonus',
-                'isTechnical' => false,
                 'isAffectingProfit' => true,
                 'children' => [
-                    ['name' => 'Unknown', 'isTechnical' => false, 'isAffectingProfit' => true],
-                    ['name' => 'Gift', 'isTechnical' => false, 'isAffectingProfit' => true],
+                    ['name' => 'Unknown', 'isAffectingProfit' => true],
+                    ['name' => 'Gift', 'isAffectingProfit' => true],
                 ],
             ],
             [
                 'name' => 'Sell',
-                'isTechnical' => false,
                 'isAffectingProfit' => true,
                 'children' => [],
             ],
             [
                 'name' => 'Salary',
-                'isTechnical' => false,
                 'isAffectingProfit' => true,
                 'children' => [
-                    ['name' => 'Advance', 'isTechnical' => false, 'isAffectingProfit' => true],
-                    ['name' => 'Detalex', 'isTechnical' => false, 'isAffectingProfit' => true],
-                    ['name' => 'Smart-Gamma', 'isTechnical' => false, 'isAffectingProfit' => true],
+                    ['name' => 'Advance', 'isAffectingProfit' => true],
+                    ['name' => 'Detalex', 'isAffectingProfit' => true],
+                    ['name' => 'Smart-Gamma', 'isAffectingProfit' => true],
                 ],
             ],
             [
                 'name' => 'Trading',
-                'isTechnical' => false,
                 'isAffectingProfit' => true,
                 'children' => [],
             ],
             [
                 'name' => 'Transfer',
-                'isTechnical' => true,
                 'isAffectingProfit' => false,
                 'children' => [],
             ],
             [
                 'name' => 'Debt',
-                'isTechnical' => true,
                 'isAffectingProfit' => false,
                 'children' => [],
             ],
             [
                 'name' => 'Other',
-                'isTechnical' => false,
                 'isAffectingProfit' => true,
                 'children' => [],
             ],
             [
                 'name' => 'Rent',
-                'isTechnical' => false,
                 'isAffectingProfit' => true,
                 'children' => [],
             ],
@@ -94,7 +83,6 @@ class IncomeCategoryFixtures extends Fixture implements DependentFixtureInterfac
             $rootCategory->setName($categoryData['name'])
                 ->setCreatedAt(CarbonImmutable::now()->subYears(2))
                 ->setUpdatedAt(CarbonImmutable::now())
-                ->setIsTechnical($categoryData['isTechnical'])
                 ->setIsAffectingProfit($categoryData['isAffectingProfit'])
                 ->setRoot(null);  // Root-level category, so root is null
 
@@ -106,7 +94,6 @@ class IncomeCategoryFixtures extends Fixture implements DependentFixtureInterfac
                 $childCategory->setName($childData['name'])
                     ->setCreatedAt(CarbonImmutable::now()->subYear())
                     ->setUpdatedAt(CarbonImmutable::now())
-                    ->setIsTechnical($childData['isTechnical'])
                     ->setIsAffectingProfit($childData['isAffectingProfit'])
                     ->setParent($rootCategory)
                     ->setRoot($rootCategory);

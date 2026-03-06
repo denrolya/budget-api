@@ -29,11 +29,9 @@ class BaseApiTestCase extends ApiTestCase
     protected const TRANSACTION_LIST_URL = '/api/v2/transaction';
     protected const DEBT_URL = '/api/debts';
 
-    protected const ACCOUNT_CASH_EUR_ID = 2;
-    protected const ACCOUNT_MONO_UAH_ID = 10;
     protected const CATEGORY_EXPENSE_GROCERIES = 'Groceries';
-    protected const CATEGORY_INCOME_COMPENSATION = 'Compensation';
     protected const CATEGORY_INCOME_SALARY = 'Salary';
+    protected const CATEGORY_INCOME_COMPENSATION = 'Compensation';
 
     protected const TEST_USERNAME = 'test_user';
 
@@ -41,11 +39,9 @@ class BaseApiTestCase extends ApiTestCase
 
     protected ?EntityManagerInterface $em;
 
-    protected Account $accountMonoUAH;
+    protected Account $accountCashEUR;
 
     protected Account $accountCashUAH;
-
-    protected Account $accountCashEUR;
 
     protected User $testUser;
 
@@ -55,10 +51,9 @@ class BaseApiTestCase extends ApiTestCase
     {
         $this->reloadClientWithServices();
 
-        $this->accountCashUAH = $this->em->getRepository(Account::class)->find(4);
-        $this->accountCashEUR = $this->em->getRepository(Account::class)->find(2);
-        $this->accountMonoUAH = $this->em->getRepository(Account::class)->find(10);
         $this->testUser = $this->em->getRepository(User::class)->findOneByUsername(self::TEST_USERNAME);
+        $this->accountCashEUR = $this->em->getRepository(Account::class)->findOneBy(['name' => 'EUR Cash', 'owner' => $this->testUser]);
+        $this->accountCashUAH = $this->em->getRepository(Account::class)->findOneBy(['name' => 'UAH Card', 'owner' => $this->testUser]);
     }
 
     protected function tearDown(): void

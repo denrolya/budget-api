@@ -77,7 +77,7 @@ class Debt implements OwnableInterface, ValuableInterface
     #[Serializer\Groups(['debt:collection:read'])]
     protected ?string $note;
 
-    #[ORM\Column(type: Types::STRING, length: 100)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
     #[Groups(['debt:collection:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
     #[Serializer\Type(Types::FLOAT)]
@@ -145,25 +145,21 @@ class Debt implements OwnableInterface, ValuableInterface
         return (float)$this->balance;
     }
 
-    public function setBalance(string $balance): self
+    public function setBalance(string|float|int $balance): self
     {
-        $this->balance = $balance;
+        $this->balance = (string)$balance;
 
         return $this;
     }
 
     public function increaseBalance(float $amount): self
     {
-        $this->balance += $amount;
-
-        return $this;
+        return $this->setBalance((float)$this->balance + $amount);
     }
 
     public function decreaseBalance(float $amount): self
     {
-        $this->balance -= $amount;
-
-        return $this;
+        return $this->setBalance((float)$this->balance - $amount);
     }
 
     public function addTransaction(Transaction $transaction): self

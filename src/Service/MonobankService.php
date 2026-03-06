@@ -29,9 +29,9 @@ class MonobankService extends BaseExchangeRatesProvider
 {
     private EntityManagerInterface $em;
 
-    private IncomeCategory $unknownIncomeCategory;
+    private ?IncomeCategory $unknownIncomeCategory = null;
 
-    private ExpenseCategory $unknownExpenseCategory;
+    private ?ExpenseCategory $unknownExpenseCategory = null;
 
     public function __construct(
         EntityManagerInterface $em,
@@ -42,13 +42,6 @@ class MonobankService extends BaseExchangeRatesProvider
     ) {
         parent::__construct($monobankClient, $cache, $allowedCurrencies, $baseCurrency);
         $this->em = $em;
-
-        $this->unknownIncomeCategory = $this->em->getRepository(IncomeCategory::class)->find(
-            Category::INCOME_CATEGORY_ID_UNKNOWN
-        );
-        $this->unknownExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->find(
-            Category::EXPENSE_CATEGORY_ID_UNKNOWN
-        );
     }
 
     /**
@@ -58,6 +51,15 @@ class MonobankService extends BaseExchangeRatesProvider
     {
         if (!$account = $this->em->getRepository(BankCardAccount::class)->findOneByMonobankId($accountId)) {
             throw new InvalidArgumentException('Account ID is not registered in system.');
+        }
+
+        if ($this->unknownIncomeCategory === null) {
+            $this->unknownIncomeCategory = $this->em->getRepository(IncomeCategory::class)->find(
+                Category::INCOME_CATEGORY_ID_UNKNOWN
+            );
+            $this->unknownExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->find(
+                Category::EXPENSE_CATEGORY_ID_UNKNOWN
+            );
         }
 
         $isIncome = $statementItem['amount'] > 0;

@@ -31,7 +31,6 @@ class CategoryRepository extends ServiceEntityRepository
     {
         return $this->findBy([
             'root' => null,
-            'isTechnical' => false,
             'isAffectingProfit' => true,
         ], $orderBy, $limit, $offset);
     }
@@ -40,6 +39,7 @@ class CategoryRepository extends ServiceEntityRepository
     {
         $types = $type ? [$type] : [Transaction::EXPENSE, Transaction::INCOME];
         $result = [];
+        $map = $this->buildDescendantMap();
 
         foreach ($types as $t) {
             $repo = $this
@@ -49,17 +49,63 @@ class CategoryRepository extends ServiceEntityRepository
                 );
 
             if (empty($categories)) {
-                $result[] = $repo->findBy(['root' => null, 'isTechnical' => false, 'isAffectingProfit' => true]);
+                $result[] = $repo->findBy(['root' => null, 'isAffectingProfit' => true]);
             } else {
                 $foundCategories = $repo->findBy(['id' => $categories]);
 
+                $descendantIds = [];
                 foreach ($foundCategories as $category) {
-                    $result[] = $category->getDescendantsFlat()->toArray();
+                    foreach ($map[$category->getId()] ?? [$category->getId()] as $id) {
+                        $descendantIds[] = $id;
+                    }
+                }
+
+                if ($descendantIds) {
+                    $result[] = $this->findBy(['id' => array_unique($descendantIds)]);
                 }
             }
         }
 
         return array_merge(...$result);
+    }
+
+    /**
+     * Builds a map of categoryId → [self + all descendant ids] using a single DB query.
+     * Replaces recursive PHP getDescendantsFlat() calls throughout the codebase.
+     */
+    public function buildDescendantMap(): array
+    {
+        $rows = $this->createQueryBuilder('c')
+            ->select('c.id', 'IDENTITY(c.parent) AS parent_id')
+            ->getQuery()
+            ->getScalarResult();
+
+        $childrenOf = [];
+        $allIds = [];
+        foreach ($rows as $row) {
+            $id = (int) $row['id'];
+            $allIds[] = $id;
+            if ($row['parent_id'] !== null) {
+                $childrenOf[(int) $row['parent_id']][] = $id;
+            }
+        }
+
+        $map = [];
+        foreach ($allIds as $id) {
+            $map[$id] = $this->collectDescendantIds($id, $childrenOf);
+        }
+
+        return $map;
+    }
+
+    private function collectDescendantIds(int $id, array &$childrenOf): array
+    {
+        $ids = [$id];
+        foreach ($childrenOf[$id] ?? [] as $childId) {
+            array_push($ids, ...$this->collectDescendantIds($childId, $childrenOf));
+        }
+
+        return $ids;
     }
 
     public function calculateValue(
@@ -113,10 +159,8 @@ class CategoryRepository extends ServiceEntityRepository
             }
         }
 
-        $categoryIds = [
-            $category->getId(),
-            ...$category->getDescendantsFlat()->map(static fn(Category $category) => $category->getId())->toArray(),
-        ];
+        $map = $this->buildDescendantMap();
+        $categoryIds = $map[$category->getId()] ?? [$category->getId()];
         $qb = $this
             ->getEntityManager()
             ->createQueryBuilder('t')

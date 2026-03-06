@@ -27,7 +27,7 @@ class AccountLogEntry
     #[ORM\JoinColumn(nullable: false)]
     private ?Account $account = null;
 
-    #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8, nullable: true)]
     private string $balance = '0';
 
     #[ORM\Column(type: Types::JSON, nullable: true)]

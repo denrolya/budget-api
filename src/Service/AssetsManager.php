@@ -5,6 +5,7 @@ namespace App\Service;
 use App\Entity\Category;
 use App\Entity\Debt;
 use App\Entity\Transaction;
+use App\Entity\User;
 use App\Pagination\Paginator;
 use App\Repository\TransactionRepository;
 use Carbon\CarbonImmutable;
@@ -14,6 +15,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
 use JetBrains\PhpStorm\ArrayShape;
 use Psr\Cache\InvalidArgumentException;
+use Symfony\Component\Security\Core\Security;
 
 class AssetsManager
 {
@@ -23,8 +25,11 @@ class AssetsManager
 
     private ExchangeRateSnapshotResolver $fxRateSnapshotResolver;
 
-    public function __construct(EntityManagerInterface $em, ExchangeRateSnapshotResolver $snapshotResolver)
-    {
+    public function __construct(
+        EntityManagerInterface $em,
+        ExchangeRateSnapshotResolver $snapshotResolver,
+        private Security $security,
+    ) {
         $this->em = $em;
         $this->transactionRepo = $this->em->getRepository(Transaction::class);
         $this->fxRateSnapshotResolver = $snapshotResolver;
@@ -50,6 +55,10 @@ class AssetsManager
         string $orderField = TransactionRepository::ORDER_FIELD,
         string $order = TransactionRepository::ORDER,
     ): array {
+        $resolvedCategories = ($withChildCategories && !empty($categories))
+            ? $this->em->getRepository(Category::class)->getCategoriesWithDescendantsByType($categories, $type)
+            : ($categories ?? []);
+
         $paginator = $this
             ->transactionRepo
             ->getPaginator(
@@ -57,9 +66,7 @@ class AssetsManager
                 before: $before,
                 affectingProfitOnly: false,
                 type: $type,
-                categories: ($withChildCategories && !empty($categories))
-                    ? $this->em->getRepository(Category::class)->getCategoriesWithDescendantsByType($categories, $type)
-                    : ($categories ?? []),
+                categories: $resolvedCategories,
                 accounts: $accounts ?? [],
                 excludedCategories: $excludedCategories ?? [],
                 isDraft: $isDraft,
@@ -74,17 +81,24 @@ class AssetsManager
                 order: $order,
             );
 
-        $list = $paginator->getResults();
-
         return [
-            'list' => $list,
+            'list' => $paginator->getResults(),
             'totalValue' => round(
-                $this->sumMixedTransactions(
-                    $paginator
-                        ->getQuery()
-                        ->setFirstResult(0)
-                        ->setMaxResults(null)
-                        ->getResult()
+                $this->transactionRepo->sumConverted(
+                    baseCurrency: $this->getBaseCurrency(),
+                    after: $after,
+                    before: $before,
+                    affectingProfitOnly: false,
+                    type: $type,
+                    categories: $resolvedCategories,
+                    accounts: $accounts ?? [],
+                    excludedCategories: $excludedCategories ?? [],
+                    isDraft: $isDraft,
+                    note: $note,
+                    amountGte: $amountGte,
+                    amountLte: $amountLte,
+                    debts: $debts ?? [],
+                    currencies: $currencies,
                 ),
                 2
             ),
@@ -133,15 +147,14 @@ class AssetsManager
         ?array $accounts = [],
         ?array $excludedCategories = []
     ): float {
-        return $this->sumMixedTransactions(
-            $this->transactionRepo->getList(
-                $after,
-                $before,
-                $type,
-                $categories,
-                $accounts,
-                $excludedCategories
-            )
+        return $this->transactionRepo->sumConverted(
+            baseCurrency: $this->getBaseCurrency(),
+            after: $after,
+            before: $before,
+            type: $type,
+            categories: $categories,
+            accounts: $accounts,
+            excludedCategories: $excludedCategories,
         );
     }
 
@@ -215,6 +228,14 @@ class AssetsManager
         }
 
         return $value;
+    }
+
+    private function getBaseCurrency(): string
+    {
+        /** @var User $user */
+        $user = $this->security->getUser();
+
+        return $user->getBaseCurrency();
     }
 
     /**

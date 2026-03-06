@@ -109,6 +109,7 @@
         "test":               "phpunit",
         "test-verbose":       "phpunit --colors --testdox --verbose",
         "test-clover":        "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-clover=coverage/coverage.xml",
+        "test-coverage":      "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-html=coverage/html",
         "deploy":             "vendor/bin/dep deploy",
         "db2loc":             "vendor/bin/dep database:copy:to_local",
         "db2rem":             "vendor/bin/dep database:copy:to_remote",

@@ -27,7 +27,6 @@ final class DebtDataPersister implements ContextAwareDataPersisterInterface
      */
     public function persist($data, array $context = [])
     {
-        /** @var Debt $originalData */
         $originalData = $this->em->getUnitOfWork()->getOriginalEntityData($data);
 
         if((float)$originalData['balance'] !== $data->getBalance()) {
