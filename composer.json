@@ -102,7 +102,7 @@
         "test-verbose":       "phpunit --colors --testdox --verbose",
         "test-clover":        "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-clover=coverage/coverage.xml",
         "test-coverage":      "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-html=coverage/html",
-        "help":                 "vendor/bin/dep list",
+        "dep":                  "vendor/bin/dep list",
         "deploy":               "vendor/bin/dep deploy production",
         "shell":                "vendor/bin/dep app:shell production",
         "logs":                 "vendor/bin/dep app:logs production",
