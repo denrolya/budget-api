@@ -95,6 +95,7 @@ class Debt implements OwnableInterface, ValuableInterface
     #[Serializer\Groups(['debt:collection:read'])]
     protected ?array $convertedValues = [];
 
+    #[Gedmo\Timestampable(on: 'create')]
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups(['debt:collection:read', 'debt:item:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]
