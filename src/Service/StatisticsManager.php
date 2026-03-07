@@ -227,6 +227,13 @@ final class StatisticsManager
 
         $descendantMap = $this->getDescendantMap();
 
+        // Batch-fetch all requested categories in a single query (avoids N+1).
+        $categoryEntities = $this->em->getRepository(Category::class)->findBy(['id' => $categories]);
+        $categoriesById = [];
+        foreach ($categoryEntities as $cat) {
+            $categoriesById[$cat->getId()] = $cat;
+        }
+
         // Index by category ID, pre-filtered to period bounds.
         $transactionsByCatId = [];
         foreach ($transactions as $transaction) {
@@ -236,7 +243,8 @@ final class StatisticsManager
         }
 
         foreach ($categories as $categoryId) {
-            if (!$category = $this->em->getRepository(Category::class)->find($categoryId)) {
+            $category = $categoriesById[(int) $categoryId] ?? null;
+            if ($category === null) {
                 continue;
             }
 
@@ -324,9 +332,19 @@ final class StatisticsManager
             $transactionsByCatId[$transaction->getCategory()->getId()][] = $transaction;
         }
 
+        // Batch-fetch all utility categories in a single query (avoids 4 separate findOneBy calls).
+        $categoryEntities = $this->expenseCategoryRepo->findBy(['name' => $categoryNames]);
+        $categoriesByName = [];
+        foreach ($categoryEntities as $cat) {
+            $categoriesByName[$cat->getName()] = $cat;
+        }
+
         foreach ($categoryNames as $categoryName) {
             /** @var ExpenseCategory $category */
-            $category = $this->expenseCategoryRepo->findOneBy(['name' => $categoryName]);
+            $category = $categoriesByName[$categoryName] ?? null;
+            if ($category === null) {
+                continue;
+            }
             $descendantIds = $descendantMap[$category->getId()] ?? [$category->getId()];
 
             $data = [

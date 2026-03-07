@@ -31,6 +31,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: TransactionRepository::class)]
+#[ORM\Table(name: 'transaction')]
+#[ORM\Index(columns: ['executed_at'], name: 'transaction_executed_at_idx')]
 #[ORM\InheritanceType("SINGLE_TABLE")]
 #[ORM\DiscriminatorColumn(name: "type", type: "string")]
 #[ORM\DiscriminatorMap(["expense" => Expense::class, "income" => Income::class])]

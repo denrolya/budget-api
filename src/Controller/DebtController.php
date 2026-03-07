@@ -28,4 +28,5 @@ class DebtController extends AbstractFOSRestController
             $doctrine->getRepository(Debt::class)->findAll()
         );
     }
+
 }

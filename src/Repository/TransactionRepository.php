@@ -3,7 +3,6 @@
 namespace App\Repository;
 
 use App\Entity\Account;
-use App\Entity\AccountLogEntry;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
@@ -132,29 +131,6 @@ class TransactionRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /**
-     * NOTE: name preserved to avoid breaking callers, but semantics are "after last log".
-     *
-     * @return array<Transaction>
-     */
-    public function findBeforeLastLog(Account $account): array
-    {
-        $qb = $this->createQueryBuilder('t')
-            ->andWhere('t.account = :account')
-            ->setParameter('account', $account)
-            ->orderBy('t.executedAt', 'DESC');
-
-        $lastLogEntry = $this->getEntityManager()
-            ->getRepository(AccountLogEntry::class)
-            ->findOneBy(['account' => $account], ['createdAt' => 'DESC']);
-
-        if ($lastLogEntry) {
-            $qb->andWhere('t.executedAt > :date')
-                ->setParameter('date', $lastLogEntry->getCreatedAt());
-        }
-
-        return $qb->getQuery()->getResult();
-    }
 
     /**
      * Returns the net converted value of matching transactions in the given base currency.
@@ -424,5 +400,131 @@ class TransactionRepository extends ServiceEntityRepository
         $qb->innerJoin('t.account', 'a')
             ->andWhere('a.currency IN (:currencies)')
             ->setParameter('currencies', $normalized);
+    }
+
+    /**
+     * Returns transaction counts and volumes grouped by day for the given account and date range.
+     *
+     * @return array<array{day: string, count: int, convertedValues: array<string, array{income: float, expense: float}>}>
+     */
+    public function countByDay(Account $account, \DateTimeInterface $after, \DateTimeInterface $before): array
+    {
+        return $this->countByDayForAccounts([$account->getId()], $after, $before);
+    }
+
+    /**
+     * Returns transaction counts and volumes grouped by day for optional account IDs and date range.
+     * Pass an empty array to include all accounts.
+     *
+     * Amounts are grouped by the account's native currency so the frontend can pick the
+     * relevant currency without backend conversion.
+     *
+     * @param  int[]  $accountIds
+     * @return array<array{day: string, count: int, convertedValues: array<string, array{income: float, expense: float}>}>
+     */
+    public function countByDayForAccounts(
+        array $accountIds,
+        \DateTimeInterface $after,
+        \DateTimeInterface $before,
+        bool $onlyAffectingProfit = false,
+    ): array {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $params = [
+            'after'  => $after->format('Y-m-d H:i:s'),
+            'before' => $before->format('Y-m-d H:i:s'),
+        ];
+
+        $accountFilter = '';
+        if (!empty($accountIds)) {
+            $placeholders = implode(',', array_map(static fn($i) => ":acc$i", array_keys($accountIds)));
+            $accountFilter = "AND t.account_id IN ($placeholders)";
+            foreach ($accountIds as $i => $id) {
+                $params["acc$i"] = $id;
+            }
+        }
+
+        $categoryJoin   = $onlyAffectingProfit ? 'JOIN category c ON c.id = t.category_id' : '';
+        $categoryFilter = $onlyAffectingProfit ? 'AND c.is_affecting_profit = 1' : '';
+
+        $rows = $conn->executeQuery(
+            "SELECT
+                DATE(t.executed_at) AS day,
+                a.currency,
+                COUNT(t.id) AS count,
+                SUM(CASE WHEN t.type = 'income'  THEN CAST(t.amount AS DECIMAL(18,8)) ELSE 0 END) AS income,
+                SUM(CASE WHEN t.type = 'expense' THEN CAST(t.amount AS DECIMAL(18,8)) ELSE 0 END) AS expense
+             FROM transaction t
+             JOIN account a ON a.id = t.account_id
+             $categoryJoin
+             WHERE t.executed_at >= :after
+               AND t.executed_at <= :before
+               $accountFilter
+               $categoryFilter
+             GROUP BY DATE(t.executed_at), a.currency
+             ORDER BY day ASC, a.currency ASC",
+            $params,
+        )->fetchAllAssociative();
+
+        $pivoted = [];
+        foreach ($rows as $row) {
+            $day = $row['day'];
+            if (!isset($pivoted[$day])) {
+                $pivoted[$day] = ['day' => $day, 'count' => 0, 'convertedValues' => []];
+            }
+            $pivoted[$day]['count'] += (int) $row['count'];
+            $pivoted[$day]['convertedValues'][$row['currency']] = [
+                'income'  => (float) $row['income'],
+                'expense' => (float) $row['expense'],
+            ];
+        }
+
+        return array_values($pivoted);
+    }
+
+    /**
+     * Returns actual income/expense amounts per category for a given date range,
+     * grouped by the account's native currency (same pivot pattern as countByDayForAccounts).
+     * Only includes categories where is_affecting_profit = 1.
+     *
+     * @return array<array{categoryId: int, convertedValues: array<string, array{income: float, expense: float}>}>
+     */
+    public function getActualsByCategoryForPeriod(\DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        $conn = $this->getEntityManager()->getConnection();
+
+        $rows = $conn->executeQuery(
+            "SELECT
+                t.category_id,
+                a.currency,
+                SUM(CASE WHEN t.type = 'income'  THEN CAST(t.amount AS DECIMAL(18,8)) ELSE 0 END) AS income,
+                SUM(CASE WHEN t.type = 'expense' THEN CAST(t.amount AS DECIMAL(18,8)) ELSE 0 END) AS expense
+             FROM transaction t
+             JOIN account a ON a.id = t.account_id
+             JOIN category c ON c.id = t.category_id
+             WHERE t.executed_at >= :start
+               AND t.executed_at <= :end
+               AND c.is_affecting_profit = 1
+             GROUP BY t.category_id, a.currency
+             ORDER BY t.category_id ASC, a.currency ASC",
+            [
+                'start' => $start->format('Y-m-d H:i:s'),
+                'end'   => $end->format('Y-m-d H:i:s'),
+            ],
+        )->fetchAllAssociative();
+
+        $pivoted = [];
+        foreach ($rows as $row) {
+            $catId = (int) $row['category_id'];
+            if (!isset($pivoted[$catId])) {
+                $pivoted[$catId] = ['categoryId' => $catId, 'convertedValues' => []];
+            }
+            $pivoted[$catId]['convertedValues'][$row['currency']] = [
+                'income'  => (float) $row['income'],
+                'expense' => (float) $row['expense'],
+            ];
+        }
+
+        return array_values($pivoted);
     }
 }

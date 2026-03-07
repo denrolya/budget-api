@@ -24,7 +24,6 @@ use Gedmo\Mapping\Annotation as Gedmo;
 use JMS\Serializer\Annotation as Serializer;
 use Random\RandomException;
 use Symfony\Component\Serializer\Annotation\Groups;
-use Symfony\Component\Serializer\Annotation\SerializedName;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\HasLifecycleCallbacks]
@@ -204,13 +203,6 @@ class Account implements OwnableInterface
   ])]
   private string $color;
 
-  #[ORM\OneToMany(mappedBy: "account", targetEntity: AccountLogEntry::class, cascade: [
-    "persist",
-    "remove",
-  ], fetch: "EAGER", orphanRemoval: true)]
-  #[ORM\OrderBy(["createdAt" => "ASC"])]
-  private ?Collection $logs;
-
   #[Groups(['account:item:read'])]
   #[ApiProperty]
   #[Serializer\Groups(['account:item:read'])]
@@ -233,7 +225,6 @@ class Account implements OwnableInterface
   {
     $this->transactions = new ArrayCollection();
     $this->color = '#' . str_pad(dechex(random_int(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT);
-    $this->logs = new ArrayCollection();
   }
 
   public function __toString(): string
@@ -400,56 +391,12 @@ class Account implements OwnableInterface
     return count($this->transactions);
   }
 
-  public function getLogs(): Collection
-  {
-    return $this->logs;
-  }
-
-  public function addLog(AccountLogEntry $log): self
-  {
-    if (!$this->logs->contains($log)) {
-      $this->logs[] = $log;
-      $log->setAccount($this);
-    }
-
-    return $this;
-  }
-
-  public function removeLog(AccountLogEntry $log): self
-  {
-    // set the owning side to null (unless already changed)
-    if ($this->logs->removeElement($log) && $log->getAccount() === $this) {
-      $log->setAccount(null);
-    }
-
-    return $this;
-  }
-
   #[Groups(['account:item:read'])]
   #[Serializer\VirtualProperty]
   #[Serializer\Groups(['account:item:read'])]
   public function getLatestTransactions(int $numberOfItems = 10): array
   {
     return array_slice($this->transactions->toArray(), -$numberOfItems, $numberOfItems);
-  }
-
-  #[Groups(['account:item:read'])]
-  #[SerializedName('logs')]
-  #[Serializer\VirtualProperty]
-  #[Serializer\SerializedName('logs')]
-  #[Serializer\Groups(['account:item:read'])]
-  public function getLogsWithinDateRange(?CarbonInterface $from = null, ?CarbonInterface $to = null): array
-  {
-    if (!$from && !$to) {
-      $to = CarbonImmutable::now();
-      $from = $to->sub('months', 6)->startOf('day');
-    }
-
-    return array_values(
-      $this->logs->filter(static function (AccountLogEntry $log) use ($from, $to) {
-        return $log->getCreatedAt()->isBetween($from, $to);
-      })->toArray()
-    );
   }
 
   public function getTopExpenseCategories(): array

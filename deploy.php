@@ -7,11 +7,14 @@
  *
  * Usage:
  *   vendor/bin/dep deploy production          — full deploy (tests → build → symlink)
+ *   vendor/bin/dep deploy:dev production      — deploy with dev deps + Symfony profiler (APP_ENV=dev)
  *   vendor/bin/dep app:logs production        — tail production log (last 100 lines)
  *   vendor/bin/dep app:shell production       — interactive SSH session
  *   vendor/bin/dep app:cache:clear production — clear + warm Symfony cache remotely
  *   vendor/bin/dep app:php:restart production — reload php-fpm (after php.ini changes)
  *   vendor/bin/dep app:php_ini:upload production — push local php.ini to server
+ *   vendor/bin/dep env:pull production        — download production .env → .env.production locally
+ *   vendor/bin/dep env:push production        — upload local .env.production → production shared/.env
  *   vendor/bin/dep db:pull production         — copy remote DB → local
  *   vendor/bin/dep db:push production         — copy local DB → remote (backs up first)
  *   vendor/bin/dep db:backup production       — create timestamped remote SQL dump
@@ -24,33 +27,38 @@ namespace Deployer;
 require 'recipe/symfony.php';
 
 // ── Load .env → .env.local (same precedence order as Symfony) ─────────────────
-function loadEnvFile(string $path): void
-{
-    if (!file_exists($path)) {
-        return;
-    }
-    foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        $line = trim($line);
-        if ($line === '' || $line[0] === '#' || !str_contains($line, '=')) {
+// Collect all files first so later files (e.g. .env.local) properly override
+// earlier ones (e.g. .env), then apply in a single pass so real system env
+// vars (set before this script runs) still win over everything.
+(function (): void {
+    $vars = [];
+    foreach ([__DIR__ . '/.env', __DIR__ . '/.env.local'] as $path) {
+        if (!file_exists($path)) {
             continue;
         }
-        [$key, $val] = array_map('trim', explode('=', $line, 2));
-        $quoted = strlen($val) >= 2
-            && (($val[0] === '"' && $val[-1] === '"') || ($val[0] === "'" && $val[-1] === "'"));
-        if ($quoted) {
-            $val = substr($val, 1, -1);
-        } elseif (($pos = strpos($val, ' #')) !== false) {
-            $val = rtrim(substr($val, 0, $pos)); // strip inline comment
+        foreach (file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#' || !str_contains($line, '=')) {
+                continue;
+            }
+            [$key, $val] = array_map('trim', explode('=', $line, 2));
+            $quoted = strlen($val) >= 2
+                && (($val[0] === '"' && $val[-1] === '"') || ($val[0] === "'" && $val[-1] === "'"));
+            if ($quoted) {
+                $val = substr($val, 1, -1);
+            } elseif (($pos = strpos($val, ' #')) !== false) {
+                $val = rtrim(substr($val, 0, $pos)); // strip inline comment
+            }
+            $vars[$key] = $val; // later file wins
         }
-        if (getenv($key) === false) { // real env vars win
+    }
+    foreach ($vars as $key => $val) {
+        if (getenv($key) === false) { // real system env vars win
             putenv("$key=$val");
             $_ENV[$key] = $val;
         }
     }
-}
-
-loadEnvFile(__DIR__ . '/.env');
-loadEnvFile(__DIR__ . '/.env.local');
+})();
 
 function env(string $key, mixed $default = null): mixed
 {
@@ -71,6 +79,12 @@ set('shared_dirs',  ['var/log', 'var/sessions', 'config/jwt', 'backups']);
 set('shared_files', ['.env', 'php.ini']);
 set('writable_dirs', ['var']);
 set('writable_mode', 'acl');
+
+// Skip Composer post-install scripts (cache:clear, assets:install, etc.) during
+// deploy:vendors — they would run without --env=prod and fail on a no-dev install
+// because dev bundles (MakerBundle etc.) are not present.
+// Our deploy:cache:clear task handles cache:clear + cache:warmup with --env=prod.
+set('composer_options', '--prefer-dist --no-progress --no-interaction --no-dev --optimize-autoloader --no-scripts');
 
 // ── Host ──────────────────────────────────────────────────────────────────────
 host('production')
@@ -111,6 +125,37 @@ task('deploy', [
     'deploy:cleanup',
     'deploy:success',
 ])->desc('Deploy application to production');
+
+// ── Dev deploy (with profiler) ─────────────────────────────────────────────────
+// Installs dev dependencies (WebProfiler, DebugBundle) and sets APP_ENV=dev.
+// Usage: composer deploy:dev  — or — vendor/bin/dep deploy:dev production
+task('deploy:dev', [
+    'deploy:run_tests',
+    'deploy:info',
+    'deploy:setup',
+    'deploy:lock',
+    'deploy:release',
+    'deploy:update_code',
+    'deploy:shared',
+    'deploy:writable',
+    'deploy:vendors:dev',
+    'deploy:cache:clear:dev',
+    'deploy:symlink',
+    'deploy:unlock',
+    'deploy:cleanup',
+    'deploy:success',
+])->desc('Deploy with dev dependencies + Symfony profiler enabled (APP_ENV=dev)');
+
+task('deploy:vendors:dev', function () {
+    run('cd {{release_or_current_path}} && {{bin/composer}} install --prefer-dist --no-progress --no-interaction --no-scripts');
+    writeln('<info>✓ Vendors installed (including dev).</info>');
+})->desc('Install all vendors including dev dependencies');
+
+task('deploy:cache:clear:dev', function () {
+    run('{{bin/console}} cache:clear --env=dev');
+    run('{{bin/console}} cache:warmup --env=dev');
+    writeln('<info>✓ Dev cache cleared and warmed up.</info>');
+})->desc('Clear & warm up Symfony dev cache');
 
 after('deploy:failed', 'deploy:unlock');
 
@@ -157,6 +202,26 @@ task('app:php_ini:upload', function () {
     invoke('app:php:restart');
     writeln('<info>✓ php.ini uploaded and PHP-FPM reloaded.</info>');
 })->desc('Push local php.ini to the remote shared directory and reload PHP-FPM');
+
+// ── Utility: production .env ───────────────────────────────────────────────────
+task('env:pull', function () {
+    $local = __DIR__ . '/.env.production';
+    download('{{deploy_path}}/shared/.env', $local);
+    writeln("<info>✓ Production .env pulled → $local</info>");
+})->desc('Download production shared/.env to .env.production locally');
+
+task('env:push', function () {
+    $local = __DIR__ . '/.env.production';
+    if (!file_exists($local)) {
+        throw new \RuntimeException("Local .env.production not found. Run env:pull first or create it manually.");
+    }
+    if (!askConfirmation('⚠️  Overwrite production shared/.env with local .env.production?', false)) {
+        writeln('<comment>Aborted.</comment>');
+        return;
+    }
+    upload($local, '{{deploy_path}}/shared/.env');
+    writeln('<info>✓ .env.production pushed to production shared/.env</info>');
+})->desc('Upload local .env.production to production shared/.env');
 
 // ── Utility: database ─────────────────────────────────────────────────────────
 task('db:backup', function () {

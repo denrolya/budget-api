@@ -74,8 +74,8 @@ class Debt implements OwnableInterface, ValuableInterface
 
     #[ORM\OneToMany(mappedBy: 'debt', targetEntity: Transaction::class, cascade: ['persist'], fetch: 'EXTRA_LAZY')]
     #[ORM\OrderBy(['executedAt' => 'DESC'])]
-    #[Groups(['debt:collection:read', 'debt:item:read'])]
-    #[Serializer\Groups(['debt:collection:read'])]
+    #[Groups(['debt:item:read'])]
+    #[Serializer\Groups(['debt:item:read'])]
     private Collection $transactions;
 
     #[ORM\Column(type: Types::JSON, nullable: false)]

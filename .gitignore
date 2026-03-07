@@ -1,4 +1,5 @@
 ###> other ###
+.env.production
 .idea
 *.sql
 .DS_Store

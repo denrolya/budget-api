@@ -19,6 +19,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/statistics', name: 'api_v2_statistics_')]
@@ -191,5 +192,31 @@ class StatisticsController extends AbstractFOSRestController
         return $this->view(
             $statisticsManager->averageByPeriod($transactions, new CarbonPeriod($after, $interval, $before))
         );
+    }
+
+    /**
+     * Returns transaction counts and volumes grouped by day.
+     * Optionally filtered by account IDs.
+     *
+     * Query params:
+     *   after      – ISO date string, default: 1 year ago
+     *   before     – ISO date string, default: today
+     *   accounts[] – optional account ID filter
+     */
+    #[Rest\View]
+    #[Route('/daily', name: 'daily_stats', methods: ['get'])]
+    public function dailyStats(Request $request, TransactionRepository $transactionRepo): View
+    {
+        $after  = CarbonImmutable::parse($request->query->get('after',  '-1 year'))->startOfDay();
+        $before = CarbonImmutable::parse($request->query->get('before', 'now'))->endOfDay();
+
+        $rawIds     = $request->query->all()['accounts'] ?? [];
+        $accountIds = array_values(array_map('intval', array_filter((array) $rawIds, 'is_numeric')));
+
+        $onlyAffectingProfit = filter_var($request->query->get('affectingProfit', false), FILTER_VALIDATE_BOOLEAN);
+
+        return $this->view([
+            'data' => $transactionRepo->countByDayForAccounts($accountIds, $after, $before, $onlyAffectingProfit),
+        ]);
     }
 }

@@ -10,10 +10,6 @@ framework:
     messenger:
         transports:
             sync: 'sync://'
-        routing:
-            'App\Message\UpdateAccountLogsOnTransactionCreateMessage': sync
-            'App\Message\UpdateAccountLogsOnTransactionUpdateMessage': sync
-            'App\Message\UpdateAccountLogsOnTransactionRemoveMessage': sync
 
     # Enables session support. Note that the session will ONLY be started if you read or write from it.
     # Remove or comment this section to explicitly disable session support.

@@ -91,10 +91,6 @@ services:
             - { name: doctrine.event_listener, event: prePersist }
             - { name: doctrine.event_listener, event: preUpdate }
 
-    App\EventListener\AccountLogger:
-        tags:
-            - { name: doctrine.event_listener, event: onFlush }
-
 when@test:
     services:
         _defaults:
