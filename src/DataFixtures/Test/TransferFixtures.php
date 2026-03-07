@@ -1,7 +1,10 @@
 <?php
 namespace App\DataFixtures\Test;
 
+use App\Entity\BankCardAccount;
+use App\Entity\CashAccount;
 use App\Entity\Transfer;
+use App\Entity\User;
 use App\EventListener\TransactionListener;
 use App\EventListener\TransferCreateTransactionsHandler;
 use App\EventListener\ValuableEntityEventListener;
@@ -24,9 +27,9 @@ class TransferFixtures extends Fixture implements DependentFixtureInterface
         $this->valuableEntityListener->setEnabled(false);
         $this->transferHandler->setEnabled(false);
 
-        $user = $this->getReference('test_user');
-        $eurAccount = $this->getReference('account_eur_cash');
-        $uahAccount = $this->getReference('account_uah_card');
+        $user = $this->getReference('test_user', User::class);
+        $eurAccount = $this->getReference('account_eur_cash', CashAccount::class);
+        $uahAccount = $this->getReference('account_uah_card', BankCardAccount::class);
 
         $transfer = new Transfer();
         $transfer->setFrom($eurAccount)

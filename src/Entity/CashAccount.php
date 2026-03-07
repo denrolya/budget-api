@@ -2,26 +2,16 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Action\NotFoundAction;
-use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Post;
 use App\Repository\CashAccountRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: CashAccountRepository::class)]
 #[ApiResource(
-    collectionOperations: [
-        'post' => [
-            'path' => '/accounts/cash',
-            'normalization_context' => ['groups' => 'account:write'],
-        ],
-    ],
-    itemOperations: [
-        'get' => [
-            'controller' => NotFoundAction::class,
-            'read' => false,
-            'output' => false,
-        ],
+    operations: [
+        new Post(uriTemplate: '/accounts/cash', normalizationContext: ['groups' => 'account:write']),
     ],
     denormalizationContext: ['groups' => 'account:write'],
 )]

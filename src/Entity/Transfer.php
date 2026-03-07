@@ -2,11 +2,16 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Annotation\ApiFilter;
-use ApiPlatform\Core\Annotation\ApiResource;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
 use App\ApiPlatform\TransferAccountsFilter;
 use App\ApiPlatform\WithDeletedFilter;
 use App\Repository\TransferRepository;
@@ -25,23 +30,12 @@ use JMS\Serializer\Annotation as Serializer;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: TransferRepository::class)]
 #[ApiResource(
-    collectionOperations: [
-        'get' => [
-            'normalization_context' => ['groups' => 'transfer:collection:read'],
-        ],
-        'post',
-    ],
-    itemOperations: [
-        'get' => [
-            'requirements' => ['id' => '\d+'],
-            'normalization_context' => ['groups' => 'transfer:item:read'],
-        ],
-        'put' => [
-            'requirements' => ['id' => '\d+'],
-        ],
-        'delete' => [
-            'requirements' => ['id' => '\d+'],
-        ],
+    operations: [
+        new GetCollection(normalizationContext: ['groups' => 'transfer:collection:read']),
+        new Post(),
+        new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transfer:item:read']),
+        new Put(requirements: ['id' => '\d+']),
+        new Delete(requirements: ['id' => '\d+']),
     ],
     denormalizationContext: ['groups' => 'transfer:write'],
     order: ['executedAt' => 'DESC'],
@@ -233,7 +227,7 @@ class Transfer implements OwnableInterface
                 ) === Category::CATEGORY_TRANSFER_FEE
         )->first();
 
-        return $transaction ?: null;
+        return $transaction !== false ? $transaction : null;
     }
 
     public function getFromExpense(): ?Expense
@@ -243,7 +237,7 @@ class Transfer implements OwnableInterface
                 ) === Category::CATEGORY_TRANSFER
         )->first();
 
-        return $transaction ?: null;
+        return $transaction !== false ? $transaction : null;
     }
 
     public function getToIncome(): ?Income
@@ -253,6 +247,6 @@ class Transfer implements OwnableInterface
                 ) === Category::CATEGORY_TRANSFER
         )->first();
 
-        return $transaction ?: null;
+        return $transaction !== false ? $transaction : null;
     }
 }

@@ -3,6 +3,7 @@ namespace App\DataFixtures\Dev;
 
 use App\Entity\Account;
 use App\Entity\Transfer;
+use App\Entity\User;
 use Carbon\CarbonImmutable;
 use Doctrine\Persistence\ObjectManager;
 
@@ -10,7 +11,7 @@ class TransferFixtures extends BaseTransactionFixtures
 {
     public function load(ObjectManager $manager): void
     {
-        $user = $this->getReference('dev_user');
+        $user = $this->getReference('dev_user', User::class);
 
         $this->disableListeners();
 

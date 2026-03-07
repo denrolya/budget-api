@@ -94,7 +94,7 @@ class TransferRepository extends ServiceEntityRepository
         }
 
 
-        if (!empty($accounts)) {
+        if ($accounts !== []) {
             $qb->andWhere('(fa.name IN (:accounts) OR ta.name IN (:accounts))')
                 ->setParameter('accounts', $accounts);
         }

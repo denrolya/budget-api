@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Serializer\Exception\ExceptionInterface;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\ConstraintViolationInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -23,7 +24,7 @@ final readonly class TransactionBulkCreateAction
 {
     public function __construct(
         private EntityManagerInterface $em,
-        private SerializerInterface $serializer,
+        private SerializerInterface&DenormalizerInterface $serializer,
         private ValidatorInterface $validator,
         private AssetsManager $assetsManager,
     ) {

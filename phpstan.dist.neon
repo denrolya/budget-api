@@ -32,10 +32,7 @@ parameters:
             - %currentWorkingDirectory%/var/*
             - %currentWorkingDirectory%/vendor/*
 
-    ignoreErrors:
-        # Remove or minimize ignores to catch more issues
-        # Only ignore specific known false positives
-        - '#^Call to an undefined method Symfony\\Component\\DependencyInjection\\ContainerInterface::get\(\)$#'
+    ignoreErrors: []
 
     treatPhpDocTypesAsCertain: true
 

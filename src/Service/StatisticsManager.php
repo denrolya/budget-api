@@ -101,9 +101,9 @@ final class StatisticsManager
         string $type = null,
         array $categories = []
     ): array {
-        $categories = $categories ?: $this->getRootCategories($type);
+        $categories = $categories !== [] ? $categories : $this->getRootCategories($type);
 
-        if (empty($categories) || empty($transactions)) {
+        if ($categories === [] || $transactions === []) {
             return $categories;
         }
 
@@ -217,7 +217,7 @@ final class StatisticsManager
         ?array $categories,
         array $transactions
     ): ?array {
-        if (empty($categories)) {
+        if ($categories === null || $categories === []) {
             return null;
         }
 
@@ -261,7 +261,7 @@ final class StatisticsManager
      */
     public function generateTopValueCategoryStatistics(array $transactions): ?array
     {
-        if (empty($transactions)) {
+        if ($transactions === []) {
             return null;
         }
 

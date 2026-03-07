@@ -117,7 +117,7 @@ readonly class ExchangeRateSnapshotResolver
         }
 
         $rates = $this->fixerService->getLatest();
-        if (empty($rates)) {
+        if ($rates === []) {
             throw new \RuntimeException('Failed to fetch latest rates for today.');
         }
 

@@ -29,12 +29,12 @@ final class DebtFeatureTest extends BaseApiTestCase
     {
         parent::setUp();
 
-        $this->debtIncomeCategory = $this->em->getRepository(IncomeCategory::class)->findOneByName(
-            Category::CATEGORY_DEBT
-        );
-        $this->debtExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneByName(
-            Category::CATEGORY_DEBT
-        );
+        $debtIncome = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => Category::CATEGORY_DEBT]);
+        assert($debtIncome instanceof IncomeCategory);
+        $this->debtIncomeCategory = $debtIncome;
+        $debtExpense = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => Category::CATEGORY_DEBT]);
+        assert($debtExpense instanceof ExpenseCategory);
+        $this->debtExpenseCategory = $debtExpense;
     }
 
     /**
@@ -98,10 +98,10 @@ final class DebtFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '10',
                 'note' => 'Test expense',
-                'debt' => $debt->getId(),
+                'debt' => $this->iri($debt),
                 'executedAt' => CarbonImmutable::now()->toIso8601String(),
-                'account' => $this->accountCashUAH->getId(),
-                'category' => $this->debtExpenseCategory->getId(),
+                'account' => $this->iri($this->accountCashUAH),
+                'category' => $this->iri($this->debtExpenseCategory),
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -180,7 +180,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
         $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
             'json' => [
-                'account' => $this->accountCashUAH->getId(),
+                'account' => $this->iri($this->accountCashUAH),
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -219,7 +219,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
             'json' => [
                 'amount' => '20',
-                'account' => $this->accountCashEUR->getId(),
+                'account' => $this->iri($this->accountCashEUR),
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -286,10 +286,10 @@ final class DebtFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '10',
                 'note' => 'Test income',
-                'debt' => $debt->getId(),
+                'debt' => $this->iri($debt),
                 'executedAt' => CarbonImmutable::now()->toIso8601String(),
-                'account' => $this->accountCashUAH->getId(),
-                'category' => $this->debtIncomeCategory->getId(),
+                'account' => $this->iri($this->accountCashUAH),
+                'category' => $this->iri($this->debtIncomeCategory),
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -368,7 +368,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
         $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
             'json' => [
-                'account' => $this->accountCashUAH->getId(),
+                'account' => $this->iri($this->accountCashUAH),
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -406,7 +406,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
             'json' => [
                 'amount' => '20',
-                'account' => $this->accountCashEUR->getId(),
+                'account' => $this->iri($this->accountCashEUR),
             ],
         ]);
         self::assertResponseIsSuccessful();

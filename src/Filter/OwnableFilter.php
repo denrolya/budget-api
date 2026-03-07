@@ -3,7 +3,7 @@
 namespace App\Filter;
 
 use App\Entity\OwnableInterface;
-use Doctrine\ORM\Mapping\ClassMetaData;
+use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Filter\SQLFilter;
 use Symfony\Component\Security\Core\Security;
 

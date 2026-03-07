@@ -2,6 +2,7 @@
 
 namespace App\Tests;
 
+use ApiPlatform\Api\IriConverterInterface;
 use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use ApiPlatform\Symfony\Bundle\Test\Client;
 use App\Entity\Account;
@@ -16,11 +17,10 @@ use App\Service\FixerService;
 use Carbon\CarbonInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
-use Spatie\Snapshots\MatchesSnapshots;
 
 class BaseApiTestCase extends ApiTestCase
 {
-    use WithMockFixerTrait, WithMockAssetsManagerTrait, MatchesSnapshots;
+    use WithMockFixerTrait, WithMockAssetsManagerTrait;
 
     protected const EXPENSE_URL = '/api/transactions/expense';
     protected const INCOME_URL = '/api/transactions/income';
@@ -51,16 +51,21 @@ class BaseApiTestCase extends ApiTestCase
     {
         $this->reloadClientWithServices();
 
-        $this->testUser = $this->em->getRepository(User::class)->findOneByUsername(self::TEST_USERNAME);
-        $this->accountCashEUR = $this->em->getRepository(Account::class)->findOneBy(['name' => 'EUR Cash', 'owner' => $this->testUser]);
-        $this->accountCashUAH = $this->em->getRepository(Account::class)->findOneBy(['name' => 'UAH Card', 'owner' => $this->testUser]);
+        $user = $this->em->getRepository(User::class)->findOneBy(['username' => self::TEST_USERNAME]);
+        assert($user instanceof User);
+        $this->testUser = $user;
+        $account = $this->em->getRepository(Account::class)->findOneBy(['name' => 'EUR Cash', 'owner' => $this->testUser]);
+        assert($account instanceof Account);
+        $this->accountCashEUR = $account;
+        $account = $this->em->getRepository(Account::class)->findOneBy(['name' => 'UAH Card', 'owner' => $this->testUser]);
+        assert($account instanceof Account);
+        $this->accountCashUAH = $account;
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->em->clear();
-        $this->em->close();
+        $this->em?->clear();
         $this->em = null;
         self::ensureKernelShutdown();
         gc_enable();
@@ -69,7 +74,7 @@ class BaseApiTestCase extends ApiTestCase
 
     protected function createClientWithCredentials($token = null): Client
     {
-        $token = $token ?: $this->getToken();
+        $token = $token ?? $this->getToken();
 
         return static::createClient([], ['headers' => ['authorization' => 'Bearer '.$token]]);
     }
@@ -91,10 +96,20 @@ class BaseApiTestCase extends ApiTestCase
         return $this->authToken;
     }
 
+    /**
+     * Returns the API Platform IRI for any API resource entity.
+     * Use this instead of plain getId() calls when building request payloads
+     * for relation fields (AP3 requires IRIs, not plain integer IDs).
+     */
+    protected function iri(object $entity): string
+    {
+        return self::getContainer()->get(IriConverterInterface::class)->getIriFromResource($entity);
+    }
+
     protected function buildURL(string $path, array $queryParams): string
     {
         $url = $path;
-        if (!empty($queryParams)) {
+        if ($queryParams !== []) {
             $url .= '?'.http_build_query($queryParams);
         }
 
@@ -142,11 +157,13 @@ class BaseApiTestCase extends ApiTestCase
         }
 
         foreach ($compensations as $compensation) {
+            $compensationCategory = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => 'Compensation']);
+            assert($compensationCategory instanceof IncomeCategory);
             $income = new Income();
             $income
                 ->setAmount($compensation['amount'])
                 ->setExecutedAt($compensation['executedAt'])
-                ->setCategory($this->em->getRepository(IncomeCategory::class)->findOneByName('Compensation'))
+                ->setCategory($compensationCategory)
                 ->setAccount($compensation['account'])
                 ->setNote($compensation['note'])
                 ->setOwner($account->getOwner());

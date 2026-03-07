@@ -2,12 +2,17 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Annotation\ApiFilter;
-use ApiPlatform\Core\Annotation\ApiResource;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\RangeFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
 use App\ApiPlatform\CategoryDeepSearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
 use App\ApiPlatform\Action\TransactionBulkCreateAction;
@@ -30,75 +35,45 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\DiscriminatorColumn(name: "type", type: "string")]
 #[ORM\DiscriminatorMap(["expense" => Expense::class, "income" => Income::class])]
 #[ApiResource(
-    collectionOperations: [
-        'get' => [
-            'normalization_context' => ['groups' => 'transaction:collection:read'],
-        ],
-        'get_monobank' => [
-            'method' => 'GET',
-            'path' => '/monobank/transactions',
-            'status' => 200,
-        ],
-        'post_monobank' => [
-            'method' => 'POST',
-            'path' => '/monobank/transactions',
-            'input' => MonobankResponse::class,
-            'status' => 200,
-            'denormalization_context' => ['groups' => 'transaction:write'],
-            'normalization_context' => ['groups' => 'transaction:collection:read'],
-        ],
-        'post_bulk' => [
-            'method' => 'POST',
-            'path' => '/transactions/bulk',
-            'controller' => TransactionBulkCreateAction::class,
-            'deserialize' => false,
-            'status' => 201,
-            'swagger_context' => [
-                'summary' => 'Bulk create transactions',
-                'description' => 'Create multiple income/expense transactions in a single request.',
-                'requestBody' => [
-                    'required' => true,
+    operations: [
+        new GetCollection(normalizationContext: ['groups' => 'transaction:collection:read']),
+        new GetCollection(name: 'get_monobank', uriTemplate: '/monobank/transactions', status: 200),
+        new Post(name: 'post_monobank', uriTemplate: '/monobank/transactions', input: MonobankResponse::class, status: 200, denormalizationContext: ['groups' => 'transaction:write'], normalizationContext: ['groups' => 'transaction:collection:read']),
+        new Post(name: 'post_bulk', uriTemplate: '/transactions/bulk', controller: TransactionBulkCreateAction::class, deserialize: false, status: 201, openapiContext: [
+            'summary' => 'Bulk create transactions',
+            'description' => 'Create multiple income/expense transactions in a single request.',
+            'requestBody' => [
+                'required' => true,
+                'content' => [
+                    'application/json' => [
+                        'schema' => [
+                            'type' => 'array',
+                            'items' => [
+                                '$ref' => '#/components/schemas/Transaction-Write',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'responses' => [
+                '201' => [
+                    'description' => 'Transactions created',
                     'content' => [
                         'application/json' => [
                             'schema' => [
                                 'type' => 'array',
                                 'items' => [
-                                    '$ref' => '#/components/schemas/Transaction-Write',
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-                'responses' => [
-                    '201' => [
-                        'description' => 'Transactions created',
-                        'content' => [
-                            'application/json' => [
-                                'schema' => [
-                                    'type' => 'array',
-                                    'items' => [
-                                        '$ref' => '#/components/schemas/Transaction-Read',
-                                    ],
+                                    '$ref' => '#/components/schemas/Transaction-Read',
                                 ],
                             ],
                         ],
                     ],
                 ],
             ],
-        ],
-    ],
-    itemOperations: [
-        'get' => [
-            'requirements' => ['id' => '\d+'],
-            'normalization_context' => ['groups' => 'transaction:item:read'],
-        ],
-        'put' => [
-            'requirements' => ['id' => '\d+'],
-            'normalization_context' => ['groups' => 'transaction:collection:read'],
-        ],
-        'delete' => [
-            'requirements' => ['id' => '\d+'],
-        ],
+        ]),
+        new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transaction:item:read']),
+        new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transaction:collection:read']),
+        new Delete(requirements: ['id' => '\d+']),
     ],
     denormalizationContext: ['groups' => 'transaction:write'],
     order: ['executedAt' => 'DESC'],

@@ -2,39 +2,23 @@
 
 namespace App\ApiPlatform;
 
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\AbstractFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use ApiPlatform\Doctrine\Orm\Filter\AbstractFilter;
+use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use ApiPlatform\Metadata\Operation;
 use App\Entity\Category;
 use Doctrine\ORM\QueryBuilder;
-use Doctrine\Persistence\ManagerRegistry;
-use JetBrains\PhpStorm\ArrayShape;
-use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\PropertyInfo\Type;
-use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 
 /**
- * TODO: Document properly
+ * Filters transactions by category and all its descendants.
  */
 final class CategoryDeepSearchFilter extends AbstractFilter
 {
     private const PROPERTY_NAME = 'categoryDeep';
 
-    public function __construct(
-        ManagerRegistry        $managerRegistry,
-        ?RequestStack          $requestStack = null,
-        LoggerInterface        $logger = null,
-        array                  $properties = null,
-        NameConverterInterface $nameConverter = null,
-    )
-    {
-        parent::__construct($managerRegistry, $requestStack, $logger, $properties, $nameConverter);
-    }
-
     /**
      * @inheritDoc
      */
-    #[ArrayShape([self::PROPERTY_NAME => 'array'])]
     public function getDescription(string $resourceClass): array
     {
         return [
@@ -50,7 +34,7 @@ final class CategoryDeepSearchFilter extends AbstractFilter
                 ],
                 'openapi' => [
                     'name' => self::PROPERTY_NAME,
-                    'description' => 'Filter by categories and theirs descendants',
+                    'description' => 'Filter by categories and their descendants',
                     'type' => Type::BUILTIN_TYPE_ARRAY,
                 ],
             ],
@@ -62,22 +46,22 @@ final class CategoryDeepSearchFilter extends AbstractFilter
      */
     protected function filterProperty(
         string                      $property,
-        mixed                       $value,
+        $value,
         QueryBuilder                $queryBuilder,
         QueryNameGeneratorInterface $queryNameGenerator,
         string                      $resourceClass,
-        string                      $operationName = null
-    ): void
-    {
-        if($property !== self::PROPERTY_NAME) {
+        ?Operation                  $operation = null,
+        array                       $context = []
+    ): void {
+        if ($property !== self::PROPERTY_NAME) {
             return;
         }
 
-        if(!empty($value)) {
+        if ($value !== [] && $value !== null) {
             $categories = [];
-            foreach($value as $categoryId) {
+            foreach ($value as $categoryId) {
                 $em = $queryBuilder->getEntityManager();
-                if(!$category = $em->getRepository(Category::class)->find($categoryId)) {
+                if (!$category = $em->getRepository(Category::class)->find($categoryId)) {
                     continue;
                 }
                 $categories = [...$categories, ...$category->getDescendantsFlat()];
@@ -85,7 +69,7 @@ final class CategoryDeepSearchFilter extends AbstractFilter
 
             $alias = $queryBuilder->getRootAliases()[0];
 
-            if(!empty($categories)) {
+            if ($categories !== []) {
                 $queryBuilder->andWhere("$alias.category IN (:categories)")
                     ->setParameter('categories', array_map(static function (Category $category) {
                         return $category->getId();

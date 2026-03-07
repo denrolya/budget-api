@@ -2,8 +2,8 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Action\NotFoundAction;
-use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Post;
 use App\Repository\ExpenseCategoryRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -11,18 +11,8 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: ExpenseCategoryRepository::class)]
 #[ApiResource(
-    collectionOperations: [
-        'post' => [
-            'path' => '/categories/expense',
-            'normalization_context' => ['groups' => 'category:write'],
-        ],
-    ],
-    itemOperations: [
-        'get' => [
-            'controller' => NotFoundAction::class,
-            'read' => false,
-            'output' => false,
-        ],
+    operations: [
+        new Post(uriTemplate: '/categories/expense', normalizationContext: ['groups' => 'category:write']),
     ],
     denormalizationContext: ['groups' => 'category:write'],
     paginationEnabled: false,

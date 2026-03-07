@@ -8,14 +8,12 @@
         "ext-ctype":                            "*",
         "ext-iconv":                            "*",
         "ext-zend-opcache":                     "*",
-        "api-platform/core":                    "^2.7",
+        "api-platform/core":                    "^3.0",
         "beberlei/doctrineextensions":          "^1.4",
-        "composer/package-versions-deprecated": "1.11.99.4",
-        "doctrine/annotations":                 "^1.14",
         "doctrine/doctrine-bundle":             "^2.11",
         "doctrine/doctrine-migrations-bundle":  "^3.3",
         "doctrine/orm":                         "~2.16",
-        "friendsofsymfony/rest-bundle":         "3.7.0",
+        "friendsofsymfony/rest-bundle":         "^3.7",
         "league/csv":                           "^9.27",
         "lexik/jwt-authentication-bundle":      "^2.20",
         "nelmio/cors-bundle":                   "^2.4",
@@ -23,30 +21,28 @@
         "phpdocumentor/reflection-docblock":    "^5.3",
         "phpstan/phpdoc-parser":                "^1.28",
         "scienta/doctrine-json-functions":      "^6.1",
-        "sensio/framework-extra-bundle":        "^6.2",
         "stof/doctrine-extensions-bundle":      "^1.10",
-        "symfony/asset":                        "5.4.*",
-        "symfony/console":                      "5.4.*",
-        "symfony/dotenv":                       "5.4.*",
-        "symfony/expression-language":          "5.4.*",
-        "symfony/flex":                         "^1.17|^2",
-        "symfony/framework-bundle":             "5.4.*",
-        "symfony/http-client":                  "5.4.*",
-        "symfony/messenger":                    "5.4.*",
+        "symfony/asset":                        "6.4.*",
+        "symfony/console":                      "6.4.*",
+        "symfony/dotenv":                       "6.4.*",
+        "symfony/expression-language":          "6.4.*",
+        "symfony/flex":                         "^2",
+        "symfony/framework-bundle":             "6.4.*",
+        "symfony/http-client":                  "6.4.*",
+        "symfony/messenger":                    "6.4.*",
         "symfony/monolog-bundle":               "^3.10",
-        "symfony/property-access":              "5.4.*",
-        "symfony/property-info":                "5.4.*",
-        "symfony/proxy-manager-bridge":         "5.4.*",
-        "symfony/runtime":                      "5.4.*",
-        "symfony/security-bundle":              "5.4.*",
-        "symfony/serializer":                   "5.4.*",
-        "symfony/twig-bundle":                  "5.4.*",
-        "symfony/validator":                    "5.4.*",
-        "symfony/yaml":                         "5.4.*"
+        "symfony/property-access":              "6.4.*",
+        "symfony/property-info":                "6.4.*",
+        "symfony/runtime":                      "6.4.*",
+        "symfony/security-bundle":              "6.4.*",
+        "symfony/serializer":                   "6.4.*",
+        "symfony/twig-bundle":                  "6.4.*",
+        "symfony/validator":                    "6.4.*",
+        "symfony/yaml":                         "6.4.*"
     },
     "require-dev":       {
         "dama/doctrine-test-bundle":          "^8.0",
-        "deployer/deployer":                  "^6.9",
+        "deployer/deployer":                  "^7.0",
         "doctrine/doctrine-fixtures-bundle":  "^3.5",
         "fakerphp/faker":                     "^1.23",
         "jms/serializer-bundle":              "^5.4",
@@ -57,21 +53,18 @@
         "phpstan/phpstan-symfony":            "^1.4",
         "phpunit/php-code-coverage":          "^9.2",
         "phpunit/phpunit":                    "^9.6",
-        "roave/security-advisories":          "dev-latest",
-        "spatie/phpunit-snapshot-assertions": "^4.2",
-        "symfony/browser-kit":                "5.4.*",
-        "symfony/css-selector":               "5.4.*",
-        "symfony/debug-bundle":               "5.4.*",
+        "symfony/browser-kit":                "6.4.*",
+        "symfony/css-selector":               "6.4.*",
+        "symfony/debug-bundle":               "6.4.*",
         "symfony/maker-bundle":               "^1.50",
         "symfony/phpunit-bridge":             "^6.4",
-        "symfony/stopwatch":                  "5.4.*",
-        "symfony/web-profiler-bundle":        "5.4.*"
+        "symfony/stopwatch":                  "6.4.*",
+        "symfony/web-profiler-bundle":        "6.4.*"
     },
     "config":            {
         "allow-plugins":       {
-            "composer/package-versions-deprecated": true,
-            "symfony/flex":                         true,
-            "symfony/runtime":                      true
+            "symfony/flex":    true,
+            "symfony/runtime": true
         },
         "optimize-autoloader": true,
         "preferred-install":   {
@@ -97,8 +90,7 @@
     },
     "scripts":           {
         "auto-scripts":       {
-            "cache:clear":                 "symfony-cmd",
-            "assets:install %PUBLIC_DIR%": "symfony-cmd"
+            "cache:clear": "symfony-cmd"
         },
         "post-install-cmd":   [
             "@auto-scripts"
@@ -110,10 +102,12 @@
         "test-verbose":       "phpunit --colors --testdox --verbose",
         "test-clover":        "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-clover=coverage/coverage.xml",
         "test-coverage":      "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-html=coverage/html",
-        "deploy":             "vendor/bin/dep deploy",
-        "db2loc":             "vendor/bin/dep database:copy:to_local",
-        "db2rem":             "vendor/bin/dep database:copy:to_remote",
-        "backup-remote-db":   "vendor/bin/dep database:backup:to_local",
+        "deploy":             "vendor/bin/dep deploy production",
+        "shell":              "vendor/bin/dep app:shell production",
+        "logs":               "vendor/bin/dep app:logs production",
+        "db:pull":            "vendor/bin/dep db:pull production",
+        "db:push":            "vendor/bin/dep db:push production",
+        "db:backup":          "vendor/bin/dep db:backup production",
         "phpstan":            "vendor/bin/phpstan analyse",
         "load-test-fixtures": [
             "bin/console doctrine:database:drop --force --env=test",
@@ -128,7 +122,7 @@
     "extra":             {
         "symfony": {
             "allow-contrib": false,
-            "require":       "5.4.*"
+            "require":       "6.4.*"
         }
     }
 }

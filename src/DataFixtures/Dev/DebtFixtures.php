@@ -5,6 +5,7 @@ use App\Entity\Account;
 use App\Entity\Debt;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
+use App\Entity\User;
 use Carbon\CarbonImmutable;
 use Doctrine\Persistence\ObjectManager;
 use Faker\Factory;
@@ -14,14 +15,14 @@ class DebtFixtures extends BaseTransactionFixtures
     public function load(ObjectManager $manager): void
     {
         $faker = Factory::create();
-        $user = $this->getReference('dev_user');
+        $user = $this->getReference('dev_user', User::class);
         $allowedCurrencies = $this->params->get('allowed_currencies');
         $baseCurrency = $this->params->get('base_currency');
 
         $this->disableListeners();
 
         $accounts = $manager->getRepository(Account::class)->findAll();
-        if (empty($accounts)) {
+        if ($accounts === []) {
             $this->enableListeners();
             return;
         }

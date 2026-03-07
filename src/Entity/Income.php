@@ -2,8 +2,8 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Action\NotFoundAction;
-use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Post;
 use App\Repository\IncomeRepository;
 use Doctrine\ORM\Mapping as ORM;
 use JMS\Serializer\Annotation as Serializer;
@@ -13,18 +13,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: IncomeRepository::class)]
 #[ApiResource(
-    collectionOperations: [
-        'post' => [
-            'path' => '/transactions/income',
-            'normalization_context' => ['groups' => 'transaction:collection:read'],
-        ],
-    ],
-    itemOperations: [
-        'get' => [
-            'controller' => NotFoundAction::class,
-            'read' => false,
-            'output' => false,
-        ],
+    operations: [
+        new Post(uriTemplate: '/transactions/income', normalizationContext: ['groups' => 'transaction:collection:read']),
     ],
     denormalizationContext: ['groups' => 'transaction:write'],
 )]

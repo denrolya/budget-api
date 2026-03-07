@@ -50,7 +50,7 @@ class Paginator
 
         $paginator = new DoctrinePaginator($this->query, true);
 
-        $useOutputWalkers = \count($this->queryBuilder->getDQLPart('having') ?: []) > 0;
+        $useOutputWalkers = \count($this->queryBuilder->getDQLPart('having') ?? []) > 0;
         $paginator->setUseOutputWalkers($useOutputWalkers);
 
         $this->results = $paginator->getIterator();

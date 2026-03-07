@@ -36,7 +36,7 @@ final readonly class CSVExporter
         $accountFilter = $this->normalizeIdsOrEntities($accountFilter);
         $excludedCategories = $this->normalizeIdsOrEntities($excludedCategories);
 
-        if ($withNestedCategories && !empty($categoryFilter)) {
+        if ($withNestedCategories && $categoryFilter !== []) {
             $categoryFilter = $this->categories->getCategoriesWithDescendantsByType($categoryFilter, $type);
         }
 
@@ -130,7 +130,7 @@ final readonly class CSVExporter
      */
     private function normalizeIdsOrEntities(?array $values): array
     {
-        if (empty($values)) {
+        if ($values === null || $values === []) {
             return [];
         }
 

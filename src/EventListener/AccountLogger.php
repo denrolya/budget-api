@@ -34,7 +34,7 @@ final class AccountLogger implements ToggleEnabledInterface
 
         foreach ($uow->getScheduledEntityUpdates() as $entity) {
             if ($entity instanceof Transaction) {
-                $this->postUpdate($entity);
+                $this->postUpdate($entity, $uow);
             }
         }
 
@@ -60,23 +60,24 @@ final class AccountLogger implements ToggleEnabledInterface
      * Should invoke logging only if account, amount or execution date was changed;
      *
      * @param Transaction $transaction
+     * @param \Doctrine\ORM\UnitOfWork $uow
      * @return void
      */
-    public function postUpdate(Transaction $transaction): void
+    public function postUpdate(Transaction $transaction, \Doctrine\ORM\UnitOfWork $uow): void
     {
         if (!$this->isEnabled()) {
             return;
         }
 
-        $uow = $this->em->getUnitOfWork();
         $uow->computeChangeSets();
 
         $changes = $uow->getEntityChangeSet($transaction);
 
-        $isAccountChanged = !empty($changes['account']);
-        $isExecutionDateChanged = !empty($changes['executedAt']) && ($changes['executedAt'][0]->getTimestamp(
-                ) !== $changes['executedAt'][1]->getTimestamp());
-        $isAmountChanged = !empty($changes['amount']) && ((float)$changes['amount'][0] !== (float)$changes['amount'][1]);
+        $isAccountChanged = isset($changes['account']) && $changes['account'] !== [];
+        $isExecutionDateChanged = isset($changes['executedAt']) && $changes['executedAt'] !== []
+            && ($changes['executedAt'][0]->getTimestamp() !== $changes['executedAt'][1]->getTimestamp());
+        $isAmountChanged = isset($changes['amount']) && $changes['amount'] !== []
+            && ((float)$changes['amount'][0] !== (float)$changes['amount'][1]);
 
         if (!$isAmountChanged && !$isAccountChanged && !$isExecutionDateChanged) {
             return;

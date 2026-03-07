@@ -1,6 +1,10 @@
 doctrine:
     orm:
+        # Never auto-generate in prod — proxies are created by cache:warmup.
         auto_generate_proxy_classes: false
+        metadata_cache_driver:
+            type: pool
+            pool: doctrine.system_cache_pool
         query_cache_driver:
             type: pool
             pool: doctrine.system_cache_pool
@@ -10,6 +14,11 @@ doctrine:
 
 framework:
     cache:
+        # cache.system uses PhpFilesAdapter (compiled PHP → OPcache) by default,
+        # which is the fastest option without Redis/APCu.
+        # If php-apcu is installed on the server, switch to:
+        #   system: cache.adapter.apcu
+        # for in-memory metadata/query caching (fastest possible, no disk I/O).
         pools:
             doctrine.result_cache_pool:
                 adapter: cache.app

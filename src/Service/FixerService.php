@@ -4,7 +4,6 @@ namespace App\Service;
 
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
-use JetBrains\PhpStorm\ArrayShape;
 use JsonException;
 use Psr\Cache\InvalidArgumentException;
 use RuntimeException;
@@ -47,10 +46,12 @@ class FixerService extends BaseExchangeRatesProvider
         string $currencyCode,
         ?CarbonInterface $executionDate = null
     ): float {
+        $user = $this->security->getUser();
+        assert($user instanceof \App\Entity\User || $user === null);
         return $this->convertTo(
             $amount,
             $currencyCode,
-            $this->security->getUser()?->getBaseCurrency(),
+            $user?->getBaseCurrency(),
             $executionDate?->copy()
         );
     }
@@ -204,7 +205,7 @@ class FixerService extends BaseExchangeRatesProvider
     }
 
 
-    #[ArrayShape(['access_key' => "string", 'base' => "string", 'symbols' => "string"])]
+    /** @return array{access_key: string, base: string, symbols: string} */
     private function getRequestParams(): array
     {
         return [

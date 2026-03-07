@@ -98,7 +98,7 @@ class ExpenseCategoryFixtures extends Fixture implements DependentFixtureInterfa
                 ->setParent($parent)
                 ->setRoot($parent ? $parent->getRoot() ?? $parent : null);
             $manager->persist($category);
-            if (!empty($data['children'])) {
+            if (isset($data['children']) && $data['children'] !== []) {
                 $this->createCategories($manager, $data['children'], $category);
             }
         }

@@ -5,6 +5,7 @@ use App\Entity\Account;
 use App\Entity\BankCardAccount;
 use App\Entity\CashAccount;
 use App\Entity\InternetAccount;
+use App\Entity\User;
 use Carbon\CarbonImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
@@ -19,7 +20,7 @@ class AccountFixtures extends Fixture implements DependentFixtureInterface
     public function load(ObjectManager $manager): void
     {
         $faker = Factory::create();
-        $user = $this->getReference('dev_user');
+        $user = $this->getReference('dev_user', User::class);
         $allowedCurrencies = $this->params->get('allowed_currencies');
         $baseCurrency = $this->params->get('base_currency');
 

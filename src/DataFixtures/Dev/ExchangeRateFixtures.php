@@ -75,19 +75,19 @@ final class ExchangeRateFixtures extends Fixture
             $snapshot->setEffectiveAt($effectiveAt);
 
             if ($rates['usd_per_eur'] !== null) {
-                $snapshot->setUsdPerEur((string)$rates['usd_per_eur']);
+                $snapshot->setUsdPerEur($rates['usd_per_eur']);
             }
             if ($rates['huf_per_eur'] !== null) {
-                $snapshot->setHufPerEur((string)$rates['huf_per_eur']);
+                $snapshot->setHufPerEur($rates['huf_per_eur']);
             }
             if ($rates['uah_per_eur'] !== null) {
-                $snapshot->setUahPerEur((string)$rates['uah_per_eur']);
+                $snapshot->setUahPerEur($rates['uah_per_eur']);
             }
             if ($rates['eur_per_btc'] !== null) {
-                $snapshot->setEurPerBtc((string)$rates['eur_per_btc']);
+                $snapshot->setEurPerBtc($rates['eur_per_btc']);
             }
             if ($rates['eur_per_eth'] !== null) {
-                $snapshot->setEurPerEth((string)$rates['eur_per_eth']);
+                $snapshot->setEurPerEth($rates['eur_per_eth']);
             }
 
             $manager->persist($snapshot);

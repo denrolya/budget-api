@@ -26,10 +26,12 @@ final class CompensationsFeatureTest extends BaseApiTestCase
     {
         parent::setUp();
 
-        $this->testCategory = $this->em->getRepository(ExpenseCategory::class)->findOneByName(self::CATEGORY_GROCERIES);
-        $this->compensationCategory = $this->em->getRepository(IncomeCategory::class)->findOneByName(
-            self::CATEGORY_COMPENSATION
-        );
+        $category = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_GROCERIES]);
+        assert($category instanceof ExpenseCategory);
+        $this->testCategory = $category;
+        $compensation = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => self::CATEGORY_COMPENSATION]);
+        assert($compensation instanceof IncomeCategory);
+        $this->compensationCategory = $compensation;
     }
 
     // ── Create ───────────────────────────────────────────────────────────────
@@ -55,22 +57,22 @@ final class CompensationsFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => $executionDate->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
                 'note' => 'Test transaction',
                 'compensations' => [
                     [
                         'amount' => '25.0',
                         'executedAt' => $executionDate->toIso8601String(),
-                        'category' => (string)$this->compensationCategory->getId(),
-                        'account' => (string)$this->accountCashUAH->getId(),
+                        'category' => $this->iri($this->compensationCategory),
+                        'account' => $this->iri($this->accountCashUAH),
                         'note' => 'Test compensation',
                     ],
                     [
                         'amount' => '25.0',
                         'executedAt' => $executionDate->toIso8601String(),
-                        'category' => (string)$this->compensationCategory->getId(),
-                        'account' => (string)$this->accountCashUAH->getId(),
+                        'category' => $this->iri($this->compensationCategory),
+                        'account' => $this->iri($this->accountCashUAH),
                         'note' => 'Test compensation',
                     ],
                 ],
@@ -236,8 +238,8 @@ final class CompensationsFeatureTest extends BaseApiTestCase
                     [
                         'amount' => '10',
                         'executedAt' => Carbon::now()->toIso8601String(),
-                        'category' => (string)$this->compensationCategory->getId(),
-                        'account' => (string)$this->accountCashUAH->getId(),
+                        'category' => $this->iri($this->compensationCategory),
+                        'account' => $this->iri($this->accountCashUAH),
                         'type' => 'income',
                         'note' => 'New Compensation',
                     ],
@@ -533,15 +535,15 @@ final class CompensationsFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
                 'note' => 'Expense on UAH account',
                 'compensations' => [
                     [
                         'amount' => '60.0',
                         'executedAt' => Carbon::now()->toIso8601String(),
-                        'category' => (string)$this->compensationCategory->getId(),
-                        'account' => (string)$this->accountCashEUR->getId(),
+                        'category' => $this->iri($this->compensationCategory),
+                        'account' => $this->iri($this->accountCashEUR),
                         'note' => 'Compensation from EUR account',
                     ],
                 ],
@@ -574,15 +576,15 @@ final class CompensationsFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '50.0',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
                 'note' => 'Over-compensated expense',
                 'compensations' => [
                     [
                         'amount' => '80.0',
                         'executedAt' => Carbon::now()->toIso8601String(),
-                        'category' => (string)$this->compensationCategory->getId(),
-                        'account' => (string)$this->accountCashUAH->getId(),
+                        'category' => $this->iri($this->compensationCategory),
+                        'account' => $this->iri($this->accountCashUAH),
                         'note' => 'Over-compensation',
                     ],
                 ],

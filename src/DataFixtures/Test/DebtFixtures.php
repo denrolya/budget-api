@@ -1,8 +1,11 @@
 <?php
 namespace App\DataFixtures\Test;
 
+use App\Entity\CashAccount;
 use App\Entity\Debt;
 use App\Entity\Expense;
+use App\Entity\ExpenseCategory;
+use App\Entity\User;
 use App\EventListener\TransactionListener;
 use App\EventListener\ValuableEntityEventListener;
 use Carbon\CarbonImmutable;
@@ -22,9 +25,9 @@ class DebtFixtures extends Fixture implements DependentFixtureInterface
         $this->transactionListener->setEnabled(false);
         $this->valuableEntityListener->setEnabled(false);
 
-        $user = $this->getReference('test_user');
-        $eurAccount = $this->getReference('account_eur_cash');
-        $debtCategory = $this->getReference('cat_exp_debt');
+        $user = $this->getReference('test_user', User::class);
+        $eurAccount = $this->getReference('account_eur_cash', CashAccount::class);
+        $debtCategory = $this->getReference('cat_exp_debt', ExpenseCategory::class);
 
         $debt = new Debt();
         $debt->setDebtor('Test Debtor')

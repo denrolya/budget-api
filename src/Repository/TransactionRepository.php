@@ -30,7 +30,7 @@ class TransactionRepository extends ServiceEntityRepository
 
     public function __construct(ManagerRegistry $registry, ?string $classname = null)
     {
-        parent::__construct($registry, $classname ?: Transaction::class);
+        parent::__construct($registry, $classname ?? Transaction::class);
     }
 
     /**

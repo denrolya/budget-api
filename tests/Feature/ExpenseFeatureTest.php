@@ -20,9 +20,9 @@ final class ExpenseFeatureTest extends BaseApiTestCase
     {
         parent::setUp();
 
-        $this->testCategory = $this->em->getRepository(ExpenseCategory::class)->findOneByName(
-            self::CATEGORY_EXPENSE_GROCERIES
-        );
+        $category = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($category instanceof ExpenseCategory);
+        $this->testCategory = $category;
     }
 
     // ── Create ───────────────────────────────────────────────────────────────
@@ -45,8 +45,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => $executionDate->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
                 'note' => 'Test transaction',
             ],
         ]);
@@ -85,8 +85,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
                 'note' => 'Test transaction',
             ],
         ]);
@@ -119,8 +119,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '200.0',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
                 'note' => 'Draft expense',
                 'isDraft' => true,
             ],
@@ -147,8 +147,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '0',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
             ],
         ]);
 
@@ -166,8 +166,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '-50',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
             ],
         ]);
 
@@ -265,7 +265,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
         $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
             'json' => [
-                'account' => (string)$this->accountCashEUR->getId(),
+                'account' => $this->iri($this->accountCashEUR),
                 'note' => 'Updated transaction note',
             ],
         ]);
@@ -316,7 +316,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
         $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
             'json' => [
-                'account' => (string)$this->accountCashEUR->getId(),
+                'account' => $this->iri($this->accountCashEUR),
                 'amount' => '50',
                 'note' => 'Updated transaction note',
             ],
@@ -436,7 +436,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
     {
         $this->mockAssetsManager->expects(self::exactly(1))->method('convert');
 
-        $eatingOutCategory = $this->em->getRepository(ExpenseCategory::class)->findOneByName('Eating Out');
+        $eatingOutCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Eating Out']);
+        assert($eatingOutCategory instanceof ExpenseCategory);
 
         $groceriesCountBefore = $this->testCategory->getTransactionsCount(false);
         $eatingOutCountBefore = $eatingOutCategory->getTransactionsCount(false);
@@ -452,7 +453,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertEquals($groceriesCountBefore + 1, $this->testCategory->getTransactionsCount(false));
 
         $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
-            'json' => ['category' => (string)$eatingOutCategory->getId()],
+            'json' => ['category' => $this->iri($eatingOutCategory)],
         ]);
         self::assertResponseIsSuccessful();
 

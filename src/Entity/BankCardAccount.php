@@ -2,29 +2,19 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Post;
 use App\Repository\BankCardAccountRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Serializer\Annotation\Groups;
-use ApiPlatform\Core\Action\NotFoundAction;
 use JMS\Serializer\Annotation as Serializer;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: BankCardAccountRepository::class)]
 #[ApiResource(
-    collectionOperations: [
-        'post' => [
-            'path' => '/accounts/bank',
-            'normalization_context' => ['groups' => 'account:write'],
-        ],
-    ],
-    itemOperations: [
-        'get' => [
-            'controller' => NotFoundAction::class,
-            'read' => false,
-            'output' => false,
-        ],
+    operations: [
+        new Post(uriTemplate: '/accounts/bank', normalizationContext: ['groups' => 'account:write']),
     ],
     denormalizationContext: ['groups' => 'account:write'],
 )]

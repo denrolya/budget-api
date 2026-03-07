@@ -2,17 +2,13 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Action\NotFoundAction;
-use ApiPlatform\Core\Annotation\ApiResource;
-use App\DTO\TagInput;
-use App\DTO\TagOutput;
+use ApiPlatform\Metadata\ApiResource;
 use App\Repository\CategoryTagRepository;
 use App\Traits\OwnableEntity;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use JetBrains\PhpStorm\Pure;
 use JMS\Serializer\Annotation as Serializer;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Serializer\Annotation\Groups;
@@ -21,19 +17,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: CategoryTagRepository::class)]
 #[UniqueEntity('name')]
 #[ApiResource(
-    collectionOperations: [],
-    itemOperations: [
-        'get' => [
-            'controller' => NotFoundAction::class,
-            'read' => false,
-            'output' => false,
-        ],
-    ],
-    shortName: 'tags',
-    denormalizationContext: ['groups' => 'tag:write'],
-    input: TagInput::class,
-    normalizationContext: ['groups' => 'tags:read'],
-    output: TagOutput::class,
+    operations: [],
 )]
 class CategoryTag implements OwnableInterface
 {
@@ -65,10 +49,9 @@ class CategoryTag implements OwnableInterface
         $this->name = $name;
     }
 
-    #[Pure]
     public function __toString(): string
     {
-        return $this->getName() ?: 'New category tag';
+        return $this->getName() ?? 'New category tag';
     }
 
     public function getId(): ?int

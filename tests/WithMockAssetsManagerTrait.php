@@ -27,6 +27,7 @@ trait WithMockAssetsManagerTrait
 
         $mock->method('convert')
             ->willReturnCallback(function ($entity) {
+                /** @phpstan-ignore-next-line */
                 $amount = (float)$entity->{'get'.ucfirst($entity->getValuableField())}();
                 $fromCurrency = strtoupper($entity->getCurrency());
 
@@ -44,6 +45,7 @@ trait WithMockAssetsManagerTrait
 
         $mock->method('convertTo')
             ->willReturnCallback(function ($entity, ?string $toCurrency = null) {
+                /** @phpstan-ignore-next-line */
                 $amount = (float)$entity->{'get'.ucfirst($entity->getValuableField())}();
                 $fromCurrency = strtoupper($entity->getCurrency());
                 $target = strtoupper($toCurrency ?? $fromCurrency);

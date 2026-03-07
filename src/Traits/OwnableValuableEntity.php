@@ -20,7 +20,9 @@ trait OwnableValuableEntity
 
     public function getValue(): float
     {
-        return $this->convertedValues[$this->getOwner()->getBaseCurrency()];
+        $owner = $this->getOwner();
+        assert($owner instanceof \App\Entity\User);
+        return $this->convertedValues[$owner->getBaseCurrency()];
     }
 
     public function getOwner(): ?UserInterface
@@ -37,7 +39,9 @@ trait OwnableValuableEntity
 
     public function getConvertedValue(?string $currencyCode = null): float
     {
-        return $this->convertedValues[is_null($currencyCode) ? $this->getOwner()->getBaseCurrency() : $currencyCode];
+        $owner = $this->getOwner();
+        assert($owner instanceof \App\Entity\User);
+        return $this->convertedValues[$currencyCode ?? $owner->getBaseCurrency()];
     }
 
     public function getConvertedValues(): array

@@ -1,8 +1,13 @@
 <?php
 namespace App\DataFixtures\Test;
 
+use App\Entity\BankCardAccount;
+use App\Entity\CashAccount;
 use App\Entity\Expense;
+use App\Entity\ExpenseCategory;
 use App\Entity\Income;
+use App\Entity\IncomeCategory;
+use App\Entity\User;
 use App\EventListener\TransactionListener;
 use App\EventListener\ValuableEntityEventListener;
 use Carbon\CarbonImmutable;
@@ -22,15 +27,15 @@ class TransactionFixtures extends Fixture implements DependentFixtureInterface
         $this->transactionListener->setEnabled(false);
         $this->valuableEntityListener->setEnabled(false);
 
-        $eurAccount = $this->getReference('account_eur_cash');
-        $uahAccount = $this->getReference('account_uah_card');
-        $user = $this->getReference('test_user');
+        $eurAccount = $this->getReference('account_eur_cash', CashAccount::class);
+        $uahAccount = $this->getReference('account_uah_card', BankCardAccount::class);
+        $user = $this->getReference('test_user', User::class);
 
-        $groceries = $this->getReference('cat_exp_groceries');
-        $eatingOut = $this->getReference('cat_exp_eating_out');
-        $rent = $this->getReference('cat_exp_rent');
-        $salary = $this->getReference('cat_inc_salary');
-        $bonus = $this->getReference('cat_inc_bonus');
+        $groceries = $this->getReference('cat_exp_groceries', ExpenseCategory::class);
+        $eatingOut = $this->getReference('cat_exp_eating_out', ExpenseCategory::class);
+        $rent = $this->getReference('cat_exp_rent', ExpenseCategory::class);
+        $salary = $this->getReference('cat_inc_salary', IncomeCategory::class);
+        $bonus = $this->getReference('cat_inc_bonus', IncomeCategory::class);
 
         // Helper closures
         $exp = function(string $date, $cat, float $eur, $account = null) use ($manager, $user, $eurAccount): void {

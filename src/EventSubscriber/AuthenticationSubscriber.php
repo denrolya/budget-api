@@ -3,14 +3,12 @@
 namespace App\EventSubscriber;
 
 use App\Entity\User;
-use JetBrains\PhpStorm\ArrayShape;
 use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTCreatedEvent;
 use Lexik\Bundle\JWTAuthenticationBundle\Events;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
 class AuthenticationSubscriber implements EventSubscriberInterface
 {
-    #[ArrayShape([Events::JWT_CREATED => "array[]"])]
     public static function getSubscribedEvents(): array
     {
         return [

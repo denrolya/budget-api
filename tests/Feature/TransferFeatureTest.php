@@ -17,8 +17,8 @@ class TransferFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => '2024-03-12T09:35:00Z',
-                'from' => (string)$this->accountCashEUR->getId(),
-                'to' => (string)$this->accountCashUAH->getId(),
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
                 'note' => '',
                 'rate' => '2',
             ],
@@ -46,8 +46,8 @@ class TransferFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => '2024-03-12T09:35:00Z',
-                'from' => (string)$this->accountCashEUR->getId(),
-                'to' => (string)$this->accountCashUAH->getId(),
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
                 'note' => '',
                 'rate' => '1',
             ],
@@ -70,8 +70,8 @@ class TransferFeatureTest extends BaseApiTestCase
         $this->em->refresh($this->accountCashUAH);
 
         $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
-        $fromExpense = $this->em->getRepository(Expense::class)->findOneById($expenseId);
-        $toIncome = $this->em->getRepository(Income::class)->findOneById($incomeId);
+        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
+        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
         self::assertNull($transfer);
         self::assertNull($fromExpense);
         self::assertNull($toIncome);
@@ -87,8 +87,8 @@ class TransferFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => '2024-03-12T09:35:00Z',
-                'from' => (string)$this->accountCashEUR->getId(),
-                'to' => (string)$this->accountCashUAH->getId(),
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
                 'note' => '',
                 'rate' => '1',
             ],
@@ -111,8 +111,8 @@ class TransferFeatureTest extends BaseApiTestCase
         $this->em->refresh($this->accountCashUAH);
 
         $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
-        $fromExpense = $this->em->getRepository(Expense::class)->findOneById($expenseId);
-        $toIncome = $this->em->getRepository(Income::class)->findOneById($incomeId);
+        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
+        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
         self::assertNull($transfer);
         self::assertNull($fromExpense);
         self::assertNull($toIncome);
@@ -128,8 +128,8 @@ class TransferFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => '2024-03-12T09:35:00Z',
-                'from' => (string)$this->accountCashEUR->getId(),
-                'to' => (string)$this->accountCashUAH->getId(),
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
                 'note' => '',
                 'rate' => '1',
             ],
@@ -152,8 +152,8 @@ class TransferFeatureTest extends BaseApiTestCase
         $this->em->refresh($this->accountCashUAH);
 
         $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
-        $fromExpense = $this->em->getRepository(Expense::class)->findOneById($expenseId);
-        $toIncome = $this->em->getRepository(Income::class)->findOneById($incomeId);
+        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
+        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
         self::assertNull($transfer);
         self::assertNull($fromExpense);
         self::assertNull($toIncome);
@@ -169,12 +169,12 @@ class TransferFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => '2024-03-12T09:35:00Z',
-                'from' => (string)$this->accountCashEUR->getId(),
-                'to' => (string)$this->accountCashUAH->getId(),
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
                 'note' => '',
                 'rate' => '1',
                 'fee' => '10.0',
-                'feeAccount' => (string)$this->accountCashEUR->getId(),
+                'feeAccount' => $this->iri($this->accountCashEUR),
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -203,12 +203,12 @@ class TransferFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => '2024-03-12T09:35:00Z',
-                'from' => (string)$this->accountCashEUR->getId(),
-                'to' => (string)$this->accountCashUAH->getId(),
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
                 'note' => '',
                 'rate' => '1',
                 'fee' => '10.0',
-                'feeAccount' => (string)$this->accountCashEUR->getId(),
+                'feeAccount' => $this->iri($this->accountCashEUR),
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -230,9 +230,9 @@ class TransferFeatureTest extends BaseApiTestCase
         $this->em->refresh($this->accountCashEUR);
         $this->em->refresh($this->accountCashUAH);
 
-        $fromExpense = $this->em->getRepository(Expense::class)->findOneById($expenseId);
-        $toIncome = $this->em->getRepository(Income::class)->findOneById($incomeId);
-        $feeExpense = $this->em->getRepository(Expense::class)->findOneById($feeId);
+        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
+        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
+        $feeExpense = $this->em->getRepository(Expense::class)->find($feeId);
 
         self::assertNull($fromExpense);
         self::assertNull($toIncome);
@@ -248,12 +248,12 @@ class TransferFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '10',
                 'executedAt' => '2024-03-12T09:35:00Z',
-                'from' => (string)$this->accountCashEUR->getId(),
-                'to' => (string)$this->accountCashUAH->getId(),
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
                 'note' => '',
                 'rate' => '40',
                 'fee' => '1',
-                'feeAccount' => (string)$this->accountCashEUR->getId(),
+                'feeAccount' => $this->iri($this->accountCashEUR),
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -279,13 +279,13 @@ class TransferFeatureTest extends BaseApiTestCase
         $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
         self::assertNull($transfer);
 
-        $fromExpense = $this->em->getRepository(Expense::class)->findOneById($expenseId);
+        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
         self::assertNull($fromExpense);
 
-        $toIncome = $this->em->getRepository(Income::class)->findOneById($incomeId);
+        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
         self::assertNull($toIncome);
 
-        $feeExpense = $this->em->getRepository(Expense::class)->findOneById($feeId);
+        $feeExpense = $this->em->getRepository(Expense::class)->find($feeId);
         self::assertNull($feeExpense);
     }
 

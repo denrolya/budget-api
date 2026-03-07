@@ -31,12 +31,12 @@ class UserAndAccountFixtures extends Fixture
         $manager->persist($eurCash);
 
         $uahCard = new BankCardAccount();
+        $uahCard->setBankName('Test Bank')
+            ->setCardNumber('4111111111111111')
+            ->setIban('UA123456789012345678901234567');
         $uahCard->setName('UAH Card')
             ->setCurrency('UAH')
             ->setBalance('100000')
-            ->setBankName('Test Bank')
-            ->setCardNumber('4111111111111111')
-            ->setIban('UA123456789012345678901234567')
             ->setOwner($user)
             ->setCreatedAt(CarbonImmutable::parse('2019-01-01'))
             ->setUpdatedAt(CarbonImmutable::parse('2019-01-01'));

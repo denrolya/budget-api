@@ -2,8 +2,12 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Annotation\ApiResource;
-use ApiPlatform\Core\Annotation\ApiSubresource;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
 use App\Repository\DebtRepository;
 use App\Traits\OwnableValuableEntity;
 use App\Traits\TimestampableEntity;
@@ -15,7 +19,6 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use JetBrains\PhpStorm\Pure;
 use JMS\Serializer\Annotation as Serializer;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -24,26 +27,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: DebtRepository::class)]
 #[ApiResource(
-    collectionOperations: [
-        'get' => [
-            'normalization_context' => ['groups' => 'debt:collection:read'],
-        ],
-        'post' => [
-            'normalization_context' => ['groups' => 'debt:collection:read'],
-        ],
-    ],
-    itemOperations: [
-        'get' => [
-            'requirements' => ['id' => '\d+'],
-            'normalization_context' => ['groups' => 'debt:item:read'],
-        ],
-        'put' => [
-            'requirements' => ['id' => '\d+'],
-            'normalization_context' => ['groups' => 'debt:collection:read'],
-        ],
-        'delete' => [
-            'requirements' => ['id' => '\d+'],
-        ],
+    operations: [
+        new GetCollection(normalizationContext: ['groups' => 'debt:collection:read']),
+        new Post(normalizationContext: ['groups' => 'debt:collection:read']),
+        new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'debt:item:read']),
+        new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'debt:collection:read']),
+        new Delete(requirements: ['id' => '\d+']),
     ],
     denormalizationContext: ['groups' => 'debt:write'],
     order: ['updatedAt' => 'DESC'],
@@ -86,7 +75,6 @@ class Debt implements OwnableInterface, ValuableInterface
     #[ORM\OneToMany(mappedBy: 'debt', targetEntity: Transaction::class, cascade: ['persist'], fetch: 'EXTRA_LAZY')]
     #[ORM\OrderBy(['executedAt' => 'DESC'])]
     #[Groups(['debt:collection:read', 'debt:item:read'])]
-    #[ApiSubresource]
     #[Serializer\Groups(['debt:collection:read'])]
     private Collection $transactions;
 
@@ -180,7 +168,6 @@ class Debt implements OwnableInterface, ValuableInterface
         return $this;
     }
 
-    #[Pure]
     public function getTransactions(): Collection
     {
         return $this->transactions;
@@ -219,7 +206,7 @@ class Debt implements OwnableInterface, ValuableInterface
 
     public function close(?CarbonInterface $date = null): void
     {
-        $this->closedAt = ($date) ?: CarbonImmutable::now();
+        $this->closedAt = $date ?? CarbonImmutable::now();
     }
 
     public function getNote(): ?string

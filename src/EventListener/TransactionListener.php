@@ -120,8 +120,8 @@ final class TransactionListener extends BaseUpdateTransactionValueHandler implem
     {
         $changeSet = $this->uow->getEntityChangeSet($transaction);
 
-        $isAccountChanged = !empty($changeSet['account']);
-        $isAmountChanged = (!empty($changeSet['amount']) && ((float)$changeSet['amount'][0] !== (float)$changeSet['amount'][1]));
+        $isAccountChanged = isset($changeSet['account']);
+        $isAmountChanged = (isset($changeSet['amount']) && ((float)$changeSet['amount'][0] !== (float)$changeSet['amount'][1]));
 
         if ($isAccountChanged) {
             [$oldAccount, $newAccount] = $changeSet['account'];
@@ -185,8 +185,8 @@ final class TransactionListener extends BaseUpdateTransactionValueHandler implem
         $debtCurrency = $debt->getCurrency();
         $changeSet = $this->uow->getEntityChangeSet($transaction);
 
-        $isAccountChanged = !empty($changeSet['account']);
-        $isAmountChanged = (!empty($changeSet['amount']) && ((float)$changeSet['amount'][0] !== (float)$changeSet['amount'][1]));
+        $isAccountChanged = isset($changeSet['account']);
+        $isAmountChanged = (isset($changeSet['amount']) && ((float)$changeSet['amount'][0] !== (float)$changeSet['amount'][1]));
 
         if (!isset($changeSet['convertedValues'])) {
             throw new \RuntimeException('Converted values are not set in change set');

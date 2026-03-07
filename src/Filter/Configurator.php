@@ -19,7 +19,8 @@ class Configurator
 
     public function onKernelRequest(): void
     {
-        if($currentUser = $this->security->getUser()) {
+        if ($currentUser = $this->security->getUser()) {
+            assert($currentUser instanceof \App\Entity\User);
             $filter = $this->em->getFilters()->enable('ownable');
             $filter->setParameter('currentUserId', $currentUser->getId());
         }

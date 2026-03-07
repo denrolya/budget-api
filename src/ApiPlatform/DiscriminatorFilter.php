@@ -2,13 +2,12 @@
 
 namespace App\ApiPlatform;
 
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\AbstractFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use ApiPlatform\Doctrine\Orm\Filter\AbstractFilter;
+use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use ApiPlatform\Metadata\Operation;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
-use JetBrains\PhpStorm\ArrayShape;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\PropertyInfo\Type;
 use Symfony\Component\Serializer\NameConverter\NameConverterInterface;
 
@@ -20,14 +19,12 @@ final class DiscriminatorFilter extends AbstractFilter
 
     public function __construct(
         ManagerRegistry        $managerRegistry,
-        ?RequestStack          $requestStack = null,
-        LoggerInterface        $logger = null,
-        array                  $properties = null,
-        NameConverterInterface $nameConverter = null,
+        ?LoggerInterface       $logger = null,
+        ?NameConverterInterface $nameConverter = null,
+        ?array                 $properties = null,
         array                  $types = []
-    )
-    {
-        parent::__construct($managerRegistry, $requestStack, $logger, $properties, $nameConverter);
+    ) {
+        parent::__construct($managerRegistry, $logger, $nameConverter, $properties);
 
         $this->types = $types;
     }
@@ -35,7 +32,6 @@ final class DiscriminatorFilter extends AbstractFilter
     /**
      * @inheritDoc
      */
-    #[ArrayShape([self::PROPERTY_NAME => "array"])]
     public function getDescription(string $resourceClass): array
     {
         return [
@@ -61,21 +57,21 @@ final class DiscriminatorFilter extends AbstractFilter
      */
     protected function filterProperty(
         string                      $property,
-        mixed                       $value,
+        $value,
         QueryBuilder                $queryBuilder,
         QueryNameGeneratorInterface $queryNameGenerator,
         string                      $resourceClass,
-        string                      $operationName = null
-    ): void
-    {
-        if($property !== self::PROPERTY_NAME) {
+        ?Operation                  $operation = null,
+        array                       $context = []
+    ): void {
+        if ($property !== self::PROPERTY_NAME) {
             return;
         }
 
         $em = $queryBuilder->getEntityManager();
         $alias = $queryBuilder->getRootAliases()[0];
 
-        if(!empty($value)) {
+        if ($value !== null && $value !== '') {
             $queryBuilder->andWhere("$alias INSTANCE OF :type")
                 ->setParameter('type', $em->getClassMetadata($this->types[$value]));
         }

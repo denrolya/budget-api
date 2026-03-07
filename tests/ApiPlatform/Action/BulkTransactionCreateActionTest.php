@@ -56,8 +56,12 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         // All happy-path tests use 2026-02-22 as executedAt
         $this->createExchangeRateSnapshot('2026-02-22');
 
-        $this->testExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneByName('Groceries');
-        $this->testIncomeCategory = $this->em->getRepository(IncomeCategory::class)->findOneByName('Compensation');
+        $expenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Groceries']);
+        assert($expenseCategory instanceof ExpenseCategory);
+        $this->testExpenseCategory = $expenseCategory;
+        $incomeCategory = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => 'Compensation']);
+        assert($incomeCategory instanceof IncomeCategory);
+        $this->testIncomeCategory = $incomeCategory;
     }
 
     /**
@@ -92,25 +96,25 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      */
     public function testBulkCreateSuccessWithMixedTypes(): void
     {
-        $accountId = $this->accountCashEUR->getId();
-        $expenseCategoryId = $this->testExpenseCategory->getId();
-        $incomeCategoryId = $this->testIncomeCategory->getId();
+        $accountIri = $this->iri($this->accountCashEUR);
+        $expenseCategoryIri = $this->iri($this->testExpenseCategory);
+        $incomeCategoryIri = $this->iri($this->testIncomeCategory);
 
         $payload = [
             [
                 'type' => 'expense',
-                'account' => $accountId,
+                'account' => $accountIri,
                 'amount' => '123.45',
-                'category' => $expenseCategoryId,
+                'category' => $expenseCategoryIri,
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-test-expense-1',
             ],
             [
                 'type' => 'income',
-                'account' => $accountId,
+                'account' => $accountIri,
                 'amount' => '500.00',
-                'category' => $incomeCategoryId,
+                'category' => $incomeCategoryIri,
                 'executedAt' => '2026-02-22T13:25:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-test-income-1',
@@ -164,9 +168,9 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $response = $this->client->request('POST', self::TRANSACTION_BULK_CREATE_URL, [
             'json' => [
                 'type' => 'expense',
-                'account' => $this->accountCashEUR->getId(),
+                'account' => $this->iri($this->accountCashEUR),
                 'amount' => '100',
-                'category' => $this->testExpenseCategory->getId(),
+                'category' => $this->iri($this->testExpenseCategory),
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
             ],
@@ -194,25 +198,25 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      */
     public function testBulkCreateFailsOnInvalidItemAndDoesNotPersistAnything(): void
     {
-        $accountId = $this->accountCashEUR->getId();
-        $expenseCategoryId = $this->testExpenseCategory->getId();
-        $incomeCategoryId = $this->testIncomeCategory->getId();
+        $accountIri = $this->iri($this->accountCashEUR);
+        $expenseCategoryIri = $this->iri($this->testExpenseCategory);
+        $incomeCategoryIri = $this->iri($this->testIncomeCategory);
 
         $payload = [
             [
                 'type' => 'expense',
-                'account' => $accountId,
+                'account' => $accountIri,
                 'amount' => '100',
-                'category' => $expenseCategoryId,
+                'category' => $expenseCategoryIri,
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-ok-should-not-persist-on-error',
             ],
             [
                 'type' => 'income',
-                'account' => $accountId,
+                'account' => $accountIri,
                 'amount' => '-50',
-                'category' => $incomeCategoryId,
+                'category' => $incomeCategoryIri,
                 'executedAt' => '2026-02-22T13:25:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-invalid-amount',
@@ -284,9 +288,9 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $payload = [
             [
                 'type' => 'unsupported',
-                'account' => $this->accountCashEUR->getId(),
+                'account' => $this->iri($this->accountCashEUR),
                 'amount' => '100',
-                'category' => $this->testExpenseCategory->getId(),
+                'category' => $this->iri($this->testExpenseCategory),
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
                 'note' => 'bulk-unsupported-type',
@@ -328,25 +332,25 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      */
     public function testBulkCreateWithCompensationsPersistsExpenseAndLinkedIncomes(): void
     {
-        $accountId = $this->accountCashEUR->getId();
+        $accountIri = $this->iri($this->accountCashEUR);
         $expenseNote = 'bulk-expense-with-compensation';
         $compensationNote = 'bulk-compensation-income';
 
         $payload = [
             [
                 'type' => 'expense',
-                'account' => $accountId,
+                'account' => $accountIri,
                 'amount' => '100',
-                'category' => $this->testExpenseCategory->getId(),
+                'category' => $this->iri($this->testExpenseCategory),
                 'executedAt' => '2026-02-22T13:22:00.000Z',
                 'isDraft' => false,
                 'note' => $expenseNote,
                 'compensations' => [
                     [
                         'type' => 'income',
-                        'account' => $accountId,
+                        'account' => $accountIri,
                         'amount' => '50',
-                        'category' => $this->testIncomeCategory->getId(),
+                        'category' => $this->iri($this->testIncomeCategory),
                         'executedAt' => '2026-02-22T13:25:00.000Z',
                         'isDraft' => false,
                         'note' => $compensationNote,
@@ -396,6 +400,7 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     public function testBulkCreateUpdatesAccountBalanceAndSetsConvertedValues(): void
     {
         $accountId = $this->accountCashEUR->getId();
+        $accountIri = $this->iri($this->accountCashEUR);
         $balanceBefore = $this->accountCashEUR->getBalance();
 
         $incomeNote = 'bulk-balance-check-income';
@@ -404,18 +409,18 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $payload = [
             [
                 'type' => 'income',
-                'account' => $accountId,
+                'account' => $accountIri,
                 'amount' => '500',
-                'category' => $this->testIncomeCategory->getId(),
+                'category' => $this->iri($this->testIncomeCategory),
                 'executedAt' => '2026-02-22T13:25:00.000Z',
                 'isDraft' => false,
                 'note' => $incomeNote,
             ],
             [
                 'type' => 'expense',
-                'account' => $accountId,
+                'account' => $accountIri,
                 'amount' => '100',
-                'category' => $this->testExpenseCategory->getId(),
+                'category' => $this->iri($this->testExpenseCategory),
                 'executedAt' => '2026-02-22T13:26:00.000Z',
                 'isDraft' => false,
                 'note' => $expenseNote,
@@ -472,9 +477,9 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $payload = [
             [
                 'type' => 'expense',
-                'account' => $this->accountCashEUR->getId(),
+                'account' => $this->iri($this->accountCashEUR),
                 'amount' => '100',
-                'category' => $this->testExpenseCategory->getId(),
+                'category' => $this->iri($this->testExpenseCategory),
                 // date intentionally before any reasonable baseline (e.g. fixtures start at 1991-01-01)
                 'executedAt' => '1980-01-01T10:00:00.000Z',
                 'isDraft' => false,

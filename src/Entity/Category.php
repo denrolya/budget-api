@@ -2,11 +2,14 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Annotation\ApiFilter;
-use ApiPlatform\Core\Annotation\ApiResource;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\BooleanFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\DateFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\ExistsFilter;
+use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
+use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
+use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Put;
 use App\ApiPlatform\DiscriminatorFilter;
 use App\Repository\CategoryRepository;
 use App\Traits\TimestampableEntity;
@@ -16,7 +19,6 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use JetBrains\PhpStorm\Pure;
 use JMS\Serializer\Annotation as Serializer;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -32,19 +34,10 @@ use Symfony\Component\Validator\Constraints as Assert;
     'income' => IncomeCategory::class,
 ])]
 #[ApiResource(
-    collectionOperations: [
-        'get' => [
-            'normalization_context' => ['groups' => 'category:collection:read'],
-        ],
-    ],
-    itemOperations: [
-        'put' => [
-            'requirements' => ['id' => '\d+'],
-            'normalization_context' => ['groups' => 'category:write'],
-        ],
-        'delete' => [
-            'requirements' => ['id' => '\d+'],
-        ],
+    operations: [
+        new GetCollection(normalizationContext: ['groups' => 'category:collection:read']),
+        new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'category:write']),
+        new Delete(requirements: ['id' => '\d+']),
     ],
     denormalizationContext: ['groups' => 'category:write'],
     order: ['name' => 'ASC'],
@@ -214,7 +207,6 @@ abstract class Category
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     abstract public function getType(): string;
 
-    #[Pure]
     public function __construct(string $name = null)
     {
         $this->name = $name;
@@ -225,7 +217,7 @@ abstract class Category
 
     public function __toString(): string
     {
-        return $this->name ?: 'New Category';
+        return $this->name ?? 'New Category';
     }
 
     public function getName(): ?string
@@ -257,7 +249,7 @@ abstract class Category
         $children = $this->getChildren()->getIterator();
         /** @var Category $child */
         foreach ($children as $child) {
-            $child->setRoot($category ?: $this);
+            $child->setRoot($category ?? $this);
         }
 
         return $this;

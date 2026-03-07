@@ -20,9 +20,9 @@ final class IncomeFeatureTest extends BaseApiTestCase
     {
         parent::setUp();
 
-        $this->testCategory = $this->em->getRepository(IncomeCategory::class)->findOneByName(
-            self::CATEGORY_INCOME_SALARY
-        );
+        $category = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => self::CATEGORY_INCOME_SALARY]);
+        assert($category instanceof IncomeCategory);
+        $this->testCategory = $category;
     }
 
     // ── Create ───────────────────────────────────────────────────────────────
@@ -45,8 +45,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => $executionDate->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
                 'note' => 'Test transaction',
             ],
         ]);
@@ -83,8 +83,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '100.0',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
                 'note' => 'Test transaction',
             ],
         ]);
@@ -117,8 +117,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '200.0',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
                 'note' => 'Draft income',
                 'isDraft' => true,
             ],
@@ -145,8 +145,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '0',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
             ],
         ]);
 
@@ -163,8 +163,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
             'json' => [
                 'amount' => '-50',
                 'executedAt' => Carbon::now()->toIso8601String(),
-                'category' => (string)$this->testCategory->getId(),
-                'account' => (string)$this->accountCashUAH->getId(),
+                'category' => $this->iri($this->testCategory),
+                'account' => $this->iri($this->accountCashUAH),
             ],
         ]);
 
@@ -262,7 +262,7 @@ final class IncomeFeatureTest extends BaseApiTestCase
 
         $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
             'json' => [
-                'account' => (string)$this->accountCashEUR->getId(),
+                'account' => $this->iri($this->accountCashEUR),
                 'note' => 'Updated transaction note',
             ],
         ]);
@@ -313,7 +313,7 @@ final class IncomeFeatureTest extends BaseApiTestCase
 
         $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
             'json' => [
-                'account' => (string)$this->accountCashEUR->getId(),
+                'account' => $this->iri($this->accountCashEUR),
                 'amount' => '50',
                 'note' => 'Updated transaction note',
             ],

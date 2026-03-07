@@ -28,10 +28,10 @@ abstract class BaseUpdateTransactionValueHandler
     {
         $changeSet = $this->uow->getEntityChangeSet($transaction);
 
-        $isExecutionDateChanged = !empty($changeSet['executedAt']);
-        $isAmountChanged = !empty($changeSet['amount'])
+        $isExecutionDateChanged = isset($changeSet['executedAt']);
+        $isAmountChanged = isset($changeSet['amount'])
             && ((float)$changeSet['amount'][0] !== (float)$changeSet['amount'][1]);
-        $isAccountChanged = !empty($changeSet['account']);
+        $isAccountChanged = isset($changeSet['account']);
 
         return $isExecutionDateChanged || $isAmountChanged || $isAccountChanged;
     }
@@ -45,7 +45,7 @@ abstract class BaseUpdateTransactionValueHandler
 
         $income->setConvertedValues($transactionValue);
 
-        if (!empty($this->uow->getEntityChangeSet($income))) {
+        if ($this->uow->getEntityChangeSet($income) !== []) {
             $this->uow->recomputeSingleEntityChangeSet(
                 $this->em->getClassMetadata(get_class($income)),
                 $income
@@ -70,12 +70,12 @@ abstract class BaseUpdateTransactionValueHandler
                 continue;
             }
 
-            if (empty($compensation->getConvertedValues()) || $this->areValuableFieldsUpdated($compensation)) {
+            if ($compensation->getConvertedValues() === [] || $this->areValuableFieldsUpdated($compensation)) {
                 $compensationValues = $this->assetsManager->convert($compensation);
 
                 $compensation->setConvertedValues($compensationValues);
 
-                if (!empty($this->uow->getEntityChangeSet($compensation))) {
+                if ($this->uow->getEntityChangeSet($compensation) !== []) {
                     $this->uow->recomputeSingleEntityChangeSet(
                         $this->em->getClassMetadata(Income::class),
                         $compensation
@@ -92,7 +92,7 @@ abstract class BaseUpdateTransactionValueHandler
         $expense->setConvertedValues($transactionValue);
         $changeSet = $this->uow->getEntityChangeSet($expense);
 
-        if (!empty($changeSet)) {
+        if ($changeSet !== []) {
             $this->uow->recomputeSingleEntityChangeSet(
                 $this->em->getClassMetadata(get_class($expense)),
                 $expense

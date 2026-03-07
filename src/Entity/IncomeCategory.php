@@ -2,26 +2,16 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Action\NotFoundAction;
-use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Post;
 use App\Repository\IncomeCategoryRepository;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: IncomeCategoryRepository::class)]
 #[ApiResource(
-    collectionOperations: [
-        'post' => [
-            'path' => '/categories/income',
-            'normalization_context' => ['groups' => 'category:write'],
-        ],
-    ],
-    itemOperations: [
-        'get' => [
-            'controller' => NotFoundAction::class,
-            'read' => false,
-            'output' => false,
-        ],
+    operations: [
+        new Post(uriTemplate: '/categories/income', normalizationContext: ['groups' => 'category:write']),
     ],
     denormalizationContext: ['groups' => 'category:write'],
     paginationEnabled: false,

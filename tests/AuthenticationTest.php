@@ -2,7 +2,7 @@
 
 namespace App\Tests;
 
-use ApiPlatform\Core\Bridge\Symfony\Bundle\Test\ApiTestCase;
+use ApiPlatform\Symfony\Bundle\Test\ApiTestCase;
 use App\Entity\User;
 
 class AuthenticationTest extends ApiTestCase
@@ -33,7 +33,7 @@ class AuthenticationTest extends ApiTestCase
 
         $json = $response->toArray();
         self::assertResponseIsSuccessful();
-        $this->assertArrayHasKey('token', $json);
+        self::assertArrayHasKey('token', $json);
 
         // test not authorized
         $client->request('GET', '/api/v2/transaction');

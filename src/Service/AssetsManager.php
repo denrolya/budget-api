@@ -13,7 +13,6 @@ use Carbon\CarbonInterface;
 use Carbon\CarbonPeriod;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
-use JetBrains\PhpStorm\ArrayShape;
 use Psr\Cache\InvalidArgumentException;
 use Symfony\Component\Security\Core\Security;
 
@@ -35,7 +34,7 @@ class AssetsManager
         $this->fxRateSnapshotResolver = $snapshotResolver;
     }
 
-    #[ArrayShape(['list' => 'mixed', 'totalValue' => 'float', 'count' => 'mixed'])]
+    /** @return array{list: mixed, totalValue: float, count: mixed} */
     public function generateTransactionPaginationData(
         ?CarbonInterface $after,
         ?CarbonInterface $before,
@@ -55,7 +54,7 @@ class AssetsManager
         string $orderField = TransactionRepository::ORDER_FIELD,
         string $order = TransactionRepository::ORDER,
     ): array {
-        $resolvedCategories = ($withChildCategories && !empty($categories))
+        $resolvedCategories = ($withChildCategories && $categories !== null && $categories !== [])
             ? $this->em->getRepository(Category::class)->getCategoriesWithDescendantsByType($categories, $type)
             : ($categories ?? []);
 
@@ -136,7 +135,7 @@ class AssetsManager
             return $acc + $transaction->getValue();
         }, 0);
 
-        return $sum / (count($transactions) ?: 1);
+        return $sum / (count($transactions) !== 0 ? count($transactions) : 1);
     }
 
     public function sumTransactionsFiltered(
@@ -181,6 +180,7 @@ class AssetsManager
      */
     public function convert(Transaction|Debt $entity): array
     {
+        // @phpstan-ignore-next-line
         $amount = (float)$entity->{'get'.ucfirst($entity->getValuableField())}();
         $fromCurrency = strtoupper($entity->getCurrency());
 
@@ -204,6 +204,7 @@ class AssetsManager
      */
     public function convertTo(Transaction|Debt $entity, ?string $toCurrency = null): float
     {
+        // @phpstan-ignore-next-line
         $amount = (float)$entity->{'get'.ucfirst($entity->getValuableField())}();
         $fromCurrency = strtoupper($entity->getCurrency());
         $toCurrencyNormalized = strtoupper($toCurrency ?? $fromCurrency);

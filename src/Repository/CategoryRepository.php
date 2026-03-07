@@ -48,7 +48,7 @@ class CategoryRepository extends ServiceEntityRepository
                     $t === Transaction::EXPENSE ? ExpenseCategory::class : IncomeCategory::class
                 );
 
-            if (empty($categories)) {
+            if ($categories === []) {
                 $result[] = $repo->findBy(['root' => null, 'isAffectingProfit' => true]);
             } else {
                 $foundCategories = $repo->findBy(['id' => $categories]);
@@ -123,7 +123,7 @@ class CategoryRepository extends ServiceEntityRepository
 
         $qb = $this
             ->getEntityManager()
-            ->createQueryBuilder('t')
+            ->createQueryBuilder()
             ->from(Transaction::class, 't')
             ->select('SUM(JSON_EXTRACT(t.convertedValues, :baseCurrency))')
             ->where('t.category = :categoryId')
@@ -163,7 +163,7 @@ class CategoryRepository extends ServiceEntityRepository
         $categoryIds = $map[$category->getId()] ?? [$category->getId()];
         $qb = $this
             ->getEntityManager()
-            ->createQueryBuilder('t')
+            ->createQueryBuilder()
             ->from(Transaction::class, 't')
             ->select('SUM(JSON_EXTRACT(t.convertedValues, :baseCurrency))')
             ->where('t.category IN (:categoryIds)')

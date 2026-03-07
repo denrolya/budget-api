@@ -2,13 +2,12 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Action\NotFoundAction;
-use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Post;
 use App\Repository\ExpenseRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-use JetBrains\PhpStorm\Pure;
 use JMS\Serializer\Annotation as Serializer;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -16,18 +15,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: ExpenseRepository::class)]
 #[ApiResource(
-    collectionOperations: [
-        'post' => [
-            'path' => '/transactions/expense',
-            'normalization_context' => ['groups' => 'transaction:collection:read'],
-        ],
-    ],
-    itemOperations: [
-        'get' => [
-            'controller' => NotFoundAction::class,
-            'read' => false,
-            'output' => false,
-        ],
+    operations: [
+        new Post(uriTemplate: '/transactions/expense', normalizationContext: ['groups' => 'transaction:collection:read']),
     ],
     denormalizationContext: ['groups' => 'transaction:write'],
 )]
@@ -44,7 +33,6 @@ class Expense extends Transaction
         return $this->getCategory()->getType() === 'expense';
     }
 
-    #[Pure]
     public function __construct(bool $isDraft = false)
     {
         parent::__construct($isDraft);

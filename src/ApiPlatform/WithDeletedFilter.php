@@ -2,13 +2,11 @@
 
 namespace App\ApiPlatform;
 
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Filter\AbstractFilter;
-use ApiPlatform\Core\Bridge\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use ApiPlatform\Doctrine\Orm\Filter\AbstractFilter;
+use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
+use ApiPlatform\Metadata\Operation;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
-use Gedmo\SoftDeleteable\SoftDeleteableListener;
-use JetBrains\PhpStorm\ArrayShape;
-
 class WithDeletedFilter extends AbstractFilter
 {
     private const PROPERTY_NAME = 'withDeleted';
@@ -16,7 +14,6 @@ class WithDeletedFilter extends AbstractFilter
     /**
      * @inheritDoc
      */
-    #[ArrayShape([self::PROPERTY_NAME => 'array'])]
     public function getDescription(string $resourceClass): array
     {
         return [
@@ -36,32 +33,26 @@ class WithDeletedFilter extends AbstractFilter
      */
     protected function filterProperty(
         string                      $property,
-        mixed                       $value,
+        $value,
         QueryBuilder                $queryBuilder,
         QueryNameGeneratorInterface $queryNameGenerator,
         string                      $resourceClass,
-        string                      $operationName = null
-    ): void
-    {
-        if($property !== self::PROPERTY_NAME) {
+        ?Operation                  $operation = null,
+        array                       $context = []
+    ): void {
+        if ($property !== self::PROPERTY_NAME) {
             return;
         }
 
-        if(filter_var(($value ?? null), FILTER_VALIDATE_BOOLEAN)) {
+        if (filter_var(($value ?? null), FILTER_VALIDATE_BOOLEAN)) {
             $this->disableSoftDeleteable($queryBuilder->getEntityManager());
         }
     }
 
     private function disableSoftDeleteable(EntityManagerInterface $em): void
     {
-        foreach($em->getEventManager()->getListeners() as $eventName => $listeners) {
-            foreach($listeners as $listener) {
-                if($listener instanceof SoftDeleteableListener) {
-                    $em->getEventManager()->removeEventListener($eventName, $listener);
-                }
-            }
-        }
-
+        // Disabling the Doctrine filter is sufficient to include soft-deleted records.
+        // The event listener is kept so that deletedAt is still set on new soft-deletes.
         $em->getFilters()->disable('softdeleteable');
     }
 }

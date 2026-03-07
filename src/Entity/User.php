@@ -2,19 +2,22 @@
 
 namespace App\Entity;
 
-use ApiPlatform\Core\Annotation\ApiProperty;
-use ApiPlatform\Core\Annotation\ApiResource;
+use ApiPlatform\Metadata\ApiProperty;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Put;
 use App\Repository\UserRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use JetBrains\PhpStorm\Pure;
 use JMS\Serializer\Annotation\Groups;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ApiResource(
-    collectionOperations: [],
-    itemOperations: ['get', 'put'],
+    operations: [
+        new Get(),
+        new Put(),
+    ],
 )]
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
@@ -46,7 +49,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[Groups(['user:item:read', 'user:write'])]
     private array $dashboardStatistics;
 
-    #[Pure]
     public function __construct()
     {
         $this->dashboardStatistics = [
