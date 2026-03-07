@@ -1,5 +1,4 @@
 ###> other ###
-.deploy.env
 .idea
 *.sql
 .DS_Store
