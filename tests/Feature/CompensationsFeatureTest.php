@@ -168,8 +168,7 @@ final class CompensationsFeatureTest extends BaseApiTestCase
         // expense reduced 100→50, comps [25,25] unchanged; net went from -50 to 0, balance increases by 50
         self::assertEqualsWithDelta($balanceAfterCreate + 50, (float)$this->accountCashUAH->getBalance(), 0.01);
 
-        $content = $response->toArray();
-        self::assertArrayHasKey('id', $content);
+        $this->em->clear();
         $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
         self::assertInstanceOf(Expense::class, $transaction);
 

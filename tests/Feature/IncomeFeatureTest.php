@@ -205,7 +205,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
             0.0000000000000001
         );
 
-        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $transactionId = $transaction->getId();
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
             'json' => [
                 'amount' => '50',
                 'note' => 'Updated transaction note',
@@ -213,9 +214,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertArrayHasKey('id', $content);
-        $transaction = $this->em->getRepository(Income::class)->find($content['id']);
+        $this->em->clear();
+        $transaction = $this->em->getRepository(Income::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals(50, $transaction->getAmount());
@@ -260,7 +260,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
         self::assertEquals(100, $transaction->getConvertedValue($this->accountCashUAH->getCurrency()));
         self::assertEquals(4, $transaction->getConvertedValue('USD'));
 
-        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $transactionId = $transaction->getId();
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
             'json' => [
                 'account' => $this->iri($this->accountCashEUR),
                 'note' => 'Updated transaction note',
@@ -268,9 +269,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertArrayHasKey('id', $content);
-        $transaction = $this->em->getRepository(Income::class)->find($content['id']);
+        $this->em->clear();
+        $transaction = $this->em->getRepository(Income::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals('Updated transaction note', $transaction->getNote());
@@ -311,7 +311,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
         self::assertEquals(100, $transaction->getConvertedValue($this->accountCashUAH->getCurrency()));
         self::assertEquals(4, $transaction->getConvertedValue('USD'));
 
-        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $transactionId = $transaction->getId();
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
             'json' => [
                 'account' => $this->iri($this->accountCashEUR),
                 'amount' => '50',
@@ -320,9 +321,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertArrayHasKey('id', $content);
-        $transaction = $this->em->getRepository(Income::class)->find($content['id']);
+        $this->em->clear();
+        $transaction = $this->em->getRepository(Income::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals('Updated transaction note', $transaction->getNote());
@@ -368,7 +368,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());
         self::assertEqualsWithDelta($balanceBefore + 100, (float)$this->accountCashUAH->getBalance(), 0.01);
 
-        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $transactionId = $transaction->getId();
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
             'json' => [
                 'executedAt' => $executionDate->subMonth()->toIso8601String(),
                 'note' => 'Updated transaction note',
@@ -376,9 +377,8 @@ final class IncomeFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertArrayHasKey('id', $content);
-        $transaction = $this->em->getRepository(Income::class)->find($content['id']);
+        $this->em->clear();
+        $transaction = $this->em->getRepository(Income::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());

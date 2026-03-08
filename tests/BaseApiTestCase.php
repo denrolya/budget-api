@@ -76,7 +76,13 @@ class BaseApiTestCase extends ApiTestCase
     {
         $token = $token ?? $this->getToken();
 
-        return static::createClient([], ['headers' => ['authorization' => 'Bearer '.$token]]);
+        return static::createClient([], [
+            'headers' => [
+                'authorization' => 'Bearer '.$token,
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+            ],
+        ]);
     }
 
     protected function getToken($username = self::TEST_USERNAME): string

@@ -74,7 +74,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             ],
         ]),
         new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transaction:item:read']),
-        new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transaction:collection:read']),
+        new Put(requirements: ['id' => '\d+'], status: 204, output: false),
         new Delete(requirements: ['id' => '\d+']),
     ],
     denormalizationContext: ['groups' => 'transaction:write'],

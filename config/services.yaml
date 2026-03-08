@@ -40,6 +40,10 @@ services:
         arguments:
             - '@jms_serializer.identical_property_naming_strategy'
 
+    App\Serializer\PlainIdItemNormalizer:
+        tags:
+            - { name: serializer.normalizer, priority: -892 }
+
     doctrine.filter.configurator:
         class: App\Filter\Configurator
         arguments:

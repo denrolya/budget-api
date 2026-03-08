@@ -208,7 +208,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             0.0000000000000001
         );
 
-        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $transactionId = $transaction->getId();
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
             'json' => [
                 'amount' => '50',
                 'note' => 'Updated transaction note',
@@ -216,9 +217,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertArrayHasKey('id', $content);
-        $transaction = $this->em->getRepository(Expense::class)->find($content['id']);
+        $this->em->clear();
+        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals(50, $transaction->getAmount());
@@ -263,7 +263,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertEquals(100, $transaction->getConvertedValue($this->accountCashUAH->getCurrency()));
         self::assertEquals(4, $transaction->getConvertedValue('USD'));
 
-        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $transactionId = $transaction->getId();
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
             'json' => [
                 'account' => $this->iri($this->accountCashEUR),
                 'note' => 'Updated transaction note',
@@ -271,9 +272,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertArrayHasKey('id', $content);
-        $transaction = $this->em->getRepository(Expense::class)->find($content['id']);
+        $this->em->clear();
+        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals('Updated transaction note', $transaction->getNote());
@@ -314,7 +314,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertEquals(100, $transaction->getConvertedValue($this->accountCashUAH->getCurrency()));
         self::assertEquals(4, $transaction->getConvertedValue('USD'));
 
-        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $transactionId = $transaction->getId();
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
             'json' => [
                 'account' => $this->iri($this->accountCashEUR),
                 'amount' => '50',
@@ -323,9 +324,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertArrayHasKey('id', $content);
-        $transaction = $this->em->getRepository(Expense::class)->find($content['id']);
+        $this->em->clear();
+        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals('Updated transaction note', $transaction->getNote());
@@ -371,7 +371,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());
         self::assertEqualsWithDelta($balanceBefore - 100, (float)$this->accountCashUAH->getBalance(), 0.01);
 
-        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $transactionId = $transaction->getId();
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
             'json' => [
                 'executedAt' => $executionDate->subMonth()->toIso8601String(),
                 'note' => 'Updated transaction note',
@@ -379,9 +380,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertArrayHasKey('id', $content);
-        $transaction = $this->em->getRepository(Expense::class)->find($content['id']);
+        $this->em->clear();
+        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());
@@ -413,15 +413,14 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         $balanceAfterCreate = (float)$this->accountCashUAH->getBalance();
         self::assertEqualsWithDelta($balanceBefore - 100, $balanceAfterCreate, 0.01);
 
-        $response = $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $transactionId = $transaction->getId();
+        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
             'json' => ['isDraft' => true],
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertTrue($content['isDraft']);
-
-        $transaction = $this->em->getRepository(Expense::class)->find($transaction->getId());
+        $this->em->clear();
+        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
         self::assertTrue($transaction->getIsDraft());
         self::assertEqualsWithDelta($balanceAfterCreate, (float)$this->accountCashUAH->getBalance(), 0.01);
         self::assertEquals($convertedValues, $transaction->getConvertedValues());

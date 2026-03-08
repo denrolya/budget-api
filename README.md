@@ -7,13 +7,13 @@ It allows users to manage various accounts, track debts, and categorize transact
 ## Table of Contents
 
 1. [Entities](#entities)
-2. [Redundant Tables](#redundant-tables)
-3. [Running Tests](#running-tests)
-4. [Setting Up SonarQube](#setting-up-sonarqube)
+2. [Budgeting Feature](#budgeting-feature)
+3. [Redundant Tables](#redundant-tables)
+4. [Running Tests](#running-tests)
+5. [Setting Up SonarQube](#setting-up-sonarqube)
     - [Using Docker](#using-docker)
     - [Using Docker Compose](#using-docker-compose)
-5. [Running SonarQube Analysis](#running-sonarqube-analysis)
-
+6. [Running SonarQube Analysis](#running-sonarqube-analysis)
 ---
 
 ## Entities
@@ -58,9 +58,66 @@ The application consists of the following main entities:
     - Links two transactions (an income and an expense) to represent the movement between accounts, including rate and fee details.
     - Future updates will aim to remove the `from` and `to` account fields and use the linked transactions for this information.
 
+## Budgeting Feature
+
+The budgeting feature allows users to plan their finances by defining spending and income targets per category for a given time period.
+
+### Entities
+
+- **Budget**:
+    - Represents a financial plan for a specific time period.
+    - Period types: `monthly`, `yearly`, `custom`.
+    - Attributes: `name` (optional), `periodType`, `startDate`, `endDate`.
+    - Contains a collection of **BudgetLine** entries (cascade delete).
+
+- **BudgetLine**:
+    - Represents a single planned amount for a specific category within a budget.
+    - Attributes: `category`, `plannedAmount`, `plannedCurrency`.
+    - Each `(budget, category)` combination must be unique.
+
+### API Endpoints
+
+All endpoints are prefixed with `/api/v2/budget` and require authentication.
+
+#### Budget CRUD
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/` | List all budgets (sorted by start date descending) |
+| GET | `/{id}` | Get a single budget with all its lines |
+| POST | `/` | Create a new budget |
+| PUT | `/{id}` | Update budget properties |
+| DELETE | `/{id}` | Delete a budget (cascades to lines) |
+
+#### Budget Line CRUD
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/{id}/line` | Add a line to a budget |
+| PUT | `/{id}/line/{lineId}` | Update a budget line |
+| DELETE | `/{id}/line/{lineId}` | Remove a line from a budget |
+
+#### Analytics
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/{id}/analytics` | Get actual spending grouped by category for the budget's period |
+
+The analytics endpoint returns transaction totals (income and expense) per category and currency for the budget's date range, using only profit-affecting transactions. This allows comparing planned amounts against actuals.
+
+### Key Features
+
+- **Multi-period support**: Monthly, yearly, and custom date ranges.
+- **Multi-currency**: Each budget line can be in a different currency.
+- **Budget templates**: When creating a budget, pass `copiedFromId` to clone all lines from an existing budget.
+- **Actual vs. planned**: The analytics endpoint aggregates real transactions for comparison with planned amounts.
+- **Cascade deletion**: Deleting a budget automatically removes all associated lines.
+
+---
+
 ## Redundant Tables
 
-There are outdated tables such as **currency** and budget-related tables that should be considered for removal.
+There are outdated tables such as **currency** that should be considered for removal.
 
 ---
 
