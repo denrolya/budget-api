@@ -3,11 +3,15 @@
 namespace App\ApiPlatform\Action;
 
 use JsonException;
+use App\Entity\Debt;
+use App\Entity\Account;
 use App\Entity\Expense;
 use App\Entity\Income;
+use App\Entity\Category;
 use App\Entity\Transaction;
 use App\Service\AssetsManager;
 use Doctrine\ORM\EntityManagerInterface;
+use ApiPlatform\Api\IriConverterInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -27,6 +31,7 @@ final readonly class TransactionBulkCreateAction
         private SerializerInterface&DenormalizerInterface $serializer,
         private ValidatorInterface $validator,
         private AssetsManager $assetsManager,
+        private IriConverterInterface $iriConverter,
     ) {
     }
 
@@ -59,6 +64,34 @@ final readonly class TransactionBulkCreateAction
             $class = $this->resolveClassFromType($item['type'] ?? null);
             if ($class === null) {
                 $errors[$index][] = 'Invalid or missing "type" (expected "expense" or "income")';
+                continue;
+            }
+
+            /*
+             * DIRTY FIX
+             * Frontend sends numeric IDs for relations but API Platform expects IRI.
+             * Convert IDs → IRI using IriConverter to ensure correct URI prefix.
+             *
+             * TODO: replace with proper PlainIdentifierDenormalizer or DTO mapping.
+             */
+
+            try {
+                if (isset($item['account']) && is_int($item['account'])) {
+                    $ref = $this->em->getReference(Account::class, $item['account']);
+                    $item['account'] = $this->iriConverter->getIriFromResource($ref);
+                }
+
+                if (isset($item['category']) && is_int($item['category'])) {
+                    $ref = $this->em->getReference(Category::class, $item['category']);
+                    $item['category'] = $this->iriConverter->getIriFromResource($ref);
+                }
+
+                if (isset($item['debt']) && is_int($item['debt'])) {
+                    $ref = $this->em->getReference(Debt::class, $item['debt']);
+                    $item['debt'] = $this->iriConverter->getIriFromResource($ref);
+                }
+            } catch (\Throwable $e) {
+                $errors[$index][] = 'Failed to resolve relation IRI: '.$e->getMessage();
                 continue;
             }
 
