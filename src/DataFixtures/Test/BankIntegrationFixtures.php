@@ -1,0 +1,43 @@
+<?php
+
+namespace App\DataFixtures\Test;
+
+use App\Bank\BankProvider;
+use App\Bank\SyncMethod;
+use App\Entity\BankIntegration;
+use App\Entity\User;
+use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Common\DataFixtures\DependentFixtureInterface;
+use Doctrine\Persistence\ObjectManager;
+
+class BankIntegrationFixtures extends Fixture implements DependentFixtureInterface
+{
+    public function load(ObjectManager $manager): void
+    {
+        /** @var User $user */
+        $user = $this->getReference('test_user', User::class);
+
+        $monobank = new BankIntegration();
+        $monobank->setOwner($user)
+            ->setProvider(BankProvider::Monobank)
+            ->setSyncMethod(SyncMethod::Webhook)
+            ->setIsActive(true);
+        $manager->persist($monobank);
+        $this->addReference('test_bank_integration_monobank', $monobank);
+
+        $wise = new BankIntegration();
+        $wise->setOwner($user)
+            ->setProvider(BankProvider::Wise)
+            ->setSyncMethod(SyncMethod::Polling)
+            ->setIsActive(true);
+        $manager->persist($wise);
+        $this->addReference('test_bank_integration_wise', $wise);
+
+        $manager->flush();
+    }
+
+    public function getDependencies(): array
+    {
+        return [UserAndAccountFixtures::class];
+    }
+}

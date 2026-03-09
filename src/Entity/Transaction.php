@@ -16,7 +16,6 @@ use ApiPlatform\Metadata\Put;
 use App\ApiPlatform\CategoryDeepSearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
 use App\ApiPlatform\Action\TransactionBulkCreateAction;
-use App\DTO\MonobankResponse;
 use App\Repository\TransactionRepository;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableValuableEntity;
@@ -39,8 +38,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiResource(
     operations: [
         new GetCollection(normalizationContext: ['groups' => 'transaction:collection:read']),
-        new GetCollection(name: 'get_monobank', uriTemplate: '/monobank/transactions', status: 200),
-        new Post(name: 'post_monobank', uriTemplate: '/monobank/transactions', input: MonobankResponse::class, status: 200, denormalizationContext: ['groups' => 'transaction:write'], normalizationContext: ['groups' => 'transaction:collection:read']),
+        // TODO: Remove single entity submission endpoint and rename this into /transactions accepting either array body or single entity(should be accepting different types by now)
         new Post(name: 'post_bulk', uriTemplate: '/transactions/bulk', controller: TransactionBulkCreateAction::class, deserialize: false, status: 201, openapiContext: [
             'summary' => 'Bulk create transactions',
             'description' => 'Create multiple income/expense transactions in a single request.',

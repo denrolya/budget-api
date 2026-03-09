@@ -54,6 +54,7 @@ class AssetsManager
         string $orderField = TransactionRepository::ORDER_FIELD,
         string $order = TransactionRepository::ORDER,
     ): array {
+        // TODO: Optimize for efficiency. Consider adding this as argument to TransactionRepository::getList(and downwn to getBaseQueryBuilder) instead of as a filter, since it may be expensive to compute the descendant categories on every request, and it may be more efficient to handle this logic in a single place rather than in the filter which is applied after the query builder is created.
         $resolvedCategories = ($withChildCategories && $categories !== null && $categories !== [])
             ? $this->em->getRepository(Category::class)->getCategoriesWithDescendantsByType($categories, $type)
             : ($categories ?? []);

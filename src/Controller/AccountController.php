@@ -13,23 +13,11 @@ use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 #[Route('/api/v2/account', name: 'api_v2_account_')]
 class AccountController extends AbstractFOSRestController
 {
-    private HttpClientInterface $httpClient;
-
-    public function __construct(HttpClientInterface $httpClient)
-    {
-        $this->httpClient = $httpClient;
-    }
 
     #[Rest\View(serializerGroups: ['account:collection:read'])]
     #[Route('', name: 'collection_read', methods: ['get'])]
@@ -40,6 +28,9 @@ class AccountController extends AbstractFOSRestController
         );
     }
 
+    /**
+     * TODO: Check efficiency. Add frontend data display. Do we really need this and AccountItemProvider? which one are we consuming currently?
+     */
     #[Rest\View(serializerGroups: ['account:item:read'])]
     #[Route('/{id<\d+>}', name: 'item_read', methods: ['get'])]
     public function item(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, Account $account): View
@@ -71,6 +62,8 @@ class AccountController extends AbstractFOSRestController
     }
 
     /**
+     * TODO: Optimize for big intervals (e.g. 1 year) and accounts with many transactions (e.g. 1000+).
+     * TODO: Describe query parameters as in TransactionsController
      * Returns account balance history as a time series.
      *
      * Algorithm: walk backward from account.balance (current) through transactions,
@@ -142,31 +135,5 @@ class AccountController extends AbstractFOSRestController
         return $this->view([
             'data' => $transactionRepo->countByDay($account, $after, $before),
         ]);
-    }
-
-    #[Route('/set-monobank-hook', name: 'set_monobank_hook', methods: 'GET')]
-    public function setMonobankHook(Request $request): View
-    {
-        try {
-            $response = $this->httpClient->request('POST', 'https://api.monobank.ua/personal/webhook', [
-                'headers' => [
-                    'Content-Type' => 'application/json',
-                    'X-Token' => $_ENV['MONOBANK_API_KEY'],
-                ],
-                'json' => [
-                    "webHookUrl" => $request->getSchemeAndHttpHost().'/api/monobank/transactions',
-                ],
-            ])->getContent();
-        } catch (ClientExceptionInterface $e) {
-            return $this->view($e, Response::HTTP_INTERNAL_SERVER_ERROR);
-        } catch (RedirectionExceptionInterface $e) {
-            return $this->view($e, Response::HTTP_INTERNAL_SERVER_ERROR);
-        } catch (ServerExceptionInterface $e) {
-            return $this->view($e, Response::HTTP_INTERNAL_SERVER_ERROR);
-        } catch (TransportExceptionInterface $e) {
-            return $this->view($e, Response::HTTP_INTERNAL_SERVER_ERROR);
-        }
-
-        return $this->view($response);
     }
 }

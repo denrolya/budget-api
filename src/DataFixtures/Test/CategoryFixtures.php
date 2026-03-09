@@ -78,6 +78,28 @@ class CategoryFixtures extends Fixture implements DependentFixtureInterface
 
         $manager->flush();
 
+        // Insert the hardcoded "Unknown" catch-all categories used by BankSyncService and
+        // BankWebhookService (Category::EXPENSE_CATEGORY_ID_UNKNOWN = 17, INCOME = 39).
+        // Raw DBAL is used to force the exact IDs that the services look up.
+        $conn = $manager->getConnection();
+        $rows = $conn->fetchAllAssociative('SELECT id FROM category WHERE id IN (17, 39)');
+        $existingIds = array_column($rows, 'id');
+        $ts = $now->format('Y-m-d H:i:s');
+
+        if (!in_array(17, $existingIds, true)) {
+            $conn->executeStatement(
+                'INSERT INTO category (id, type, name, is_affecting_profit, created_at, updated_at) VALUES (17, \'expense\', \'Unknown\', 0, ?, ?)',
+                [$ts, $ts],
+            );
+        }
+
+        if (!in_array(39, $existingIds, true)) {
+            $conn->executeStatement(
+                'INSERT INTO category (id, type, name, is_affecting_profit, created_at, updated_at) VALUES (39, \'income\', \'Unknown\', 0, ?, ?)',
+                [$ts, $ts],
+            );
+        }
+
         $this->addReference('cat_exp_food', $foodAndDrinks);
         $this->addReference('cat_exp_groceries', $groceries);
         $this->addReference('cat_exp_eating_out', $eatingOut);

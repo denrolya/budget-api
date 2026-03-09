@@ -35,10 +35,20 @@ class BankCardAccount extends Account
     #[Serializer\Groups(['account:item:read'])]
     private ?string $iban;
 
-    #[ORM\Column(type: Types::STRING, length: 150, nullable: true)]
+    /**
+     * The account/balance identifier as the bank knows it.
+     * Format is bank-specific: for Wise it's the balanceId, for Monobank it's the account id string.
+     */
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
     #[Groups(['account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:item:read'])]
-    private ?string $monobankId;
+    private ?string $externalAccountId = null;
+
+    #[ORM\ManyToOne(targetEntity: BankIntegration::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    #[Groups(['account:item:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
+    private ?BankIntegration $bankIntegration = null;
 
     public function getBankName(): ?string
     {
@@ -76,14 +86,26 @@ class BankCardAccount extends Account
         return $this;
     }
 
-    public function getMonobankId(): ?string
+    public function getExternalAccountId(): ?string
     {
-        return $this->monobankId;
+        return $this->externalAccountId;
     }
 
-    public function setMonobankId(string $monobankId): self
+    public function setExternalAccountId(?string $externalAccountId): self
     {
-        $this->monobankId = $monobankId;
+        $this->externalAccountId = $externalAccountId;
+
+        return $this;
+    }
+
+    public function getBankIntegration(): ?BankIntegration
+    {
+        return $this->bankIntegration;
+    }
+
+    public function setBankIntegration(?BankIntegration $bankIntegration): self
+    {
+        $this->bankIntegration = $bankIntegration;
 
         return $this;
     }

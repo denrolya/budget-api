@@ -10,6 +10,7 @@ use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\PropertyInfo\Type;
 
 /**
+ * TODO: Optimize for efficiency. Consider adding this as argument to TransactionRepository::getList(and downwn to getBaseQueryBuilder) instead of as a filter, since it may be expensive to compute the descendant categories on every request, and it may be more efficient to handle this logic in a single place rather than in the filter which is applied after the query builder is created.
  * Filters transactions by category and all its descendants.
  */
 final class CategoryDeepSearchFilter extends AbstractFilter

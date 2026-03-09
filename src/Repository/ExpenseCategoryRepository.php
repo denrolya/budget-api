@@ -19,34 +19,4 @@ class ExpenseCategoryRepository extends CategoryRepository
     {
         parent::__construct($registry, ExpenseCategory::class);
     }
-
-    /**
-     * @param CarbonInterface $after
-     * @param CarbonInterface $before
-     * @return ExpenseCategory[]|array
-     */
-    public function findCreatedWithinPeriod(CarbonInterface $after, CarbonInterface $before): array
-    {
-        $qb = $this->createQueryBuilder('c')
-            ->where('DATE(c.createdAt) >= :after')
-            ->setParameter('after', $after->toDateString())
-            ->andWhere('DATE(c.createdAt) <= :before')
-            ->setParameter('before', $before->toDateString());
-
-        return $qb->getQuery()->getResult();
-    }
-
-    /**
-     * @param array $tags
-     * @return array
-     */
-    public function findByTags(array $tags): array
-    {
-        $qb = $this->createQueryBuilder('c')
-            ->leftJoin('c.tags', 't')
-            ->where('t.name IN (:tags)')
-            ->setParameter('tags', $tags);
-
-        return $qb->getQuery()->getResult();
-    }
 }

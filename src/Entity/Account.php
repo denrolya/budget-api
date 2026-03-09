@@ -41,7 +41,7 @@ use Symfony\Component\Validator\Constraints as Assert;
     new GetCollection(normalizationContext: ['groups' => ['account:collection:read']]),
     new Post(normalizationContext: ['groups' => 'account:write']),
     new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'account:item:read']),
-    new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'account:write']),
+    new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => ['account:write', 'bank_integration:read']]),
   ],
   denormalizationContext: ['groups' => 'account:write'],
   order: ['updatedAt' => 'DESC'],

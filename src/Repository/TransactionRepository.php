@@ -14,6 +14,8 @@ use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
 
 /**
+ * TODO: See if using DQL instead of query builder is more efficient(resources).
+ * 
  * @method Transaction|null find($id, $lockMode = null, $lockVersion = null)
  * @method Transaction|null findOneBy(array $criteria, array $orderBy = null)
  * @method Transaction[]    findAll()
@@ -416,11 +418,10 @@ class TransactionRepository extends ServiceEntityRepository
      * Returns transaction counts and volumes grouped by day for optional account IDs and date range.
      * Pass an empty array to include all accounts.
      *
-     * Amounts are grouped by the account's native currency so the frontend can pick the
-     * relevant currency without backend conversion.
-     *
      * @param  int[]  $accountIds
      * @return array<array{day: string, count: int, convertedValues: array<string, array{income: float, expense: float}>}>
+     *
+     * @deprecated Use countByDayForFilters() instead.
      */
     public function countByDayForAccounts(
         array $accountIds,
@@ -428,61 +429,106 @@ class TransactionRepository extends ServiceEntityRepository
         \DateTimeInterface $before,
         bool $onlyAffectingProfit = false,
     ): array {
-        $conn = $this->getEntityManager()->getConnection();
+        return $this->countByDayForFilters(
+            after: \Carbon\CarbonImmutable::instance($after)->startOfDay(),
+            before: \Carbon\CarbonImmutable::instance($before)->endOfDay(),
+            affectingProfitOnly: $onlyAffectingProfit,
+            accounts: $accountIds ?: null,
+        );
+    }
 
-        $params = [
-            'after'  => $after->format('Y-m-d H:i:s'),
-            'before' => $before->format('Y-m-d H:i:s'),
-        ];
-
-        $accountFilter = '';
-        if (!empty($accountIds)) {
-            $placeholders = implode(',', array_map(static fn($i) => ":acc$i", array_keys($accountIds)));
-            $accountFilter = "AND t.account_id IN ($placeholders)";
-            foreach ($accountIds as $i => $id) {
-                $params["acc$i"] = $id;
+    /**
+     * TODO: Rename to countByDay() and remove all other countByDay variants. This is the most flexible and filter-complete version, so it can serve as a single source of truth for all daily grouping needs.
+     * Returns transaction counts and volumes grouped by day, applying the full filter set.
+     * Uses DQL (no raw SQL), so all filters are handled through getBaseQueryBuilder.
+     *
+     * @return array<array{day: string, count: int, convertedValues: array<string, array{income: float, expense: float}>}>
+     */
+    public function countByDayForFilters(
+        ?CarbonInterface $after = null,
+        ?CarbonInterface $before = null,
+        bool $affectingProfitOnly = false,
+        ?string $type = null,
+        ?array $categories = null,
+        ?array $accounts = null,
+        ?array $excludedCategories = null,
+        ?bool $isDraft = null,
+        ?string $note = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+        ?array $debts = null,
+        ?array $currencies = null,
+    ): array {
+        // Runs the base query for a specific transaction type (income or expense),
+        // grouped by day + native account currency. Returns scalar rows.
+        $buildGrouped = function (string $forType) use (
+            $after, $before, $affectingProfitOnly, $type,
+            $categories, $accounts, $excludedCategories,
+            $isDraft, $note, $amountGte, $amountLte, $debts, $currencies
+        ): array {
+            // When a conflicting type filter is already active, nothing will match.
+            if ($type !== null && $type !== $forType) {
+                return [];
             }
-        }
 
-        $categoryJoin   = $onlyAffectingProfit ? 'JOIN category c ON c.id = t.category_id' : '';
-        $categoryFilter = $onlyAffectingProfit ? 'AND c.is_affecting_profit = 1' : '';
+            $qb = $this->getBaseQueryBuilder(
+                after: $after,
+                before: $before,
+                affectingProfitOnly: $affectingProfitOnly,
+                type: $forType,
+                categories: $categories,
+                accounts: $accounts,
+                excludedCategories: $excludedCategories,
+                isDraft: $isDraft,
+                note: $note,
+                amountGte: $amountGte,
+                amountLte: $amountLte,
+                debts: $debts,
+                currencies: $currencies,
+            );
 
-        $rows = $conn->executeQuery(
-            "SELECT
-                DATE(t.executed_at) AS day,
-                a.currency,
-                COUNT(t.id) AS count,
-                SUM(CASE WHEN t.type = 'income'  THEN CAST(t.amount AS DECIMAL(18,8)) ELSE 0 END) AS income,
-                SUM(CASE WHEN t.type = 'expense' THEN CAST(t.amount AS DECIMAL(18,8)) ELSE 0 END) AS expense
-             FROM transaction t
-             JOIN account a ON a.id = t.account_id
-             $categoryJoin
-             WHERE t.executed_at >= :after
-               AND t.executed_at <= :before
-               $accountFilter
-               $categoryFilter
-             GROUP BY DATE(t.executed_at), a.currency
-             ORDER BY day ASC, a.currency ASC",
-            $params,
-        )->fetchAllAssociative();
+            // Join account for native currency grouping. Doctrine allows a second join on
+            // the same association with a different alias (e.g. applyCurrencyFilter uses 'a').
+            return $qb
+                ->leftJoin('t.account', '_acnt')
+                ->select('DATE(t.executedAt) AS day, _acnt.currency AS currency, COUNT(t.id) AS cnt, SUM(t.amount) AS total')
+                ->resetDQLPart('orderBy')
+                ->groupBy('day, _acnt.currency')
+                ->orderBy('day', 'ASC')
+                ->getQuery()
+                ->getArrayResult();
+        };
+
+        $incomeRows  = $buildGrouped(Transaction::INCOME);
+        $expenseRows = $buildGrouped(Transaction::EXPENSE);
 
         $pivoted = [];
-        foreach ($rows as $row) {
+
+        foreach ($incomeRows as $row) {
             $day = $row['day'];
-            if (!isset($pivoted[$day])) {
-                $pivoted[$day] = ['day' => $day, 'count' => 0, 'convertedValues' => []];
-            }
-            $pivoted[$day]['count'] += (int) $row['count'];
-            $pivoted[$day]['convertedValues'][$row['currency']] = [
-                'income'  => (float) $row['income'],
-                'expense' => (float) $row['expense'],
-            ];
+            $cur = $row['currency'];
+            $pivoted[$day] ??= ['day' => $day, 'count' => 0, 'convertedValues' => []];
+            $pivoted[$day]['count'] += (int) $row['cnt'];
+            $pivoted[$day]['convertedValues'][$cur] ??= ['income' => 0.0, 'expense' => 0.0];
+            $pivoted[$day]['convertedValues'][$cur]['income'] = (float) $row['total'];
         }
+
+        foreach ($expenseRows as $row) {
+            $day = $row['day'];
+            $cur = $row['currency'];
+            $pivoted[$day] ??= ['day' => $day, 'count' => 0, 'convertedValues' => []];
+            $pivoted[$day]['count'] += (int) $row['cnt'];
+            $pivoted[$day]['convertedValues'][$cur] ??= ['income' => 0.0, 'expense' => 0.0];
+            $pivoted[$day]['convertedValues'][$cur]['expense'] = (float) $row['total'];
+        }
+
+        ksort($pivoted);
 
         return array_values($pivoted);
     }
 
     /**
+     * TODO: Refactor to use DQL and getBaseQueryBuilder instead of raw SQL, for better filter support and consistency with countByDayForFilters.
      * Returns actual income/expense amounts per category for a given date range,
      * grouped by the account's native currency (same pivot pattern as countByDayForAccounts).
      * Only includes categories where is_affecting_profit = 1.

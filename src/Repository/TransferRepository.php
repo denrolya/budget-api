@@ -56,6 +56,8 @@ class TransferRepository extends ServiceEntityRepository
     }
 
     /**
+     * TODO: Adjust for efficency(use DQL?). Add missing filters
+     * 
      * @param null|CarbonInterface $after
      * @param null|CarbonInterface $before
      * @param array|null $accounts

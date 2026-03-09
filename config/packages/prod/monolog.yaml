@@ -11,6 +11,12 @@ monolog:
             path: "%kernel.logs_dir%/%kernel.environment%.log"
             level: debug
             formatter: monolog.formatter.json
+        bank:
+            type: stream
+            path: "%kernel.logs_dir%/bank.log"
+            level: info
+            formatter: monolog.formatter.json
+            channels: ["bank"]
         console:
             type: console
             process_psr_3_messages: false

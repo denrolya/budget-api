@@ -16,6 +16,7 @@ use Doctrine\ORM\Tools\Pagination\CountWalker;
 use Doctrine\ORM\Tools\Pagination\Paginator as DoctrinePaginator;
 
 /**
+ * TODO: Check if we still have to use this file or there is a new approach. Keeping contracts the same
  * @author Javier Eguiluz <javier.eguiluz@gmail.com>
  */
 class Paginator

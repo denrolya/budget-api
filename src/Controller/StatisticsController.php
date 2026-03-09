@@ -195,13 +195,11 @@ class StatisticsController extends AbstractFOSRestController
     }
 
     /**
-     * Returns transaction counts and volumes grouped by day.
-     * Optionally filtered by account IDs.
+     * Returns transaction counts and converted volumes grouped by calendar day,
+     * applying the full set of transaction filters (same params as the listing API).
      *
-     * Query params:
-     *   after      – ISO date string, default: 1 year ago
-     *   before     – ISO date string, default: today
-     *   accounts[] – optional account ID filter
+     * Query params: after, before, accounts[], categories[], excludedCategories[],
+     *   type, currencies[], isDraft, note, amount[gte], amount[lte], affectingProfit
      */
     #[Rest\View]
     #[Route('/daily', name: 'daily_stats', methods: ['get'])]
@@ -210,13 +208,49 @@ class StatisticsController extends AbstractFOSRestController
         $after  = CarbonImmutable::parse($request->query->get('after',  '-1 year'))->startOfDay();
         $before = CarbonImmutable::parse($request->query->get('before', 'now'))->endOfDay();
 
-        $rawIds     = $request->query->all()['accounts'] ?? [];
-        $accountIds = array_values(array_map('intval', array_filter((array) $rawIds, 'is_numeric')));
+        $toIntArray = static function (mixed $raw): ?array {
+            if (empty($raw)) {
+                return null;
+            }
+            $ids = array_values(array_map('intval', array_filter((array) $raw, 'is_numeric')));
+            return $ids ?: null;
+        };
 
-        $onlyAffectingProfit = filter_var($request->query->get('affectingProfit', false), FILTER_VALIDATE_BOOLEAN);
+        $accounts           = $toIntArray($request->query->all()['accounts'] ?? []);
+        $categories         = $toIntArray($request->query->all()['categories'] ?? []);
+        $excludedCategories = $toIntArray($request->query->all()['excludedCategories'] ?? []);
+
+        $rawType = $request->query->get('type');
+        $type    = in_array($rawType, ['income', 'expense'], true) ? $rawType : null;
+
+        $rawCurrencies = (array) ($request->query->all()['currencies'] ?? []);
+        $currencies    = array_values(array_filter(array_map('strtoupper', $rawCurrencies)));
+        $currencies    = $currencies ?: null;
+
+        $isDraftRaw = $request->query->get('isDraft');
+        $isDraft    = $isDraftRaw !== null ? filter_var($isDraftRaw, FILTER_VALIDATE_BOOLEAN) : null;
+
+        $note      = $request->query->get('note') ?: null;
+        $amountGte = ($v = $request->query->get('amount[gte]')) !== null ? (float) $v : null;
+        $amountLte = ($v = $request->query->get('amount[lte]')) !== null ? (float) $v : null;
+
+        $affectingProfit = filter_var($request->query->get('affectingProfit', false), FILTER_VALIDATE_BOOLEAN);
 
         return $this->view([
-            'data' => $transactionRepo->countByDayForAccounts($accountIds, $after, $before, $onlyAffectingProfit),
+            'data' => $transactionRepo->countByDayForFilters(
+                after: $after,
+                before: $before,
+                affectingProfitOnly: $affectingProfit,
+                type: $type,
+                categories: $categories,
+                accounts: $accounts,
+                excludedCategories: $excludedCategories,
+                isDraft: $isDraft,
+                note: $note,
+                amountGte: $amountGte,
+                amountLte: $amountLte,
+                currencies: $currencies,
+            ),
         ]);
     }
 }

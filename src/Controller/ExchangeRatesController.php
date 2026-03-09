@@ -3,11 +3,11 @@
 namespace App\Controller;
 
 use App\Attribute\MapCarbonDate;
+use App\Bank\Provider\MonobankProvider;
+use App\Bank\Provider\WiseProvider;
 use App\Entity\ExchangeRateSnapshot;
 use App\Repository\ExchangeRateSnapshotRepository;
 use App\Service\FixerService;
-use App\Service\MonobankService;
-use App\Service\WiseService;
 use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
@@ -89,10 +89,10 @@ class ExchangeRatesController extends AbstractFOSRestController
     }
 
     #[Route('/monobank', name: 'monobank_rates', methods: ['get'])]
-    public function monobankRates(MonobankService $monobankService): View
+    public function monobankRates(MonobankProvider $monobankProvider): View
     {
         try {
-            $rates = $monobankService->getLatest();
+            $rates = $monobankProvider->getLatest();
         } catch (InvalidArgumentException) {
             return $this->view(
                 ['error' => 'An error occurred while fetching the exchange rates. Please try again later.'],
@@ -106,11 +106,11 @@ class ExchangeRatesController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'date', description: 'Date (Y-m-d)', nullable: true)]
     #[Route('/wise', name: 'wise_rates', methods: ['get'])]
     public function wiseRates(
-        WiseService $wiseService,
+        WiseProvider $wiseProvider,
         #[MapCarbonDate(format: 'Y-m-d', default: 'today')] CarbonImmutable $date,
     ): View {
         try {
-            $rates = $wiseService->getHistorical($date);
+            $rates = $wiseProvider->getRates($date);
         } catch (InvalidArgumentException) {
             return $this->view(
                 ['error' => 'An error occurred while fetching the exchange rates. Please try again later.'],

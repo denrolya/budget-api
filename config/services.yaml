@@ -4,9 +4,9 @@
 # Put parameters here that don't need to change on each machine where the app is deployed
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
-    .container.dumper.inline_factories: true
     is_fixtures_loading: false
     base_currency: 'EUR'
+    env(WEBHOOK_BASE_URL): ''
     allowed_currencies:
         - EUR
         - USD
@@ -24,6 +24,7 @@ services:
             $fixerApiKey: "%env(FIXER_API_KEY)%"
             $wiseApiKey: "%env(WISE_API_KEY)%"
             $allowedCurrencies: '%allowed_currencies%'
+            $webhookBaseUrl: "%env(WEBHOOK_BASE_URL)%"
 
     # make classes in src/ available to be used as services
     # this creates a service per class whose id is the fully-qualified class name
@@ -57,6 +58,30 @@ services:
         public: true
         arguments:
           [ '@security.password_hasher_factory' ]
+
+    # --- Bank integrations ---
+    # Any class implementing BankProviderInterface is auto-tagged.
+    # Adding a new bank = new Provider class, zero config change needed.
+    # All App\Bank\ services receive the dedicated 'bank' Monolog channel.
+    _instanceof:
+        App\Bank\BankProviderInterface:
+            tags: ['app.bank_provider']
+
+    App\Bank\BankSyncService:
+        arguments:
+            $logger: '@monolog.logger.bank'
+
+    App\Bank\BankWebhookService:
+        arguments:
+            $logger: '@monolog.logger.bank'
+
+    App\Bank\Provider\MonobankProvider:
+        arguments:
+            $monobankApiKey: '%env(MONOBANK_API_KEY)%'
+
+    App\Bank\BankProviderRegistry:
+        arguments:
+            $providers: !tagged_iterator 'app.bank_provider'
 
     App\OpenApi\JwtDecorator:
         decorates: 'api_platform.openapi.factory'

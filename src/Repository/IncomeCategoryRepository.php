@@ -18,15 +18,4 @@ class IncomeCategoryRepository extends CategoryRepository
     {
         parent::__construct($registry, IncomeCategory::class);
     }
-
-    public function findCreatedWithinPeriod(CarbonInterface $after, CarbonInterface $before)
-    {
-        $qb = $this->createQueryBuilder('c')
-            ->where('DATE(c.createdAt) >= :after')
-            ->setParameter('after', $after->toDateString())
-            ->andWhere('DATE(c.createdAt) <= :before')
-            ->setParameter('before', $before->toDateString());
-
-        return $qb->getQuery()->getResult();
-    }
 }

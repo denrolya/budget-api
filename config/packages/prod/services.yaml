@@ -1,0 +1,4 @@
+parameters:
+    # Inline service factories for faster container at runtime (production optimization only).
+    # Excluded from dev because it causes deep DI compiler recursion that trips Xdebug's nesting limit.
+    .container.dumper.inline_factories: true

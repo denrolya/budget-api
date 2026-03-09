@@ -2,6 +2,7 @@
 
 namespace App\Service;
 
+use App\Entity\Account;
 use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
@@ -38,6 +39,7 @@ final class StatisticsManager
     /**
      * Generates transactions statistics grouped by types. With given interval also grouped by date interval.
      * Single DB query for the full range; PHP partitioning per interval.
+     * @return array<int, array{after: int, before: int, expense: float, income: float}>
      */
     public function calculateTransactionsValueByPeriod(
         CarbonPeriod $period,
@@ -93,8 +95,10 @@ final class StatisticsManager
     }
 
     /**
+     * TODO: Check efficiency. This is used in the category breakdown section, which is a key part of the app, so it needs to be optimized. The main potential bottleneck is the recursive getDescendantsFlat() calls for each category, which can lead to N+1 queries. To optimize, we can build a full descendant map in a single query and then use it to aggregate transactions without additional DB calls.
      * Builds category tree and sets value/total on each node.
      * Uses a pre-built descendant ID map instead of recursive getDescendantsFlat() / isChildOf() calls.
+     * @return Category[] Root categories with nested children, each with value/total set.
      */
     public function generateCategoryTreeWithValues(
         array $transactions,
@@ -118,6 +122,9 @@ final class StatisticsManager
         return $categories;
     }
 
+    /**
+     * @return array{min: array{value: float, when: string|null}, max: array{value: float, when: string|null}}
+     */
     public function generateMinMaxByIntervalExpenseStatistics(array $transactions, CarbonPeriod $period): array
     {
         $result = [
@@ -173,6 +180,7 @@ final class StatisticsManager
 
     /**
      * Generates account value distribution statistics within given transactions array.
+     * @return array<int, array{account: Account, amount: float, value: float}>
      */
     public function generateAccountDistributionStatistics(array $transactions): array
     {
@@ -211,6 +219,7 @@ final class StatisticsManager
 
     /**
      * Sums categories' transactions and groups them by timeframe within given period.
+     * @return array<string, array<int, array{date: int, value: float}>> Category name → list of {date, value} for each interval.
      */
     public function generateCategoriesOnTimelineStatistics(
         CarbonPeriod $period,
@@ -314,70 +323,6 @@ final class StatisticsManager
         return $result;
     }
 
-    public function generateUtilityCostsStatistics(array $transactions, CarbonPeriod $period): array
-    {
-        $result = [];
-        $dates = $period->toArray();
-        $descendantMap = $this->getDescendantMap();
-
-        $categoryNames = [
-            ExpenseCategory::CATEGORY_UTILITIES,
-            ExpenseCategory::CATEGORY_UTILITIES_GAS,
-            ExpenseCategory::CATEGORY_UTILITIES_WATER,
-            ExpenseCategory::CATEGORY_UTILITIES_ELECTRICITY,
-        ];
-
-        $transactionsByCatId = [];
-        foreach ($transactions as $transaction) {
-            $transactionsByCatId[$transaction->getCategory()->getId()][] = $transaction;
-        }
-
-        // Batch-fetch all utility categories in a single query (avoids 4 separate findOneBy calls).
-        $categoryEntities = $this->expenseCategoryRepo->findBy(['name' => $categoryNames]);
-        $categoriesByName = [];
-        foreach ($categoryEntities as $cat) {
-            $categoriesByName[$cat->getName()] = $cat;
-        }
-
-        foreach ($categoryNames as $categoryName) {
-            /** @var ExpenseCategory $category */
-            $category = $categoriesByName[$categoryName] ?? null;
-            if ($category === null) {
-                continue;
-            }
-            $descendantIds = $descendantMap[$category->getId()] ?? [$category->getId()];
-
-            $data = [
-                'name' => $categoryName,
-                'icon' => $category->getIcon(),
-                'color' => $category->getColor(),
-                'values' => [],
-            ];
-
-            foreach ($dates as $index => $after) {
-                if (!isset($dates[$index + 1])) {
-                    break;
-                }
-                $before = $dates[$index + 1];
-
-                $periodTransactions = [];
-                foreach ($descendantIds as $descId) {
-                    foreach ($transactionsByCatId[$descId] ?? [] as $t) {
-                        if ($t->getExecutedAt()->isBetween($after, $before)) {
-                            $periodTransactions[] = $t;
-                        }
-                    }
-                }
-
-                $data['values'][] = $this->assetsManager->sumTransactions($periodTransactions);
-            }
-
-            $result[] = $data;
-        }
-
-        return $result;
-    }
-
     public function generateTransactionsValueByCategoriesByWeekdays(array $transactionsOrdered): array
     {
         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -415,45 +360,6 @@ final class StatisticsManager
         }
 
         return $result;
-    }
-
-    /**
-     * Calculates the sum of expenses made today converted to base currency.
-     */
-    public function calculateTodayExpenses(): float
-    {
-        $todayExpenses = $this
-            ->expenseRepo
-            ->getOnGivenDay(CarbonImmutable::today());
-
-        return $this->assetsManager->sumTransactions($todayExpenses);
-    }
-
-    /**
-     * Calculate the sum of total month incomes.
-     */
-    public function calculateMonthIncomes(CarbonInterface $month): float
-    {
-        return $this->assetsManager->sumTransactionsFiltered(
-            Transaction::INCOME,
-            $month->startOfMonth(),
-            $month->endOfMonth()
-        );
-    }
-
-    /**
-     * Calculate average daily expense for given period converted to base currency.
-     */
-    public function calculateAverageDailyExpenseWithinPeriod(CarbonInterface $after, CarbonInterface $before): float
-    {
-        $expenseSum = $this->assetsManager->sumTransactionsFiltered(
-            Transaction::EXPENSE,
-            $after,
-            $before,
-            [ExpenseCategory::CATEGORY_RENT]
-        );
-
-        return $expenseSum / $before->endOfDay()->diffInDays($after->startOfDay());
     }
 
     public function sumTransactionsByDateInterval(array $transactions, CarbonPeriod $period): array
