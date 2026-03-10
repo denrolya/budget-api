@@ -68,7 +68,7 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
             $response = $this->wiseClient->request('GET', "/v4/profiles/{$profileId}/balances?types=STANDARD");
             $balances = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
         } catch (HttpExceptionInterface $e) {
-            throw new RuntimeException('Wise fetchAccounts failed: ' . $e->getMessage(), 0, $e);
+            throw new RuntimeException($this->formatWiseHttpError('fetchAccounts', $e), 0, $e);
         }
 
         $result = [];
@@ -129,7 +129,7 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
             $response = $this->wiseClient->request('GET', $url);
             $data = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
         } catch (HttpExceptionInterface $e) {
-            throw new RuntimeException('Wise fetchTransactions failed: ' . $e->getMessage(), 0, $e);
+            throw new RuntimeException($this->formatWiseHttpError('fetchTransactions', $e), 0, $e);
         }
 
         $result = [];
@@ -210,6 +210,9 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
             $response = $this->wiseClient->request('GET', "/v3/profiles/{$profileId}/subscriptions");
             $subscriptions = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
         } catch (HttpExceptionInterface | TransportExceptionInterface | JsonException $e) {
+            if ($e instanceof HttpExceptionInterface) {
+                throw new RuntimeException($this->formatWiseHttpError('registerWebhook(list)', $e), 0, $e);
+            }
             throw new RuntimeException('Wise registerWebhook failed while listing subscriptions: ' . $e->getMessage(), 0, $e);
         }
 
@@ -240,6 +243,9 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
                 ],
             ])->getContent();
         } catch (HttpExceptionInterface | TransportExceptionInterface $e) {
+            if ($e instanceof HttpExceptionInterface) {
+                throw new RuntimeException($this->formatWiseHttpError('registerWebhook(create)', $e), 0, $e);
+            }
             throw new RuntimeException('Wise registerWebhook failed: ' . $e->getMessage(), 0, $e);
         }
     }
@@ -327,6 +333,9 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
             $response = $this->wiseClient->request('GET', '/v2/profiles');
             $profiles = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
         } catch (HttpExceptionInterface | TransportExceptionInterface | JsonException $e) {
+            if ($e instanceof HttpExceptionInterface) {
+                throw new RuntimeException($this->formatWiseHttpError('fetchProfiles', $e), 0, $e);
+            }
             throw new RuntimeException('Wise: failed to fetch profiles: ' . $e->getMessage(), 0, $e);
         }
 
@@ -361,5 +370,53 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
         ]);
 
         return implode(' ', $parts) ?: 'Wise transaction';
+    }
+
+    private function formatWiseHttpError(string $operation, HttpExceptionInterface $e): string
+    {
+        $status = null;
+        $headers = [];
+
+        try {
+            $response = $e->getResponse();
+            $status = $response->getStatusCode();
+
+            try {
+                $headers = $response->getHeaders(false);
+            } catch (\Throwable) {
+                $headers = [];
+            }
+        } catch (\Throwable) {
+            $status = null;
+            $headers = [];
+        }
+
+        $approvalResult = strtoupper((string) ($this->firstHeader($headers, 'x-2fa-approval-result') ?? ''));
+        $approvalId = (string) ($this->firstHeader($headers, 'x-2fa-approval') ?? '');
+
+        if ($status === 403 && $approvalResult === 'REJECTED') {
+            return sprintf(
+                'Wise %s failed: 403 Forbidden (SCA/2FA approval rejected). approval_id=%s. Approve the request in Wise and retry.',
+                $operation,
+                $approvalId !== '' ? $approvalId : 'n/a',
+            );
+        }
+
+        return sprintf('Wise %s failed: %s', $operation, $e->getMessage());
+    }
+
+    private function firstHeader(array $headers, string $name): ?string
+    {
+        foreach ($headers as $key => $value) {
+            if (strcasecmp((string) $key, $name) === 0) {
+                if (is_array($value) && !empty($value)) {
+                    return (string) $value[0];
+                }
+
+                return is_string($value) ? $value : null;
+            }
+        }
+
+        return null;
     }
 }

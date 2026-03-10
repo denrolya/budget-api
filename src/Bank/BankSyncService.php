@@ -137,10 +137,11 @@ class BankSyncService
                     $to,
                 );
             } catch (\Throwable $e) {
-                $this->logger->error('[BankSync] fetchTransactions failed for account #{id}: {msg}', [
-                    'id' => $account->getId(),
-                    'msg' => $e->getMessage(),
-                ]);
+                $ctx = $this->buildAccountLogContext($integration, $account);
+                $this->logger->error(
+                    '[BankSync] fetchTransactions failed for account #{account_id} (external={external_account_id}, name="{account_name}", currency={currency}, bank="{bank}", provider={provider}, integration={integration_id}): {msg}',
+                    $ctx + ['msg' => $e->getMessage()],
+                );
                 continue;
             }
 
@@ -164,6 +165,22 @@ class BankSyncService
         ]);
 
         return $created;
+    }
+
+    /**
+     * @return array<string, scalar>
+     */
+    private function buildAccountLogContext(BankIntegration $integration, BankCardAccount $account): array
+    {
+        return [
+            'integration_id' => $integration->getId(),
+            'provider' => $integration->getProvider()->value,
+            'account_id' => $account->getId(),
+            'external_account_id' => $account->getExternalAccountId() ?? 'n/a',
+            'account_name' => $account->getName() ?? 'n/a',
+            'currency' => $account->getCurrency(),
+            'bank' => $account->getBankName() ?? 'n/a',
+        ];
     }
 
     private function isDuplicate(BankCardAccount $account, DraftTransactionData $data): bool

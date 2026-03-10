@@ -10,10 +10,11 @@ It allows users to manage various accounts, track debts, and categorize transact
 2. [Budgeting Feature](#budgeting-feature)
 3. [Redundant Tables](#redundant-tables)
 4. [Running Tests](#running-tests)
-5. [Setting Up SonarQube](#setting-up-sonarqube)
+5. [Production Bank Jobs (Cron)](#production-bank-jobs-cron)
+6. [Setting Up SonarQube](#setting-up-sonarqube)
     - [Using Docker](#using-docker)
     - [Using Docker Compose](#using-docker-compose)
-6. [Running SonarQube Analysis](#running-sonarqube-analysis)
+7. [Running SonarQube Analysis](#running-sonarqube-analysis)
 ---
 
 ## Entities
@@ -133,6 +134,41 @@ For generating clover coverage reports, run:
 
 ```bash
 composer test-clover
+```
+
+## Production Bank Jobs (Cron)
+
+Recommended cadence is once per day for both polling sync and webhook self-healing.
+
+1. SSH to the production host and open the crontab for the deploy user (the one that owns the app files):
+
+```bash
+crontab -e
+```
+
+2. Add these entries (adjust paths if your deploy path differs):
+
+```cron
+# Daily polling sync at 02:15
+15 2 * * * flock -n /tmp/budget-bank-sync.lock -c 'cd /var/www/api/current && php bin/console app:bank:sync --env=prod --no-debug >> /var/www/api/shared/var/log/bank-sync.log 2>&1'
+
+# Daily webhook refresh at 02:45
+45 2 * * * flock -n /tmp/budget-bank-webhooks.lock -c 'cd /var/www/api/current && php bin/console app:bank:webhooks:refresh --env=prod --no-debug >> /var/www/api/shared/var/log/bank-webhooks-refresh.log 2>&1'
+```
+
+3. Validate that required env vars exist in production shared dotenv or system env:
+
+- `WEBHOOK_BASE_URL`
+- `WISE_API_KEY`
+- `MONOBANK_API_KEY`
+
+Remote one-off runs are also available through composer/deployer:
+
+```bash
+composer bank:webhooks:refresh:remote
+composer bank:sync:remote
+composer bank:maintenance:remote
+composer bank:logs:remote
 ```
 
 ---

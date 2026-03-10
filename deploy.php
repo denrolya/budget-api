@@ -11,6 +11,14 @@
  *   vendor/bin/dep app:logs production        — tail production log (last 100 lines)
  *   vendor/bin/dep app:shell production       — interactive SSH session
  *   vendor/bin/dep app:cache:clear production — clear + warm Symfony cache remotely
+ * 
+ *   vendor/bin/dep app:bank:sync production — run polling sync on remote
+ *   vendor/bin/dep app:bank:webhooks:refresh production — refresh webhooks on remote
+ *   vendor/bin/dep app:bank:maintenance production — run webhook refresh + polling sync on remote
+ *   vendor/bin/dep app:bank:sync:logs production — tail polling sync log on remote
+ *   vendor/bin/dep app:bank:webhooks:logs production — tail webhook refresh log on remote
+ *   vendor/bin/dep app:bank:logs production — tail bank sync/webhook logs on remote
+ * 
  *   vendor/bin/dep app:php:restart production — reload php-fpm (after php.ini changes)
  *   vendor/bin/dep app:php_ini:upload production — push local php.ini to server
  *   vendor/bin/dep env:pull production        — download production .env → .env.production locally
@@ -179,6 +187,36 @@ task('app:cache:clear', function () {
     run('{{bin/php}} {{release_or_current_path}}/bin/console cache:warmup --env=prod --no-debug');
     writeln('<info>✓ Cache cleared and warmed up.</info>');
 })->desc('Clear & warm up the Symfony cache on the remote host');
+
+task('app:bank:sync', function () {
+    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-sync.log; printf \"[%s] START app:bank:sync\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank-sync.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:sync --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank-sync.log 2>&1; status=$?; printf \"[%s] END app:bank:sync status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank-sync.log; test \"\$status\" -eq 0'");
+    writeln('<info>✓ Remote bank polling sync completed.</info>');
+})->desc('Run polling bank sync on the remote host');
+
+task('app:bank:webhooks:refresh', function () {
+    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; printf \"[%s] START app:bank:webhooks:refresh\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:webhooks:refresh --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log 2>&1; status=$?; printf \"[%s] END app:bank:webhooks:refresh status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; test \"\$status\" -eq 0'");
+    writeln('<info>✓ Remote webhook refresh completed.</info>');
+})->desc('Refresh bank webhooks on the remote host');
+
+task('app:bank:maintenance', [
+    'app:bank:webhooks:refresh',
+    'app:bank:sync',
+])->desc('Run webhook refresh and polling sync on the remote host');
+
+task('app:bank:sync:logs', function () {
+    $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-sync.log; echo \"=== bank-sync.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank-sync.log ]; then tail -n 150 {{deploy_path}}/shared/var/log/bank-sync.log; else echo \"(empty)\"; fi'");
+    writeln($output);
+})->desc('Tail polling sync log on the remote host');
+
+task('app:bank:webhooks:logs', function () {
+    $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; echo \"=== bank-webhooks-refresh.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log ]; then tail -n 150 {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; else echo \"(empty)\"; fi'");
+    writeln($output);
+})->desc('Tail webhook refresh log on the remote host');
+
+task('app:bank:logs', function () {
+    $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-sync.log {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; echo \"=== bank-sync.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank-sync.log ]; then tail -n 150 {{deploy_path}}/shared/var/log/bank-sync.log; else echo \"(empty)\"; fi; echo; echo \"=== bank-webhooks-refresh.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log ]; then tail -n 150 {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; else echo \"(empty)\"; fi'");
+    writeln($output);
+})->desc('Tail bank sync and webhook refresh logs on the remote host');
 
 task('app:logs', function () {
     run('tail -n 150 {{deploy_path}}/shared/var/log/prod.log');
