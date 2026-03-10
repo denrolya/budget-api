@@ -66,8 +66,10 @@ class TransferFeatureTest extends BaseApiTestCase
 
         $this->em->remove($transfer->getFromExpense());
         $this->em->flush();
-        $this->em->refresh($this->accountCashEUR);
-        $this->em->refresh($this->accountCashUAH);
+        $reloadedEurAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashEUR->getId());
+        $reloadedUahAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashUAH->getId());
+        self::assertNotNull($reloadedEurAccount);
+        self::assertNotNull($reloadedUahAccount);
 
         $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
         $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
@@ -291,6 +293,85 @@ class TransferFeatureTest extends BaseApiTestCase
 
     public function testUpdateTransfer(): void
     {
-        self::markTestIncomplete('This functionality has not been implemented yet.');
+        $eurBalanceBefore = (float) $this->accountCashEUR->getBalance();
+        $uahBalanceBefore = (float) $this->accountCashUAH->getBalance();
+
+        $createResponse = $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '100.0',
+                'executedAt' => '2024-03-12T09:35:00Z',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'Initial transfer',
+                'rate' => '2',
+                'fee' => '10.0',
+                'feeAccount' => $this->iri($this->accountCashEUR),
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $createdTransfer = $this->em->getRepository(Transfer::class)->find($createResponse->toArray()['id']);
+        self::assertNotNull($createdTransfer);
+
+        $fromExpenseId = $createdTransfer->getFromExpense()?->getId();
+        $toIncomeId = $createdTransfer->getToIncome()?->getId();
+        $feeExpenseId = $createdTransfer->getFeeExpense()?->getId();
+
+        self::assertNotNull($fromExpenseId);
+        self::assertNotNull($toIncomeId);
+        self::assertNotNull($feeExpenseId);
+
+        $eurAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashEUR->getId());
+        $uahAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashUAH->getId());
+        self::assertNotNull($eurAccount);
+        self::assertNotNull($uahAccount);
+
+        $this->client->request('PUT', '/api/transfers/'.$createdTransfer->getId(), [
+            'json' => [
+                'amount' => '50.0',
+                'executedAt' => '2024-03-13T10:00:00Z',
+                'from' => $this->iri($eurAccount),
+                'to' => $this->iri($uahAccount),
+                'note' => 'Updated transfer',
+                'rate' => '3',
+                'fee' => '5.0',
+                'feeAccount' => $this->iri($uahAccount),
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $reloadedEurAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashEUR->getId());
+        $reloadedUahAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashUAH->getId());
+        self::assertNotNull($reloadedEurAccount);
+        self::assertNotNull($reloadedUahAccount);
+
+        $updatedTransfer = $this->em->getRepository(Transfer::class)->find($createdTransfer->getId());
+        self::assertNotNull($updatedTransfer);
+        self::assertEquals('Updated transfer', $updatedTransfer->getNote());
+        self::assertEquals(50.0, $updatedTransfer->getAmount());
+        self::assertEquals(3.0, $updatedTransfer->getRate());
+        self::assertEquals(5.0, $updatedTransfer->getFee());
+
+        $fromExpense = $updatedTransfer->getFromExpense();
+        $toIncome = $updatedTransfer->getToIncome();
+        $feeExpense = $updatedTransfer->getFeeExpense();
+
+        self::assertNotNull($fromExpense);
+        self::assertNotNull($toIncome);
+        self::assertNotNull($feeExpense);
+
+        // Existing transfer transactions must be updated in place, not recreated.
+        self::assertEquals($fromExpenseId, $fromExpense->getId());
+        self::assertEquals($toIncomeId, $toIncome->getId());
+        self::assertEquals($feeExpenseId, $feeExpense->getId());
+
+        self::assertEquals(50.0, $fromExpense->getAmount());
+        self::assertEquals(150.0, $toIncome->getAmount());
+        self::assertEquals(5.0, $feeExpense->getAmount());
+        self::assertEquals($this->accountCashUAH->getId(), $feeExpense->getAccount()->getId());
+
+        // Final effect after update should match updated transfer values.
+        self::assertEquals($eurBalanceBefore - 50.0, (float) $reloadedEurAccount->getBalance());
+        self::assertEquals($uahBalanceBefore + 145.0, (float) $reloadedUahAccount->getBalance());
     }
 }

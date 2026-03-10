@@ -2,6 +2,7 @@
 namespace App\DataFixtures\Dev;
 
 use App\EventListener\TransactionListener;
+use App\EventListener\TransferCreateTransactionsHandler;
 use App\EventListener\ValuableEntityEventListener;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
@@ -12,27 +13,32 @@ abstract class BaseTransactionFixtures extends Fixture implements DependentFixtu
     protected ParameterBagInterface $params;
     protected TransactionListener $transactionListener;
     protected ValuableEntityEventListener $valuableEntityListener;
+    protected TransferCreateTransactionsHandler $transferHandler;
 
     public function __construct(
         ParameterBagInterface $params,
         TransactionListener $transactionListener,
-        ValuableEntityEventListener $valuableEntityListener
+        ValuableEntityEventListener $valuableEntityListener,
+        TransferCreateTransactionsHandler $transferHandler
     ) {
         $this->params = $params;
         $this->transactionListener = $transactionListener;
         $this->valuableEntityListener = $valuableEntityListener;
+        $this->transferHandler = $transferHandler;
     }
 
     protected function disableListeners(): void
     {
         $this->transactionListener->setEnabled(false);
         $this->valuableEntityListener->setEnabled(false);
+        $this->transferHandler->setEnabled(false);
     }
 
     protected function enableListeners(): void
     {
         $this->transactionListener->setEnabled(true);
         $this->valuableEntityListener->setEnabled(true);
+        $this->transferHandler->setEnabled(true);
     }
 
     protected function convertAmount(float $amount, string $currency, array $allowedCurrencies): array
@@ -56,6 +62,7 @@ abstract class BaseTransactionFixtures extends Fixture implements DependentFixtu
             AccountFixtures::class,
             ExpenseCategoryFixtures::class,
             IncomeCategoryFixtures::class,
+            ExchangeRateFixtures::class,
         ];
     }
 }

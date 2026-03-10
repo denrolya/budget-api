@@ -3,8 +3,7 @@
 namespace App\Tests\ApiPlatform\Action;
 
 use App\Bank\BankProvider;
-use App\Bank\BankProviderRegistry;
-use App\Bank\Provider\MonobankProvider;
+use App\Bank\BankWebhookRegistrationService;
 use App\Bank\SyncMethod;
 use App\Entity\BankIntegration;
 use App\Entity\User;
@@ -50,36 +49,13 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
         return "/api/bank-integrations/{$id}/register-webhook";
     }
 
-    /**
-     * Replace BankIntegrationRegisterWebhookAction in the container with a version
-     * that has a fixed WEBHOOK_BASE_URL so the localhost guard is bypassed and no
-     * real HTTP calls are made.
-     *
-     * @return \PHPUnit\Framework\MockObject\MockObject&MonobankProvider
-     */
-    private function mockMonobankProvider(): \PHPUnit\Framework\MockObject\MockObject
+    /** @return \PHPUnit\Framework\MockObject\MockObject&BankWebhookRegistrationService */
+    private function mockRegistrationService(): \PHPUnit\Framework\MockObject\MockObject
     {
-        $mockProvider = $this->createMock(MonobankProvider::class);
+        $mock = $this->createMock(BankWebhookRegistrationService::class);
+        $this->client->getContainer()->set(BankWebhookRegistrationService::class, $mock);
 
-        $mockRegistry = $this->createMock(BankProviderRegistry::class);
-        $mockRegistry->method('get')->willReturn($mockProvider);
-
-        // Retrieve the already-initialised service so AbstractController's service
-        // locator (needed for getUser()) is already wired by the DI container.
-        $container = $this->client->getContainer();
-        $action = $container->get(\App\ApiPlatform\Action\BankIntegrationRegisterWebhookAction::class);
-
-        $ref = new \ReflectionClass($action);
-
-        $registryProp = $ref->getProperty('registry');
-        $registryProp->setAccessible(true);
-        $registryProp->setValue($action, $mockRegistry);
-
-        $webhookProp = $ref->getProperty('webhookBaseUrl');
-        $webhookProp->setAccessible(true);
-        $webhookProp->setValue($action, 'https://prod.example.com');
-
-        return $mockProvider;
+        return $mock;
     }
 
     // -------------------------------------------------------------------------
@@ -143,10 +119,10 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
     // -------------------------------------------------------------------------
 
     /**
-     * Wise does not implement WebhookCapableInterface; the capability check fires
-     * before the localhost check, so this returns 422 even from localhost.
+     * Wise supports webhooks too. On localhost, registration is still blocked
+     * because the callback URL is not publicly reachable.
      */
-    public function testNonWebhookProviderIsRejectedWith422(): void
+    public function testWiseWebhookRegistrationIsBlockedOnLocalhostWith422(): void
     {
         $response = $this->client->request('POST', $this->url($this->wiseIntegrationId), ['json' => []]);
 
@@ -154,7 +130,7 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
 
         $content = $response->toArray(false);
         self::assertArrayHasKey('error', $content);
-        self::assertStringContainsStringIgnoringCase('does not support webhooks', $content['error']);
+        self::assertStringContainsStringIgnoringCase('localhost', $content['error']);
     }
 
     // -------------------------------------------------------------------------
@@ -167,8 +143,11 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
      */
     public function testRegisterWebhookSuccessReturnWebhookUrl(): void
     {
-        $mockProvider = $this->mockMonobankProvider();
-        $mockProvider->expects(self::once())->method('registerWebhook');
+        $mock = $this->mockRegistrationService();
+        $mock
+            ->expects(self::once())
+            ->method('register')
+            ->willReturn('https://prod.example.com/api/webhooks/monobank');
 
         $response = $this->client->request('POST', $this->url($this->monobankIntegrationId), ['json' => []]);
 
@@ -185,9 +164,9 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
      */
     public function testBankApiFailureReturns502(): void
     {
-        $mockProvider = $this->mockMonobankProvider();
-        $mockProvider
-            ->method('registerWebhook')
+        $mock = $this->mockRegistrationService();
+        $mock
+            ->method('register')
             ->willThrowException(new \RuntimeException('Monobank: connection refused'));
 
         $response = $this->client->request('POST', $this->url($this->monobankIntegrationId), ['json' => []]);

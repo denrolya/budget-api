@@ -22,7 +22,7 @@ trait WithMockAssetsManagerTrait
         /** @var MockObject&AssetsManager $mock */
         $mock = $this->getMockBuilder(AssetsManager::class)
             ->disableOriginalConstructor()
-            ->onlyMethods(['convert', 'convertTo'])
+            ->onlyMethods(['convert'])
             ->getMock();
 
         $mock->method('convert')
@@ -41,24 +41,6 @@ trait WithMockAssetsManagerTrait
                 }
 
                 return $result;
-            });
-
-        $mock->method('convertTo')
-            ->willReturnCallback(function ($entity, ?string $toCurrency = null) {
-                /** @phpstan-ignore-next-line */
-                $amount = (float)$entity->{'get'.ucfirst($entity->getValuableField())}();
-                $fromCurrency = strtoupper($entity->getCurrency());
-                $target = strtoupper($toCurrency ?? $fromCurrency);
-
-                if ($fromCurrency === $target) {
-                    return $amount;
-                }
-
-                if (!isset(self::EXCHANGE_RATES[$fromCurrency], self::EXCHANGE_RATES[$target])) {
-                    throw new \RuntimeException("Unsupported test currency: {$fromCurrency} or {$target}");
-                }
-
-                return $amount / self::EXCHANGE_RATES[$fromCurrency] * self::EXCHANGE_RATES[$target];
             });
 
         return $mock;

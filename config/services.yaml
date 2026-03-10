@@ -96,6 +96,7 @@ services:
         decoration_priority: 1001
 
     App\DataPersister\DebtDataPersister: ~
+    App\DataPersister\TransferDataPersister: ~
 
     # Give Carbon value resolvers higher priority than RequestAttributeValueResolver (100)
     # so they always win when FOS REST QueryParam defaults are injected into request attributes.
@@ -107,9 +108,7 @@ services:
         tags:
             - { name: controller.argument_value_resolver, priority: 150 }
 
-    App\EventListener\TransferCreateTransactionsHandler:
-        tags:
-            - { name: doctrine.orm.entity_listener, event: prePersist, entity: 'App\Entity\Transfer', method: prePersist }
+    # TransferCreateTransactionsHandler entity listener removed — logic moved to TransferService + TransferDataPersister.
 
     App\EventListener\TransactionListener:
         tags:

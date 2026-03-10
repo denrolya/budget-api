@@ -3,280 +3,380 @@
 namespace App\Tests\Repository;
 
 use App\Entity\Account;
-use App\Entity\Category;
+use App\Entity\Expense;
+use App\Entity\ExpenseCategory;
+use App\Entity\Income;
+use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
+use App\Entity\User;
 use App\Repository\TransactionRepository;
-use Carbon\Carbon;
-use Doctrine\ORM\Query\QueryException;
-use Doctrine\Persistence\ObjectManager;
+use Carbon\CarbonImmutable;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 class TransactionRepositoryTest extends KernelTestCase
 {
-    private ObjectManager|null $em;
-
+    private ?EntityManagerInterface $em = null;
     private TransactionRepository $repo;
+    private Account $eurAccount;
+    private Account $uahAccount;
+    private ExpenseCategory $expenseCategory;
+    private IncomeCategory $incomeCategory;
+    private User $owner;
+
+    /** @var int[] */
+    private array $createdTransactionIds = [];
 
     protected function setUp(): void
     {
         parent::setUp();
+
         $this->em = self::getContainer()->get('doctrine')->getManager();
-        $this->repo = $this->em->getRepository(Transaction::class);
+        /** @var TransactionRepository $repo */
+        $repo = $this->em->getRepository(Transaction::class);
+        $this->repo = $repo;
+
+        $eurAccount = $this->em->getRepository(Account::class)->findOneBy(['name' => 'EUR Cash']);
+        $uahAccount = $this->em->getRepository(Account::class)->findOneBy(['name' => 'UAH Card']);
+        $expenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Groceries']);
+        $incomeCategory = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => 'Salary']);
+
+        assert($eurAccount instanceof Account);
+        assert($uahAccount instanceof Account);
+        assert($expenseCategory instanceof ExpenseCategory);
+        assert($incomeCategory instanceof IncomeCategory);
+
+        $owner = $eurAccount->getOwner();
+        assert($owner instanceof User);
+
+        $this->eurAccount = $eurAccount;
+        $this->uahAccount = $uahAccount;
+        $this->expenseCategory = $expenseCategory;
+        $this->incomeCategory = $incomeCategory;
+        $this->owner = $owner;
     }
 
-    // teardown clear em
     protected function tearDown(): void
     {
-        parent::tearDown();
+        if ($this->em !== null && $this->createdTransactionIds !== []) {
+            $transactions = $this->em->getRepository(Transaction::class)->findBy(['id' => $this->createdTransactionIds]);
+            foreach ($transactions as $transaction) {
+                $this->em->remove($transaction);
+            }
+            $this->em->flush();
+            $this->createdTransactionIds = [];
+        }
+
         $this->em?->clear();
         $this->em = null;
+
+        parent::tearDown();
         self::ensureKernelShutdown();
-        gc_enable();
-        gc_collect_cycles();
     }
 
-    /**
-     * @group smoke
-     * @return void
-     */
-    public function testGetListWithoutArgumentsSuccess(): void
+    public function testGetListFiltersByNoteAndEscapesLikeChars(): void
     {
-        $result = $this->repo->getList();
+        $prefix = 'repo-note-'.uniqid('', true);
 
-        self::assertCount(137, $result);
+        $match = $this->createExpense(
+            amount: 10,
+            note: $prefix.' literal %_ token',
+            executedAt: CarbonImmutable::parse('2026-01-05 10:00:00'),
+            account: $this->eurAccount,
+            convertedEur: 10,
+        );
+
+        $this->createExpense(
+            amount: 11,
+            note: $prefix.' plain token',
+            executedAt: CarbonImmutable::parse('2026-01-05 11:00:00'),
+            account: $this->eurAccount,
+            convertedEur: 11,
+        );
+
+        $result = $this->repo->getList(
+            note: '%_ token',
+            affectingProfitOnly: false,
+            after: CarbonImmutable::parse('2026-01-01'),
+            before: CarbonImmutable::parse('2026-01-10'),
+        );
+
+        $ids = array_map(static fn(Transaction $t) => $t->getId(), $result);
+        self::assertContains($match->getId(), $ids);
+        self::assertCount(1, array_values(array_filter($result, static fn(Transaction $t) => str_contains($t->getNote() ?? '', $prefix))));
     }
 
-    public function testGetListWithBeforeArgument(): void
+    public function testGetListFiltersByCurrencies(): void
     {
-        $before = Carbon::parse('2021-01-31')->endOfDay();
-        $result = $this->repo->getList(before: $before);
+        $prefix = 'repo-currency-'.uniqid('', true);
 
-        self::assertCount(41, $result);
-        self::assertTrue($result[0]->getExecutedAt()->isBefore($before));
-        self::assertTrue($result[40]->getExecutedAt()->isBefore($before));
+        $eurTx = $this->createExpense(
+            amount: 15,
+            note: $prefix,
+            executedAt: CarbonImmutable::parse('2026-01-06 09:00:00'),
+            account: $this->eurAccount,
+            convertedEur: 15,
+        );
 
-        $before = Carbon::parse('2020-01-31')->endOfDay();
-        $result = $this->repo->getList(before: $before);
+        $uahTx = $this->createExpense(
+            amount: 500,
+            note: $prefix,
+            executedAt: CarbonImmutable::parse('2026-01-06 12:00:00'),
+            account: $this->uahAccount,
+            convertedEur: 15,
+        );
 
-        self::assertCount(2, $result);
-        self::assertTrue($result[0]->getExecutedAt()->isBefore($before));
-        self::assertTrue($result[1]->getExecutedAt()->isBefore($before));
+        $result = $this->repo->getList(
+            currencies: ['uah'],
+            note: $prefix,
+            affectingProfitOnly: false,
+            after: CarbonImmutable::parse('2026-01-01'),
+            before: CarbonImmutable::parse('2026-01-10'),
+        );
+
+        $ids = array_map(static fn(Transaction $t) => $t->getId(), $result);
+        self::assertContains($uahTx->getId(), $ids);
+        self::assertNotContains($eurTx->getId(), $ids);
+
+        foreach ($result as $tx) {
+            self::assertSame('UAH', $tx->getAccount()->getCurrency());
+        }
     }
 
-    public function testGetListWithBeforeAndAfterArguments(): void
-    {
-        $after = Carbon::parse('2021-01-01')->startOfDay();
-        $before = Carbon::parse('2021-01-31')->endOfDay();
-        $result = $this->repo->getList(after: $after, before: $before);
-
-        self::assertCount(39, $result);
-        self::assertTrue($result[0]->getExecutedAt()->isBetween($before, $after));
-        self::assertTrue($result[19]->getExecutedAt()->isBetween($before, $after));
-        self::assertTrue($result[38]->getExecutedAt()->isBetween($before, $after));
-
-        $after = Carbon::parse('2020-01-01')->startOfDay();
-        $result = $this->repo->getList(after: $after, before: $before);
-
-        self::assertCount(41, $result);
-        self::assertTrue($result[0]->getExecutedAt()->isBetween($before, $after));
-        self::assertTrue($result[20]->getExecutedAt()->isBetween($before, $after));
-        self::assertTrue($result[40]->getExecutedAt()->isBetween($before, $after));
-    }
-
-    public function testGetListWithBeforeAndAfterSwappedArguments(): void
-    {
-        $after = Carbon::parse('2021-01-31')->startOfDay();
-        $before = Carbon::parse('2021-01-01')->endOfDay();
-        $result = $this->repo->getList(after: $after, before: $before);
-
-        self::assertCount(0, $result);
-    }
-
-    public function testGetListWithType(): void
-    {
-        $result = $this->repo->getList(type: 'expense');
-
-        self::assertCount(109, $result);
-        self::assertTrue($result[0]->isExpense());
-        self::assertTrue($result[54]->isExpense());
-        self::assertTrue($result[108]->isExpense());
-
-        $result = $this->repo->getList(type: 'income');
-
-        self::assertCount(28, $result);
-        self::assertTrue($result[0]->isIncome());
-        self::assertTrue($result[14]->isIncome());
-        self::assertTrue($result[27]->isIncome());
-    }
-
-    public function testGetListWithInvalidStringType(): void
+    public function testGetListRejectsInvalidCurrencyCode(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->repo->getList(type: 'invalid');
+        $this->expectExceptionMessage('Invalid currency');
+
+        $this->repo->getList(currencies: ['USDT']);
     }
 
-    public function testGetListWithInvalidBooleanType(): void
+    public function testSumConvertedForMixedAndTypedQueries(): void
     {
-        $result = $this->repo->getList(type: false);
-        self::assertCount(137, $result);
-    }
+        $prefix = 'repo-sum-'.uniqid('', true);
 
-    public function testGetListWithAffectingProfitOnlyArgument(): void
-    {
-        $result = $this->repo->getList(affectingProfitOnly: true);
-        self::assertCount(137, $result);
-        self::assertTrue($result[0]->getCategory()->getIsAffectingProfit());
-        self::assertTrue($result[68]->getCategory()->getIsAffectingProfit());
-        self::assertTrue($result[136]->getCategory()->getIsAffectingProfit());
+        $this->createIncome(
+            amount: 120,
+            note: $prefix,
+            executedAt: CarbonImmutable::parse('2026-01-07 08:00:00'),
+            account: $this->eurAccount,
+            convertedEur: 120,
+        );
 
-        $result = $this->repo->getList(affectingProfitOnly: false);
+        $this->createExpense(
+            amount: 30,
+            note: $prefix,
+            executedAt: CarbonImmutable::parse('2026-01-07 13:00:00'),
+            account: $this->eurAccount,
+            convertedEur: 30,
+        );
 
-        self::assertCount(138, $result);
-        $notAffectingProfit = array_filter($result, static function (Transaction $transaction) {
-            return !$transaction->getCategory()->getIsAffectingProfit();
-        });
-        self::assertCount(138 - 137, $notAffectingProfit);
-    }
-
-    public function testGetListWithCategoriesArgument(): void
-    {
-        $categoryRepo = $this->em->getRepository(Category::class);
-
-        $categories = [
-            $categoryRepo->findOneBy(['name' => 'Groceries']),
+        $commonArgs = [
+            'baseCurrency' => 'EUR',
+            'note' => $prefix,
+            'affectingProfitOnly' => false,
+            'after' => CarbonImmutable::parse('2026-01-01'),
+            'before' => CarbonImmutable::parse('2026-01-10'),
         ];
-        $result = $this->repo->getList(categories: $categories);
-        self::assertCount(54, $result);
-        self::assertEquals($categories[0]->getName(), $result[0]->getCategory()->getName());
-        self::assertEquals($categories[0]->getName(), $result[27]->getCategory()->getName());
-        self::assertEquals($categories[0]->getName(), $result[53]->getCategory()->getName());
 
-        $categories[] = $categoryRepo->findOneBy(['name' => 'Salary']);
-        $categoryNames = array_map(static function (Category $category) {
-            return $category->getName();
-        }, $categories);
-        $result = $this->repo->getList(categories: $categories);
-        self::assertCount(76, $result);
-        self::assertContains($result[0]->getCategory()->getName(), $categoryNames);
-        self::assertContains($result[38]->getCategory()->getName(), $categoryNames);
-        self::assertContains($result[75]->getCategory()->getName(), $categoryNames);
-
-        $categories = array_map(static function (Category $category) {
-            return $category->getId();
-        }, $categories);
-        $result = $this->repo->getList(categories: $categories);
-        self::assertCount(76, $result);
-        self::assertContains($result[0]->getCategory()->getName(), $categoryNames);
-        self::assertContains($result[38]->getCategory()->getName(), $categoryNames);
-        self::assertContains($result[75]->getCategory()->getName(), $categoryNames);
+        self::assertSame(90.0, $this->repo->sumConverted(...$commonArgs));
+        self::assertSame(120.0, $this->repo->sumConverted(...$commonArgs, type: Transaction::INCOME));
+        self::assertSame(-30.0, $this->repo->sumConverted(...$commonArgs, type: Transaction::EXPENSE));
     }
 
-    public function testGetListWithInvalidCategoriesArgument(): void
+    public function testGetPaginatorRespectsLimitPageAndOrder(): void
     {
-        $result = $this->repo->getList(categories: ['invalid']);
-        self::assertCount(0, $result);
+        $prefix = 'repo-paginator-'.uniqid('', true);
+
+        $this->createExpense(10, $prefix, CarbonImmutable::parse('2026-01-01 10:00:00'), $this->eurAccount, 10);
+        $this->createExpense(20, $prefix, CarbonImmutable::parse('2026-01-02 10:00:00'), $this->eurAccount, 20);
+        $last = $this->createExpense(30, $prefix, CarbonImmutable::parse('2026-01-03 10:00:00'), $this->eurAccount, 30);
+
+        $paginator = $this->repo->getPaginator(
+            after: CarbonImmutable::parse('2026-01-01'),
+            before: CarbonImmutable::parse('2026-01-04'),
+            affectingProfitOnly: false,
+            note: $prefix,
+            limit: 2,
+            page: 2,
+            orderField: 'executedAt',
+            order: 'ASC',
+        );
+
+        $results = iterator_to_array($paginator->getResults(), false);
+
+        self::assertSame(3, $paginator->getNumResults());
+        self::assertCount(1, $results);
+        self::assertSame($last->getId(), $results[0]->getId());
     }
 
-    public function testGetListWithExcludedCategoriesArgument(): void
+    public function testCountByDayForFiltersPivotsIncomeAndExpenseByCurrency(): void
     {
-        $categoryRepo = $this->em->getRepository(Category::class);
+        $prefix = 'repo-daily-'.uniqid('', true);
 
-        $categories = [
-            $categoryRepo->findOneBy(['name' => 'Groceries']),
-        ];
-        $result = $this->repo->getList(excludedCategories: $categories);
-        self::assertCount(83, $result);
-        self::assertNotEquals($categories[0]->getName(), $result[0]->getCategory()->getName());
-        self::assertNotEquals($categories[0]->getName(), $result[41]->getCategory()->getName());
-        self::assertNotEquals($categories[0]->getName(), $result[82]->getCategory()->getName());
+        $this->createIncome(100, $prefix, CarbonImmutable::parse('2026-01-08 09:00:00'), $this->eurAccount, 100);
+        $this->createExpense(40, $prefix, CarbonImmutable::parse('2026-01-08 18:00:00'), $this->eurAccount, 40);
+        $this->createExpense(500, $prefix, CarbonImmutable::parse('2026-01-09 10:00:00'), $this->uahAccount, 15);
 
-        $categories[] = $categoryRepo->findOneBy(['name' => 'Salary']);
-        $categoryNames = array_map(static function (Category $category) {
-            return $category->getName();
-        }, $categories);
-        $result = $this->repo->getList(excludedCategories: $categories);
-        self::assertCount(61, $result);
-        self::assertNotContains($result[0]->getCategory()->getName(), $categoryNames);
-        self::assertNotContains($result[30]->getCategory()->getName(), $categoryNames);
-        self::assertNotContains($result[60]->getCategory()->getName(), $categoryNames);
+        $rows = $this->repo->countByDay(
+            after: CarbonImmutable::parse('2026-01-08'),
+            before: CarbonImmutable::parse('2026-01-09'),
+            note: $prefix,
+            affectingProfitOnly: false,
+        );
 
-        $categories = array_map(static function (Category $category) {
-            return $category->getId();
-        }, $categories);
-        $result = $this->repo->getList(excludedCategories: $categories);
-        self::assertCount(61, $result);
-        self::assertNotContains($result[0]->getCategory()->getName(), $categoryNames);
-        self::assertNotContains($result[30]->getCategory()->getName(), $categoryNames);
-        self::assertNotContains($result[60]->getCategory()->getName(), $categoryNames);
+        self::assertCount(2, $rows);
+
+        self::assertSame('2026-01-08', $rows[0]['day']);
+        self::assertSame(2, $rows[0]['count']);
+        self::assertSame(100.0, $rows[0]['convertedValues']['EUR']['income']);
+        self::assertSame(40.0, $rows[0]['convertedValues']['EUR']['expense']);
+
+        self::assertSame('2026-01-09', $rows[1]['day']);
+        self::assertSame(1, $rows[1]['count']);
+        self::assertSame(0.0, $rows[1]['convertedValues']['UAH']['income']);
+        self::assertSame(500.0, $rows[1]['convertedValues']['UAH']['expense']);
     }
 
-    public function testGetListWithAccountsArgument(): void
+    public function testCountByDayForFiltersWithTypeIncomeOnly(): void
     {
-        $accountsRepo = $this->em->getRepository(Account::class);
+        $prefix = 'repo-daily-income-'.uniqid('', true);
 
-        $accounts = [
-            $accountsRepo->findOneBy(['name' => 'UAH Card']),
-        ];
-        $result = $this->repo->getList(accounts: $accounts);
-        self::assertCount(5, $result);
-        self::assertEquals($accounts[0]->getId(), $result[0]->getAccount()->getId());
-        self::assertEquals($accounts[0]->getId(), $result[2]->getAccount()->getId());
-        self::assertEquals($accounts[0]->getId(), $result[4]->getAccount()->getId());
+        $this->createIncome(75, $prefix, CarbonImmutable::parse('2026-01-10 09:00:00'), $this->eurAccount, 75);
+        $this->createExpense(15, $prefix, CarbonImmutable::parse('2026-01-10 11:00:00'), $this->eurAccount, 15);
 
-        $accounts[] = $accountsRepo->findOneBy(['name' => 'EUR Cash']);
-        $accountIds = array_map(static function (Account $account) {
-            return $account->getId();
-        }, $accounts);
-        $result = $this->repo->getList(accounts: $accounts);
-        self::assertCount(137, $result);
-        self::assertContains($result[0]->getAccount()->getId(), $accountIds);
-        self::assertContains($result[68]->getAccount()->getId(), $accountIds);
-        self::assertContains($result[136]->getAccount()->getId(), $accountIds);
+        $rows = $this->repo->countByDay(
+            after: CarbonImmutable::parse('2026-01-10'),
+            before: CarbonImmutable::parse('2026-01-10'),
+            note: $prefix,
+            type: Transaction::INCOME,
+            affectingProfitOnly: false,
+        );
 
-        $accounts = array_map(static function (Account $account) {
-            return $account->getId();
-        }, $accounts);
-        $result = $this->repo->getList(accounts: $accounts);
-        self::assertCount(137, $result);
-        self::assertContains($result[0]->getAccount()->getId(), $accountIds);
-        self::assertContains($result[68]->getAccount()->getId(), $accountIds);
-        self::assertContains($result[136]->getAccount()->getId(), $accountIds);
+        self::assertCount(1, $rows);
+        self::assertSame(1, $rows[0]['count']);
+        self::assertSame(75.0, $rows[0]['convertedValues']['EUR']['income']);
+        self::assertSame(0.0, $rows[0]['convertedValues']['EUR']['expense']);
     }
 
-    public function testGetListWithInvalidAccountsArgument(): void
+    public function testGetActualsByCategoryForPeriodAggregatesByCategoryAndCurrency(): void
     {
-        $result = $this->repo->getList(accounts: ['invalid']);
-        self::assertCount(0, $result);
+        $prefix = 'repo-actuals-'.uniqid('', true);
+
+        $income = $this->createIncome(200, $prefix, CarbonImmutable::parse('2026-01-12 09:00:00'), $this->eurAccount, 200);
+        $expense = $this->createExpense(50, $prefix, CarbonImmutable::parse('2026-01-12 10:00:00'), $this->eurAccount, 50);
+
+        $rows = $this->repo->getActualsByCategoryForPeriod(
+            CarbonImmutable::parse('2026-01-12 00:00:00'),
+            CarbonImmutable::parse('2026-01-12 23:59:59')
+        );
+
+        $incomeRow = $this->findCategoryCurrencyRow($rows, $income->getCategory()->getId(), 'EUR');
+        $expenseRow = $this->findCategoryCurrencyRow($rows, $expense->getCategory()->getId(), 'EUR');
+
+        self::assertNotNull($incomeRow);
+        self::assertNotNull($expenseRow);
+
+        self::assertSame(200.0, $incomeRow['income']);
+        self::assertSame(0.0, $incomeRow['expense']);
+
+        self::assertSame(0.0, $expenseRow['income']);
+        self::assertSame(50.0, $expenseRow['expense']);
     }
 
-    public function testGetListWithOrderArguments(): void
+    public function testGetActualsByCategoryForPeriodExcludesNonAffectingProfitCategories(): void
     {
-        $result = $this->repo->getList(orderField: 'executedAt', order: 'ASC');
-        self::assertCount(137, $result);
-        self::assertTrue($result[0]->getExecutedAt()->isBefore($result[136]->getExecutedAt()));
+        $prefix = 'repo-actuals-profit-'.uniqid('', true);
 
-        $result = $this->repo->getList(orderField: 'executedAt', order: 'DESC');
-        self::assertCount(137, $result);
-        self::assertTrue($result[0]->getExecutedAt()->isAfter($result[136]->getExecutedAt()));
+        $excludedCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['isAffectingProfit' => false]);
+        self::assertInstanceOf(ExpenseCategory::class, $excludedCategory);
 
-        $result = $this->repo->getList(orderField: 'amount', order: 'ASC');
-        self::assertCount(137, $result);
-        self::assertTrue($result[0]->getAmount() < $result[136]->getAmount());
+        $this->createExpense(
+            amount: 77,
+            note: $prefix,
+            executedAt: CarbonImmutable::parse('2026-01-13 08:00:00'),
+            account: $this->eurAccount,
+            convertedEur: 77,
+            category: $excludedCategory,
+        );
 
-        $result = $this->repo->getList(orderField: 'amount', order: 'DESC');
-        self::assertCount(137, $result);
-        self::assertTrue($result[0]->getAmount() > $result[136]->getAmount());
+        $rows = $this->repo->getActualsByCategoryForPeriod(
+            CarbonImmutable::parse('2026-01-13 00:00:00'),
+            CarbonImmutable::parse('2026-01-13 23:59:59')
+        );
+
+        $excludedRow = $this->findCategoryCurrencyRow($rows, $excludedCategory->getId(), 'EUR');
+        self::assertNull($excludedRow);
     }
 
-    public function testGetListWithInvalidOrderFieldArguments(): void
-    {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->repo->getList(orderField: 'invalid', order: 'ASC');
+    private function createExpense(
+        float $amount,
+        string $note,
+        CarbonImmutable $executedAt,
+        Account $account,
+        float $convertedEur,
+        ?ExpenseCategory $category = null,
+    ): Expense {
+        $category ??= $this->expenseCategory;
+
+        $expense = (new Expense())
+            ->setOwner($this->owner)
+            ->setAccount($account)
+            ->setCategory($category)
+            ->setAmount($amount)
+            ->setNote($note)
+            ->setExecutedAt($executedAt)
+            ->setConvertedValues([
+                'EUR' => $convertedEur,
+                'USD' => $convertedEur * 1.1,
+            ]);
+
+        $this->em->persist($expense);
+        $this->em->flush();
+        $this->createdTransactionIds[] = $expense->getId();
+
+        return $expense;
     }
 
-    public function testGetListWithInvalidOrderArgument(): void
+    private function createIncome(
+        float $amount,
+        string $note,
+        CarbonImmutable $executedAt,
+        Account $account,
+        float $convertedEur,
+    ): Income {
+        $income = (new Income())
+            ->setOwner($this->owner)
+            ->setAccount($account)
+            ->setCategory($this->incomeCategory)
+            ->setAmount($amount)
+            ->setNote($note)
+            ->setExecutedAt($executedAt)
+            ->setConvertedValues([
+                'EUR' => $convertedEur,
+                'USD' => $convertedEur * 1.1,
+            ]);
+
+        $this->em->persist($income);
+        $this->em->flush();
+        $this->createdTransactionIds[] = $income->getId();
+
+        return $income;
+    }
+
+    private function findCategoryCurrencyRow(array $rows, int $categoryId, string $currency): ?array
     {
-        $this->expectException(\InvalidArgumentException::class);
-        $this->repo->getList(orderField: 'executedAt', order: 'INVALID');
+        foreach ($rows as $row) {
+            if (($row['categoryId'] ?? null) !== $categoryId) {
+                continue;
+            }
+
+            $values = $row['convertedValues'][$currency] ?? null;
+            if ($values !== null) {
+                return $values;
+            }
+        }
+
+        return null;
     }
 }

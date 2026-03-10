@@ -2,7 +2,6 @@
 
 namespace App\Repository;
 
-use App\Entity\Account;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
@@ -14,8 +13,8 @@ use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
 
 /**
- * TODO: See if using DQL instead of query builder is more efficient(resources).
- * 
+ * QueryBuilder-backed repository with centralized filter composition.
+ *
  * @method Transaction|null find($id, $lockMode = null, $lockVersion = null)
  * @method Transaction|null findOneBy(array $criteria, array $orderBy = null)
  * @method Transaction[]    findAll()
@@ -405,46 +404,12 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
-     * Returns transaction counts and volumes grouped by day for the given account and date range.
-     *
-     * @return array<array{day: string, count: int, convertedValues: array<string, array{income: float, expense: float}>}>
-     */
-    public function countByDay(Account $account, \DateTimeInterface $after, \DateTimeInterface $before): array
-    {
-        return $this->countByDayForAccounts([$account->getId()], $after, $before);
-    }
-
-    /**
-     * Returns transaction counts and volumes grouped by day for optional account IDs and date range.
-     * Pass an empty array to include all accounts.
-     *
-     * @param  int[]  $accountIds
-     * @return array<array{day: string, count: int, convertedValues: array<string, array{income: float, expense: float}>}>
-     *
-     * @deprecated Use countByDayForFilters() instead.
-     */
-    public function countByDayForAccounts(
-        array $accountIds,
-        \DateTimeInterface $after,
-        \DateTimeInterface $before,
-        bool $onlyAffectingProfit = false,
-    ): array {
-        return $this->countByDayForFilters(
-            after: \Carbon\CarbonImmutable::instance($after)->startOfDay(),
-            before: \Carbon\CarbonImmutable::instance($before)->endOfDay(),
-            affectingProfitOnly: $onlyAffectingProfit,
-            accounts: $accountIds ?: null,
-        );
-    }
-
-    /**
-     * TODO: Rename to countByDay() and remove all other countByDay variants. This is the most flexible and filter-complete version, so it can serve as a single source of truth for all daily grouping needs.
      * Returns transaction counts and volumes grouped by day, applying the full filter set.
      * Uses DQL (no raw SQL), so all filters are handled through getBaseQueryBuilder.
      *
      * @return array<array{day: string, count: int, convertedValues: array<string, array{income: float, expense: float}>}>
      */
-    public function countByDayForFilters(
+    public function countByDay(
         ?CarbonInterface $after = null,
         ?CarbonInterface $before = null,
         bool $affectingProfitOnly = false,
@@ -528,36 +493,34 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
-     * TODO: Refactor to use DQL and getBaseQueryBuilder instead of raw SQL, for better filter support and consistency with countByDayForFilters.
      * Returns actual income/expense amounts per category for a given date range,
      * grouped by the account's native currency (same pivot pattern as countByDayForAccounts).
-     * Only includes categories where is_affecting_profit = 1.
+     * Only includes categories where isAffectingProfit = true.
      *
      * @return array<array{categoryId: int, convertedValues: array<string, array{income: float, expense: float}>}>
      */
     public function getActualsByCategoryForPeriod(\DateTimeInterface $start, \DateTimeInterface $end): array
     {
-        $conn = $this->getEntityManager()->getConnection();
-
-        $rows = $conn->executeQuery(
-            "SELECT
-                t.category_id,
-                a.currency,
-                SUM(CASE WHEN t.type = 'income'  THEN CAST(t.amount AS DECIMAL(18,8)) ELSE 0 END) AS income,
-                SUM(CASE WHEN t.type = 'expense' THEN CAST(t.amount AS DECIMAL(18,8)) ELSE 0 END) AS expense
-             FROM transaction t
-             JOIN account a ON a.id = t.account_id
-             JOIN category c ON c.id = t.category_id
-             WHERE t.executed_at >= :start
-               AND t.executed_at <= :end
-               AND c.is_affecting_profit = 1
-             GROUP BY t.category_id, a.currency
-             ORDER BY t.category_id ASC, a.currency ASC",
-            [
-                'start' => $start->format('Y-m-d H:i:s'),
-                'end'   => $end->format('Y-m-d H:i:s'),
-            ],
-        )->fetchAllAssociative();
+        $rows = $this->createQueryBuilder('t')
+            ->innerJoin('t.account', 'a')
+            ->innerJoin('t.category', 'c')
+            ->select(
+                'IDENTITY(t.category) AS category_id',
+                'a.currency AS currency',
+                "SUM(CASE WHEN t INSTANCE OF " . Income::class . " THEN t.amount ELSE 0 END) AS income",
+                "SUM(CASE WHEN t INSTANCE OF " . Expense::class . " THEN t.amount ELSE 0 END) AS expense"
+            )
+            ->andWhere('t.executedAt >= :start')
+            ->andWhere('t.executedAt <= :end')
+            ->andWhere('c.isAffectingProfit = :isAffectingProfit')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('isAffectingProfit', true)
+            ->groupBy('category_id, a.currency')
+            ->orderBy('category_id', 'ASC')
+            ->addOrderBy('a.currency', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
 
         $pivoted = [];
         foreach ($rows as $row) {

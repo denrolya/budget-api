@@ -7,6 +7,7 @@ use App\Bank\BankProviderInterface;
 use App\Bank\DTO\BankAccountData;
 use App\Bank\DTO\DraftTransactionData;
 use App\Bank\PollingCapableInterface;
+use App\Bank\WebhookCapableInterface;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeImmutable;
@@ -32,9 +33,11 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * externalAccountId on BankCardAccount = Wise balanceId (numeric string).
  * HTTP auth (Bearer token) is configured on the wise_client scoped HTTP client.
  */
-class WiseProvider implements BankProviderInterface, PollingCapableInterface
+class WiseProvider implements BankProviderInterface, PollingCapableInterface, WebhookCapableInterface
 {
     private const CACHE_TTL = 86400; // 24 hours
+    private const WEBHOOK_TRIGGER_EVENT = 'balances#update';
+    private const WEBHOOK_DELIVERY_VERSION = '3.0.0';
 
     public function __construct(
         private readonly HttpClientInterface $wiseClient,  // wise_client scoped client (Bearer auth pre-configured)
@@ -119,7 +122,8 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface
         $intervalEnd = $to->format('Y-m-d\TH:i:s\Z');
 
         try {
-            $url = "/v1/profiles/{$profileId}/balances/{$externalAccountId}/statement.json"
+            // Wise balance statements are under /balance-statements/{balanceId}/statement.json.
+            $url = "/v1/profiles/{$profileId}/balance-statements/{$externalAccountId}/statement.json"
                 . "?intervalStart={$intervalStart}&intervalEnd={$intervalEnd}";
 
             $response = $this->wiseClient->request('GET', $url);
@@ -145,6 +149,99 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface
         }
 
         return $result;
+    }
+
+    // -------------------------------------------------------------------------
+    // WebhookCapableInterface
+    // -------------------------------------------------------------------------
+
+    public function parseWebhookPayload(array $payload): ?DraftTransactionData
+    {
+        $eventType = (string) ($payload['event_type'] ?? '');
+        if ($eventType !== 'balances#credit' && $eventType !== 'balances#update') {
+            return null;
+        }
+
+        $data = $payload['data'] ?? [];
+        if (!is_array($data)) {
+            return null;
+        }
+
+        $resource = $data['resource'] ?? [];
+        if (!is_array($resource)) {
+            $resource = [];
+        }
+
+        $balanceId = $data['balance_id'] ?? $resource['id'] ?? null;
+        $amount = isset($data['amount']) ? (float) $data['amount'] : null;
+        $currency = isset($data['currency']) ? (string) $data['currency'] : null;
+        $occurredAt = $data['occurred_at'] ?? null;
+
+        if ($balanceId === null || $amount === null || $currency === null || $occurredAt === null) {
+            return null;
+        }
+
+        $transactionType = strtolower((string) ($data['transaction_type'] ?? ($eventType === 'balances#credit' ? 'credit' : '')));
+        $signedAmount = $amount;
+        if ($transactionType === 'debit') {
+            $signedAmount = -abs($amount);
+        } elseif ($transactionType === 'credit') {
+            $signedAmount = abs($amount);
+        }
+
+        $channelName = (string) ($data['channel_name'] ?? 'BALANCE');
+        $transferReference = (string) ($data['transfer_reference'] ?? '');
+        $note = trim(sprintf('Wise %s %s', strtoupper($channelName), $transferReference));
+
+        return new DraftTransactionData(
+            externalAccountId: (string) $balanceId,
+            amount: $signedAmount,
+            executedAt: new DateTimeImmutable((string) $occurredAt),
+            note: $note !== '' ? $note : 'Wise webhook event',
+            currency: $currency,
+        );
+    }
+
+    public function registerWebhook(array $credentials, string $webhookUrl): void
+    {
+        $profileId = $this->getPersonalProfileId();
+
+        try {
+            $response = $this->wiseClient->request('GET', "/v3/profiles/{$profileId}/subscriptions");
+            $subscriptions = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        } catch (HttpExceptionInterface | TransportExceptionInterface | JsonException $e) {
+            throw new RuntimeException('Wise registerWebhook failed while listing subscriptions: ' . $e->getMessage(), 0, $e);
+        }
+
+        foreach ($subscriptions as $subscription) {
+            if (($subscription['trigger_on'] ?? null) !== self::WEBHOOK_TRIGGER_EVENT) {
+                continue;
+            }
+
+            $delivery = $subscription['delivery'] ?? [];
+            if (!is_array($delivery)) {
+                continue;
+            }
+
+            if (($delivery['url'] ?? null) === $webhookUrl) {
+                return;
+            }
+        }
+
+        try {
+            $this->wiseClient->request('POST', "/v3/profiles/{$profileId}/subscriptions", [
+                'json' => [
+                    'name' => 'Budget Wise balance updates',
+                    'trigger_on' => self::WEBHOOK_TRIGGER_EVENT,
+                    'delivery' => [
+                        'version' => self::WEBHOOK_DELIVERY_VERSION,
+                        'url' => $webhookUrl,
+                    ],
+                ],
+            ])->getContent();
+        } catch (HttpExceptionInterface | TransportExceptionInterface $e) {
+            throw new RuntimeException('Wise registerWebhook failed: ' . $e->getMessage(), 0, $e);
+        }
     }
 
     // -------------------------------------------------------------------------

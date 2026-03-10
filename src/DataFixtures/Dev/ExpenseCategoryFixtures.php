@@ -80,6 +80,7 @@ class ExpenseCategoryFixtures extends Fixture implements DependentFixtureInterfa
             ]],
             ['name' => 'Other', 'isAffectingProfit' => true],
             ['name' => 'Transfer', 'isAffectingProfit' => false],
+            ['name' => 'Transfer Fee', 'isAffectingProfit' => true],
             ['name' => 'Debt', 'isAffectingProfit' => false],
         ];
 

@@ -4,12 +4,9 @@ namespace App\Service;
 
 use App\Entity\Account;
 use App\Entity\Category;
-use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
-use App\Repository\ExpenseCategoryRepository;
-use App\Repository\ExpenseRepository;
 use App\Repository\TransactionRepository;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -20,10 +17,6 @@ final class StatisticsManager
 {
     private TransactionRepository $transactionRepo;
 
-    private ExpenseRepository $expenseRepo;
-
-    private ExpenseCategoryRepository $expenseCategoryRepo;
-
     /** Lazily populated once per request from buildDescendantMap(). */
     private ?array $descendantMap = null;
 
@@ -31,14 +24,14 @@ final class StatisticsManager
         private AssetsManager $assetsManager,
         private EntityManagerInterface $em,
     ) {
-        $this->expenseRepo = $this->em->getRepository(Expense::class);
-        $this->transactionRepo = $this->em->getRepository(Transaction::class);
-        $this->expenseCategoryRepo = $this->em->getRepository(ExpenseCategory::class);
+        /** @var TransactionRepository $transactionRepo */
+        $transactionRepo = $this->em->getRepository(Transaction::class);
+        $this->transactionRepo = $transactionRepo;
     }
 
     /**
      * Generates transactions statistics grouped by types. With given interval also grouped by date interval.
-     * Single DB query for the full range; PHP partitioning per interval.
+        * Single DB query for the full range; PHP interval bucketing in one pass.
      * @return array<int, array{after: int, before: int, expense: float, income: float}>
      */
     public function calculateTransactionsValueByPeriod(
@@ -47,10 +40,6 @@ final class StatisticsManager
         ?array $categories = [],
         ?array $accounts = [],
     ): array {
-        $result = [];
-        $dates = $period->toArray();
-        $count = count($dates);
-
         $allTransactions = $this->transactionRepo->getList(
             after: $period->getStartDate(),
             before: $period->getEndDate(),
@@ -59,23 +48,14 @@ final class StatisticsManager
             accounts: $accounts,
         );
 
-        foreach ($dates as $index => $after) {
-            $isLast = $index === $count - 1;
-            $before = $isLast ? $period->getEndDate() : $dates[$index + 1]->copy()->subSecond();
-            // Exclusive upper bound that matches the repo's applyExecutedAtRange semantics
-            $nextBound = $isLast
-                ? $period->getEndDate()->copy()->addDay()->startOfDay()
-                : $dates[$index + 1];
+        $bounds = $this->buildPeriodBounds($period);
+        $bucketed = $this->bucketTransactionsByPeriod($allTransactions, $bounds);
 
+        $result = [];
+        foreach ($bounds as $index => $bound) {
             $expenses = [];
             $incomes = [];
-
-            foreach ($allTransactions as $transaction) {
-                $executedAt = $transaction->getExecutedAt();
-                if (!$executedAt->greaterThanOrEqualTo($after) || !$executedAt->lessThan($nextBound)) {
-                    continue;
-                }
-
+            foreach ($bucketed[$index] as $transaction) {
                 if ($transaction->getType() === Transaction::EXPENSE) {
                     $expenses[] = $transaction;
                 } elseif ($transaction->getType() === Transaction::INCOME) {
@@ -84,8 +64,8 @@ final class StatisticsManager
             }
 
             $result[] = [
-                'after' => $after->timestamp,
-                'before' => $before->timestamp,
+                'after' => $bound['after']->timestamp,
+                'before' => $bound['before']->timestamp,
                 'expense' => $this->assetsManager->sumTransactions($expenses),
                 'income' => $this->assetsManager->sumTransactions($incomes),
             ];
@@ -95,14 +75,13 @@ final class StatisticsManager
     }
 
     /**
-     * TODO: Check efficiency. This is used in the category breakdown section, which is a key part of the app, so it needs to be optimized. The main potential bottleneck is the recursive getDescendantsFlat() calls for each category, which can lead to N+1 queries. To optimize, we can build a full descendant map in a single query and then use it to aggregate transactions without additional DB calls.
      * Builds category tree and sets value/total on each node.
      * Uses a pre-built descendant ID map instead of recursive getDescendantsFlat() / isChildOf() calls.
      * @return Category[] Root categories with nested children, each with value/total set.
      */
     public function generateCategoryTreeWithValues(
         array $transactions,
-        string $type = null,
+        ?string $type = null,
         array $categories = []
     ): array {
         $categories = $categories !== [] ? $categories : $this->getRootCategories($type);
@@ -120,62 +99,6 @@ final class StatisticsManager
         $this->hydrateCategoryValues($categories, $transactionsByCatId, $this->getDescendantMap());
 
         return $categories;
-    }
-
-    /**
-     * @return array{min: array{value: float, when: string|null}, max: array{value: float, when: string|null}}
-     */
-    public function generateMinMaxByIntervalExpenseStatistics(array $transactions, CarbonPeriod $period): array
-    {
-        $result = [
-            'min' => [
-                'value' => 0,
-                'when' => null,
-            ],
-            'max' => [
-                'value' => 0,
-                'when' => null,
-            ],
-        ];
-
-        $dates = $period->toArray();
-        foreach ($dates as $key => $after) {
-            $before = next($dates);
-
-            if ($before === false) {
-                $before = $period->getEndDate();
-            }
-
-            $sum = $this->assetsManager->sumTransactions(
-                array_filter(
-                    $transactions,
-                    static function (Transaction $transaction) use ($after, $before) {
-                        $transactionDate = $transaction->getExecutedAt();
-
-                        return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
-                    }
-                )
-            );
-
-            if ($key === 0) {
-                $result['min']['value'] = $sum;
-                $result['min']['when'] = $after->copy()->toDateString();
-                $result['max']['value'] = $sum;
-                $result['max']['when'] = $after->copy()->toDateString();
-            }
-
-            if ($sum < $result['min']['value']) {
-                $result['min']['value'] = $sum;
-                $result['min']['when'] = $after->copy()->toDateString();
-            }
-
-            if ($sum > $result['max']['value']) {
-                $result['max']['value'] = $sum;
-                $result['max']['when'] = $after->copy()->toDateString();
-            }
-        }
-
-        return $result;
     }
 
     /**
@@ -258,15 +181,10 @@ final class StatisticsManager
             }
 
             $descendantIds = $descendantMap[(int) $categoryId] ?? [(int) $categoryId];
-
-            $categoryTransactions = [];
-            foreach ($descendantIds as $descId) {
-                foreach ($transactionsByCatId[$descId] ?? [] as $t) {
-                    $categoryTransactions[] = $t;
-                }
-            }
-
-            $result[$category->getName()] = $this->sumTransactionsByDateInterval($categoryTransactions, $period);
+            $result[$category->getName()] = $this->sumTransactionsByDateInterval(
+                $this->collectTransactionsForDescendants($descendantIds, $transactionsByCatId),
+                $period
+            );
         }
 
         return $result;
@@ -364,27 +282,14 @@ final class StatisticsManager
 
     public function sumTransactionsByDateInterval(array $transactions, CarbonPeriod $period): array
     {
+        $bounds = $this->buildPeriodBounds($period, false);
+        $bucketed = $this->bucketTransactionsByPeriod($transactions, $bounds);
+
         $result = [];
-        $dates = $period->toArray();
-        foreach ($dates as $index => $after) {
-            $before = $index === count($dates) - 1 ? $period->getEndDate() : $dates[$index + 1];
-
-            if ($after->equalTo($before)) {
-                continue;
-            }
-
-            $transactionsWithinPeriod = array_filter(
-                $transactions,
-                static function (Transaction $transaction) use ($after, $before) {
-                    $transactionDate = $transaction->getExecutedAt();
-
-                    return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
-                }
-            );
-
+        foreach ($bounds as $index => $bound) {
             $result[] = [
-                'date' => $after->timestamp,
-                'value' => $this->assetsManager->sumTransactions($transactionsWithinPeriod),
+                'date' => $bound['after']->timestamp,
+                'value' => $this->assetsManager->sumTransactions($bucketed[$index]),
             ];
         }
 
@@ -393,26 +298,14 @@ final class StatisticsManager
 
     public function averageByPeriod(array $transactions, CarbonPeriod $period): array
     {
+        $bounds = $this->buildPeriodBounds($period, false);
+        $bucketed = $this->bucketTransactionsByPeriod($transactions, $bounds);
+
         $result = [];
-        $dates = $period->toArray();
-        foreach ($dates as $index => $after) {
-            $before = $index === count($dates) - 1 ? $period->getEndDate() : $dates[$index + 1];
-
-            if ($after->equalTo($before)) {
-                continue;
-            }
-
-            $transactionsWithinPeriod = array_filter(
-                $transactions,
-                static function (Transaction $transaction) use ($after, $before) {
-                    $transactionDate = $transaction->getExecutedAt();
-
-                    return $transactionDate->greaterThanOrEqualTo($after) && $transactionDate->lessThan($before);
-                }
-            );
-
+        foreach ($bounds as $index => $bound) {
+            $transactionsWithinPeriod = $bucketed[$index];
             $result[] = [
-                'date' => $after->timestamp,
+                'date' => $bound['after']->timestamp,
                 'value' => count($transactionsWithinPeriod) !== 0 ? $this->assetsManager->sumTransactions(
                         $transactionsWithinPeriod
                     ) / count($transactionsWithinPeriod) : 0,
@@ -492,17 +385,97 @@ final class StatisticsManager
             );
         }
 
-        $count = 0;
         $startDate = $after->copy()->startOfDay();
         $endDate = $before->copy()->startOfDay();
 
-        while ($startDate->lte($endDate)) {
-            if ($startDate->dayOfWeek === $weekday) {
+        if ($startDate->greaterThan($endDate)) {
+            return 0;
+        }
+
+        $totalDays = $startDate->diffInDays($endDate) + 1;
+        $fullWeeks = intdiv($totalDays, 7);
+        $count = $fullWeeks;
+
+        $remainder = $totalDays % 7;
+        $startWeekday = $startDate->dayOfWeek;
+
+        for ($i = 0; $i < $remainder; $i++) {
+            if ((($startWeekday + $i) % 7) === $weekday) {
                 $count++;
             }
-            $startDate = $startDate->addDay();
         }
 
         return $count;
+    }
+
+    /**
+     * @return array<int, array{after: CarbonInterface, before: CarbonInterface, nextBound: CarbonInterface}>
+     */
+    private function buildPeriodBounds(CarbonPeriod $period, bool $includeLastDay = true): array
+    {
+        $dates = $period->toArray();
+        $count = count($dates);
+        $bounds = [];
+
+        foreach ($dates as $index => $after) {
+            $isLast = $index === $count - 1;
+            $before = $isLast ? $period->getEndDate() : $dates[$index + 1]->copy()->subSecond();
+            $nextBound = $isLast
+                ? ($includeLastDay ? $period->getEndDate()->copy()->addDay()->startOfDay() : $period->getEndDate())
+                : $dates[$index + 1];
+
+            if ($after->equalTo($nextBound)) {
+                continue;
+            }
+
+            $bounds[] = [
+                'after' => $after,
+                'before' => $before,
+                'nextBound' => $nextBound,
+            ];
+        }
+
+        return $bounds;
+    }
+
+    /**
+     * @param array<int, array{after: CarbonInterface, before: CarbonInterface, nextBound: CarbonInterface}> $bounds
+     * @return array<int, array<int, Transaction>>
+     */
+    private function bucketTransactionsByPeriod(array $transactions, array $bounds): array
+    {
+        $buckets = [];
+        foreach (array_keys($bounds) as $index) {
+            $buckets[$index] = [];
+        }
+
+        foreach ($transactions as $transaction) {
+            $executedAt = $transaction->getExecutedAt();
+            foreach ($bounds as $index => $bound) {
+                if ($executedAt->greaterThanOrEqualTo($bound['after']) && $executedAt->lessThan($bound['nextBound'])) {
+                    $buckets[$index][] = $transaction;
+                    break;
+                }
+            }
+        }
+
+        return $buckets;
+    }
+
+    /**
+     * @param int[] $descendantIds
+     * @param array<int, array<int, Transaction>> $transactionsByCatId
+     * @return array<int, Transaction>
+     */
+    private function collectTransactionsForDescendants(array $descendantIds, array $transactionsByCatId): array
+    {
+        $transactions = [];
+        foreach ($descendantIds as $descId) {
+            foreach ($transactionsByCatId[$descId] ?? [] as $transaction) {
+                $transactions[] = $transaction;
+            }
+        }
+
+        return $transactions;
     }
 }

@@ -35,7 +35,10 @@ class AccountController extends AbstractFOSRestController
     #[Route('/{id<\d+>}', name: 'item_read', methods: ['get'])]
     public function item(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, Account $account): View
     {
-        $accountTransactions = $doctrine->getRepository(Transaction::class)->getList(
+        /** @var TransactionRepository $transactionRepo */
+        $transactionRepo = $doctrine->getRepository(Transaction::class);
+
+        $accountTransactions = $transactionRepo->getList(
             categories: null,
             accounts: [$account]
         );
@@ -133,7 +136,11 @@ class AccountController extends AbstractFOSRestController
         $before = CarbonImmutable::parse($request->query->get('before', 'now'))->endOfDay();
 
         return $this->view([
-            'data' => $transactionRepo->countByDay($account, $after, $before),
+            'data' => $transactionRepo->countByDay(
+                after: $after,
+                before: $before,
+                accounts: [$account->getId()],
+            ),
         ]);
     }
 }

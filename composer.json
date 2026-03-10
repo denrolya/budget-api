@@ -1,133 +1,139 @@
 {
-    "type":              "project",
-    "license":           "proprietary",
-    "minimum-stability": "stable",
-    "prefer-stable":     true,
-    "require":           {
-        "php":                                  "~8.2",
-        "ext-ctype":                            "*",
-        "ext-iconv":                            "*",
-        "ext-zend-opcache":                     "*",
-        "api-platform/core":                    "^3.0",
-        "beberlei/doctrineextensions":          "^1.4",
-        "doctrine/doctrine-bundle":             "^2.11",
-        "doctrine/doctrine-migrations-bundle":  "^3.3",
-        "doctrine/orm":                         "~2.16",
-        "friendsofsymfony/rest-bundle":         "^3.7",
-        "league/csv":                           "^9.27",
-        "lexik/jwt-authentication-bundle":      "^2.20",
-        "nelmio/cors-bundle":                   "^2.4",
-        "nesbot/carbon":                        "^2.72",
-        "phpdocumentor/reflection-docblock":    "^5.3",
-        "phpstan/phpdoc-parser":                "^1.28",
-        "scienta/doctrine-json-functions":      "^6.1",
-        "stof/doctrine-extensions-bundle":      "^1.10",
-        "symfony/asset":                        "6.4.*",
-        "symfony/console":                      "6.4.*",
-        "symfony/dotenv":                       "6.4.*",
-        "symfony/expression-language":          "6.4.*",
-        "symfony/flex":                         "^2",
-        "symfony/framework-bundle":             "6.4.*",
-        "symfony/http-client":                  "6.4.*",
-        "symfony/messenger":                    "6.4.*",
-        "symfony/monolog-bundle":               "^3.10",
-        "symfony/property-access":              "6.4.*",
-        "symfony/property-info":                "6.4.*",
-        "symfony/runtime":                      "6.4.*",
-        "symfony/security-bundle":              "6.4.*",
-        "symfony/serializer":                   "6.4.*",
-        "symfony/twig-bundle":                  "6.4.*",
-        "symfony/validator":                    "6.4.*",
-        "symfony/yaml":                         "6.4.*"
+  "type": "project",
+  "license": "proprietary",
+  "minimum-stability": "stable",
+  "prefer-stable": true,
+  "require": {
+    "php": "~8.2",
+    "ext-ctype": "*",
+    "ext-iconv": "*",
+    "ext-zend-opcache": "*",
+    "api-platform/core": "^3.0",
+    "beberlei/doctrineextensions": "^1.4",
+    "doctrine/doctrine-bundle": "^2.11",
+    "doctrine/doctrine-migrations-bundle": "^3.3",
+    "doctrine/orm": "~2.16",
+    "friendsofsymfony/rest-bundle": "^3.7",
+    "league/csv": "^9.27",
+    "lexik/jwt-authentication-bundle": "^2.20",
+    "nelmio/cors-bundle": "^2.4",
+    "nesbot/carbon": "^2.72",
+    "phpdocumentor/reflection-docblock": "^5.3",
+    "phpstan/phpdoc-parser": "^1.28",
+    "scienta/doctrine-json-functions": "^6.1",
+    "stof/doctrine-extensions-bundle": "^1.10",
+    "symfony/asset": "6.4.*",
+    "symfony/console": "6.4.*",
+    "symfony/dotenv": "6.4.*",
+    "symfony/expression-language": "6.4.*",
+    "symfony/flex": "^2",
+    "symfony/framework-bundle": "6.4.*",
+    "symfony/http-client": "6.4.*",
+    "symfony/messenger": "6.4.*",
+    "symfony/monolog-bundle": "^3.10",
+    "symfony/property-access": "6.4.*",
+    "symfony/property-info": "6.4.*",
+    "symfony/runtime": "6.4.*",
+    "symfony/security-bundle": "6.4.*",
+    "symfony/serializer": "6.4.*",
+    "symfony/twig-bundle": "6.4.*",
+    "symfony/validator": "6.4.*",
+    "symfony/yaml": "6.4.*"
+  },
+  "require-dev": {
+    "dama/doctrine-test-bundle": "^8.0",
+    "deployer/deployer": "^7.0",
+    "doctrine/doctrine-fixtures-bundle": "^3.5",
+    "fakerphp/faker": "^1.23",
+    "jms/serializer-bundle": "^5.4",
+    "justinrainbow/json-schema": "^5.2",
+    "phpstan/phpstan": "^1.12",
+    "phpstan/phpstan-doctrine": "^1.5",
+    "phpstan/phpstan-strict-rules": "^1.6",
+    "phpstan/phpstan-symfony": "^1.4",
+    "phpunit/php-code-coverage": "^9.2",
+    "phpunit/phpunit": "^9.6",
+    "symfony/browser-kit": "6.4.*",
+    "symfony/css-selector": "6.4.*",
+    "symfony/debug-bundle": "6.4.*",
+    "symfony/maker-bundle": "^1.50",
+    "symfony/phpunit-bridge": "^6.4",
+    "symfony/stopwatch": "6.4.*",
+    "symfony/web-profiler-bundle": "6.4.*"
+  },
+  "config": {
+    "allow-plugins": {
+      "symfony/flex": true,
+      "symfony/runtime": true
     },
-    "require-dev":       {
-        "dama/doctrine-test-bundle":          "^8.0",
-        "deployer/deployer":                  "^7.0",
-        "doctrine/doctrine-fixtures-bundle":  "^3.5",
-        "fakerphp/faker":                     "^1.23",
-        "jms/serializer-bundle":              "^5.4",
-        "justinrainbow/json-schema":          "^5.2",
-        "phpstan/phpstan":                    "^1.12",
-        "phpstan/phpstan-doctrine":           "^1.5",
-        "phpstan/phpstan-strict-rules":       "^1.6",
-        "phpstan/phpstan-symfony":            "^1.4",
-        "phpunit/php-code-coverage":          "^9.2",
-        "phpunit/phpunit":                    "^9.6",
-        "symfony/browser-kit":                "6.4.*",
-        "symfony/css-selector":               "6.4.*",
-        "symfony/debug-bundle":               "6.4.*",
-        "symfony/maker-bundle":               "^1.50",
-        "symfony/phpunit-bridge":             "^6.4",
-        "symfony/stopwatch":                  "6.4.*",
-        "symfony/web-profiler-bundle":        "6.4.*"
+    "optimize-autoloader": true,
+    "preferred-install": {
+      "*": "dist"
     },
-    "config":            {
-        "allow-plugins":       {
-            "symfony/flex":    true,
-            "symfony/runtime": true
-        },
-        "optimize-autoloader": true,
-        "preferred-install":   {
-            "*": "dist"
-        },
-        "sort-packages":       true
-    },
-    "autoload":          {
-        "psr-4": {
-            "App\\": "src/"
-        }
-    },
-    "autoload-dev":      {
-        "psr-4": {
-            "App\\Tests\\": "tests/"
-        }
-    },
-    "bin-dir":           "vendor/bin",
-    "replace":           {
-        "symfony/polyfill-ctype": "*",
-        "symfony/polyfill-iconv": "*",
-        "symfony/polyfill-php72": "*"
-    },
-    "scripts":           {
-        "auto-scripts":       {
-            "cache:clear": "symfony-cmd"
-        },
-        "post-install-cmd":   [
-            "@auto-scripts"
-        ],
-        "post-update-cmd":    [
-            "@auto-scripts"
-        ],
-        "test":               "phpunit",
-        "test-verbose":       "phpunit --colors --testdox --verbose",
-        "test-clover":        "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-clover=coverage/coverage.xml",
-        "test-coverage":      "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-html=coverage/html",
-        "dep":                  "vendor/bin/dep list",
-        "deploy":               "vendor/bin/dep deploy production",
-        "deploy:dev":           "vendor/bin/dep deploy:dev production",
-        "shell":                "vendor/bin/dep app:shell production",
-        "logs":                 "vendor/bin/dep app:logs production",
-        "db:pull":              "vendor/bin/dep db:pull production",
-        "db:push":              "vendor/bin/dep db:push production",
-        "db:backup":            "vendor/bin/dep db:backup production",
-        "db:backup:download":   "vendor/bin/dep db:backup:download production",
-        "env:pull":             "vendor/bin/dep env:pull production",
-        "env:push":             "vendor/bin/dep env:push production",
-        "phpstan":              "vendor/bin/phpstan analyse",
-        "load-test-fixtures": [
-            "bin/console doctrine:database:drop --force --env=test",
-            "bin/console doctrine:database:create --env=test",
-            "bin/console doctrine:schema:create --env=test",
-            "bin/console doctrine:fixtures:load --env=test --no-interaction"
-        ]
-    },
-    "conflict":          {
-        "symfony/symfony": "*"
-    },
-    "extra":             {
-        "symfony": {
-            "allow-contrib": false,
-            "require":       "6.4.*"
-        }
+    "sort-packages": true
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/"
     }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "App\\Tests\\": "tests/"
+    }
+  },
+  "bin-dir": "vendor/bin",
+  "replace": {
+    "symfony/polyfill-ctype": "*",
+    "symfony/polyfill-iconv": "*",
+    "symfony/polyfill-php72": "*"
+  },
+  "scripts": {
+    "auto-scripts": {
+      "cache:clear": "symfony-cmd"
+    },
+    "post-install-cmd": [
+      "@auto-scripts"
+    ],
+    "post-update-cmd": [
+      "@auto-scripts"
+    ],
+    "test": "phpunit",
+    "test-verbose": "phpunit --colors --testdox --verbose",
+    "test-clover": "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-clover=coverage/coverage.xml",
+    "test-coverage": "php -d memory_limit=2G ./vendor/bin/phpunit --coverage-html=coverage/html",
+    "dep": "vendor/bin/dep list",
+    "deploy": "vendor/bin/dep deploy production",
+    "deploy:dev": "vendor/bin/dep deploy:dev production",
+    "shell": "vendor/bin/dep app:shell production",
+    "logs": "vendor/bin/dep app:logs production",
+    "db:pull": "vendor/bin/dep db:pull production",
+    "db:push": "vendor/bin/dep db:push production",
+    "db:backup": "vendor/bin/dep db:backup production",
+    "db:backup:download": "vendor/bin/dep db:backup:download production",
+    "env:pull": "vendor/bin/dep env:pull production",
+    "env:push": "vendor/bin/dep env:push production",
+    "phpstan": "vendor/bin/phpstan analyse",
+    "load-fixtures": [
+      "bin/console doctrine:database:drop --force",
+      "bin/console doctrine:database:create",
+      "bin/console doctrine:schema:create",
+      "bin/console doctrine:fixtures:load --no-interaction"
+    ],
+    "load-test-fixtures": [
+      "bin/console doctrine:database:drop --force --env=test",
+      "bin/console doctrine:database:create --env=test",
+      "bin/console doctrine:schema:create --env=test",
+      "bin/console doctrine:fixtures:load --env=test --no-interaction"
+    ]
+  },
+  "conflict": {
+    "symfony/symfony": "*"
+  },
+  "extra": {
+    "symfony": {
+      "allow-contrib": false,
+      "require": "6.4.*"
+    }
+  }
 }

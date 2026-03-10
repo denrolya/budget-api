@@ -95,7 +95,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
             name: 'bank_integration_register_webhook',
             openapiContext: [
                 'summary' => 'Register webhook URL with the bank',
-                'description' => 'Calls the bank API to register the application webhook URL for this integration. Must be called once after creating a webhook-capable integration (e.g. Monobank). Returns `{webhookUrl}` that was registered. Returns 422 if the provider does not support webhooks.',
+                'description' => 'Calls the bank API to register the application webhook URL for this integration. Must be called once after creating a webhook-capable integration (e.g. Monobank or Wise). Returns `{webhookUrl}` that was registered. Returns 422 if the provider does not support webhooks.',
             ],
         ),
     ],
@@ -136,7 +136,7 @@ class BankIntegration implements OwnableInterface
 
     /**
      * Preferred sync method. Only meaningful when the provider supports both webhook and polling.
-     * Null = auto (single-mode providers ignore this: Monobank always webhooks, Wise always polls).
+        * Null = auto (single-mode providers ignore this).
      */
     #[ORM\Column(type: Types::STRING, length: 20, nullable: true, enumType: SyncMethod::class)]
     #[Groups(['bank_integration:read', 'bank_integration:write'])]

@@ -10,7 +10,6 @@ use App\Pagination\Paginator;
 use App\Repository\TransactionRepository;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
-use Carbon\CarbonPeriod;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
 use Psr\Cache\InvalidArgumentException;
@@ -30,7 +29,9 @@ class AssetsManager
         private Security $security,
     ) {
         $this->em = $em;
-        $this->transactionRepo = $this->em->getRepository(Transaction::class);
+        /** @var TransactionRepository $transactionRepo */
+        $transactionRepo = $this->em->getRepository(Transaction::class);
+        $this->transactionRepo = $transactionRepo;
         $this->fxRateSnapshotResolver = $snapshotResolver;
     }
 
@@ -106,65 +107,6 @@ class AssetsManager
         ];
     }
 
-    public function calculateAverageWithinPeriod(array $transactions, CarbonPeriod $period): float
-    {
-        $byDate = [];
-
-        $dates = $period->toArray();
-        foreach ($dates as $after) {
-            $before = next($dates);
-
-            if ($before !== false) {
-                $transactionsByDate = array_filter(
-                    $transactions,
-                    static function (Transaction $transaction) use ($after, $before) {
-                        return $transaction->getExecutedAt()->startOfDay()->between($after, $before);
-                    }
-                );
-                $byDate[$after->toDateString()] = count($transactionsByDate)
-                    ? $this->sumTransactions($transactionsByDate) / count($transactionsByDate)
-                    : 0;
-            }
-        }
-
-        return array_sum(array_values($byDate)) / count($dates);
-    }
-
-    public function calculateAverageTransaction(array $transactions = []): float
-    {
-        $sum = array_reduce($transactions, static function (float $acc, Transaction $transaction) {
-            return $acc + $transaction->getValue();
-        }, 0);
-
-        return $sum / (count($transactions) !== 0 ? count($transactions) : 1);
-    }
-
-    public function sumTransactionsFiltered(
-        ?string $type,
-        CarbonInterface $after,
-        CarbonInterface $before,
-        ?array $categories = [],
-        ?array $accounts = [],
-        ?array $excludedCategories = []
-    ): float {
-        return $this->transactionRepo->sumConverted(
-            baseCurrency: $this->getBaseCurrency(),
-            after: $after,
-            before: $before,
-            type: $type,
-            categories: $categories,
-            accounts: $accounts,
-            excludedCategories: $excludedCategories,
-        );
-    }
-
-    public function sumMixedTransactions(array $transactions, ?string $currency = null): float
-    {
-        return array_reduce($transactions, static function ($carry, Transaction $transaction) use ($currency) {
-            return $carry + ($transaction->getConvertedValue($currency) * ($transaction->isExpense() ? -1 : 1));
-        }, 0);
-    }
-
     /**
      * Sum given transactions value in user's base currency
      */
@@ -197,39 +139,6 @@ class AssetsManager
         }
 
         return $result;
-    }
-
-    /**
-     * @throws InvalidArgumentException
-     * @throws NonUniqueResultException
-     */
-    public function convertTo(Transaction|Debt $entity, ?string $toCurrency = null): float
-    {
-        // @phpstan-ignore-next-line
-        $amount = (float)$entity->{'get'.ucfirst($entity->getValuableField())}();
-        $fromCurrency = strtoupper($entity->getCurrency());
-        $toCurrencyNormalized = strtoupper($toCurrency ?? $fromCurrency);
-
-        $date = $this->resolveFxDate($entity);
-        $snapshot = $this->fxRateSnapshotResolver->getClosestOrFetch($date);
-
-        if ($fromCurrency === $toCurrencyNormalized) {
-            return $amount;
-        }
-
-        $value = $snapshot->convert($amount, $fromCurrency, $toCurrencyNormalized);
-        if ($value === null) {
-            throw new \InvalidArgumentException(
-                sprintf(
-                    'Missing conversion rate %s -> %s on %s',
-                    $fromCurrency,
-                    $toCurrencyNormalized,
-                    $snapshot->getEffectiveAt()->format('Y-m-d')
-                )
-            );
-        }
-
-        return $value;
     }
 
     private function getBaseCurrency(): string

@@ -14,6 +14,7 @@ use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use App\ApiPlatform\TransferAccountsFilter;
 use App\ApiPlatform\WithDeletedFilter;
+use App\DataPersister\TransferDataPersister;
 use App\Repository\TransferRepository;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableEntity;
@@ -32,9 +33,9 @@ use JMS\Serializer\Annotation as Serializer;
 #[ApiResource(
     operations: [
         new GetCollection(normalizationContext: ['groups' => 'transfer:collection:read']),
-        new Post(),
+        new Post(processor: TransferDataPersister::class),
         new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transfer:item:read']),
-        new Put(requirements: ['id' => '\d+']),
+        new Put(requirements: ['id' => '\d+'], processor: TransferDataPersister::class),
         new Delete(requirements: ['id' => '\d+']),
     ],
     denormalizationContext: ['groups' => 'transfer:write'],

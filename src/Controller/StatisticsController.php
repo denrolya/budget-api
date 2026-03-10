@@ -118,6 +118,7 @@ class StatisticsController extends AbstractFOSRestController
         string $type,
     ): View {
         $this->disableSoftDeletable();
+        /** @var TransactionRepository $repo */
         $repo = $doctrine->getRepository(($type === 'expense') ? Expense::class : Income::class);
 
         return $this->view(
@@ -237,7 +238,7 @@ class StatisticsController extends AbstractFOSRestController
         $affectingProfit = filter_var($request->query->get('affectingProfit', false), FILTER_VALIDATE_BOOLEAN);
 
         return $this->view([
-            'data' => $transactionRepo->countByDayForFilters(
+            'data' => $transactionRepo->countByDay(
                 after: $after,
                 before: $before,
                 affectingProfitOnly: $affectingProfit,
