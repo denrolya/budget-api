@@ -40,6 +40,8 @@ require 'recipe/symfony.php';
 // vars (set before this script runs) still win over everything.
 (function (): void {
     $vars = [];
+    $allowedPrefixes = ['DEPLOY_', 'DB_'];
+    $allowedKeys = ['APP_ENV'];
     foreach ([__DIR__ . '/.env', __DIR__ . '/.env.local'] as $path) {
         if (!file_exists($path)) {
             continue;
@@ -61,6 +63,20 @@ require 'recipe/symfony.php';
         }
     }
     foreach ($vars as $key => $val) {
+        $isAllowed = in_array($key, $allowedKeys, true);
+        if (!$isAllowed) {
+            foreach ($allowedPrefixes as $prefix) {
+                if (str_starts_with($key, $prefix)) {
+                    $isAllowed = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$isAllowed) {
+            continue;
+        }
+
         if (getenv($key) === false) { // real system env vars win
             putenv("$key=$val");
             $_ENV[$key] = $val;
@@ -189,12 +205,12 @@ task('app:cache:clear', function () {
 })->desc('Clear & warm up the Symfony cache on the remote host');
 
 task('app:bank:sync', function () {
-    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-sync.log; printf \"[%s] START app:bank:sync\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank-sync.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:sync --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank-sync.log 2>&1; status=$?; printf \"[%s] END app:bank:sync status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank-sync.log; test \"\$status\" -eq 0'");
+    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-sync.log; printf \"[%s] START app:bank:sync\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank-sync.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:sync --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank-sync.log 2>&1; status=$?; printf \"[%s] END app:bank:sync status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank-sync.log; echo \"=== bank-sync.log (latest) ===\" >&2; tail -n 80 {{deploy_path}}/shared/var/log/bank-sync.log >&2; test \"\$status\" -eq 0'");
     writeln('<info>✓ Remote bank polling sync completed.</info>');
 })->desc('Run polling bank sync on the remote host');
 
 task('app:bank:webhooks:refresh', function () {
-    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; printf \"[%s] START app:bank:webhooks:refresh\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:webhooks:refresh --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log 2>&1; status=$?; printf \"[%s] END app:bank:webhooks:refresh status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; test \"\$status\" -eq 0'");
+    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; printf \"[%s] START app:bank:webhooks:refresh\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:webhooks:refresh --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log 2>&1; status=$?; printf \"[%s] END app:bank:webhooks:refresh status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; echo \"=== bank-webhooks-refresh.log (latest) ===\" >&2; tail -n 80 {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log >&2; test \"\$status\" -eq 0'");
     writeln('<info>✓ Remote webhook refresh completed.</info>');
 })->desc('Refresh bank webhooks on the remote host');
 

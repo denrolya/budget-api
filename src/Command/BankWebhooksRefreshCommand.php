@@ -4,6 +4,7 @@ namespace App\Command;
 
 use App\Bank\BankProvider;
 use App\Bank\BankWebhookRegistrationService;
+use App\Entity\BankIntegration;
 use App\Repository\BankIntegrationRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -85,9 +86,21 @@ class BankWebhooksRefreshCommand extends Command
         $ok = 0;
         $skipped = 0;
         $failed = 0;
+        $processedByFingerprint = [];
 
         foreach ($integrations as $integration) {
             $label = sprintf('#%d (%s)', $integration->getId(), $integration->getProvider()->value);
+
+            $fingerprint = $this->buildCredentialFingerprint($integration);
+            if (isset($processedByFingerprint[$fingerprint])) {
+                $io->writeln(sprintf(
+                    '<comment>SKIP</comment> %s: duplicate provider credentials (already handled by integration #%d)',
+                    $label,
+                    $processedByFingerprint[$fingerprint],
+                ));
+                ++$skipped;
+                continue;
+            }
 
             if (!$this->registrationService->supports($integration)) {
                 $io->writeln(sprintf('<comment>SKIP</comment> %s: provider has no webhook support', $label));
@@ -97,6 +110,7 @@ class BankWebhooksRefreshCommand extends Command
 
             if ($dryRun) {
                 $io->writeln(sprintf('<info>DRY</info>  %s: would refresh webhook registration', $label));
+                $processedByFingerprint[$fingerprint] = $integration->getId();
                 ++$ok;
                 continue;
             }
@@ -104,9 +118,11 @@ class BankWebhooksRefreshCommand extends Command
             try {
                 $webhookUrl = $this->registrationService->register($integration);
                 $io->writeln(sprintf('<info>OK</info>   %s: %s', $label, $webhookUrl));
+                $processedByFingerprint[$fingerprint] = $integration->getId();
                 ++$ok;
             } catch (\LogicException $e) {
                 $io->writeln(sprintf('<comment>SKIP</comment> %s: %s', $label, $e->getMessage()));
+                $processedByFingerprint[$fingerprint] = $integration->getId();
                 ++$skipped;
             } catch (\Throwable $e) {
                 $io->writeln(sprintf('<error>FAIL</error> %s: %s', $label, $e->getMessage()));
@@ -122,5 +138,19 @@ class BankWebhooksRefreshCommand extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    private function buildCredentialFingerprint(BankIntegration $integration): string
+    {
+        $provider = $integration->getProvider()->value;
+        $credentials = $integration->getCredentials();
+
+        try {
+            $encoded = json_encode($credentials, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            $encoded = serialize($credentials);
+        }
+
+        return hash('sha256', $provider . '|' . (string) $encoded);
     }
 }
