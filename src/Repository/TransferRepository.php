@@ -3,14 +3,16 @@
 namespace App\Repository;
 
 use App\Entity\Transfer;
+use App\Pagination\Paginator;
 use Carbon\CarbonInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
-use Doctrine\ORM\Tools\Pagination\Paginator;
 use Doctrine\Persistence\ManagerRegistry;
+use InvalidArgumentException;
 
 /**
+ * QueryBuilder-backed repository with centralized filter composition.
+ *
  * @method Transfer|null find($id, $lockMode = null, $lockVersion = null)
  * @method Transfer|null findOneBy(array $criteria, array $orderBy = null)
  * @method Transfer[]    findAll()
@@ -18,89 +20,171 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class TransferRepository extends ServiceEntityRepository
 {
-    public const LIMIT = 20;
-    public const OFFSET = 0;
     public const ORDER_FIELD = 'executedAt';
     public const ORDER = 'DESC';
+
+    private const ALLOWED_ORDER_FIELDS = ['executedAt', 'id', 'amount', 'createdAt'];
+    private const ALLOWED_ORDER_DIRECTIONS = ['ASC', 'DESC'];
 
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Transfer::class);
     }
 
-    /**
-     * @param null|CarbonInterface $after
-     * @param null|CarbonInterface $before
-     * @param array|null $accounts
-     * @param int|null $limit
-     * @param int $offset
-     * @param string $orderField
-     * @param string $order
-     * @return Paginator
-     */
     public function getPaginator(
         ?CarbonInterface $after,
         ?CarbonInterface $before,
         ?array $accounts = null,
-        ?int $limit = self::LIMIT,
-        int $offset = self::OFFSET,
+        int $limit = Paginator::PER_PAGE,
+        int $page = 1,
         string $orderField = self::ORDER_FIELD,
-        string $order = self::ORDER
+        string $order = self::ORDER,
     ): Paginator {
-        $qb = $this->getBaseQueryBuilder($after, $before, $accounts, $limit, $offset, $orderField, $order);
-
-        return new Paginator(
-            $qb->getQuery()->setHydrationMode(Query::HYDRATE_OBJECT),
-            true
+        $qb = $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            accounts: $accounts,
+            orderField: $orderField,
+            order: $order,
         );
+
+        return (new Paginator($qb, $limit))->paginate($page);
     }
 
     /**
-     * TODO: Adjust for efficency(use DQL?). Add missing filters
-     * 
-     * @param null|CarbonInterface $after
-     * @param null|CarbonInterface $before
-     * @param array|null $accounts
-     * @param int|null $limit
-     * @param int $offset
-     * @param string $orderField
-     * @param string $order
+     * Returns all transfers matching the given filters, for use in the unified ledger endpoint.
      *
-     * @return QueryBuilder
+     * @return array<Transfer>
      */
-    private function getBaseQueryBuilder(
+    public function getListForLedger(
         ?CarbonInterface $after,
         ?CarbonInterface $before,
         ?array $accounts = null,
-        ?int $limit = self::LIMIT,
-        int $offset = self::OFFSET,
+        ?string $note = null,
+        int $limit = 1000,
         string $orderField = self::ORDER_FIELD,
-        string $order = self::ORDER
-    ): QueryBuilder {
-        $qb = $this
-            ->createQueryBuilder('t')
-            ->setFirstResult($offset)
+        string $order = self::ORDER,
+    ): array {
+        return $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            accounts: $accounts,
+            note: $note,
+            orderField: $orderField,
+            order: $order,
+        )
             ->setMaxResults($limit)
-            ->leftJoin('t.after', 'fa')
-            ->leftJoin('t.before', 'ta')
-            ->orderBy("t.$orderField", $order);
+            ->getQuery()
+            ->getResult();
+    }
 
-        if ($after) {
-            $qb->andWhere('DATE(t.executedAt) >= :after')
-                ->setParameter('after', $after->toDateString());
-        }
+    /**
+     * COUNT(*) for ledger transfers. No object hydration.
+     */
+    public function countForLedger(
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+        ?array $accounts = null,
+        ?string $note = null,
+    ): int {
+        return (int) $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            accounts: $accounts,
+            note: $note,
+        )
+            ->select('COUNT(t.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 
-        if ($before) {
-            $qb->andWhere('DATE(t.executedAt) <= :before')
-                ->setParameter('before', $before->toDateString());
-        }
+    /**
+     * Single source of truth for listing filters.
+     */
+    private function getBaseQueryBuilder(
+        ?CarbonInterface $after = null,
+        ?CarbonInterface $before = null,
+        ?array $accounts = null,
+        ?string $note = null,
+        string $orderField = self::ORDER_FIELD,
+        string $order = self::ORDER,
+    ): QueryBuilder {
+        $orderField = $this->assertOrderField($orderField);
+        $order      = $this->assertOrderDirection($order);
 
+        $qb = $this->createQueryBuilder('t')
+            ->orderBy("t.$orderField", $order)
+            ->addOrderBy('t.id', $order);
 
-        if ($accounts !== []) {
-            $qb->andWhere('(fa.name IN (:accounts) OR ta.name IN (:accounts))')
-                ->setParameter('accounts', $accounts);
-        }
+        $this->applyExecutedAtRange($qb, $after, $before);
+        $this->applyAccountsFilter($qb, $accounts);
+        $this->applyNoteFilter($qb, $note);
 
         return $qb;
+    }
+
+    private function assertOrderField(string $orderField): string
+    {
+        if (!in_array($orderField, self::ALLOWED_ORDER_FIELDS, true)) {
+            throw new InvalidArgumentException('Invalid order field');
+        }
+
+        return $orderField;
+    }
+
+    private function assertOrderDirection(string $order): string
+    {
+        $order = strtoupper($order);
+
+        if (!in_array($order, self::ALLOWED_ORDER_DIRECTIONS, true)) {
+            throw new InvalidArgumentException('Invalid order direction');
+        }
+
+        return $order;
+    }
+
+    private function applyExecutedAtRange(
+        QueryBuilder $qb,
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+    ): void {
+        if ($after !== null) {
+            $qb->andWhere('t.executedAt >= :afterStart')
+                ->setParameter('afterStart', $after->copy()->startOfDay());
+        }
+
+        if ($before !== null) {
+            $qb->andWhere('t.executedAt < :beforeEndExclusive')
+                ->setParameter('beforeEndExclusive', $before->copy()->addDay()->startOfDay());
+        }
+    }
+
+    private function applyAccountsFilter(QueryBuilder $qb, ?array $accounts): void
+    {
+        if (empty($accounts)) {
+            return;
+        }
+
+        $qb->leftJoin('t.from', 'tf_from')
+            ->leftJoin('t.to', 'tf_to')
+            ->andWhere('tf_from.id IN (:accounts) OR tf_to.id IN (:accounts)')
+            ->setParameter('accounts', $accounts);
+    }
+
+    private function applyNoteFilter(QueryBuilder $qb, ?string $note): void
+    {
+        if (!is_string($note)) {
+            return;
+        }
+
+        $needle = trim($note);
+        if ($needle === '') {
+            return;
+        }
+
+        $needle = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $needle);
+
+        $qb->andWhere('t.note LIKE :note')
+            ->setParameter('note', '%' . $needle . '%');
     }
 }

@@ -140,6 +140,7 @@ class Account implements OwnableInterface
     'account:item:read',
     'transaction:collection:read',
     'debt:collection:read',
+    'transfer:collection:read',
   ])]
   private string $name;
 
@@ -167,6 +168,7 @@ class Account implements OwnableInterface
     'account:item:read',
     'transaction:collection:read',
     'debt:collection:read',
+    'transfer:collection:read',
   ])]
   private ?string $currency;
 
@@ -200,6 +202,7 @@ class Account implements OwnableInterface
     'account:item:read',
     'transaction:collection:read',
     'debt:collection:read',
+    'transfer:collection:read',
   ])]
   private string $color;
 

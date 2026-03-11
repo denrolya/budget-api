@@ -6,15 +6,18 @@ use App\Bank\BankProvider;
 use App\Bank\BankProviderRegistry;
 use App\Bank\BankSyncService;
 use App\Bank\DTO\DraftTransactionData;
+use App\Bank\BankProviderInterface;
 use App\Bank\PollingCapableInterface;
 use App\Bank\Provider\MonobankProvider;
-use App\Bank\Provider\WiseProvider;
+use App\DTO\CategorizationResult;
 use App\Entity\BankCardAccount;
 use App\Entity\BankIntegration;
+use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Bank\SyncMethod;
 use App\Repository\BankIntegrationRepository;
+use App\Service\TransactionCategorizationService;
 use App\Tests\BaseApiTestCase;
 use DateTimeImmutable;
 use Psr\Log\NullLogger;
@@ -25,6 +28,8 @@ use Psr\Log\NullLogger;
  *
  * @group bank
  */
+interface TestPollingBankProvider extends BankProviderInterface, PollingCapableInterface {}
+
 class BankSyncServiceTest extends BaseApiTestCase
 {
     private const EXTERNAL_ID = 'wise_bal_test_001';
@@ -32,7 +37,7 @@ class BankSyncServiceTest extends BaseApiTestCase
     private BankCardAccount $uahCard;
     private BankIntegration $integration;
 
-    /** @var \PHPUnit\Framework\MockObject\MockObject&WiseProvider */
+    /** @var \PHPUnit\Framework\MockObject\MockObject&TestPollingBankProvider */
     private \PHPUnit\Framework\MockObject\MockObject $mockPollingProvider;
 
     private BankSyncService $service;
@@ -64,8 +69,8 @@ class BankSyncServiceTest extends BaseApiTestCase
 
         $this->em->flush();
 
-        // Build mock of WiseProvider (implements BankProviderInterface + PollingCapableInterface).
-        $this->mockPollingProvider = $this->createMock(WiseProvider::class);
+        // Build mock of a combined polling-capable provider.
+        $this->mockPollingProvider = $this->createMock(TestPollingBankProvider::class);
         $this->mockPollingProvider->method('getProvider')->willReturn(BankProvider::Wise);
 
         // Also register a Monobank stub (non-polling) so syncAll doesn't throw
@@ -80,7 +85,24 @@ class BankSyncServiceTest extends BaseApiTestCase
             $this->em->getRepository(BankIntegration::class),
             $this->em,
             new NullLogger(),
+            $this->makeCategorizationServiceMock(),
         );
+    }
+
+    private function makeCategorizationServiceMock(): TransactionCategorizationService
+    {
+        $mock = $this->createMock(TransactionCategorizationService::class);
+        $mock->method('suggest')->willReturnCallback(
+            static function (string $rawNote, bool $isIncome): CategorizationResult {
+                $fallbackId = $isIncome
+                    ? Category::INCOME_CATEGORY_ID_UNKNOWN
+                    : Category::EXPENSE_CATEGORY_ID_UNKNOWN;
+
+                return new CategorizationResult($fallbackId, $rawNote, 0.0);
+            }
+        );
+
+        return $mock;
     }
 
     // -------------------------------------------------------------------------
@@ -110,6 +132,7 @@ class BankSyncServiceTest extends BaseApiTestCase
             $this->em->getRepository(BankIntegration::class),
             $this->em,
             new NullLogger(),
+            $this->makeCategorizationServiceMock(),
         );
 
         // Create a Monobank integration (non-polling).

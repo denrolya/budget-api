@@ -1,0 +1,280 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Controller;
+
+use App\Entity\Transfer;
+use App\Tests\BaseApiTestCase;
+use Carbon\Carbon;
+
+/**
+ * @group ledger
+ */
+class LedgerControllerTest extends BaseApiTestCase
+{
+    private const LEDGER_URL = '/api/v2/ledger';
+
+    /**
+     * @group smoke
+     */
+    public function testUnauthenticatedRequestIsRejected(): void
+    {
+        $this->client->request('GET', self::LEDGER_URL, ['headers' => ['authorization' => null]]);
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    /**
+     * @group smoke
+     */
+    public function testAuthenticatedUserCanAccessLedger(): void
+    {
+        $response = $this->client->request('GET', self::LEDGER_URL);
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+        self::assertArrayHasKey('list', $content);
+        self::assertArrayHasKey('count', $content);
+        self::assertArrayHasKey('totalValue', $content);
+        self::assertIsArray($content['list']);
+        self::assertIsInt($content['count']);
+        self::assertIsFloat($content['totalValue']);
+    }
+
+    /**
+     * The ledger must NOT return transactions that are linked to a transfer (t.transfer IS NOT NULL).
+     * It MUST return the Transfer entities themselves.
+     */
+    public function testTransferTransactionsAreExcludedAndTransfersIncluded(): void
+    {
+        // Create a transfer through the API so its bookkeeping transactions are persisted
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount'      => '50.0',
+                'executedAt'  => '2025-06-15T10:00:00Z',
+                'from'        => $this->iri($this->accountCashEUR),
+                'to'          => $this->iri($this->accountCashUAH),
+                'note'        => 'Ledger test transfer',
+                'rate'        => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->em->clear();
+
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'  => '2025-06-01',
+            'before' => '2025-06-30',
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+        $list    = $content['list'];
+
+        // Every item in the list must NOT have a 'transfer' field linking it to a Transfer
+        // (those bookkeeping transactions should be absent).
+        foreach ($list as $item) {
+            if (isset($item['type'])) {
+                // It's a transaction — must not have a non-null transfer reference
+                self::assertNull(
+                    $item['transfer'] ?? null,
+                    'Transaction linked to a transfer must not appear in the ledger list.',
+                );
+            }
+        }
+
+        // The Transfer we created must appear in the list
+        $transferItems = array_filter($list, static fn(array $item): bool => isset($item['from'], $item['to']));
+        self::assertNotEmpty($transferItems, 'Transfer must appear in the ledger list.');
+    }
+
+    /**
+     * type=expense returns only expense transactions, no transfers.
+     */
+    public function testTypeExpenseFilterReturnsOnlyExpenses(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'  => '2021-01-01',
+            'before' => '2021-01-31',
+            'type'   => 'expense',
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+
+        foreach ($content['list'] as $item) {
+            self::assertArrayHasKey('type', $item, 'Expense-filtered item must be a transaction.');
+            self::assertEquals('expense', $item['type'], 'All items must be expenses.');
+            self::assertArrayNotHasKey('from', $item, 'No transfer items should appear.');
+        }
+    }
+
+    /**
+     * type=income returns only income transactions, no transfers.
+     */
+    public function testTypeIncomeFilterReturnsOnlyIncomes(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'  => '2021-01-01',
+            'before' => '2021-01-31',
+            'type'   => 'income',
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+
+        foreach ($content['list'] as $item) {
+            self::assertArrayHasKey('type', $item);
+            self::assertEquals('income', $item['type']);
+            self::assertArrayNotHasKey('from', $item);
+        }
+    }
+
+    /**
+     * type=transfer returns only transfer items, no transactions.
+     */
+    public function testTypeTransferFilterReturnsOnlyTransfers(): void
+    {
+        // Ensure at least one transfer exists in the test range
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount'     => '10.0',
+                'executedAt' => '2025-07-01T09:00:00Z',
+                'from'       => $this->iri($this->accountCashEUR),
+                'to'         => $this->iri($this->accountCashUAH),
+                'note'       => 'Type=transfer test',
+                'rate'       => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->em->clear();
+
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'  => '2025-07-01',
+            'before' => '2025-07-31',
+            'type'   => 'transfer',
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+
+        foreach ($content['list'] as $item) {
+            self::assertArrayHasKey('from', $item, 'Only Transfer items must appear when type=transfer.');
+            self::assertArrayHasKey('to', $item);
+            self::assertArrayNotHasKey('type', $item, 'Transaction items must not appear when type=transfer.');
+        }
+
+        self::assertNotEmpty($content['list'], 'At least the created transfer must appear.');
+    }
+
+    /**
+     * Pagination: page + perPage work correctly and count reflects total regardless of page.
+     */
+    public function testPagination(): void
+    {
+        $after  = Carbon::parse('2021-01-01')->startOfDay();
+        $before = Carbon::parse('2021-01-31')->endOfDay();
+
+        // Full count
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'  => $after->toDateString(),
+            'before' => $before->toDateString(),
+        ]));
+        self::assertResponseIsSuccessful();
+        $full    = $response->toArray();
+        $total   = $full['count'];
+
+        // Page 1 with perPage=1 — must return exactly 1 item
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'   => $after->toDateString(),
+            'before'  => $before->toDateString(),
+            'perPage' => 1,
+            'page'    => 1,
+        ]));
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+        self::assertCount(1, $content['list']);
+        self::assertEquals($total, $content['count'], 'count must reflect total, not current page size.');
+
+        // Page 2
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'   => $after->toDateString(),
+            'before'  => $before->toDateString(),
+            'perPage' => 1,
+            'page'    => 2,
+        ]));
+        self::assertResponseIsSuccessful();
+        self::assertCount(1, $response->toArray()['list']);
+    }
+
+    /**
+     * Items are returned sorted descending by executedAt.
+     */
+    public function testItemsAreSortedDescendingByExecutedAt(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'   => '2021-01-01',
+            'before'  => '2021-01-31',
+            'perPage' => 50,
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $items = $response->toArray()['list'];
+        if (count($items) < 2) {
+            $this->markTestSkipped('Not enough items to verify sort order.');
+        }
+
+        for ($i = 1; $i < count($items); $i++) {
+            self::assertLessThanOrEqual(
+                strtotime($items[$i - 1]['executedAt']),
+                strtotime($items[$i]['executedAt']),
+                'Items must be sorted descending by executedAt.',
+            );
+        }
+    }
+
+    /**
+     * account[] filter returns only items linked to the specified account.
+     */
+    public function testAccountFilter(): void
+    {
+        $accountId = $this->accountCashEUR->getId();
+
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'           => '2021-01-01',
+            'before'          => '2021-01-31',
+            'account[]'       => [$accountId],
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $items = $response->toArray()['list'];
+
+        foreach ($items as $item) {
+            if (isset($item['type'])) {
+                // Transaction: verify account id
+                self::assertEquals(
+                    $accountId,
+                    $item['account']['id'],
+                    'Transaction must belong to the filtered account.',
+                );
+            }
+            // Transfers with matching from/to are allowed; we just verify no crash
+        }
+    }
+
+    /**
+     * totalValue sums only transaction net values, not transfers.
+     */
+    public function testTotalValueExcludesTransfers(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'  => '2021-01-01',
+            'before' => '2021-01-31',
+            'type'   => 'expense',
+        ]));
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        // totalValue for expense-only filter must be <= 0 (expenses are negative)
+        self::assertLessThanOrEqual(0.0, $content['totalValue']);
+    }
+}

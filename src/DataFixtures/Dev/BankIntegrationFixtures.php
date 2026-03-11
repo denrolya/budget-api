@@ -29,7 +29,7 @@ class BankIntegrationFixtures extends Fixture implements DependentFixtureInterfa
         $wise = new BankIntegration();
         $wise->setOwner($user)
             ->setProvider(BankProvider::Wise)
-            ->setSyncMethod(SyncMethod::Polling)
+            ->setSyncMethod(SyncMethod::Webhook)
             ->setIsActive(true);
         $manager->persist($wise);
         $this->addReference('dev_bank_integration_wise', $wise);

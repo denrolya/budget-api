@@ -56,29 +56,34 @@ class Transfer implements OwnableInterface
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transaction:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'transfer:collection:read'])]
     private ?int $id;
 
     #[ORM\ManyToOne(targetEntity: Account::class)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
+    #[Serializer\Groups(['transfer:collection:read'])]
     private ?Account $from;
 
     #[ORM\ManyToOne(targetEntity: Account::class)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
+    #[Serializer\Groups(['transfer:collection:read'])]
     private ?Account $to;
 
     #[Assert\Type("numeric")]
     #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
     #[Groups(['account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
+    #[Serializer\Groups(['transfer:collection:read'])]
     private string $amount = '0';
 
     #[Assert\Type("numeric")]
     #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
+    #[Serializer\Groups(['transfer:collection:read'])]
     private string $rate = '0';
 
     #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
+    #[Serializer\Groups(['transfer:collection:read'])]
     private string $fee = '0';
 
     #[Groups(['transfer:write'])]
@@ -86,13 +91,16 @@ class Transfer implements OwnableInterface
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
+    #[Serializer\Groups(['transfer:collection:read'])]
     private ?string $note;
 
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
+    #[Serializer\Groups(['transfer:collection:read'])]
     protected ?DateTimeInterface $executedAt;
 
     #[Groups(['transfer:collection:read', 'transfer:item:read'])]
+    #[Serializer\Groups(['transfer:collection:read'])]
     #[ORM\OneToMany(mappedBy: 'transfer', targetEntity: Transaction::class, cascade: [
         "persist",
         "remove",

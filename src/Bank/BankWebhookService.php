@@ -10,6 +10,8 @@ use App\Entity\ExpenseCategory;
 use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
+use App\Entity\User;
+use App\Service\TransactionCategorizationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -29,6 +31,7 @@ class BankWebhookService
         private readonly BankProviderRegistry $registry,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
+        private readonly TransactionCategorizationService $categorizationService,
     ) {
     }
 
@@ -72,6 +75,11 @@ class BankWebhookService
             return null;
         }
 
+        $owner = $account->getOwner();
+        assert($owner instanceof User);
+        $this->categorizationService->resetIndex();
+        $this->categorizationService->buildAllIndexes($owner->getId());
+
         $transaction = $this->buildDraftTransaction($account, $data);
         $this->em->persist($transaction);
         $this->em->flush();
@@ -99,15 +107,18 @@ class BankWebhookService
     private function buildDraftTransaction(BankCardAccount $account, DraftTransactionData $data): Transaction
     {
         $isIncome = $data->amount > 0;
-        $owner = $account->getOwner();
+        $owner    = $account->getOwner();
+
+        // Index is built lazily inside suggest() on the first call per request.
+        $categorization = $this->categorizationService->suggest($data->note, $isIncome);
 
         if ($isIncome) {
-            $category = $this->em->getRepository(IncomeCategory::class)
-                ->find(Category::INCOME_CATEGORY_ID_UNKNOWN);
+            $category = $this->em->getRepository(IncomeCategory::class)->find($categorization->categoryId)
+                ?? $this->em->getRepository(IncomeCategory::class)->find(Category::INCOME_CATEGORY_ID_UNKNOWN);
             $transaction = new Income(true);
         } else {
-            $category = $this->em->getRepository(ExpenseCategory::class)
-                ->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
+            $category = $this->em->getRepository(ExpenseCategory::class)->find($categorization->categoryId)
+                ?? $this->em->getRepository(ExpenseCategory::class)->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
             $transaction = new Expense(true);
         }
 
@@ -115,7 +126,7 @@ class BankWebhookService
             ->setAccount($account)
             ->setAmount(abs($data->amount))
             ->setCategory($category)
-            ->setNote($data->note)
+            ->setNote($categorization->note)
             ->setExecutedAt($data->executedAt)
             ->setOwner($owner);
 

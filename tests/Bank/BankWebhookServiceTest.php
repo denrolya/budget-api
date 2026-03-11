@@ -8,9 +8,12 @@ use App\Bank\BankWebhookService;
 use App\Bank\DTO\DraftTransactionData;
 use App\Bank\Provider\MonobankProvider;
 use App\Bank\WebhookCapableInterface;
+use App\DTO\CategorizationResult;
 use App\Entity\BankCardAccount;
+use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\Income;
+use App\Service\TransactionCategorizationService;
 use App\Tests\BaseApiTestCase;
 use DateTimeImmutable;
 use Psr\Log\NullLogger;
@@ -54,7 +57,23 @@ class BankWebhookServiceTest extends BaseApiTestCase
 
         $registry = new BankProviderRegistry([$this->mockWebhookProvider]);
 
-        $this->service = new BankWebhookService($registry, $this->em, new NullLogger());
+        $this->service = new BankWebhookService($registry, $this->em, new NullLogger(), $this->makeCategorizationServiceMock());
+    }
+
+    private function makeCategorizationServiceMock(): TransactionCategorizationService
+    {
+        $mock = $this->createMock(TransactionCategorizationService::class);
+        $mock->method('suggest')->willReturnCallback(
+            static function (string $rawNote, bool $isIncome): CategorizationResult {
+                $fallbackId = $isIncome
+                    ? Category::INCOME_CATEGORY_ID_UNKNOWN
+                    : Category::EXPENSE_CATEGORY_ID_UNKNOWN;
+
+                return new CategorizationResult($fallbackId, $rawNote, 0.0);
+            }
+        );
+
+        return $mock;
     }
 
     // -------------------------------------------------------------------------
@@ -68,7 +87,7 @@ class BankWebhookServiceTest extends BaseApiTestCase
         $nonWebhookProvider->method('getProvider')->willReturn(BankProvider::Wise);
 
         $registry = new BankProviderRegistry([$nonWebhookProvider]);
-        $service  = new BankWebhookService($registry, $this->em, new NullLogger());
+        $service  = new BankWebhookService($registry, $this->em, new NullLogger(), $this->makeCategorizationServiceMock());
 
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessageMatches('/wise/i');

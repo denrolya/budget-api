@@ -91,7 +91,8 @@ class TransactionRepository extends ServiceEntityRepository
         int $limit = Paginator::PER_PAGE,
         int $page = 1,
         string $orderField = self::ORDER_FIELD,
-        string $order = self::ORDER
+        string $order = self::ORDER,
+        bool $excludeTransferTransactions = false,
     ): Paginator {
         $qb = $this->getBaseQueryBuilder(
             after: $after,
@@ -108,10 +109,75 @@ class TransactionRepository extends ServiceEntityRepository
             debts: $debts,
             currencies: $currencies,
             orderField: $orderField,
-            order: $order
+            order: $order,
+            excludeTransferTransactions: $excludeTransferTransactions,
         );
 
         return (new Paginator($qb, $limit))->paginate($page);
+    }
+
+    /**
+     * Returns all transactions matching the given filters, excluding transfer-linked transactions.
+     * Designed for the unified ledger endpoint — fetches up to $limit items for PHP-level merge.
+     *
+     * @return array<Transaction>
+     */
+    public function getListForLedger(
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+        ?string $type = null,
+        ?array $accounts = null,
+        ?array $categories = null,
+        ?array $debts = null,
+        ?string $note = null,
+        int $limit = 1000,
+        string $orderField = self::ORDER_FIELD,
+        string $order = self::ORDER,
+    ): array {
+        return $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            affectingProfitOnly: false,
+            type: $type,
+            categories: $categories,
+            accounts: $accounts,
+            debts: $debts,
+            note: $note,
+            orderField: $orderField,
+            order: $order,
+            excludeTransferTransactions: true,
+        )
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * COUNT(*) for ledger transactions (excluding transfer-linked ones). No hydration.
+     */
+    public function countForLedger(
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+        ?string $type = null,
+        ?array $accounts = null,
+        ?array $categories = null,
+        ?array $debts = null,
+        ?string $note = null,
+    ): int {
+        return (int) $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            affectingProfitOnly: false,
+            type: $type,
+            categories: $categories,
+            accounts: $accounts,
+            debts: $debts,
+            note: $note,
+            excludeTransferTransactions: true,
+        )
+            ->select('COUNT(t.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /**
@@ -211,7 +277,8 @@ class TransactionRepository extends ServiceEntityRepository
         ?array $debts = null,
         ?array $currencies = null,
         string $orderField = self::ORDER_FIELD,
-        string $order = self::ORDER
+        string $order = self::ORDER,
+        bool $excludeTransferTransactions = false,
     ): QueryBuilder {
         $orderField = $this->assertOrderField($orderField);
         $order = $this->assertOrderDirection($order);
@@ -232,6 +299,10 @@ class TransactionRepository extends ServiceEntityRepository
         $this->applyNoteFilter($qb, $note);
         $this->applyAmountRangeFilter($qb, $amountGte, $amountLte);
         $this->applyCurrencyFilter($qb, $currencies);
+
+        if ($excludeTransferTransactions) {
+            $qb->andWhere('t.transfer IS NULL');
+        }
 
         return $qb;
     }

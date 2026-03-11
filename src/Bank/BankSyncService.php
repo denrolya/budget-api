@@ -13,6 +13,7 @@ use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Repository\BankIntegrationRepository;
+use App\Service\TransactionCategorizationService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -34,6 +35,7 @@ class BankSyncService
         private readonly BankIntegrationRepository $integrationRepo,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
+        private readonly TransactionCategorizationService $categorizationService,
     ) {
     }
 
@@ -121,6 +123,10 @@ class BankSyncService
             return 0;
         }
 
+        // Build categorisation index once per sync run (both income and expense, single DB query).
+        $this->categorizationService->resetIndex();
+        $this->categorizationService->buildAllIndexes((int) $integration->getOwner()->getId());
+
         $created = 0;
 
         foreach ($accounts as $account) {
@@ -204,15 +210,17 @@ class BankSyncService
     private function buildDraftTransaction(BankCardAccount $account, DraftTransactionData $data): Transaction
     {
         $isIncome = $data->amount > 0;
-        $owner = $account->getOwner();
+        $owner    = $account->getOwner();
+
+        $categorization = $this->categorizationService->suggest($data->note, $isIncome);
 
         if ($isIncome) {
-            $category = $this->em->getRepository(IncomeCategory::class)
-                ->find(Category::INCOME_CATEGORY_ID_UNKNOWN);
+            $category = $this->em->getRepository(IncomeCategory::class)->find($categorization->categoryId)
+                ?? $this->em->getRepository(IncomeCategory::class)->find(Category::INCOME_CATEGORY_ID_UNKNOWN);
             $transaction = new Income(true);
         } else {
-            $category = $this->em->getRepository(ExpenseCategory::class)
-                ->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
+            $category = $this->em->getRepository(ExpenseCategory::class)->find($categorization->categoryId)
+                ?? $this->em->getRepository(ExpenseCategory::class)->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
             $transaction = new Expense(true);
         }
 
@@ -220,7 +228,7 @@ class BankSyncService
             ->setAccount($account)
             ->setAmount(abs($data->amount))
             ->setCategory($category)
-            ->setNote($data->note)
+            ->setNote($categorization->note)
             ->setExecutedAt($data->executedAt)
             ->setOwner($owner);
 

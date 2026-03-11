@@ -6,7 +6,6 @@ use App\Bank\BankProvider;
 use App\Bank\BankProviderInterface;
 use App\Bank\DTO\BankAccountData;
 use App\Bank\DTO\DraftTransactionData;
-use App\Bank\PollingCapableInterface;
 use App\Bank\WebhookCapableInterface;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -25,15 +24,19 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *
  * Covers:
  *   - fetchAccounts()         → GET /v4/profiles/{id}/balances
- *   - fetchTransactions()     → GET /v1/profiles/{id}/balances/{bid}/statement.json
  *   - fetchExchangeRates()    → GET /v1/rates (latest, cached)
  *   - getHistorical($date)    → GET /v1/rates?time=... (cached)
  *   - getRates($date)         → convenience: latest or historical
+ *   - parseWebhookPayload()   → balances#update / balances#credit events
+ *   - registerWebhook()       → POST /v3/profiles/{id}/subscriptions
+ *
+ * NOTE: Polling (balance statement API) requires SCA which is not automatable
+ * for personal API tokens. Use webhooks instead (syncMethod = webhook).
  *
  * externalAccountId on BankCardAccount = Wise balanceId (numeric string).
  * HTTP auth (Bearer token) is configured on the wise_client scoped HTTP client.
  */
-class WiseProvider implements BankProviderInterface, PollingCapableInterface, WebhookCapableInterface
+class WiseProvider implements BankProviderInterface, WebhookCapableInterface
 {
     private const CACHE_TTL = 86400; // 24 hours
     private const WEBHOOK_TRIGGER_EVENT = 'balances#update';
@@ -64,12 +67,7 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
     {
         $profileId = $this->getPersonalProfileId();
 
-        try {
-            $response = $this->wiseClient->request('GET', "/v4/profiles/{$profileId}/balances?types=STANDARD");
-            $balances = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        } catch (HttpExceptionInterface $e) {
-            throw new RuntimeException($this->formatWiseHttpError('fetchAccounts', $e), 0, $e);
-        }
+        $balances = $this->requestJson('GET', "/v4/profiles/{$profileId}/balances?types=STANDARD", 'fetchAccounts');
 
         $result = [];
         foreach ($balances as $balance) {
@@ -100,55 +98,6 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
     public function fetchExchangeRates(array $credentials): ?array
     {
         return $this->getLatest();
-    }
-
-    // -------------------------------------------------------------------------
-    // PollingCapableInterface
-    // -------------------------------------------------------------------------
-
-    /**
-     * @return DraftTransactionData[]
-     * @throws \Exception
-     */
-    public function fetchTransactions(
-        array $credentials,
-        string $externalAccountId,
-        DateTimeImmutable $from,
-        DateTimeImmutable $to,
-    ): array {
-        $profileId = $this->getPersonalProfileId();
-
-        $intervalStart = $from->format('Y-m-d\TH:i:s\Z');
-        $intervalEnd = $to->format('Y-m-d\TH:i:s\Z');
-
-        try {
-            // Wise balance statements are under /balance-statements/{balanceId}/statement.json.
-            $url = "/v1/profiles/{$profileId}/balance-statements/{$externalAccountId}/statement.json"
-                . "?intervalStart={$intervalStart}&intervalEnd={$intervalEnd}";
-
-            $response = $this->wiseClient->request('GET', $url);
-            $data = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        } catch (HttpExceptionInterface $e) {
-            throw new RuntimeException($this->formatWiseHttpError('fetchTransactions', $e), 0, $e);
-        }
-
-        $result = [];
-        foreach ($data['transactions'] ?? [] as $tx) {
-            $amount = (float) ($tx['amount']['value'] ?? 0);
-            if ($amount === 0.0) {
-                continue;
-            }
-
-            $result[] = new DraftTransactionData(
-                externalAccountId: $externalAccountId,
-                amount: $amount,
-                executedAt: isset($tx['date']) ? new DateTimeImmutable($tx['date']) : new DateTimeImmutable(),
-                note: $this->buildNote($tx),
-                currency: $tx['amount']['currency'] ?? null,
-            );
-        }
-
-        return $result;
     }
 
     // -------------------------------------------------------------------------
@@ -308,9 +257,12 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
     {
         try {
             $response = $this->wiseClient->request('GET', '/v1/rates', ['query' => $queryParams]);
-            $rates = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            $body = $response->getContent();
+            $rates = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
         } catch (HttpExceptionInterface $e) {
             throw new RuntimeException('Wise rates API error: ' . $e->getMessage(), 0, $e);
+        } catch (\JsonException $e) {
+            throw new RuntimeException('Wise rates API returned non-JSON response (network block?): ' . $e->getMessage(), 0, $e);
         }
 
         $formatted = [$this->baseCurrency => 1.0];
@@ -372,6 +324,18 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
         return implode(' ', $parts) ?: 'Wise transaction';
     }
 
+    /** @throws RuntimeException on API errors */
+    private function requestJson(string $method, string $url, string $operation, array $options = []): mixed
+    {
+        try {
+            $response = $this->wiseClient->request($method, $url, $options);
+
+            return json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+        } catch (HttpExceptionInterface $e) {
+            throw new RuntimeException($this->formatWiseHttpError($operation, $e), 0, $e);
+        }
+    }
+
     private function formatWiseHttpError(string $operation, HttpExceptionInterface $e): string
     {
         $status = null;
@@ -392,13 +356,14 @@ class WiseProvider implements BankProviderInterface, PollingCapableInterface, We
         }
 
         $approvalResult = strtoupper((string) ($this->firstHeader($headers, 'x-2fa-approval-result') ?? ''));
-        $approvalId = (string) ($this->firstHeader($headers, 'x-2fa-approval') ?? '');
 
         if ($status === 403 && $approvalResult === 'REJECTED') {
             return sprintf(
-                'Wise %s failed: 403 Forbidden (SCA/2FA approval rejected). approval_id=%s. Approve the request in Wise and retry.',
+                'Wise %s failed: 403 Forbidden (SCA required). '
+                . 'Wise no longer supports API signing for personal accounts — '
+                . 'statement polling is unavailable. '
+                . 'Switch this integration\'s sync_method to "webhook" and register the webhook via POST /api/bank-integrations/{id}/register-webhook.',
                 $operation,
-                $approvalId !== '' ? $approvalId : 'n/a',
             );
         }
 
