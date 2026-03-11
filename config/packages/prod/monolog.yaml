@@ -15,7 +15,6 @@ monolog:
             type: stream
             path: "%kernel.logs_dir%/bank.log"
             level: info
-            formatter: monolog.formatter.json
             channels: ["bank"]
         console:
             type: console

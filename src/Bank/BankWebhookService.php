@@ -86,6 +86,14 @@ class BankWebhookService
         $this->em->persist($transaction);
         $this->em->flush();
 
+        $this->logger->info('[BankWebhook] Transaction #{tx_id} created: {type} {amount} {currency} for account #{account_id}', [
+            'tx_id'      => $transaction->getId(),
+            'type'       => $data->amount >= 0 ? 'credit' : 'debit',
+            'amount'     => abs($data->amount),
+            'currency'   => $data->currency,
+            'account_id' => $account->getId(),
+        ]);
+
         return $transaction;
     }
 

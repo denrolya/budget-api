@@ -45,10 +45,11 @@ class BankWebhookController extends AbstractFOSRestController
             return $this->view(['error' => 'Invalid JSON payload'], Response::HTTP_BAD_REQUEST);
         }
 
-        $this->bankLogger->info('[BankWebhook] Received {provider} payload: event_type={event_type}', [
+        $this->bankLogger->info('[BankWebhook] Received {provider}: event={event_type} amount={amount} {currency}', [
             'provider'   => $provider,
             'event_type' => $payload['event_type'] ?? $payload['type'] ?? '(none)',
-            'payload'    => json_encode($payload),
+            'amount'     => $payload['data']['amount'] ?? '?',
+            'currency'   => $payload['data']['currency'] ?? '?',
         ]);
 
         try {
