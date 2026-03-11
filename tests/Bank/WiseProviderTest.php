@@ -445,6 +445,41 @@ class WiseProviderTest extends TestCase
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
     }
 
+    public function testRegisterWebhookThrowsLogicExceptionOn403(): void
+    {
+        $profilesBody      = json_encode([['id' => 1, 'type' => 'personal']]);
+        $subscriptionsBody = json_encode([]);
+
+        // Build a real ResponseInterface mock that returns 403 and throws on getContent(true)
+        $forbiddenResponse = $this->createMock(ResponseInterface::class);
+        $forbiddenResponse->method('getStatusCode')->willReturn(403);
+        $forbiddenResponse->method('getContent')->willReturnCallback(
+            function (bool $throw = true) use (&$httpException) {
+                if ($throw) {
+                    throw $httpException;
+                }
+                return '{"error":"unauthorized"}';
+            }
+        );
+
+        $httpException = new class($forbiddenResponse) extends \RuntimeException implements HttpExceptionInterface {
+            public function __construct(private ResponseInterface $r) { parent::__construct('HTTP/2 403'); }
+            public function getResponse(): ResponseInterface { return $this->r; }
+        };
+
+        $this->http
+            ->expects(self::exactly(3))
+            ->method('request')
+            ->willReturnOnConsecutiveCalls(
+                $this->mockResponse($profilesBody),
+                $this->mockResponse($subscriptionsBody),
+                $forbiddenResponse,
+            );
+
+        $this->expectException(\LogicException::class);
+        $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

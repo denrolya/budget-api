@@ -190,7 +190,14 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
                 ])->getContent();
             } catch (HttpExceptionInterface | TransportExceptionInterface $e) {
                 if ($e instanceof HttpExceptionInterface) {
-                    throw new RuntimeException($this->formatWiseHttpError('registerWebhook(create)', $e), 0, $e);
+                    $message = $this->formatWiseHttpError('registerWebhook(create)', $e);
+                    // 403 = token lacks webhook management permission; treat as a skippable
+                    // condition so the command does not fail — register webhooks manually
+                    // in Wise UI (Settings → Developer tools → Webhooks) if this occurs.
+                    if ($e->getResponse()->getStatusCode() === 403) {
+                        throw new \LogicException($message, 0, $e);
+                    }
+                    throw new RuntimeException($message, 0, $e);
                 }
                 throw new RuntimeException('Wise registerWebhook failed: ' . $e->getMessage(), 0, $e);
             }
