@@ -172,6 +172,9 @@ class Account implements OwnableInterface
   ])]
   private ?string $currency;
 
+  #[Assert\NotBlank]
+  #[Assert\Type('numeric')]
+  #[Assert\GreaterThan(value: "0")]
   #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
   #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
   #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
