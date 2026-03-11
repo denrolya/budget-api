@@ -166,8 +166,10 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             throw new RuntimeException('Wise registerWebhook failed while listing subscriptions: ' . $e->getMessage(), 0, $e);
         }
 
-        // Determine which events still need registration
-        $eventsToRegister = [self::WEBHOOK_TRIGGER_CREDIT, self::WEBHOOK_TRIGGER_DEBIT];
+        // Determine which events still need registration.
+        // NOTE: balances#debit is not a valid Wise trigger_on value; only balances#credit
+        // fires for balance changes. Outgoing transfers use a different event family.
+        $eventsToRegister = [self::WEBHOOK_TRIGGER_CREDIT];
         foreach ($subscriptions as $subscription) {
             $event    = $subscription['trigger_on'] ?? null;
             $delivery = $subscription['delivery'] ?? [];

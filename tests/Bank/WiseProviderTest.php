@@ -407,13 +407,6 @@ class WiseProviderTest extends TestCase
                     'url' => 'https://example.com/api/webhooks/wise',
                 ],
             ],
-            [
-                'trigger_on' => 'balances#debit',
-                'delivery' => [
-                    'version' => '2.0.0',
-                    'url' => 'https://example.com/api/webhooks/wise',
-                ],
-            ],
         ]);
 
         $this->http
@@ -433,12 +426,11 @@ class WiseProviderTest extends TestCase
         $subscriptionsBody = json_encode([]);
 
         $this->http
-            ->expects(self::exactly(4))
+            ->expects(self::exactly(3))
             ->method('request')
             ->willReturnOnConsecutiveCalls(
                 $this->mockResponse($profilesBody),
                 $this->mockResponse($subscriptionsBody),
-                $this->mockResponse('{}'),
                 $this->mockResponse('{}'),
             );
 
