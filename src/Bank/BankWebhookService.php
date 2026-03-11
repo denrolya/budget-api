@@ -49,6 +49,11 @@ class BankWebhookService
             throw new \LogicException(sprintf('Provider "%s" does not support webhooks.', $bank->value));
         }
 
+        $this->logger->debug('[BankWebhook] Raw payload from {bank}: {payload}', [
+            'bank'    => $bank->value,
+            'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+        ]);
+
         $data = $provider->parseWebhookPayload($payload);
 
         if ($data === null) {

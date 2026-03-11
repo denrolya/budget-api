@@ -9,6 +9,7 @@ use App\Entity\ExpenseCategory;
 use App\Entity\Transfer;
 use App\Tests\BaseApiTestCase;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 
 /**
  * @group ledger
@@ -419,6 +420,85 @@ class LedgerControllerTest extends BaseApiTestCase
         $notes = array_map(static fn(array $item): ?string => $item['note'] ?? null, $items);
         self::assertContains('needle tx record', $notes);
         self::assertContains('needle transfer record', $notes);
+    }
+
+    /**
+     * isDraft=1 returns only draft transactions; isDraft=0 excludes drafts.
+     */
+    public function testIsDraftFilter(): void
+    {
+        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof ExpenseCategory);
+
+        $date = CarbonImmutable::parse('2025-11-15T12:00:00Z');
+
+        $draft = $this->createExpense(
+            amount: 5.0,
+            account: $this->accountCashEUR,
+            category: $groceries,
+            executedAt: $date,
+            note: 'ledger-draft-hit',
+        );
+        $draft->setIsDraft(true);
+        $this->em->flush();
+
+        $this->createExpense(
+            amount: 6.0,
+            account: $this->accountCashEUR,
+            category: $groceries,
+            executedAt: $date,
+            note: 'ledger-draft-miss',
+        );
+
+        $this->em->clear();
+
+        // Also create a transfer in the same period — must NOT appear when isDraft is set
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount'     => '3.0',
+                'executedAt' => '2025-11-15T12:00:00Z',
+                'from'       => $this->iri($this->accountCashEUR),
+                'to'         => $this->iri($this->accountCashUAH),
+                'note'       => 'ledger-draft-transfer',
+                'rate'       => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->em->clear();
+
+        // isDraft=1 → only draft transactions, no transfers
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'   => '2025-11-01',
+            'before'  => '2025-11-30',
+            'isDraft' => '1',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        self::assertNotEmpty($items);
+        foreach ($items as $item) {
+            self::assertArrayNotHasKey('from', $item, 'Transfers must not appear when isDraft is set.');
+            self::assertTrue($item['isDraft'], 'isDraft=1 must return only draft transactions.');
+        }
+        $notes = array_column($items, 'note');
+        self::assertContains('ledger-draft-hit', $notes);
+        self::assertNotContains('ledger-draft-miss', $notes);
+
+        // isDraft=0 → only non-draft transactions, no transfers
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'   => '2025-11-01',
+            'before'  => '2025-11-30',
+            'isDraft' => '0',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        self::assertNotEmpty($items);
+        foreach ($items as $item) {
+            self::assertArrayNotHasKey('from', $item, 'Transfers must not appear when isDraft is set.');
+            self::assertFalse($item['isDraft'], 'isDraft=0 must return only non-draft transactions.');
+        }
+        $notes = array_column($items, 'note');
+        self::assertContains('ledger-draft-miss', $notes);
+        self::assertNotContains('ledger-draft-hit', $notes);
     }
 
     /**

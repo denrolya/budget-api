@@ -154,8 +154,8 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             return null;
         }
 
-        $reference = (string) ($resource['reference'] ?? '');
-        $note = trim(sprintf('Wise credit %s', $reference)) ?: 'Wise credit event';
+        $reference = trim((string) ($resource['reference'] ?? ''));
+        $note = $this->usableReference($reference) ? $reference : 'Transfer received';
 
         return new DraftTransactionData(
             externalAccountId: (string) $balanceId,
@@ -194,15 +194,13 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             $signedAmount = abs($amount);
         }
 
-        $channelName = (string) ($data['channel_name'] ?? 'BALANCE');
-        $transferReference = (string) ($data['transfer_reference'] ?? '');
-        $note = trim(sprintf('Wise %s %s', strtoupper($channelName), $transferReference));
+        $note = $this->buildNoteFromFlatData($data);
 
         return new DraftTransactionData(
             externalAccountId: (string) $balanceId,
             amount: $signedAmount,
             executedAt: new DateTimeImmutable((string) $occurredAt),
-            note: $note !== '' ? $note : 'Wise webhook event',
+            note: $note,
             currency: $currency,
         );
     }
@@ -389,19 +387,76 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
     }
 
     /**
-     * Builds a human-readable note from a Wise transaction object.
-     * Prefers description, falls back to merchant name or sender name.
+     * Builds a human-readable note from a flat balances#update / balances#credit-v2 payload.
+     *
+     * Priority:
+     *   CARD channel  → merchant.name > description > "Card payment"
+     *   Other channels → description > usable transfer_reference > channel-specific label
+     *
+     * UUID-like and bare-numeric references are considered internal Wise IDs and are dropped.
      */
-    private function buildNote(array $tx): string
+    private function buildNoteFromFlatData(array $data): string
     {
-        $details = $tx['details'] ?? [];
-        $parts = array_filter([
-            $details['description'] ?? null,
-            $details['merchant']['name'] ?? null,
-            $details['senderName'] ?? null,
-        ]);
+        $channel     = strtoupper(trim((string) ($data['channel_name'] ?? '')));
+        $description = trim((string) ($data['description'] ?? ''));
+        $reference   = trim((string) ($data['transfer_reference'] ?? ''));
+        $merchant    = $data['merchant'] ?? [];
+        $merchantName = is_array($merchant) ? trim((string) ($merchant['name'] ?? '')) : '';
 
-        return implode(' ', $parts) ?: 'Wise transaction';
+        // Card transaction: merchant name is the most meaningful piece of info
+        if ($channel === 'CARD') {
+            if ($merchantName !== '') {
+                return $merchantName;
+            }
+            if ($description !== '') {
+                return $description;
+            }
+
+            return 'Card payment';
+        }
+
+        // Non-card: prefer an explicit description
+        if ($description !== '') {
+            return $description;
+        }
+
+        // Use transfer_reference only when it looks meaningful (not a UUID or bare number)
+        if ($this->usableReference($reference)) {
+            return $reference;
+        }
+
+        // Final fallback: a readable label per channel
+        return match ($channel) {
+            'BALANCE'    => 'Balance transfer',
+            'CONVERSION' => 'Currency conversion',
+            'SWIFT'      => 'International transfer',
+            'SEPA'       => 'SEPA transfer',
+            'DIRECT_DEBIT' => 'Direct debit',
+            default      => $channel !== '' ? ucfirst(strtolower($channel)) . ' transaction' : 'Wise transaction',
+        };
+    }
+
+    /**
+     * Returns true when a reference string carries real human meaning.
+     * Rejects UUIDs (internal Wise transaction IDs) and bare numeric strings (balance IDs).
+     */
+    private function usableReference(string $reference): bool
+    {
+        if ($reference === '') {
+            return false;
+        }
+
+        // UUID — internal Wise transaction identifier, not useful to the user
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $reference)) {
+            return false;
+        }
+
+        // Bare integer — usually a balance ID or internal record ID
+        if (preg_match('/^\d+$/', $reference)) {
+            return false;
+        }
+
+        return true;
     }
 
     /** @throws RuntimeException on API errors */

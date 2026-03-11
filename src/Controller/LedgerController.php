@@ -42,6 +42,7 @@ final class LedgerController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'category', description: 'Filter by category IDs', nullable: true)]
     #[Rest\QueryParam(name: 'debt', description: 'Filter by debt IDs', nullable: true)]
     #[Rest\QueryParam(name: 'note', description: 'Search substring in note', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'isDraft', requirements: '(0|1)', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'perPage', requirements: '^(20|50|100|[1-9][0-9]*)$', default: Paginator::PER_PAGE)]
     #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1)]
     #[Rest\View(serializerGroups: ['transaction:collection:read', 'transfer:collection:read'])]
@@ -55,10 +56,16 @@ final class LedgerController extends AbstractFOSRestController
         ?array $category = null,
         ?array $debt = null,
         ?string $note = null,
+        ?string $isDraft = null,
         int $perPage = Paginator::PER_PAGE,
         int $page = 1,
     ): View {
         $note = (is_string($note) && trim($note) !== '') ? trim($note) : null;
+        $isDraftBool = match ($isDraft) {
+            '1'     => true,
+            '0'     => false,
+            default => null,
+        };
 
         // ── Normalize account/category/debt to int arrays ──────────────────
         $accountIds  = $this->toIntArray($account);
@@ -66,7 +73,8 @@ final class LedgerController extends AbstractFOSRestController
         $debtIds     = $this->toIntArray($debt);
 
         $includeTransactions = ($type === null || $type === Transaction::EXPENSE || $type === Transaction::INCOME);
-        $includeTransfers    = ($type === null || $type === 'transfer');
+        // Transfers have no isDraft field — exclude them when draft filtering is active
+        $includeTransfers    = ($type === null || $type === 'transfer') && $isDraftBool === null;
 
         // ── Fetch data ──────────────────────────────────────────────────────
         $transactions = $includeTransactions ? $this->transactionRepository->getListForLedger(
@@ -77,6 +85,7 @@ final class LedgerController extends AbstractFOSRestController
             categories: $categoryIds ?: null,
             debts: $debtIds ?: null,
             note: $note,
+            isDraft: $isDraftBool,
         ) : [];
 
         $transfers = $includeTransfers ? $this->transferRepository->getListForLedger(
