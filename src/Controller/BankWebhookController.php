@@ -6,6 +6,7 @@ use App\Bank\BankProvider;
 use App\Bank\BankWebhookService;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\View\View;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -20,6 +21,7 @@ class BankWebhookController extends AbstractFOSRestController
 {
     public function __construct(
         private readonly BankWebhookService $webhookService,
+        private readonly LoggerInterface $bankLogger,
     ) {
     }
 
@@ -40,6 +42,12 @@ class BankWebhookController extends AbstractFOSRestController
         if (!is_array($payload)) {
             return $this->view(['error' => 'Invalid JSON payload'], Response::HTTP_BAD_REQUEST);
         }
+
+        $this->bankLogger->info('[BankWebhook] Received {provider} payload: event_type={event_type}', [
+            'provider'   => $provider,
+            'event_type' => $payload['event_type'] ?? $payload['type'] ?? '(none)',
+            'payload'    => json_encode($payload),
+        ]);
 
         try {
             $transaction = $this->webhookService->handle($bank, $payload);

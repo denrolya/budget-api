@@ -23,7 +23,9 @@ use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JMS\Serializer\Annotation as Serializer;
 use Random\RandomException;
+use Symfony\Component\Serializer\Annotation\Context;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\HasLifecycleCallbacks]
@@ -174,10 +176,10 @@ class Account implements OwnableInterface
 
   #[Assert\NotBlank]
   #[Assert\Type('numeric')]
-  #[Assert\GreaterThan(value: "0")]
   #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
   #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
   #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
+  #[Context(denormalizationContext: [AbstractObjectNormalizer::DISABLE_TYPE_ENFORCEMENT => true])]
   #[Serializer\Type(Types::FLOAT)]
   private string $balance = '0.0';
 
