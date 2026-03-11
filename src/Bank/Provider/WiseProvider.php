@@ -39,8 +39,9 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class WiseProvider implements BankProviderInterface, WebhookCapableInterface
 {
     private const CACHE_TTL = 86400; // 24 hours
-    private const WEBHOOK_TRIGGER_EVENT = 'balances#update';
-    private const WEBHOOK_DELIVERY_VERSION = '3.0.0';
+    private const WEBHOOK_TRIGGER_CREDIT  = 'balances#credit';
+    private const WEBHOOK_TRIGGER_DEBIT   = 'balances#debit';
+    private const WEBHOOK_DELIVERY_VERSION = '2.0.0';
 
     public function __construct(
         private readonly HttpClientInterface $wiseClient,  // wise_client scoped client (Bearer auth pre-configured)
@@ -107,7 +108,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
     public function parseWebhookPayload(array $payload): ?DraftTransactionData
     {
         $eventType = (string) ($payload['event_type'] ?? '');
-        if ($eventType !== 'balances#credit' && $eventType !== 'balances#update') {
+        if ($eventType !== self::WEBHOOK_TRIGGER_CREDIT && $eventType !== self::WEBHOOK_TRIGGER_DEBIT) {
             return null;
         }
 
@@ -130,7 +131,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             return null;
         }
 
-        $transactionType = strtolower((string) ($data['transaction_type'] ?? ($eventType === 'balances#credit' ? 'credit' : '')));
+        $transactionType = strtolower((string) ($data['transaction_type'] ?? ($eventType === self::WEBHOOK_TRIGGER_CREDIT ? 'credit' : 'debit')));
         $signedAmount = $amount;
         if ($transactionType === 'debit') {
             $signedAmount = -abs($amount);
@@ -165,37 +166,34 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             throw new RuntimeException('Wise registerWebhook failed while listing subscriptions: ' . $e->getMessage(), 0, $e);
         }
 
+        // Determine which events still need registration
+        $eventsToRegister = [self::WEBHOOK_TRIGGER_CREDIT, self::WEBHOOK_TRIGGER_DEBIT];
         foreach ($subscriptions as $subscription) {
-            if (($subscription['trigger_on'] ?? null) !== self::WEBHOOK_TRIGGER_EVENT) {
-                continue;
-            }
-
+            $event    = $subscription['trigger_on'] ?? null;
             $delivery = $subscription['delivery'] ?? [];
-            if (!is_array($delivery)) {
-                continue;
-            }
-
-            if (($delivery['url'] ?? null) === $webhookUrl) {
-                return;
+            if (is_string($event) && is_array($delivery) && ($delivery['url'] ?? null) === $webhookUrl) {
+                $eventsToRegister = array_filter($eventsToRegister, fn(string $e) => $e !== $event);
             }
         }
 
-        try {
-            $this->wiseClient->request('POST', "/v3/profiles/{$profileId}/subscriptions", [
-                'json' => [
-                    'name' => 'Budget Wise balance updates',
-                    'trigger_on' => self::WEBHOOK_TRIGGER_EVENT,
-                    'delivery' => [
-                        'version' => self::WEBHOOK_DELIVERY_VERSION,
-                        'url' => $webhookUrl,
+        foreach ($eventsToRegister as $event) {
+            try {
+                $this->wiseClient->request('POST', "/v3/profiles/{$profileId}/subscriptions", [
+                    'json' => [
+                        'name'       => sprintf('Budget Wise %s', $event),
+                        'trigger_on' => $event,
+                        'delivery'   => [
+                            'version' => self::WEBHOOK_DELIVERY_VERSION,
+                            'url'     => $webhookUrl,
+                        ],
                     ],
-                ],
-            ])->getContent();
-        } catch (HttpExceptionInterface | TransportExceptionInterface $e) {
-            if ($e instanceof HttpExceptionInterface) {
-                throw new RuntimeException($this->formatWiseHttpError('registerWebhook(create)', $e), 0, $e);
+                ])->getContent();
+            } catch (HttpExceptionInterface | TransportExceptionInterface $e) {
+                if ($e instanceof HttpExceptionInterface) {
+                    throw new RuntimeException($this->formatWiseHttpError('registerWebhook(create)', $e), 0, $e);
+                }
+                throw new RuntimeException('Wise registerWebhook failed: ' . $e->getMessage(), 0, $e);
             }
-            throw new RuntimeException('Wise registerWebhook failed: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -367,7 +365,13 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             );
         }
 
-        return sprintf('Wise %s failed: %s', $operation, $e->getMessage());
+        $body = '';
+        try {
+            $body = $e->getResponse()->getContent(false);
+        } catch (\Throwable) {
+        }
+
+        return sprintf('Wise %s failed: %s%s', $operation, $e->getMessage(), $body !== '' ? ' | ' . $body : '');
     }
 
     private function firstHeader(array $headers, string $name): ?string
