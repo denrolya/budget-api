@@ -122,7 +122,9 @@ class WiseDiagnoseCommand extends Command
                     $event   = $sub['trigger_on'] ?? '?';
                     $url     = $sub['delivery']['url'] ?? '?';
                     $version = $sub['delivery']['version'] ?? '?';
-                    $io->writeln(sprintf('  %-30s → %s (schema %s)', $event, $url, $version));
+                    $subId   = $sub['id'] ?? '?';
+                    $io->writeln(sprintf('  %-30s schema=%-5s id=%s', $event, $version, $subId));
+                    $io->writeln(sprintf('  %s→ %s', str_repeat(' ', 32), $url));
                 }
             }
 

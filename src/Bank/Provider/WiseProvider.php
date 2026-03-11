@@ -222,15 +222,33 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
         }
 
         // Determine which events still need registration.
-        // For personal/profile-level integrations, balances#update is the canonical
-        // event because it covers both credits and debits.
+        // Also delete stale subscriptions pointing to our URL that use the wrong schema version —
+        // Wise schema 2.0.0 omits balance_id in real events; 3.0.0 is required for account matching.
         $eventsToRegister = [self::WEBHOOK_TRIGGER_UPDATE];
         foreach ($subscriptions as $subscription) {
             $event    = $subscription['trigger_on'] ?? null;
             $delivery = $subscription['delivery'] ?? [];
-            if (is_string($event) && is_array($delivery) && ($delivery['url'] ?? null) === $webhookUrl) {
-                $eventsToRegister = array_filter($eventsToRegister, fn(string $e) => $e !== $event);
+            if (!is_string($event) || !is_array($delivery) || ($delivery['url'] ?? null) !== $webhookUrl) {
+                continue;
             }
+
+            $existingVersion = (string) ($delivery['version'] ?? '');
+            if ($existingVersion !== self::WEBHOOK_DELIVERY_VERSION) {
+                // Wrong schema version — delete so we can recreate with the correct version.
+                $subId = $subscription['id'] ?? null;
+                if ($subId !== null) {
+                    try {
+                        $this->wiseClient->request('DELETE', "/v3/profiles/{$profileId}/subscriptions/{$subId}")->getContent();
+                    } catch (\Throwable) {
+                        // Best-effort; if delete fails we still try to create the new one below.
+                    }
+                }
+                // Leave the event in $eventsToRegister so a fresh 3.0.0 sub gets created.
+                continue;
+            }
+
+            // Correct version already exists — no need to register this event.
+            $eventsToRegister = array_filter($eventsToRegister, fn(string $e) => $e !== $event);
         }
 
         foreach ($eventsToRegister as $event) {
