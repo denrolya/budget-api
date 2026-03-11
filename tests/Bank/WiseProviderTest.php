@@ -348,7 +348,7 @@ class WiseProviderTest extends TestCase
     public function testParseWebhookPayloadMapsBalancesUpdateCredit(): void
     {
         $result = $this->provider->parseWebhookPayload([
-            'event_type' => 'balances#update',
+            'event_type' => 'balances#credit',
             'data' => [
                 'resource' => ['id' => 111],
                 'balance_id' => 222,
@@ -371,7 +371,7 @@ class WiseProviderTest extends TestCase
     public function testParseWebhookPayloadMapsBalancesUpdateDebitAsNegative(): void
     {
         $result = $this->provider->parseWebhookPayload([
-            'event_type' => 'balances#update',
+            'event_type' => 'balances#debit',
             'data' => [
                 'resource' => ['id' => 111],
                 'amount' => 9.6,
@@ -401,9 +401,16 @@ class WiseProviderTest extends TestCase
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([
             [
-                'trigger_on' => 'balances#update',
+                'trigger_on' => 'balances#credit',
                 'delivery' => [
-                    'version' => '3.0.0',
+                    'version' => '2.0.0',
+                    'url' => 'https://example.com/api/webhooks/wise',
+                ],
+            ],
+            [
+                'trigger_on' => 'balances#debit',
+                'delivery' => [
+                    'version' => '2.0.0',
                     'url' => 'https://example.com/api/webhooks/wise',
                 ],
             ],
@@ -426,11 +433,12 @@ class WiseProviderTest extends TestCase
         $subscriptionsBody = json_encode([]);
 
         $this->http
-            ->expects(self::exactly(3))
+            ->expects(self::exactly(4))
             ->method('request')
             ->willReturnOnConsecutiveCalls(
                 $this->mockResponse($profilesBody),
                 $this->mockResponse($subscriptionsBody),
+                $this->mockResponse('{}'),
                 $this->mockResponse('{}'),
             );
 
