@@ -108,8 +108,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
     public function parseWebhookPayload(array $payload): ?DraftTransactionData
     {
         $eventType = (string) ($payload['event_type'] ?? '');
-        $isCredit = $eventType === self::WEBHOOK_TRIGGER_CREDIT || $eventType === self::WEBHOOK_TRIGGER_UPDATE;
-        if (!$isCredit) {
+        if ($eventType !== self::WEBHOOK_TRIGGER_CREDIT && $eventType !== self::WEBHOOK_TRIGGER_UPDATE) {
             return null;
         }
 
@@ -168,9 +167,9 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
         }
 
         // Determine which events still need registration.
-        // NOTE: balances#debit is not a valid Wise trigger_on value; only balances#credit
-        // fires for balance changes. Outgoing transfers use a different event family.
-        $eventsToRegister = [self::WEBHOOK_TRIGGER_CREDIT];
+        // For personal/profile-level integrations, balances#update is the canonical
+        // event because it covers both credits and debits.
+        $eventsToRegister = [self::WEBHOOK_TRIGGER_UPDATE];
         foreach ($subscriptions as $subscription) {
             $event    = $subscription['trigger_on'] ?? null;
             $delivery = $subscription['delivery'] ?? [];

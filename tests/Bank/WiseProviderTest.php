@@ -419,7 +419,7 @@ class WiseProviderTest extends TestCase
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([
             [
-                'trigger_on' => 'balances#credit',
+                'trigger_on' => 'balances#update',
                 'delivery' => [
                     'version' => '2.0.0',
                     'url' => 'https://example.com/api/webhooks/wise',
@@ -446,6 +446,40 @@ class WiseProviderTest extends TestCase
         $this->http
             ->expects(self::exactly(3))
             ->method('request')
+            ->willReturnOnConsecutiveCalls(
+                $this->mockResponse($profilesBody),
+                $this->mockResponse($subscriptionsBody),
+                $this->mockResponse('{}'),
+            );
+
+        $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
+    }
+
+    public function testRegisterWebhookCreatesBalancesUpdateSubscription(): void
+    {
+        $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
+        $subscriptionsBody = json_encode([]);
+
+        $this->http
+            ->expects(self::exactly(3))
+            ->method('request')
+            ->with(
+                self::logicalOr(
+                    self::equalTo('GET'),
+                    self::equalTo('POST')
+                ),
+                self::logicalOr(
+                    self::equalTo('/v2/profiles'),
+                    self::equalTo('/v3/profiles/1/subscriptions')
+                ),
+                self::callback(function (mixed $options): bool {
+                    if (!is_array($options) || !isset($options['json'])) {
+                        return true;
+                    }
+
+                    return ($options['json']['trigger_on'] ?? null) === 'balances#update';
+                })
+            )
             ->willReturnOnConsecutiveCalls(
                 $this->mockResponse($profilesBody),
                 $this->mockResponse($subscriptionsBody),

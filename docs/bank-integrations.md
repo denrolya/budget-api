@@ -46,7 +46,7 @@ app:bank:webhooks:refresh
 | Enum | `BankProvider::Wise` |
 | Slug | `wise` |
 | Webhook URL | `/api/webhooks/wise` |
-| Webhook events | `balances#update`, `balances#credit` |
+| Webhook events | `balances#update` |
 | Exchange rates | Yes (`/v1/rates`, 24 h cache) |
 | API base | `https://api.wise.com` |
 | Auth | Bearer token via scoped HTTP client `wise_client` |
@@ -66,14 +66,13 @@ Other events (`transfers#state-change`, etc.) are received but return `null` fro
 
 > Wise → Settings → Developer tools → Webhooks
 
-Register these two webhooks (same URL, different event):
+Register one profile-level webhook:
 
-| Name | URL | Event (UI label) | Wise `trigger_on` |
-|---|---|---|---|
-| Budget debit/credit | `https://<domain>/api/webhooks/wise` | Account deposit events | `balances#update` |
-| Budget credit | `https://<domain>/api/webhooks/wise` | Account deposit events | `balances#credit` |
+| URL | Wise `trigger_on` | Coverage |
+|---|---|---|
+| `https://<domain>/api/webhooks/wise` | `balances#update` | credits and debits |
 
-> If only one dropdown option is available for balance events, pick **Account deposit events**. The payload's `transaction_type` field distinguishes credits from debits at runtime.
+If you also subscribe to `balances#credit`, you may receive duplicate credit notifications. It is optional and not needed for transaction capture.
 
 **Env vars:**
 ```
