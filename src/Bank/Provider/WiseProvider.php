@@ -39,8 +39,8 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class WiseProvider implements BankProviderInterface, WebhookCapableInterface
 {
     private const CACHE_TTL = 86400; // 24 hours
-    private const WEBHOOK_TRIGGER_CREDIT  = 'balances#credit';
-    private const WEBHOOK_TRIGGER_DEBIT   = 'balances#debit';
+    private const WEBHOOK_TRIGGER_UPDATE  = 'balances#update';  // any balance change (credit or debit)
+    private const WEBHOOK_TRIGGER_CREDIT  = 'balances#credit';  // money credited to balance
     private const WEBHOOK_DELIVERY_VERSION = '2.0.0';
 
     public function __construct(
@@ -108,7 +108,8 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
     public function parseWebhookPayload(array $payload): ?DraftTransactionData
     {
         $eventType = (string) ($payload['event_type'] ?? '');
-        if ($eventType !== self::WEBHOOK_TRIGGER_CREDIT && $eventType !== self::WEBHOOK_TRIGGER_DEBIT) {
+        $isCredit = $eventType === self::WEBHOOK_TRIGGER_CREDIT || $eventType === self::WEBHOOK_TRIGGER_UPDATE;
+        if (!$isCredit) {
             return null;
         }
 
@@ -131,7 +132,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             return null;
         }
 
-        $transactionType = strtolower((string) ($data['transaction_type'] ?? ($eventType === self::WEBHOOK_TRIGGER_CREDIT ? 'credit' : 'debit')));
+        $transactionType = strtolower((string) ($data['transaction_type'] ?? 'credit'));
         $signedAmount = $amount;
         if ($transactionType === 'debit') {
             $signedAmount = -abs($amount);

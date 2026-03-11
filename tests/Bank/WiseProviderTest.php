@@ -371,7 +371,7 @@ class WiseProviderTest extends TestCase
     public function testParseWebhookPayloadMapsBalancesUpdateDebitAsNegative(): void
     {
         $result = $this->provider->parseWebhookPayload([
-            'event_type' => 'balances#debit',
+            'event_type' => 'balances#update',
             'data' => [
                 'resource' => ['id' => 111],
                 'amount' => 9.6,
@@ -384,6 +384,24 @@ class WiseProviderTest extends TestCase
         self::assertInstanceOf(DraftTransactionData::class, $result);
         self::assertSame('111', $result->externalAccountId);
         self::assertEqualsWithDelta(-9.6, $result->amount, 0.001);
+    }
+
+    public function testParseWebhookPayloadMapsBalancesUpdateCreditViaUpdateEvent(): void
+    {
+        $result = $this->provider->parseWebhookPayload([
+            'event_type' => 'balances#update',
+            'data' => [
+                'balance_id' => 333,
+                'amount' => 50.0,
+                'currency' => 'EUR',
+                'transaction_type' => 'credit',
+                'occurred_at' => '2023-03-09T10:00:00Z',
+            ],
+        ]);
+
+        self::assertInstanceOf(DraftTransactionData::class, $result);
+        self::assertSame('333', $result->externalAccountId);
+        self::assertEqualsWithDelta(50.0, $result->amount, 0.001);
     }
 
     public function testParseWebhookPayloadReturnsNullForUnsupportedEvent(): void
