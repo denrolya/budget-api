@@ -9,7 +9,6 @@ use App\Entity\Transfer;
 use App\Entity\User;
 use App\EventListener\TransactionListener;
 use App\EventListener\ValuableEntityEventListener;
-use App\EventListener\TransferCreateTransactionsHandler;
 use App\Service\TransferService;
 use Carbon\CarbonImmutable;
 use Doctrine\Persistence\ObjectManager;
@@ -31,10 +30,9 @@ class TransferFixtures extends BaseTransactionFixtures
         ParameterBagInterface $params,
         TransactionListener $transactionListener,
         ValuableEntityEventListener $valuableEntityListener,
-        TransferCreateTransactionsHandler $transferHandler,
         private readonly TransferService $transferService,
     ) {
-        parent::__construct($params, $transactionListener, $valuableEntityListener, $transferHandler);
+        parent::__construct($params, $transactionListener, $valuableEntityListener);
     }
 
     public function load(ObjectManager $manager): void
@@ -45,29 +43,29 @@ class TransferFixtures extends BaseTransactionFixtures
         $now = CarbonImmutable::now();
 
         /** @var BankCardAccount $monobankUah */
-        $monobankUah   = $this->getReference('account_monobank_uah',   BankCardAccount::class);
+        $monobankUah = $this->getReference('account_monobank_uah', BankCardAccount::class);
         /** @var BankCardAccount $monobankEur */
-        $monobankEur   = $this->getReference('account_monobank_eur',   BankCardAccount::class);
+        $monobankEur = $this->getReference('account_monobank_eur', BankCardAccount::class);
         /** @var BankCardAccount $privatbankUah */
         $privatbankUah = $this->getReference('account_privatbank_uah', BankCardAccount::class);
         /** @var BankCardAccount $revolutEur */
-        $revolutEur    = $this->getReference('account_revolut_eur',    BankCardAccount::class);
+        $revolutEur = $this->getReference('account_revolut_eur', BankCardAccount::class);
         /** @var BankCardAccount $otpHuf */
-        $otpHuf        = $this->getReference('account_otp_huf',        BankCardAccount::class);
+        $otpHuf = $this->getReference('account_otp_huf', BankCardAccount::class);
         /** @var InternetAccount $wiseEur */
-        $wiseEur       = $this->getReference('account_wise_eur',       InternetAccount::class);
+        $wiseEur = $this->getReference('account_wise_eur', InternetAccount::class);
         /** @var InternetAccount $paypalUsd */
-        $paypalUsd     = $this->getReference('account_paypal_usd',     InternetAccount::class);
+        $paypalUsd = $this->getReference('account_paypal_usd', InternetAccount::class);
         /** @var CashAccount $cashUah */
-        $cashUah       = $this->getReference('account_cash_uah',       CashAccount::class);
+        $cashUah = $this->getReference('account_cash_uah', CashAccount::class);
         /** @var CashAccount $cashEur */
-        $cashEur       = $this->getReference('account_cash_eur',       CashAccount::class);
+        $cashEur = $this->getReference('account_cash_eur', CashAccount::class);
         /** @var Account $savingsEur */
-        $savingsEur    = $this->getReference('account_savings_eur',    Account::class);
+        $savingsEur = $this->getReference('account_savings_eur', Account::class);
 
-        $uahToEurRate  = 0.0241;
-        $usdToEurRate  = 0.926;
-        $eurToHufRate  = 400.0;
+        $uahToEurRate = 0.0241;
+        $usdToEurRate = 0.926;
+        $eurToHufRate = 400.0;
 
         $transfers = [];
 
@@ -77,12 +75,16 @@ class TransferFixtures extends BaseTransactionFixtures
             if ($date->gt($now)) {
                 continue;
             }
-            $eurAmount  = round(250 + lcg_value() * 150, 2);
-            $uahAmount  = round($eurAmount / $uahToEurRate, 2);
+            $eurAmount = round(250 + lcg_value() * 150, 2);
+            $uahAmount = round($eurAmount / $uahToEurRate, 2);
             $transfers[] = [
-                'from' => $monobankUah, 'to' => $savingsEur,
-                'amount' => $uahAmount, 'rate' => $uahToEurRate, 'fee' => 0,
-                'note' => 'Monthly savings', 'date' => $date,
+                'from' => $monobankUah,
+                'to' => $savingsEur,
+                'amount' => $uahAmount,
+                'rate' => $uahToEurRate,
+                'fee' => 0,
+                'note' => 'Monthly savings',
+                'date' => $date,
             ];
         }
 
@@ -93,9 +95,13 @@ class TransferFixtures extends BaseTransactionFixtures
                 continue;
             }
             $transfers[] = [
-                'from' => $monobankUah, 'to' => $cashUah,
-                'amount' => round(2000 + lcg_value() * 3000, 2), 'rate' => 1.0, 'fee' => 0,
-                'note' => 'Cash withdrawal UAH', 'date' => $date,
+                'from' => $monobankUah,
+                'to' => $cashUah,
+                'amount' => round(2000 + lcg_value() * 3000, 2),
+                'rate' => 1.0,
+                'fee' => 0,
+                'note' => 'Cash withdrawal UAH',
+                'date' => $date,
             ];
         }
 
@@ -106,9 +112,13 @@ class TransferFixtures extends BaseTransactionFixtures
                 continue;
             }
             $transfers[] = [
-                'from' => $privatbankUah, 'to' => $monobankUah,
-                'amount' => round(15000 + lcg_value() * 20000, 2), 'rate' => 1.0, 'fee' => 0,
-                'note' => 'PrivatBank → Monobank consolidation', 'date' => $date,
+                'from' => $privatbankUah,
+                'to' => $monobankUah,
+                'amount' => round(15000 + lcg_value() * 20000, 2),
+                'rate' => 1.0,
+                'fee' => 0,
+                'note' => 'PrivatBank → Monobank consolidation',
+                'date' => $date,
             ];
         }
 
@@ -120,10 +130,13 @@ class TransferFixtures extends BaseTransactionFixtures
             }
             $usdAmount = round(200 + lcg_value() * 300, 2);
             $transfers[] = [
-                'from' => $paypalUsd, 'to' => $wiseEur,
-                'amount' => $usdAmount, 'rate' => $usdToEurRate,
+                'from' => $paypalUsd,
+                'to' => $wiseEur,
+                'amount' => $usdAmount,
+                'rate' => $usdToEurRate,
                 'fee' => round(lcg_value() * 3, 2),
-                'note' => 'PayPal → Wise exchange', 'date' => $date,
+                'note' => 'PayPal → Wise exchange',
+                'date' => $date,
             ];
         }
 
@@ -134,9 +147,13 @@ class TransferFixtures extends BaseTransactionFixtures
                 continue;
             }
             $transfers[] = [
-                'from' => $monobankEur, 'to' => $revolutEur,
-                'amount' => round(200 + lcg_value() * 500, 2), 'rate' => 1.0, 'fee' => 0,
-                'note' => 'Monobank EUR → Revolut', 'date' => $date,
+                'from' => $monobankEur,
+                'to' => $revolutEur,
+                'amount' => round(200 + lcg_value() * 500, 2),
+                'rate' => 1.0,
+                'fee' => 0,
+                'note' => 'Monobank EUR → Revolut',
+                'date' => $date,
             ];
         }
 
@@ -147,9 +164,13 @@ class TransferFixtures extends BaseTransactionFixtures
                 continue;
             }
             $transfers[] = [
-                'from' => $wiseEur, 'to' => $cashEur,
-                'amount' => round(100 + lcg_value() * 200, 2), 'rate' => 1.0, 'fee' => 0,
-                'note' => 'Wise → Cash EUR', 'date' => $date,
+                'from' => $wiseEur,
+                'to' => $cashEur,
+                'amount' => round(100 + lcg_value() * 200, 2),
+                'rate' => 1.0,
+                'fee' => 0,
+                'note' => 'Wise → Cash EUR',
+                'date' => $date,
             ];
         }
 
@@ -161,10 +182,13 @@ class TransferFixtures extends BaseTransactionFixtures
             }
             $eurAmount = round(200 + lcg_value() * 300, 2);
             $transfers[] = [
-                'from' => $monobankEur, 'to' => $otpHuf,
-                'amount' => $eurAmount, 'rate' => $eurToHufRate,
+                'from' => $monobankEur,
+                'to' => $otpHuf,
+                'amount' => $eurAmount,
+                'rate' => $eurToHufRate,
                 'fee' => round(lcg_value() * 2, 2),
-                'note' => 'EUR → HUF for Hungary', 'date' => $date,
+                'note' => 'EUR → HUF for Hungary',
+                'date' => $date,
             ];
         }
 
@@ -172,9 +196,9 @@ class TransferFixtures extends BaseTransactionFixtures
             $transfer = (new Transfer())
                 ->setFrom($data['from'])
                 ->setTo($data['to'])
-                ->setAmount((string)$data['amount'])
-                ->setRate((string)$data['rate'])
-                ->setFee((string)$data['fee'])
+                ->setAmount((string) $data['amount'])
+                ->setRate((string) $data['rate'])
+                ->setFee((string) $data['fee'])
                 ->setNote($data['note'])
                 ->setOwner($user)
                 ->setExecutedAt($data['date'])

@@ -6,7 +6,6 @@ use App\Entity\CashAccount;
 use App\Entity\Transfer;
 use App\Entity\User;
 use App\EventListener\TransactionListener;
-use App\EventListener\TransferCreateTransactionsHandler;
 use App\EventListener\ValuableEntityEventListener;
 use Carbon\CarbonImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
@@ -18,14 +17,12 @@ class TransferFixtures extends Fixture implements DependentFixtureInterface
     public function __construct(
         private TransactionListener $transactionListener,
         private ValuableEntityEventListener $valuableEntityListener,
-        private TransferCreateTransactionsHandler $transferHandler
     ) {}
 
     public function load(ObjectManager $manager): void
     {
         $this->transactionListener->setEnabled(false);
         $this->valuableEntityListener->setEnabled(false);
-        $this->transferHandler->setEnabled(false);
 
         $user = $this->getReference('test_user', User::class);
         $eurAccount = $this->getReference('account_eur_cash', CashAccount::class);
@@ -47,7 +44,6 @@ class TransferFixtures extends Fixture implements DependentFixtureInterface
 
         $this->transactionListener->setEnabled(true);
         $this->valuableEntityListener->setEnabled(true);
-        $this->transferHandler->setEnabled(true);
     }
 
     public function getDependencies(): array
