@@ -18,7 +18,9 @@
  *   vendor/bin/dep app:bank:maintenance production — run webhook refresh + polling sync on remote
  *   vendor/bin/dep app:bank:sync:logs production — tail polling sync log on remote
  *   vendor/bin/dep app:bank:webhooks:logs production — tail webhook refresh log on remote
- *   vendor/bin/dep app:bank:logs production — tail bank sync/webhook logs on remote
+ *   vendor/bin/dep app:bank:logs production — dump last 200 lines of bank log on remote
+ *   vendor/bin/dep app:bank:logs:follow production — live-follow bank log (Ctrl+C to stop)
+ *   vendor/bin/dep app:logs:follow production — live-follow prod.log (Ctrl+C to stop)
  * 
  *   vendor/bin/dep app:php:restart production — reload php-fpm (after php.ini changes)
  *   vendor/bin/dep app:php_ini:upload production — push local php.ini to server
@@ -231,11 +233,28 @@ task('app:bank:webhooks:logs', function () {
 task('app:bank:logs', function () {
     $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank.log; echo \"=== bank.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank.log ]; then tail -n 200 {{deploy_path}}/shared/var/log/bank.log; else echo \"(empty)\"; fi'");
     writeln($output);
-})->desc('Tail the unified bank log on the remote host');
+})->desc('Dump last 200 lines of the bank log on the remote host');
+
+task('app:bank:logs:follow', function () {
+    $host    = currentHost();
+    $conn    = "{$host->getRemoteUser()}@{$host->getHostname()}";
+    $logPath = get('deploy_path') . '/shared/var/log/bank.log';
+    writeln("<info>Following $logPath — Ctrl+C to stop</info>");
+    runLocally("ssh -tt $conn 'touch $logPath && tail -f $logPath'", ['tty' => true, 'timeout' => 0]);
+})->desc('Live-follow the bank log (Ctrl+C to stop)');
 
 task('app:logs', function () {
-    run('tail -n 150 {{deploy_path}}/shared/var/log/prod.log');
-})->desc('Tail last 150 lines of the remote production log');
+    $output = run('tail -n 150 {{deploy_path}}/shared/var/log/prod.log');
+    writeln($output);
+})->desc('Dump last 150 lines of the remote production log');
+
+task('app:logs:follow', function () {
+    $host    = currentHost();
+    $conn    = "{$host->getRemoteUser()}@{$host->getHostname()}";
+    $logPath = get('deploy_path') . '/shared/var/log/prod.log';
+    writeln("<info>Following $logPath — Ctrl+C to stop</info>");
+    runLocally("ssh -tt $conn 'touch $logPath && tail -f $logPath'", ['tty' => true, 'timeout' => 0]);
+})->desc('Live-follow the production log (Ctrl+C to stop)');
 
 task('app:info', function () {
     $output = run("sh -lc '

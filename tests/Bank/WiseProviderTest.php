@@ -414,15 +414,16 @@ class WiseProviderTest extends TestCase
         self::assertNull($result);
     }
 
-    public function testRegisterWebhookSkipsCreateWhenMatchingSubscriptionAlreadyExists(): void
+    public function testRegisterWebhookSkipsCreateWhenCorrectSubscriptionAlreadyExists(): void
     {
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([
             [
+                'id'         => 'abc-123',
                 'trigger_on' => 'balances#update',
-                'delivery' => [
-                    'version' => '2.0.0',
-                    'url' => 'https://example.com/api/webhooks/wise',
+                'delivery'   => [
+                    'version' => '3.0.0',
+                    'url'     => 'https://example.com/api/webhooks/wise',
                 ],
             ],
         ]);
@@ -433,6 +434,34 @@ class WiseProviderTest extends TestCase
             ->willReturnOnConsecutiveCalls(
                 $this->mockResponse($profilesBody),
                 $this->mockResponse($subscriptionsBody),
+            );
+
+        $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
+    }
+
+    public function testRegisterWebhookReplacesStaleSchemaSubscription(): void
+    {
+        // Existing subscription uses 2.0.0 (wrong) — expect DELETE then POST.
+        $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
+        $subscriptionsBody = json_encode([
+            [
+                'id'         => 'stale-sub-id',
+                'trigger_on' => 'balances#update',
+                'delivery'   => [
+                    'version' => '2.0.0',
+                    'url'     => 'https://example.com/api/webhooks/wise',
+                ],
+            ],
+        ]);
+
+        $this->http
+            ->expects(self::exactly(4))
+            ->method('request')
+            ->willReturnOnConsecutiveCalls(
+                $this->mockResponse($profilesBody),                      // GET /v2/profiles
+                $this->mockResponse($subscriptionsBody),                  // GET subscriptions
+                $this->mockResponse(''),                                  // DELETE stale sub
+                $this->mockResponse('{}'),                                // POST new 3.0.0 sub
             );
 
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
