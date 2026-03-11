@@ -240,7 +240,7 @@ task('app:bank:logs:follow', function () {
     $conn    = "{$host->getRemoteUser()}@{$host->getHostname()}";
     $logPath = get('deploy_path') . '/shared/var/log/bank.log';
     writeln("<info>Following $logPath — Ctrl+C to stop</info>");
-    runLocally("ssh -tt $conn 'touch $logPath && tail -f $logPath'", ['tty' => true, 'timeout' => 0]);
+    passthru("ssh -tt $conn 'touch $logPath && tail -f $logPath'");
 })->desc('Live-follow the bank log (Ctrl+C to stop)');
 
 task('app:logs', function () {
@@ -253,7 +253,7 @@ task('app:logs:follow', function () {
     $conn    = "{$host->getRemoteUser()}@{$host->getHostname()}";
     $logPath = get('deploy_path') . '/shared/var/log/prod.log';
     writeln("<info>Following $logPath — Ctrl+C to stop</info>");
-    runLocally("ssh -tt $conn 'touch $logPath && tail -f $logPath'", ['tty' => true, 'timeout' => 0]);
+    passthru("ssh -tt $conn 'touch $logPath && tail -f $logPath'");
 })->desc('Live-follow the production log (Ctrl+C to stop)');
 
 task('app:info', function () {

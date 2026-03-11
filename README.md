@@ -150,10 +150,10 @@ crontab -e
 
 ```cron
 # Daily polling sync at 02:15
-15 2 * * * flock -n /tmp/budget-bank-sync.lock -c 'cd /var/www/api/current && php bin/console app:bank:sync --env=prod --no-debug >> /var/www/api/shared/var/log/bank-sync.log 2>&1'
+15 2 * * * flock -n /tmp/budget-bank-sync.lock -c 'cd /var/www/api/current && php bin/console app:bank:sync --env=prod --no-debug >> /var/www/api/shared/var/log/bank.log 2>&1'
 
 # Daily webhook refresh at 02:45
-45 2 * * * flock -n /tmp/budget-bank-webhooks.lock -c 'cd /var/www/api/current && php bin/console app:bank:webhooks:refresh --env=prod --no-debug >> /var/www/api/shared/var/log/bank-webhooks-refresh.log 2>&1'
+45 2 * * * flock -n /tmp/budget-bank-webhooks.lock -c 'cd /var/www/api/current && php bin/console app:bank:webhooks:refresh --env=prod --no-debug >> /var/www/api/shared/var/log/bank.log 2>&1'
 ```
 
 3. Validate that required env vars exist in production shared dotenv or system env:
