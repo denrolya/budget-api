@@ -41,7 +41,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
     private const CACHE_TTL = 86400; // 24 hours
     private const WEBHOOK_TRIGGER_UPDATE  = 'balances#update';  // any balance change (credit or debit)
     private const WEBHOOK_TRIGGER_CREDIT  = 'balances#credit';  // money credited to balance
-    private const WEBHOOK_DELIVERY_VERSION = '2.0.0';
+    private const WEBHOOK_DELIVERY_VERSION = '3.0.0';
 
     public function __construct(
         private readonly HttpClientInterface $wiseClient,  // wise_client scoped client (Bearer auth pre-configured)
@@ -117,6 +117,61 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             return null;
         }
 
+        // balances#credit v3.0.0 uses a completely different action/resource structure.
+        // Detect it by the presence of data.action (not present in v2.0.0 or balances#update).
+        if ($eventType === self::WEBHOOK_TRIGGER_CREDIT && isset($data['action']) && is_array($data['action'])) {
+            return $this->parseV3CreditPayload($data, $payload);
+        }
+
+        // balances#update v3.0.0 and all v2.0.0 events use the same flat data structure.
+        return $this->parseFlatPayload($data);
+    }
+
+    /**
+     * Parses balances#credit v3.0.0 action/resource pattern.
+     *
+     * Expected shape:
+     *   data.action.account_id  → balance account ID (our externalAccountId)
+     *   data.resource.settled_amount.value / .currency  → credited amount
+     *   data.resource.reference → payment reference (for note)
+     *   payload.sent_at → timestamp fallback (no occurred_at in this format)
+     */
+    private function parseV3CreditPayload(array $data, array $payload): ?DraftTransactionData
+    {
+        $action = $data['action'];
+        $resource = $data['resource'] ?? [];
+        if (!is_array($resource)) {
+            $resource = [];
+        }
+
+        $balanceId = $action['account_id'] ?? null;
+        $settledAmount = $resource['settled_amount'] ?? [];
+        $amount = isset($settledAmount['value']) ? (float) $settledAmount['value'] : null;
+        $currency = isset($settledAmount['currency']) ? (string) $settledAmount['currency'] : null;
+        $occurredAt = $payload['sent_at'] ?? null;
+
+        if ($balanceId === null || $amount === null || $currency === null || $occurredAt === null) {
+            return null;
+        }
+
+        $reference = (string) ($resource['reference'] ?? '');
+        $note = trim(sprintf('Wise credit %s', $reference)) ?: 'Wise credit event';
+
+        return new DraftTransactionData(
+            externalAccountId: (string) $balanceId,
+            amount: abs($amount), // always positive; it's a credit event
+            executedAt: new DateTimeImmutable((string) $occurredAt),
+            note: $note,
+            currency: $currency,
+        );
+    }
+
+    /**
+     * Parses balances#update (all versions) and balances#credit v2.0.0.
+     * All use the same flat data structure with snake_case fields.
+     */
+    private function parseFlatPayload(array $data): ?DraftTransactionData
+    {
         $resource = $data['resource'] ?? [];
         if (!is_array($resource)) {
             $resource = [];

@@ -14,6 +14,7 @@ use App\Entity\User;
 use App\Service\TransactionCategorizationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Handles incoming bank webhooks.
@@ -30,6 +31,7 @@ class BankWebhookService
     public function __construct(
         private readonly BankProviderRegistry $registry,
         private readonly EntityManagerInterface $em,
+        #[Autowire(service: 'monolog.logger.bank')]
         private readonly LoggerInterface $logger,
         private readonly TransactionCategorizationService $categorizationService,
     ) {

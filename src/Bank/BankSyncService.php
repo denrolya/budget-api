@@ -17,6 +17,7 @@ use App\Service\TransactionCategorizationService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
  * Orchestrates polling-based bank sync for all active integrations.
@@ -34,6 +35,7 @@ class BankSyncService
         private readonly BankProviderRegistry $registry,
         private readonly BankIntegrationRepository $integrationRepo,
         private readonly EntityManagerInterface $em,
+        #[Autowire(service: 'monolog.logger.bank')]
         private readonly LoggerInterface $logger,
         private readonly TransactionCategorizationService $categorizationService,
     ) {

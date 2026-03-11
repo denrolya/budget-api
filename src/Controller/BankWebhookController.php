@@ -7,6 +7,7 @@ use App\Bank\BankWebhookService;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\View\View;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -21,6 +22,7 @@ class BankWebhookController extends AbstractFOSRestController
 {
     public function __construct(
         private readonly BankWebhookService $webhookService,
+        #[Autowire(service: 'monolog.logger.bank')]
         private readonly LoggerInterface $bankLogger,
     ) {
     }

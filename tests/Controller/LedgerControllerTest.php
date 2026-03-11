@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Entity\Debt;
+use App\Entity\ExpenseCategory;
 use App\Entity\Transfer;
 use App\Tests\BaseApiTestCase;
 use Carbon\Carbon;
@@ -283,6 +285,140 @@ class LedgerControllerTest extends BaseApiTestCase
             }
             // Transfers with matching from/to are allowed; we just verify no crash
         }
+    }
+
+    /**
+     * category[] filter returns only transactions in the selected category.
+     */
+    public function testCategoryFilter(): void
+    {
+        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof ExpenseCategory);
+
+        $this->createExpense(
+            amount: 12.34,
+            account: $this->accountCashEUR,
+            category: $groceries,
+            executedAt: Carbon::parse('2025-08-10T12:00:00Z'),
+            note: 'ledger-category-filter-hit',
+        );
+
+        $this->em->clear();
+
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'      => '2025-08-01',
+            'before'     => '2025-08-31',
+            'type'       => 'expense',
+            'category[]' => [$groceries->getId()],
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $items = $response->toArray()['list'];
+        self::assertNotEmpty($items);
+
+        $notes = [];
+        foreach ($items as $item) {
+            self::assertSame('expense', $item['type']);
+            self::assertSame($groceries->getId(), $item['category']['id']);
+            $notes[] = $item['note'] ?? null;
+        }
+
+        self::assertContains('ledger-category-filter-hit', $notes);
+    }
+
+    /**
+     * debt[] filter returns only transactions linked to the selected debt.
+     */
+    public function testDebtFilter(): void
+    {
+        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof ExpenseCategory);
+
+        $debt = (new Debt())
+            ->setDebtor('Ledger Debt Filter')
+            ->setBalance(0)
+            ->setCurrency('EUR')
+            ->setNote('ledger-debt-filter')
+            ->setCreatedAt(Carbon::parse('2025-09-01T00:00:00Z'))
+            ->setOwner($this->testUser);
+        $this->em->persist($debt);
+        $this->em->flush();
+
+        $this->createExpense(
+            amount: 15.0,
+            account: $this->accountCashEUR,
+            category: $groceries,
+            executedAt: Carbon::parse('2025-09-10T12:00:00Z'),
+            note: 'ledger-debt-filter-hit',
+            debt: $debt,
+        );
+
+        $this->createExpense(
+            amount: 11.0,
+            account: $this->accountCashEUR,
+            category: $groceries,
+            executedAt: Carbon::parse('2025-09-11T12:00:00Z'),
+            note: 'ledger-debt-filter-miss',
+        );
+
+        $this->em->clear();
+
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'   => '2025-09-01',
+            'before'  => '2025-09-30',
+            'type'    => 'expense',
+            'debt[]'  => [$debt->getId()],
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $items = $response->toArray()['list'];
+        self::assertNotEmpty($items);
+        self::assertCount(1, $items);
+        self::assertSame('ledger-debt-filter-hit', $items[0]['note']);
+    }
+
+    /**
+     * note filter matches both transactions and transfers by substring.
+     */
+    public function testNoteFilterMatchesTransactionsAndTransfers(): void
+    {
+        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof ExpenseCategory);
+
+        $this->createExpense(
+            amount: 9.99,
+            account: $this->accountCashEUR,
+            category: $groceries,
+            executedAt: Carbon::parse('2025-10-10T10:00:00Z'),
+            note: 'needle tx record',
+        );
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount'     => '20.0',
+                'executedAt' => '2025-10-11T10:00:00Z',
+                'from'       => $this->iri($this->accountCashEUR),
+                'to'         => $this->iri($this->accountCashUAH),
+                'note'       => 'needle transfer record',
+                'rate'       => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->em->clear();
+
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'  => '2025-10-01',
+            'before' => '2025-10-31',
+            'note'   => 'needle',
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $items = $response->toArray()['list'];
+        self::assertCount(2, $items);
+
+        $notes = array_map(static fn(array $item): ?string => $item['note'] ?? null, $items);
+        self::assertContains('needle tx record', $notes);
+        self::assertContains('needle transfer record', $notes);
     }
 
     /**

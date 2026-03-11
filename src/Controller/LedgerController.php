@@ -147,16 +147,24 @@ final class LedgerController extends AbstractFOSRestController
      */
     private function toIntArray(mixed $raw): array
     {
-        if (!is_array($raw)) {
-            return [];
+        $flatValues = [];
+
+        if (is_array($raw)) {
+            array_walk_recursive($raw, static function (mixed $value) use (&$flatValues): void {
+                $flatValues[] = $value;
+            });
+        } elseif ($raw !== null) {
+            $flatValues[] = $raw;
         }
+
         $result = [];
-        foreach ($raw as $v) {
+        foreach ($flatValues as $v) {
             $int = (int) $v;
             if ($int > 0) {
-                $result[] = $int;
+                $result[$int] = $int;
             }
         }
-        return $result;
+
+        return array_values($result);
     }
 }

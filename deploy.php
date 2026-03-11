@@ -9,6 +9,7 @@
  *   vendor/bin/dep deploy production          — full deploy (tests → build → symlink)
  *   vendor/bin/dep deploy:dev production      — deploy with dev deps + Symfony profiler (APP_ENV=dev)
  *   vendor/bin/dep app:logs production        — tail production log (last 100 lines)
+ *   vendor/bin/dep app:info production        — show current release/env/debug info
  *   vendor/bin/dep app:shell production       — interactive SSH session
  *   vendor/bin/dep app:cache:clear production — clear + warm Symfony cache remotely
  * 
@@ -203,12 +204,12 @@ task('app:cache:clear', function () {
 })->desc('Clear & warm up the Symfony cache on the remote host');
 
 task('app:bank:sync', function () {
-    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-sync.log; printf \"[%s] START app:bank:sync\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank-sync.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:sync --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank-sync.log 2>&1; status=$?; printf \"[%s] END app:bank:sync status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank-sync.log; echo \"=== bank-sync.log (latest) ===\" >&2; tail -n 80 {{deploy_path}}/shared/var/log/bank-sync.log >&2; test \"\$status\" -eq 0'");
+    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank.log; printf \"[%s] START app:bank:sync\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:sync --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank.log 2>&1; status=$?; printf \"[%s] END app:bank:sync status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank.log; echo \"=== bank.log (latest bank entries) ===\" >&2; tail -n 120 {{deploy_path}}/shared/var/log/bank.log >&2; test \"\$status\" -eq 0'");
     writeln('<info>✓ Remote bank polling sync completed.</info>');
 })->desc('Run polling bank sync on the remote host');
 
 task('app:bank:webhooks:refresh', function () {
-    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; printf \"[%s] START app:bank:webhooks:refresh\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:webhooks:refresh --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log 2>&1; status=$?; printf \"[%s] END app:bank:webhooks:refresh status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; echo \"=== bank-webhooks-refresh.log (latest) ===\" >&2; tail -n 80 {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log >&2; test \"\$status\" -eq 0'");
+    run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank.log; printf \"[%s] START app:bank:webhooks:refresh\\n\" \"$(date -u +%FT%TZ)\" >> {{deploy_path}}/shared/var/log/bank.log; {{bin/php}} {{release_or_current_path}}/bin/console app:bank:webhooks:refresh --env=prod --no-debug >> {{deploy_path}}/shared/var/log/bank.log 2>&1; status=$?; printf \"[%s] END app:bank:webhooks:refresh status=%s\\n\" \"$(date -u +%FT%TZ)\" \"\$status\" >> {{deploy_path}}/shared/var/log/bank.log; echo \"=== bank.log (latest bank entries) ===\" >&2; tail -n 120 {{deploy_path}}/shared/var/log/bank.log >&2; test \"\$status\" -eq 0'");
     writeln('<info>✓ Remote webhook refresh completed.</info>');
 })->desc('Refresh bank webhooks on the remote host');
 
@@ -218,30 +219,52 @@ task('app:bank:maintenance', [
 ])->desc('Run webhook refresh and polling sync on the remote host');
 
 task('app:bank:sync:logs', function () {
-    $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-sync.log; echo \"=== bank-sync.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank-sync.log ]; then tail -n 150 {{deploy_path}}/shared/var/log/bank-sync.log; else echo \"(empty)\"; fi'");
+    $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank.log; echo \"=== bank.log (sync-related) ===\"; if [ -s {{deploy_path}}/shared/var/log/bank.log ]; then grep -E \"app:bank:sync|\\[BankSync\\]\" {{deploy_path}}/shared/var/log/bank.log | tail -n 150; else echo \"(empty)\"; fi'");
     writeln($output);
-})->desc('Tail polling sync log on the remote host');
+})->desc('Show recent sync-related entries from the unified bank log');
 
 task('app:bank:webhooks:logs', function () {
-    $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; echo \"=== bank-webhooks-refresh.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log ]; then tail -n 150 {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; else echo \"(empty)\"; fi'");
+    $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank.log; echo \"=== bank.log (webhook-related) ===\"; if [ -s {{deploy_path}}/shared/var/log/bank.log ]; then grep -E \"app:bank:webhooks:refresh|\\[BankWebhook\\]\" {{deploy_path}}/shared/var/log/bank.log | tail -n 150; else echo \"(empty)\"; fi'");
     writeln($output);
-})->desc('Tail webhook refresh log on the remote host');
+})->desc('Show recent webhook-related entries from the unified bank log');
 
 task('app:bank:logs', function () {
-    $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank-sync.log {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; echo \"=== bank-sync.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank-sync.log ]; then tail -n 150 {{deploy_path}}/shared/var/log/bank-sync.log; else echo \"(empty)\"; fi; echo; echo \"=== bank-webhooks-refresh.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log ]; then tail -n 150 {{deploy_path}}/shared/var/log/bank-webhooks-refresh.log; else echo \"(empty)\"; fi'");
+    $output = run("sh -lc 'mkdir -p {{deploy_path}}/shared/var/log; touch {{deploy_path}}/shared/var/log/bank.log; echo \"=== bank.log ===\"; if [ -s {{deploy_path}}/shared/var/log/bank.log ]; then tail -n 200 {{deploy_path}}/shared/var/log/bank.log; else echo \"(empty)\"; fi'");
     writeln($output);
-})->desc('Tail bank sync and webhook refresh logs on the remote host');
+})->desc('Tail the unified bank log on the remote host');
 
 task('app:logs', function () {
     run('tail -n 150 {{deploy_path}}/shared/var/log/prod.log');
 })->desc('Tail last 150 lines of the remote production log');
 
+task('app:info', function () {
+    $output = run("sh -lc '
+        echo \"=== app info ===\";
+        echo \"deploy_path: {{deploy_path}}\";
+        echo \"release_or_current_path: {{release_or_current_path}}\";
+        echo \"current_symlink: $(readlink {{deploy_path}}/current 2>/dev/null || echo missing)\";
+        echo \"php: $({{bin/php}} -v | head -n 1)\";
+        echo \"app_env: $(grep -E \"^APP_ENV=\" {{deploy_path}}/shared/.env 2>/dev/null | tail -n1 | cut -d= -f2- || echo missing)\";
+        echo \"webhook_base_url: $(grep -E \"^WEBHOOK_BASE_URL=\" {{deploy_path}}/shared/.env 2>/dev/null | tail -n1 | cut -d= -f2- || echo missing)\";
+        echo \"wise_base_url: $(grep -E \"^WISE_BASE_URL=\" {{deploy_path}}/shared/.env 2>/dev/null | tail -n1 | cut -d= -f2- || echo missing)\";
+        echo \"repository_head: $(cd {{release_or_current_path}} 2>/dev/null && git rev-parse --short HEAD 2>/dev/null || echo unknown)\";
+        echo;
+        echo \"=== log files ===\";
+        ls -lah {{deploy_path}}/shared/var/log/prod.log {{deploy_path}}/shared/var/log/bank.log 2>/dev/null || true;
+        echo;
+        echo \"=== console about ===\";
+        {{bin/php}} {{release_or_current_path}}/bin/console about --env=prod --no-debug 2>&1 | sed -n \"1,40p\";
+    '");
+    writeln($output);
+})->desc('Show production release, env, log, and console diagnostics');
+
 task('app:shell', function () {
     $host = currentHost();
     $conn = "{$host->getRemoteUser()}@{$host->getHostname()}";
-    writeln("<info>Opening shell → $conn</info>");
-    runLocally("ssh $conn", ['tty' => true, 'timeout' => 0]);
-})->desc('Open an interactive SSH session on the remote host');
+    $remotePath = get('deploy_path') . '/current';
+    writeln("<info>Opening remote shell in $remotePath → $conn</info>");
+    runLocally("ssh -tt $conn 'cd $remotePath && exec \${SHELL:-bash} -l'", ['tty' => true, 'timeout' => 0]);
+})->desc('Open an interactive SSH session on the remote host in the current release directory');
 
 task('app:php:restart', function () {
     // Try common service names; silently ignore whichever does not exist.
