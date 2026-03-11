@@ -131,6 +131,9 @@ class BudgetController extends AbstractFOSRestController
         $line->setCategory($category);
         $line->setPlannedAmount($data['plannedAmount'] ?? 0);
         $line->setPlannedCurrency($data['plannedCurrency'] ?? 'EUR');
+        if (array_key_exists('note', $data)) {
+            $line->setNote($data['note'] ?: null);
+        }
         $budget->addLine($line);
 
         $this->em->persist($line);
@@ -151,6 +154,9 @@ class BudgetController extends AbstractFOSRestController
         }
         if (!empty($data['plannedCurrency'])) {
             $line->setPlannedCurrency($data['plannedCurrency']);
+        }
+        if (array_key_exists('note', $data)) {
+            $line->setNote($data['note'] ?: null);
         }
 
         $this->em->flush();
@@ -182,6 +188,34 @@ class BudgetController extends AbstractFOSRestController
 
         return $this->view([
             'data' => $transactionRepo->getActualsByCategoryForPeriod($start, $end),
+        ]);
+    }
+
+    #[Rest\View]
+    #[Route('/{id<\d+>}/analytics/daily', name: 'analytics_daily', methods: ['GET'])]
+    public function analyticsDailyStats(Budget $budget, TransactionRepository $transactionRepo): View
+    {
+        $start = CarbonImmutable::instance($budget->getStartDate())->startOfDay();
+        $end   = CarbonImmutable::instance($budget->getEndDate())->endOfDay();
+
+        return $this->view([
+            'data' => $transactionRepo->getCategoryDailyStatsForPeriod($start, $end),
+        ]);
+    }
+
+    #[Rest\View]
+    #[Route('/{id<\d+>}/history-averages', name: 'history_averages', methods: ['GET'])]
+    public function historyAverages(Budget $budget, Request $request, TransactionRepository $transactionRepo): View
+    {
+        $months = max(1, (int) ($request->query->get('months', 6)));
+        $end    = CarbonImmutable::now()->endOfDay();
+        $start  = $end->subMonths($months)->startOfDay();
+
+        return $this->view([
+            'data'   => $transactionRepo->getActualsByCategoryForPeriod($start, $end),
+            'months' => $months,
+            'from'   => $start->format('Y-m-d'),
+            'to'     => $end->format('Y-m-d'),
         ]);
     }
 

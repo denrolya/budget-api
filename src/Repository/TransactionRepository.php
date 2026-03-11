@@ -607,4 +607,57 @@ class TransactionRepository extends ServiceEntityRepository
 
         return array_values($pivoted);
     }
+
+    /**
+     * Returns per-day income/expense amounts per category for a given date range.
+     * Same pivot pattern as getActualsByCategoryForPeriod but also groups by day.
+     *
+     * @return array<array{categoryId: int, days: array<array{day: string, convertedValues: array<string, array{income: float, expense: float}>}>}>
+     */
+    public function getCategoryDailyStatsForPeriod(\DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->innerJoin('t.account', 'a')
+            ->innerJoin('t.category', 'c')
+            ->select(
+                'IDENTITY(t.category) AS category_id',
+                'DATE(t.executedAt) AS day',
+                'a.currency AS currency',
+                "SUM(CASE WHEN t INSTANCE OF " . Income::class . " THEN t.amount ELSE 0 END) AS income",
+                "SUM(CASE WHEN t INSTANCE OF " . Expense::class . " THEN t.amount ELSE 0 END) AS expense"
+            )
+            ->andWhere('t.executedAt >= :start')
+            ->andWhere('t.executedAt <= :end')
+            ->andWhere('c.isAffectingProfit = :isAffectingProfit')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('isAffectingProfit', true)
+            ->groupBy('category_id, day, a.currency')
+            ->orderBy('category_id', 'ASC')
+            ->addOrderBy('day', 'ASC')
+            ->addOrderBy('a.currency', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        // Pivot: catId → day → currency → {income, expense}
+        $byCat = [];
+        foreach ($rows as $row) {
+            $catId = (int) $row['category_id'];
+            $day   = $row['day'];
+            $cur   = $row['currency'];
+            $byCat[$catId] ??= [];
+            $byCat[$catId][$day] ??= ['day' => $day, 'convertedValues' => []];
+            $byCat[$catId][$day]['convertedValues'][$cur] = [
+                'income'  => (float) $row['income'],
+                'expense' => (float) $row['expense'],
+            ];
+        }
+
+        $result = [];
+        foreach ($byCat as $catId => $days) {
+            $result[] = ['categoryId' => $catId, 'days' => array_values($days)];
+        }
+
+        return $result;
+    }
 }

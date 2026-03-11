@@ -30,6 +30,9 @@ class BudgetLine
     #[ORM\Column(type: Types::STRING, length: 10)]
     private string $plannedCurrency = 'EUR';
 
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $note = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -79,6 +82,17 @@ class BudgetLine
         return $this;
     }
 
+    public function getNote(): ?string
+    {
+        return $this->note;
+    }
+
+    public function setNote(?string $note): self
+    {
+        $this->note = $note;
+        return $this;
+    }
+
     public function toArray(): array
     {
         return [
@@ -86,6 +100,7 @@ class BudgetLine
             'categoryId'      => $this->category->getId(),
             'plannedAmount'   => $this->getPlannedAmount(),
             'plannedCurrency' => $this->plannedCurrency,
+            'note'            => $this->note,
         ];
     }
 }
