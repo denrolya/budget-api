@@ -198,6 +198,13 @@ task('deploy:run_tests', function () {
 })->desc('Run PHPUnit locally and abort deploy on failure');
 
 // ── Utility: remote application ───────────────────────────────────────────────
+task('app:info', function () {
+    $hash   = run('cat {{deploy_path}}/current/REVISION 2>/dev/null || echo unknown');
+    $consts = run('grep -E "WEBHOOK_TRIGGER|WEBHOOK_DELIVERY" {{deploy_path}}/current/src/Bank/Provider/WiseProvider.php 2>/dev/null || echo "(file not found)"');
+    writeln("<info>Deployed commit : $hash</info>");
+    writeln("<info>Wise constants  :\n$consts</info>");
+})->desc('Show deployed git revision and Wise webhook constants');
+
 task('app:cache:clear', function () {
     run('{{bin/php}} {{release_or_current_path}}/bin/console cache:clear  --env=prod --no-debug');
     run('{{bin/php}} {{release_or_current_path}}/bin/console cache:warmup --env=prod --no-debug');

@@ -85,6 +85,30 @@ class LedgerControllerTest extends BaseApiTestCase
         // The Transfer we created must appear in the list
         $transferItems = array_filter($list, static fn(array $item): bool => isset($item['from'], $item['to']));
         self::assertNotEmpty($transferItems, 'Transfer must appear in the ledger list.');
+
+        // Assert the Transfer is fully serialized — not just {id: N}
+        $transfer = reset($transferItems);
+
+        // from / to must contain full account sub-fields, not just id
+        foreach (['from', 'to'] as $side) {
+            self::assertArrayHasKey('id',       $transfer[$side], "$side.id must be present");
+            self::assertArrayHasKey('name',     $transfer[$side], "$side.name must be present (JMS group missing if not)");
+            self::assertArrayHasKey('currency', $transfer[$side], "$side.currency must be present");
+            self::assertArrayHasKey('color',    $transfer[$side], "$side.color must be present");
+        }
+
+        // amount / rate / fee must be present and numeric (not serialized as opaque strings)
+        self::assertArrayHasKey('amount', $transfer, 'amount must be present');
+        self::assertArrayHasKey('rate',   $transfer, 'rate must be present');
+        self::assertArrayHasKey('fee',    $transfer, 'fee must be present');
+        self::assertIsNumeric($transfer['amount'], 'amount must be numeric, not a plain string');
+        self::assertIsNumeric($transfer['rate'],   'rate must be numeric, not a plain string');
+        self::assertIsNumeric($transfer['fee'],    'fee must be numeric, not a plain string');
+
+        // transactions array must be present and each item must be a full transaction
+        self::assertArrayHasKey('transactions', $transfer, 'transactions must be present');
+        self::assertIsArray($transfer['transactions']);
+        self::assertNotEmpty($transfer['transactions'], 'Transfer must have at least one linked transaction');
     }
 
     /**
