@@ -105,21 +105,35 @@
     "dep": "vendor/bin/dep list",
     "prod:deploy": "vendor/bin/dep deploy production",
     "prod:deploy:dev": "vendor/bin/dep deploy:dev production",
+
     "prod:info": "vendor/bin/dep app:info production",
     "prod:shell": "vendor/bin/dep app:shell production",
+    "prod:cache:clear": "vendor/bin/dep app:cache:clear production",
+
     "prod:logs": "vendor/bin/dep app:logs production",
+    "prod:logs:follow": "vendor/bin/dep app:logs:follow production",
     "prod:bank:logs": "vendor/bin/dep app:bank:logs production",
+    "prod:bank:logs:follow": "vendor/bin/dep app:bank:logs:follow production",
     "prod:bank:sync:logs": "vendor/bin/dep app:bank:sync:logs production",
     "prod:bank:webhooks:logs": "vendor/bin/dep app:bank:webhooks:logs production",
+
     "prod:bank:sync": "vendor/bin/dep app:bank:sync production",
     "prod:bank:webhooks:refresh": "vendor/bin/dep app:bank:webhooks:refresh production",
     "prod:bank:maintenance": "vendor/bin/dep app:bank:maintenance production",
+
     "prod:db:pull": "vendor/bin/dep db:pull production",
     "prod:db:push": "vendor/bin/dep db:push production",
     "prod:db:backup": "vendor/bin/dep db:backup production",
     "prod:db:backup:download": "vendor/bin/dep db:backup:download production",
+
     "prod:env:pull": "vendor/bin/dep env:pull production",
     "prod:env:push": "vendor/bin/dep env:push production",
+
+    "prod:server:status": "vendor/bin/dep server:status production",
+    "prod:server:nginx:test": "vendor/bin/dep server:nginx:test production",
+    "prod:server:nginx:reload": "vendor/bin/dep server:nginx:reload production",
+    "prod:server:opcache:reset": "vendor/bin/dep server:opcache:reset production",
+    "prod:server:mysql:vars": "vendor/bin/dep server:mysql:vars production",
     "local:about": "php bin/console about --env=dev",
     "local:cache:clear": "php bin/console cache:clear --env=dev",
     "local:cache:warmup": "php bin/console cache:warmup --env=dev",

@@ -24,6 +24,17 @@
  * 
  *   vendor/bin/dep app:php:restart production — reload php-fpm (after php.ini changes)
  *   vendor/bin/dep app:php_ini:upload production — push local php.ini to server
+ *
+ *   vendor/bin/dep server:status production        — RAM, CPU load, services, FPM workers
+ *   vendor/bin/dep server:nginx:test production    — test nginx config validity
+ *   vendor/bin/dep server:nginx:reload production  — graceful reload nginx
+ *   vendor/bin/dep server:opcache:reset production — reset OPcache via FPM reload
+ *   vendor/bin/dep server:mysql:vars production    — show key MySQL runtime variables
+ *
+ *   Xdebug is managed automatically:
+ *     deploy production     → disables Xdebug after symlink (prod performance restored)
+ *     deploy:dev production → enables  Xdebug after symlink (profiler + breakpoints)
+ *
  *   vendor/bin/dep env:pull production        — download production .env → .env.production locally
  *   vendor/bin/dep env:push production        — upload local .env.production → production shared/.env
  *   vendor/bin/dep db:pull production         — copy remote DB → local
@@ -137,7 +148,8 @@ set('db_local', [
 
 // ── Deploy pipeline ───────────────────────────────────────────────────────────
 task('deploy', [
-    'deploy:run_tests',   // run PHPUnit locally — abort on failure
+    'deploy:run_tests',       // run PHPUnit locally — abort on failure
+    'deploy:ensure_env:prod', // prompt if APP_ENV != prod on server
     'deploy:setup',
     'deploy:lock',
     'deploy:release',
@@ -157,6 +169,7 @@ task('deploy', [
 // Usage: composer deploy:dev  — or — vendor/bin/dep deploy:dev production
 task('deploy:dev', [
     'deploy:run_tests',
+    'deploy:ensure_env:dev',  // prompt if APP_ENV != dev on server
     'deploy:setup',
     'deploy:lock',
     'deploy:release',
@@ -171,6 +184,40 @@ task('deploy:dev', [
     'deploy:success',
 ])->desc('Deploy with dev dependencies + Symfony profiler enabled (APP_ENV=dev)');
 
+// ── APP_ENV guards ────────────────────────────────────────────────────────────
+// Reads APP_ENV from shared/.env before deploy and prompts to fix if mismatched.
+
+function ensureAppEnv(string $expected): void
+{
+    $envFile = get('deploy_path') . '/shared/.env';
+    $current = trim(run("grep -E '^APP_ENV=' $envFile 2>/dev/null | cut -d= -f2 | tr -d '\"\\047' || echo ''"));
+
+    if ($current === $expected) {
+        writeln("<info>✓ APP_ENV=$expected (correct)</info>");
+        return;
+    }
+
+    $label = $current !== '' ? $current : '(not set)';
+    writeln("<comment>⚠  APP_ENV is '$label' on server — expected '$expected'</comment>");
+
+    if (askConfirmation("  Change APP_ENV to '$expected' in shared/.env?", true)) {
+        if ($current !== '') {
+            run("sed -i 's|^APP_ENV=.*|APP_ENV=$expected|' $envFile");
+        } else {
+            run("echo 'APP_ENV=$expected' >> $envFile");
+        }
+        writeln("<info>✓ APP_ENV set to $expected.</info>");
+    } else {
+        writeln('<comment>  Proceeding without changing APP_ENV.</comment>');
+    }
+}
+
+task('deploy:ensure_env:prod', fn() => ensureAppEnv('prod'))
+    ->desc('[internal] Ensure APP_ENV=prod before production deploy');
+
+task('deploy:ensure_env:dev', fn() => ensureAppEnv('dev'))
+    ->desc('[internal] Ensure APP_ENV=dev before dev deploy');
+
 task('deploy:vendors:dev', function () {
     run('cd {{release_or_current_path}} && {{bin/composer}} install --prefer-dist --no-progress --no-interaction --no-scripts');
     writeln('<info>✓ Vendors installed (including dev).</info>');
@@ -183,6 +230,12 @@ task('deploy:cache:clear:dev', function () {
 })->desc('Clear & warm up Symfony dev cache');
 
 after('deploy:failed', 'deploy:unlock');
+
+// Xdebug: automatically managed as part of deploy pipelines.
+// prod deploy → disable (ensure clean prod state after every release)
+// dev  deploy → enable  (profiler + breakpoints ready immediately)
+after('deploy',     'server:xdebug:off');
+after('deploy:dev', 'server:xdebug:on');
 
 // ── Override recipe: always clear + warmup (recipe skips if composer ran scripts) ─
 task('deploy:cache:clear', function () {
@@ -318,11 +371,14 @@ task('env:push', function () {
 })->desc('Upload local .env.production to production shared/.env');
 
 // ── Utility: database ─────────────────────────────────────────────────────────
+// All db:* tasks run mysqldump/mysql on the remote host via SSH — port 3306 does
+// NOT need to be open externally. The Deployer SSH connection is the only channel.
+
 task('db:backup', function () {
     $db   = get('db_remote');
     $ts   = date('Y-m-d_H-i-s');
     $file = "{{deploy_path}}/shared/backups/dump-{$ts}.sql";
-    run("mysqldump -h {$db['host']} -u {$db['username']} -p{$db['password']} {$db['name']} > $file");
+    run("mysqldump -h 127.0.0.1 -u {$db['username']} -p{$db['password']} {$db['name']} > $file");
     writeln("<info>✓ Remote DB backed up → $file</info>");
 })->desc('Create a timestamped SQL dump of the remote database');
 
@@ -336,15 +392,17 @@ task('db:pull', function () {
     $local  = get('db_local');
     $tmp    = sys_get_temp_dir() . '/dep-dump-' . time() . '.sql';
 
-    writeln('<info>Dumping remote database…</info>');
-    runLocally("mysqldump -h {$remote['host']} -u {$remote['username']} -p{$remote['password']} {$remote['name']} > $tmp");
+    // Dump on remote (goes through SSH — port 3306 stays closed externally)
+    writeln('<info>Dumping remote database via SSH…</info>');
+    $dump = run("mysqldump -h 127.0.0.1 -u {$remote['username']} -p{$remote['password']} {$remote['name']}");
+    file_put_contents($tmp, $dump);
 
     writeln('<info>Importing into local database…</info>');
     $pass = $local['password'] !== '' ? "-p{$local['password']}" : '';
     runLocally("mysql -u {$local['username']} $pass {$local['name']} < $tmp && rm $tmp");
 
     writeln('<info>✓ Remote DB copied to local.</info>');
-})->desc('Copy the remote database to your local environment');
+})->desc('Copy the remote database to your local environment (via SSH, no open 3306 needed)');
 
 task('db:push', function () {
     if (!askConfirmation('⚠️  Overwrite PRODUCTION database with local? This cannot be undone.', false)) {
@@ -357,13 +415,88 @@ task('db:push', function () {
     $local  = get('db_local');
     $remote = get('db_remote');
     $tmp    = sys_get_temp_dir() . '/dep-dump-' . time() . '.sql';
+    $remoteTmp = '/tmp/dep-push-' . time() . '.sql';
 
     writeln('<info>Dumping local database…</info>');
     $pass = $local['password'] !== '' ? "-p{$local['password']}" : '';
     runLocally("mysqldump -u {$local['username']} $pass {$local['name']} > $tmp");
 
-    writeln('<info>Uploading to remote database…</info>');
-    runLocally("mysql -h {$remote['host']} -u {$remote['username']} -p{$remote['password']} {$remote['name']} < $tmp && rm $tmp");
+    // Upload dump via SCP, then import on remote — port 3306 stays closed externally
+    writeln('<info>Uploading dump to server…</info>');
+    upload($tmp, $remoteTmp);
+    runLocally("rm $tmp");
+
+    writeln('<info>Importing on remote…</info>');
+    run("mysql -h 127.0.0.1 -u {$remote['username']} -p{$remote['password']} {$remote['name']} < $remoteTmp && rm $remoteTmp");
 
     writeln('<info>✓ Local DB pushed to remote.</info>');
-})->desc('Push local database to remote (automatically backs up remote first)');
+})->desc('Push local database to remote via SSH (backs up remote first, no open 3306 needed)');
+
+// ── Utility: server management ────────────────────────────────────────────────
+
+task('server:status', function () {
+    $output = run("sh -lc '
+        echo \"=== Memory ===\";
+        free -h;
+        echo \"\";
+        echo \"=== Load ===\";
+        uptime;
+        echo \"\";
+        echo \"=== Disk ===\";
+        df -h /;
+        echo \"\";
+        echo \"=== Services ===\";
+        systemctl is-active --quiet nginx     && echo \"nginx:    active\" || echo \"nginx:    INACTIVE\";
+        systemctl is-active --quiet php8.2-fpm && echo \"php-fpm:  active\" || echo \"php-fpm:  INACTIVE\";
+        systemctl is-active --quiet mysql     && echo \"mysql:    active\" || echo \"mysql:    INACTIVE\";
+        echo \"\";
+        echo \"=== PHP-FPM workers ===\";
+        ps aux --no-headers | grep \"php-fpm: pool\" | grep -v grep | awk \"{print \\\$6/1024 \\\" MB \\\"\\\$11\\\" \\\"\\\$12}\" | sort -rn | head -12;
+        echo \"\";
+        echo \"=== Top memory consumers ===\";
+        ps aux --sort=-%mem --no-headers | head -8 | awk \"{printf \\\"%-10s %5s%% %s\\\\n\\\", \\\$1, \\\$4, \\\$11}\";
+    '");
+    writeln($output);
+})->desc('Show server RAM, load, disk, service status, and FPM workers');
+
+// Internal tasks — called automatically by deploy hooks (not exposed in composer.json)
+task('server:xdebug:on', function () {
+    run('sudo phpenmod -s fpm xdebug 2>/dev/null; sudo systemctl reload php8.2-fpm');
+    writeln('<info>✓ Xdebug ENABLED in PHP-FPM.</info>');
+})->desc('[internal] Enable Xdebug — triggered automatically after deploy:dev');
+
+task('server:xdebug:off', function () {
+    run('sudo phpdismod -s fpm xdebug 2>/dev/null; sudo systemctl reload php8.2-fpm');
+    writeln('<info>✓ Xdebug DISABLED in PHP-FPM (production mode).</info>');
+})->desc('[internal] Disable Xdebug — triggered automatically after deploy');
+
+task('server:nginx:test', function () {
+    $out = run('sudo nginx -t 2>&1');
+    writeln($out);
+})->desc('Test nginx configuration validity');
+
+task('server:nginx:reload', function () {
+    run('sudo nginx -t 2>&1 && sudo systemctl reload nginx');
+    writeln('<info>✓ Nginx reloaded.</info>');
+})->desc('Test and gracefully reload nginx');
+
+task('server:opcache:reset', function () {
+    // Создаём временный файл сброса OPcache через PHP-CLI (FPM шарит shared memory)
+    // Для полного сброса нужен reload FPM
+    run('sudo systemctl reload php8.2-fpm');
+    writeln('<info>✓ PHP-FPM reloaded — OPcache reset.</info>');
+})->desc('Reset OPcache by reloading PHP-FPM (use after manual file changes on server)');
+
+task('server:mysql:vars', function () {
+    $db = get('db_remote');
+    $output = run("mysql -h 127.0.0.1 -u {$db['username']} -p{$db['password']} -e \"
+        SHOW VARIABLES WHERE Variable_name IN (
+            'innodb_buffer_pool_size','innodb_buffer_pool_instances',
+            'max_connections','thread_cache_size',
+            'tmp_table_size','max_heap_table_size',
+            'slow_query_log','long_query_time',
+            'bind_address','mysqlx_bind_address'
+        );
+    \" 2>/dev/null");
+    writeln($output);
+})->desc('Show key MySQL runtime variables');
