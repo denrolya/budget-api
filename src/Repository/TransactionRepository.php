@@ -566,6 +566,45 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns the number of distinct calendar months (YYYY-MM) that had at least one
+     * transaction per category, for the given date range.
+     *
+     * @return array<int, int>  categoryId → active month count
+     */
+    public function getCategoryActiveMonths(\DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->innerJoin('t.category', 'c')
+            ->select(
+                'IDENTITY(t.category) AS category_id',
+                'DATE(t.executedAt) AS day'
+            )
+            ->andWhere('t.executedAt >= :start')
+            ->andWhere('t.executedAt <= :end')
+            ->andWhere('c.isAffectingProfit = :isAffectingProfit')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('isAffectingProfit', true)
+            ->groupBy('category_id, day')
+            ->getQuery()
+            ->getArrayResult();
+
+        $monthsByCat = [];
+        foreach ($rows as $row) {
+            $catId = (int) $row['category_id'];
+            $month = substr((string) $row['day'], 0, 7); // 'YYYY-MM'
+            $monthsByCat[$catId][$month] = true;
+        }
+
+        $result = [];
+        foreach ($monthsByCat as $catId => $months) {
+            $result[$catId] = count($months);
+        }
+
+        return $result;
+    }
+
+    /**
      * Returns actual income/expense amounts per category for a given date range,
      * grouped by the account's native currency (same pivot pattern as countByDayForAccounts).
      * Only includes categories where isAffectingProfit = true.
@@ -608,6 +647,54 @@ class TransactionRepository extends ServiceEntityRepository
         }
 
         return array_values($pivoted);
+    }
+
+    /**
+     * Returns income/expense amounts per category grouped by calendar month (YYYY-MM) and
+     * the account's native currency. Aggregates day-level rows into monthly totals in PHP,
+     * using the same DATE() trick as getCategoryActiveMonths.
+     *
+     * @return array<int, array<string, array<string, array{income: float, expense: float}>>>
+     *         [catId][YYYY-MM][currency] → {income, expense}
+     */
+    public function getActualsByCategoryByMonth(\DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->innerJoin('t.account', 'a')
+            ->innerJoin('t.category', 'c')
+            ->select(
+                'IDENTITY(t.category) AS category_id',
+                'DATE(t.executedAt) AS day',
+                'a.currency AS currency',
+                "SUM(CASE WHEN t INSTANCE OF " . Income::class . " THEN t.amount ELSE 0 END) AS income",
+                "SUM(CASE WHEN t INSTANCE OF " . Expense::class . " THEN t.amount ELSE 0 END) AS expense"
+            )
+            ->andWhere('t.executedAt >= :start')
+            ->andWhere('t.executedAt <= :end')
+            ->andWhere('c.isAffectingProfit = :isAffectingProfit')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('isAffectingProfit', true)
+            ->groupBy('category_id, day, a.currency')
+            ->orderBy('category_id', 'ASC')
+            ->addOrderBy('day', 'ASC')
+            ->addOrderBy('a.currency', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        // Aggregate day-level rows into [catId][YYYY-MM][currency] monthly totals
+        $result = [];
+        foreach ($rows as $row) {
+            $catId = (int) $row['category_id'];
+            $month = substr((string) $row['day'], 0, 7); // 'YYYY-MM'
+            $cur   = $row['currency'];
+
+            $result[$catId][$month][$cur] ??= ['income' => 0.0, 'expense' => 0.0];
+            $result[$catId][$month][$cur]['income']  += (float) $row['income'];
+            $result[$catId][$month][$cur]['expense'] += (float) $row['expense'];
+        }
+
+        return $result;
     }
 
     /**

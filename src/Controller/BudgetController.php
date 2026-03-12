@@ -211,8 +211,78 @@ class BudgetController extends AbstractFOSRestController
         $end    = CarbonImmutable::now()->endOfDay();
         $start  = $end->subMonths($months)->startOfDay();
 
+        $actuals      = $transactionRepo->getActualsByCategoryForPeriod($start, $end);
+        $activeMonths = $transactionRepo->getCategoryActiveMonths($start, $end);
+        $byMonth      = $transactionRepo->getActualsByCategoryByMonth($start, $end);
+
+        // Build ordered month slots oldest→newest: ['2025-09', '2025-10', ..., '2026-02']
+        $monthSlots = [];
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $monthSlots[] = CarbonImmutable::now()->subMonths($i)->format('Y-m');
+        }
+        $totalWeight = $months * ($months + 1) / 2; // sum of 1+2+...+N
+
+        // Compute recency-weighted monthly prediction per category per currency.
+        // Weight index 0 (oldest month) = 1, index N-1 (newest) = N.
+        $predictedByCat = [];
+        foreach ($byMonth as $catId => $monthData) {
+            // Collect all currencies that appear for this category
+            $currencies = [];
+            foreach ($monthData as $monthCurrencies) {
+                foreach (array_keys($monthCurrencies) as $cur) {
+                    $currencies[$cur] = true;
+                }
+            }
+            $predicted = [];
+            foreach (array_keys($currencies) as $cur) {
+                // Only weight active months (months that actually had transactions).
+                // Then scale by frequency (activeMonths / totalMonths).
+                // This produces an "expected value" per month:
+                //   regular categories (6/6mo)  → barely discounted
+                //   irregular ones (1/6mo)       → strongly discounted (÷6)
+                $activeWeightSum = 0.0;
+                $wIncome         = 0.0;
+                $wExpense        = 0.0;
+                $activeCount     = 0;
+
+                foreach ($monthSlots as $idx => $month) {
+                    $cv = $monthData[$month][$cur] ?? null;
+                    if ($cv === null) {
+                        continue; // missing month → skip; frequency factor handles the scaling
+                    }
+                    $weight           = $idx + 1;
+                    $activeWeightSum += $weight;
+                    $wIncome         += $cv['income']  * $weight;
+                    $wExpense        += $cv['expense'] * $weight;
+                    $activeCount++;
+                }
+
+                // Require at least 2 active months — single-occurrence items are too
+                // irregular to budget for (e.g. one-time bonus, occasional repair).
+                if ($activeCount < 2) {
+                    continue;
+                }
+
+                // Expected monthly value = weighted avg over active months × occurrence probability
+                $frequency = $activeCount / $months;
+
+                $predicted[$cur] = [
+                    'income'  => ($wIncome  / $activeWeightSum) * $frequency,
+                    'expense' => ($wExpense / $activeWeightSum) * $frequency,
+                ];
+            }
+            $predictedByCat[$catId] = $predicted;
+        }
+
+        foreach ($actuals as &$item) {
+            $catId                   = $item['categoryId'];
+            $item['activeMonths']    = $activeMonths[$catId] ?? 1;
+            $item['predictedValues'] = $predictedByCat[$catId] ?? [];
+        }
+        unset($item);
+
         return $this->view([
-            'data'   => $transactionRepo->getActualsByCategoryForPeriod($start, $end),
+            'data'   => $actuals,
             'months' => $months,
             'from'   => $start->format('Y-m-d'),
             'to'     => $end->format('Y-m-d'),
