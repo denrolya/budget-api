@@ -134,7 +134,7 @@ final class TransactionController extends AbstractFOSRestController
             withNestedCategories: $withNestedCategories,
             isDraft: $isDraft,
             affectingProfitOnly: true,
-            currencies: $currencies,
+            currencies: $currencies ?? [],
             note: $note,
             amountGte: $amountGte,
             amountLte: $amountLte,
@@ -167,7 +167,7 @@ final class TransactionController extends AbstractFOSRestController
         foreach ($data as $item) {
             $transaction = $this->container->get('serializer')->denormalize(
                 $item,
-                $item['type'] === 'expense' ? Expense::class : Income::class,
+                ($item['type'] ?? null) === 'expense' ? Expense::class : Income::class,
                 'json'
             );
             $this->container->get('doctrine.orm.entity_manager')->persist($transaction);

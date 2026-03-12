@@ -88,6 +88,8 @@ final class LedgerController extends AbstractFOSRestController
         $categoryIds = $this->toIntArray($category);
         $debtIds     = $this->toIntArray($debt);
 
+        $hadCategoryFilter = $categoryIds !== [];
+
         // ── Expand categories to include descendants when requested ─────────
         if ($withNestedCategories === '1' && $categoryIds !== []) {
             $txType = ($type === 'transfer') ? null : $type;
@@ -109,7 +111,9 @@ final class LedgerController extends AbstractFOSRestController
             before: $before,
             type: $type === 'transfer' ? null : $type,
             accounts: $accountIds ?: null,
-            categories: $categoryIds ?: null,
+            // [0] is an impossible sentinel: categories were requested but expansion found nothing,
+            // so the query must return zero results rather than removing the filter entirely.
+            categories: $categoryIds !== [] ? $categoryIds : ($hadCategoryFilter ? [0] : null),
             debts: $debtIds ?: null,
             note: $note,
             isDraft: $isDraftBool,
@@ -156,26 +160,27 @@ final class LedgerController extends AbstractFOSRestController
         /** @var User|null $user */
         $user         = $this->getUser();
         $baseCurrency = $user?->getBaseCurrency() ?? 'EUR';
-        $totalValue   = $this->calculateTotalValue($transactions, $baseCurrency);
+        $totalValue   = $includeTransactions ? $this->transactionRepository->sumConverted(
+            baseCurrency: $baseCurrency,
+            after: $after,
+            before: $before,
+            type: $type === 'transfer' ? null : $type,
+            accounts: $accountIds ?: null,
+            categories: $categoryIds !== [] ? $categoryIds : ($hadCategoryFilter ? [0] : null),
+            debts: $debtIds ?: null,
+            note: $note,
+            isDraft: $isDraftBool,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+            currencies: $currencies ?: null,
+            excludeTransferTransactions: true,
+        ) : 0.0;
 
         return $this->view([
             'list'       => $page_items,
             'count'      => $total,
             'totalValue' => round($totalValue, 2),
         ]);
-    }
-
-    /**
-     * @param array<Transaction> $transactions
-     */
-    private function calculateTotalValue(array $transactions, string $baseCurrency): float
-    {
-        $value = 0.0;
-        foreach ($transactions as $tx) {
-            $converted = $tx->getConvertedValue($baseCurrency) ?? 0.0;
-            $value += $tx->isExpense() ? -$converted : $converted;
-        }
-        return $value;
     }
 
     /**

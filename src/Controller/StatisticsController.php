@@ -45,11 +45,16 @@ class StatisticsController extends AbstractFOSRestController
         array $accounts,
         array $categories,
     ): View {
+        $expandedCategories = $categories !== []
+            ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type)
+            : [];
+
         return $this->view(
             $statisticsManager->calculateTransactionsValueByPeriod(
                 period: CarbonPeriod::create($after, $interval, $before)->excludeEndDate(),
                 type: $type,
-                categories: $categories !== [] ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type) : $categories,
+                // [0] sentinel: categories were requested but expansion found nothing → force zero results
+                categories: $categories !== [] ? ($expandedCategories ?: [0]) : [],
                 accounts: $accounts
             )
         );
@@ -92,7 +97,7 @@ class StatisticsController extends AbstractFOSRestController
         $transactions = $transactionRepo->getList(
             after: $after,
             before: $before,
-            categories: $categories !== [] ? $categoryRepo->getCategoriesWithDescendantsByType($categories) : $categories,
+            categories: ($categories !== null && $categories !== []) ? $categoryRepo->getCategoriesWithDescendantsByType($categories) : $categories,
             affectingProfitOnly: false,
         );
 
@@ -182,11 +187,16 @@ class StatisticsController extends AbstractFOSRestController
         array $accounts,
         array $categories,
     ): View {
+        $expandedCategories = $categories !== []
+            ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type)
+            : [];
+
         $transactions = $transactionRepo->getList(
             after: $after,
             before: $before,
             type: $type,
-            categories: $categories !== [] ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type) : $categories,
+            // [0] sentinel: categories were requested but expansion found nothing → force zero results
+            categories: $categories !== [] ? ($expandedCategories ?: [0]) : $categories,
             accounts: $accounts,
         );
 

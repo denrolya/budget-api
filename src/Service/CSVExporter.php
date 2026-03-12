@@ -93,7 +93,7 @@ final readonly class CSVExporter
                 note: $note,
                 amountGte: $amountGte,
                 amountLte: $amountLte,
-                debts: $debts,
+                debts: $debts ?? [],
                 currencies: $currencies,
                 orderField: TransactionRepository::ORDER_FIELD,
                 order: TransactionRepository::ORDER

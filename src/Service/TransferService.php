@@ -130,12 +130,14 @@ final class TransferService
 
         $this->expenseTransferCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
-        ]);
+        ]) ?? throw new \RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER . '" not found.');
+
         $this->incomeTransferCategory = $this->em->getRepository(IncomeCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
-        ]);
+        ]) ?? throw new \RuntimeException('Required income category "' . Category::CATEGORY_TRANSFER . '" not found.');
+
         $this->feeExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER_FEE,
-        ]);
+        ]) ?? throw new \RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER_FEE . '" not found.');
     }
 }

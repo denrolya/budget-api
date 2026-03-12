@@ -48,7 +48,7 @@ class CategoryRepository extends ServiceEntityRepository
                     $t === Transaction::EXPENSE ? ExpenseCategory::class : IncomeCategory::class
                 );
 
-            if ($categories === []) {
+            if ($categories === null || $categories === []) {
                 $result[] = $repo->findBy(['root' => null, 'isAffectingProfit' => true]);
             } else {
                 $foundCategories = $repo->findBy(['id' => $categories]);

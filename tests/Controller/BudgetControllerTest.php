@@ -362,4 +362,137 @@ class BudgetControllerTest extends BaseApiTestCase
         );
         self::assertResponseStatusCodeSame(401);
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // historyAverages
+    // ──────────────────────────────────────────────────────────────────────────
+
+    public function testHistoryAveragesRequiresAuth(): void
+    {
+        $budget = $this->findBudget('January 2021');
+        $this->client->request(
+            'GET',
+            self::BUDGET_URL . '/' . $budget->getId() . '/history-averages',
+            ['headers' => ['authorization' => null]],
+        );
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    public function testHistoryAveragesReturnsExpectedStructure(): void
+    {
+        $budget = $this->findBudget('January 2021');
+        $response = $this->client->request(
+            'GET',
+            self::BUDGET_URL . '/' . $budget->getId() . '/history-averages?months=3',
+        );
+
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        self::assertArrayHasKey('data', $content);
+        self::assertArrayHasKey('months', $content);
+        self::assertArrayHasKey('from', $content);
+        self::assertArrayHasKey('to', $content);
+        self::assertSame(3, $content['months']);
+        self::assertIsArray($content['data']);
+    }
+
+    /**
+     * Regression: old code set $start = now()->subMonths($months), a mid-month date.
+     * The fix aligns to calendar-month boundaries. Verify via the `from`/`to` fields.
+     */
+    public function testHistoryAveragesWindowAlignedToCalendarMonthBoundaries(): void
+    {
+        $budget = $this->findBudget('January 2021');
+
+        foreach ([1, 3, 6] as $months) {
+            $response = $this->client->request(
+                'GET',
+                self::BUDGET_URL . '/' . $budget->getId() . "/history-averages?months=$months",
+            );
+            self::assertResponseIsSuccessful();
+            $content = $response->toArray();
+
+            // `from` must be the 1st day of a month (never mid-month)
+            self::assertMatchesRegularExpression(
+                '/^\d{4}-\d{2}-01$/',
+                $content['from'],
+                "months=$months: `from` must be the 1st of a month, got {$content['from']}"
+            );
+
+            // `to` must be the last day of a month
+            $toDate = \Carbon\CarbonImmutable::parse($content['to']);
+            self::assertTrue(
+                $toDate->isSameDay($toDate->endOfMonth()),
+                "months=$months: `to` must be the last day of a month, got {$content['to']}"
+            );
+        }
+    }
+
+    /**
+     * Regression: old code did `$start = now()->endOfDay()->subMonths($months)`, which set the
+     * query start to a mid-month day N months ago. Transactions from that partial month were
+     * included in the actuals query but had no corresponding slot in $monthSlots, silently
+     * diluting the frequency and weighted-average calculations.
+     *
+     * The fix sets $start = startOfMonth(subMonths($months - 1)) and $end = endOfMonth(), so the
+     * query window exactly covers the same N calendar months as $monthSlots.
+     *
+     * This test verifies the endpoint does not crash and that `months` param is respected.
+     */
+    public function testHistoryAveragesMonthsParamIsRespected(): void
+    {
+        $budget = $this->findBudget('January 2021');
+
+        foreach ([1, 3, 6, 12] as $months) {
+            $response = $this->client->request(
+                'GET',
+                self::BUDGET_URL . '/' . $budget->getId() . "/history-averages?months=$months",
+            );
+            self::assertResponseIsSuccessful();
+        }
+    }
+
+    /**
+     * Verify boundary exactness: a transaction on the first day of the oldest window month
+     * must appear; one on the last day of the previous month must not.
+     * months=1 → window = exactly the current calendar month.
+     */
+    public function testHistoryAveragesIncludesFirstDayOfWindowAndExcludesDayBefore(): void
+    {
+        $budget   = $this->findBudget('January 2021');
+        $groceries = $this->em->getRepository(\App\Entity\ExpenseCategory::class)
+            ->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof \App\Entity\ExpenseCategory);
+
+        $thisMonthStart   = \Carbon\CarbonImmutable::now()->startOfMonth();
+        $previousMonthEnd = $thisMonthStart->subDay()->endOfDay();
+
+        // Transaction inside window (current month, day 1)
+        $this->createExpense(50.0, $this->accountCashEUR, $groceries, $thisMonthStart, 'hist-inside');
+        // Transaction outside window (last day of previous month)
+        $this->createExpense(99.0, $this->accountCashEUR, $groceries, $previousMonthEnd, 'hist-outside');
+        $this->em->clear();
+
+        $response = $this->client->request(
+            'GET',
+            self::BUDGET_URL . '/' . $budget->getId() . '/history-averages?months=1',
+        );
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        $groceriesActuals = null;
+        foreach ($content['data'] as $actual) {
+            if ($actual['categoryId'] === $groceries->getId()) {
+                $groceriesActuals = $actual;
+                break;
+            }
+        }
+
+        self::assertNotNull($groceriesActuals, 'Groceries actuals must appear for the current-month transaction.');
+
+        $eurExpense = $groceriesActuals['convertedValues']['EUR']['expense'] ?? 0.0;
+        self::assertEqualsWithDelta(50.0, $eurExpense, 0.01,
+            'Only the current-month transaction (50 EUR) must appear; the previous-month one (99 EUR) must be excluded.');
+    }
 }

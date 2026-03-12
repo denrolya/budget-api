@@ -414,17 +414,156 @@ class WiseProviderTest extends TestCase
         self::assertNull($result);
     }
 
-    public function testRegisterWebhookSkipsCreateWhenCorrectSubscriptionAlreadyExists(): void
+    public function testParseWebhookPayloadSkipsCardChannelInBalancesUpdate(): void
     {
+        // balances#update for CARD channel must return null — handled by cards#transaction-state-change.
+        $result = $this->provider->parseWebhookPayload([
+            'event_type' => 'balances#update',
+            'data' => [
+                'balance_id'       => 89046937,
+                'amount'           => 11482,
+                'currency'         => 'HUF',
+                'transaction_type' => 'debit',
+                'channel_name'     => 'CARD',
+                'occurred_at'      => '2026-03-12T18:37:10Z',
+                'transfer_reference' => '738d5a70-f4a1-4942-f4c9-e4e9a06a13c7',
+                'step_id'          => 9107113376,
+            ],
+        ]);
+
+        self::assertNull($result);
+    }
+
+    public function testParseCardTransactionWebhookCreatesDraftWithMerchantName(): void
+    {
+        $result = $this->provider->parseWebhookPayload([
+            'event_type'     => 'cards#transaction-state-change',
+            'schema_version' => '2.1.0',
+            'sent_at'        => '2026-03-12T18:37:10Z',
+            'data'           => [
+                'transaction_state'  => 'COMPLETED',
+                'transaction_type'   => 'POS_PURCHASE',
+                'transaction_amount' => ['value' => 11482.0, 'currency' => 'HUF'],
+                'merchant'           => [
+                    'name'     => 'TESCO BUDAPEST',
+                    'location' => ['country' => 'Hungary', 'city' => 'Budapest'],
+                ],
+                'debits' => [
+                    [
+                        'balance_id'     => 89046937,
+                        'debited_amount' => 11482.0,
+                        'for_amount'     => 11482.0,
+                        'rate'           => 1.0,
+                        'fee'            => 0.0,
+                        'creation_time'  => '2026-03-12T18:37:10Z',
+                    ],
+                ],
+                'credits' => [],
+            ],
+        ]);
+
+        self::assertInstanceOf(DraftTransactionData::class, $result);
+        self::assertSame('89046937', $result->externalAccountId);
+        self::assertEqualsWithDelta(-11482.0, $result->amount, 0.001);
+        self::assertSame('HUF', $result->currency);
+        self::assertSame('TESCO BUDAPEST', $result->note);
+        self::assertSame('2026-03-12T18:37:10+00:00', $result->executedAt->format(\DateTimeInterface::ATOM));
+    }
+
+    public function testParseCardTransactionWebhookFallsBackToTransactionTypeWhenNoMerchant(): void
+    {
+        $result = $this->provider->parseWebhookPayload([
+            'event_type' => 'cards#transaction-state-change',
+            'sent_at'    => '2026-03-12T10:00:00Z',
+            'data'       => [
+                'transaction_state'  => 'COMPLETED',
+                'transaction_type'   => 'CASH_WITHDRAWAL',
+                'transaction_amount' => ['value' => 100.0, 'currency' => 'EUR'],
+                'merchant'           => [],
+                'debits' => [
+                    ['balance_id' => 555, 'debited_amount' => 100.0, 'creation_time' => '2026-03-12T10:00:00Z'],
+                ],
+                'credits' => [],
+            ],
+        ]);
+
+        self::assertInstanceOf(DraftTransactionData::class, $result);
+        self::assertSame('Cash withdrawal', $result->note);
+        self::assertEqualsWithDelta(-100.0, $result->amount, 0.001);
+    }
+
+    public function testParseCardTransactionWebhookReturnsNullForNonCompleted(): void
+    {
+        foreach (['IN_PROGRESS', 'DECLINED', 'CANCELLED'] as $state) {
+            $result = $this->provider->parseWebhookPayload([
+                'event_type' => 'cards#transaction-state-change',
+                'data'       => [
+                    'transaction_state'  => $state,
+                    'transaction_type'   => 'POS_PURCHASE',
+                    'transaction_amount' => ['value' => 50.0, 'currency' => 'EUR'],
+                    'debits' => [
+                        ['balance_id' => 1, 'debited_amount' => 50.0, 'creation_time' => '2026-03-12T10:00:00Z'],
+                    ],
+                ],
+            ]);
+
+            self::assertNull($result, "Expected null for state={$state}");
+        }
+    }
+
+    public function testParseCardTransactionWebhookHandlesCreditRefund(): void
+    {
+        $result = $this->provider->parseWebhookPayload([
+            'event_type' => 'cards#transaction-state-change',
+            'sent_at'    => '2026-03-12T12:00:00Z',
+            'data'       => [
+                'transaction_state'  => 'COMPLETED',
+                'transaction_type'   => 'REFUND',
+                'transaction_amount' => ['value' => 25.0, 'currency' => 'EUR'],
+                'merchant'           => ['name' => 'AMAZON'],
+                'debits'             => [],
+                'credits' => [
+                    ['balance_id' => 777, 'credited_amount' => 25.0, 'creation_time' => '2026-03-12T12:00:00Z'],
+                ],
+            ],
+        ]);
+
+        self::assertInstanceOf(DraftTransactionData::class, $result);
+        self::assertSame('777', $result->externalAccountId);
+        self::assertEqualsWithDelta(25.0, $result->amount, 0.001); // positive = income (refund)
+        self::assertSame('AMAZON', $result->note);
+    }
+
+    public function testParseCardTransactionWebhookReturnsNullWhenNoDebitsOrCredits(): void
+    {
+        // v2.0.0 payload without debits/credits array → cannot match account.
+        $result = $this->provider->parseWebhookPayload([
+            'event_type' => 'cards#transaction-state-change',
+            'data'       => [
+                'transaction_state'  => 'COMPLETED',
+                'transaction_type'   => 'POS_PURCHASE',
+                'transaction_amount' => ['value' => 50.0, 'currency' => 'EUR'],
+            ],
+        ]);
+
+        self::assertNull($result);
+    }
+
+    public function testRegisterWebhookSkipsCreateWhenBothSubscriptionsExist(): void
+    {
+        // Both balances#update (3.0.0) and cards#transaction-state-change (2.1.0) already exist
+        // → no POSTs, only the two GETs.
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([
             [
                 'id'         => 'abc-123',
                 'trigger_on' => 'balances#update',
-                'delivery'   => [
-                    'version' => '3.0.0',
-                    'url'     => 'https://example.com/api/webhooks/wise',
-                ],
+                'delivery'   => ['version' => '3.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
+            ],
+            [
+                'id'         => 'def-456',
+                'trigger_on' => 'cards#transaction-state-change',
+                'delivery'   => ['version' => '2.1.0', 'url' => 'https://example.com/api/webhooks/wise'],
             ],
         ]);
 
@@ -439,29 +578,53 @@ class WiseProviderTest extends TestCase
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
     }
 
+    public function testRegisterWebhookSkipsCreateWhenCorrectSubscriptionAlreadyExists(): void
+    {
+        // balances#update 3.0.0 already exists; cards#transaction-state-change does not
+        // → 1 POST for the card event.
+        $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
+        $subscriptionsBody = json_encode([
+            [
+                'id'         => 'abc-123',
+                'trigger_on' => 'balances#update',
+                'delivery'   => ['version' => '3.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
+            ],
+        ]);
+
+        $this->http
+            ->expects(self::exactly(3))
+            ->method('request')
+            ->willReturnOnConsecutiveCalls(
+                $this->mockResponse($profilesBody),
+                $this->mockResponse($subscriptionsBody),
+                $this->mockResponse('{}'),  // POST cards#transaction-state-change 2.1.0
+            );
+
+        $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
+    }
+
     public function testRegisterWebhookReplacesStaleSchemaSubscription(): void
     {
-        // Existing subscription uses 2.0.0 (wrong) — expect DELETE then POST.
+        // Existing balances#update subscription uses 2.0.0 (wrong) — expect DELETE + POST.
+        // cards#transaction-state-change is also missing → 1 more POST.
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([
             [
                 'id'         => 'stale-sub-id',
                 'trigger_on' => 'balances#update',
-                'delivery'   => [
-                    'version' => '2.0.0',
-                    'url'     => 'https://example.com/api/webhooks/wise',
-                ],
+                'delivery'   => ['version' => '2.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
             ],
         ]);
 
         $this->http
-            ->expects(self::exactly(4))
+            ->expects(self::exactly(5))
             ->method('request')
             ->willReturnOnConsecutiveCalls(
-                $this->mockResponse($profilesBody),                      // GET /v2/profiles
-                $this->mockResponse($subscriptionsBody),                  // GET subscriptions
-                $this->mockResponse(''),                                  // DELETE stale sub
-                $this->mockResponse('{}'),                                // POST new 3.0.0 sub
+                $this->mockResponse($profilesBody),     // GET /v2/profiles
+                $this->mockResponse($subscriptionsBody), // GET subscriptions
+                $this->mockResponse(''),                 // DELETE stale balances#update sub
+                $this->mockResponse('{}'),               // POST balances#update 3.0.0
+                $this->mockResponse('{}'),               // POST cards#transaction-state-change 2.1.0
             );
 
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
@@ -473,49 +636,88 @@ class WiseProviderTest extends TestCase
         $subscriptionsBody = json_encode([]);
 
         $this->http
-            ->expects(self::exactly(3))
+            ->expects(self::exactly(4))
             ->method('request')
             ->willReturnOnConsecutiveCalls(
                 $this->mockResponse($profilesBody),
                 $this->mockResponse($subscriptionsBody),
-                $this->mockResponse('{}'),
+                $this->mockResponse('{}'), // POST balances#update
+                $this->mockResponse('{}'), // POST cards#transaction-state-change
             );
 
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
     }
 
-    public function testRegisterWebhookCreatesBalancesUpdateSubscription(): void
+    public function testRegisterWebhookCreatesBalancesUpdateSubscriptionWith300(): void
     {
+        // Verify that the balances#update POST uses schema version 3.0.0.
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
-        $subscriptionsBody = json_encode([]);
+        $subscriptionsBody = json_encode([
+            // Only card sub exists; balances#update is missing.
+            [
+                'id'         => 'def-456',
+                'trigger_on' => 'cards#transaction-state-change',
+                'delivery'   => ['version' => '2.1.0', 'url' => 'https://example.com/api/webhooks/wise'],
+            ],
+        ]);
 
+        $capturedJson = null;
         $this->http
             ->expects(self::exactly(3))
             ->method('request')
-            ->with(
-                self::logicalOr(
-                    self::equalTo('GET'),
-                    self::equalTo('POST')
-                ),
-                self::logicalOr(
-                    self::equalTo('/v2/profiles'),
-                    self::equalTo('/v3/profiles/1/subscriptions')
-                ),
-                self::callback(function (mixed $options): bool {
-                    if (!is_array($options) || !isset($options['json'])) {
-                        return true;
-                    }
-
-                    return ($options['json']['trigger_on'] ?? null) === 'balances#update';
-                })
-            )
-            ->willReturnOnConsecutiveCalls(
-                $this->mockResponse($profilesBody),
-                $this->mockResponse($subscriptionsBody),
-                $this->mockResponse('{}'),
-            );
+            ->willReturnCallback(function (string $method, string $url, array $options = []) use (&$capturedJson, $profilesBody, $subscriptionsBody) {
+                if ($method === 'POST') {
+                    $capturedJson = $options['json'] ?? null;
+                }
+                if (str_contains($url, '/v2/profiles')) {
+                    return $this->mockResponse($profilesBody);
+                }
+                if ($method === 'GET') {
+                    return $this->mockResponse($subscriptionsBody);
+                }
+                return $this->mockResponse('{}');
+            });
 
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
+
+        self::assertSame('balances#update', $capturedJson['trigger_on'] ?? null);
+        self::assertSame('3.0.0', $capturedJson['delivery']['version'] ?? null);
+    }
+
+    public function testRegisterWebhookCreatesCardSubscriptionWith210(): void
+    {
+        // Verify that the cards#transaction-state-change POST uses schema version 2.1.0.
+        $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
+        $subscriptionsBody = json_encode([
+            // Only balances#update exists; card sub is missing.
+            [
+                'id'         => 'abc-123',
+                'trigger_on' => 'balances#update',
+                'delivery'   => ['version' => '3.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
+            ],
+        ]);
+
+        $capturedJson = null;
+        $this->http
+            ->expects(self::exactly(3))
+            ->method('request')
+            ->willReturnCallback(function (string $method, string $url, array $options = []) use (&$capturedJson, $profilesBody, $subscriptionsBody) {
+                if ($method === 'POST') {
+                    $capturedJson = $options['json'] ?? null;
+                }
+                if (str_contains($url, '/v2/profiles')) {
+                    return $this->mockResponse($profilesBody);
+                }
+                if ($method === 'GET') {
+                    return $this->mockResponse($subscriptionsBody);
+                }
+                return $this->mockResponse('{}');
+            });
+
+        $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
+
+        self::assertSame('cards#transaction-state-change', $capturedJson['trigger_on'] ?? null);
+        self::assertSame('2.1.0', $capturedJson['delivery']['version'] ?? null);
     }
 
     public function testRegisterWebhookThrowsLogicExceptionOn403(): void
@@ -540,6 +742,8 @@ class WiseProviderTest extends TestCase
             public function getResponse(): ResponseInterface { return $this->r; }
         };
 
+        // GET profiles + GET subscriptions (empty) + POST balances#update (→ 403, throws immediately).
+        // The card event POST is never reached because the exception is thrown first.
         $this->http
             ->expects(self::exactly(3))
             ->method('request')

@@ -246,6 +246,10 @@ final class StatisticsManager
         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         $result = array_map(static fn($day) => ['name' => $day, 'values' => []], $days);
 
+        if ($transactionsOrdered === []) {
+            return $result;
+        }
+
         $rootCategories = $this->em->getRepository(ExpenseCategory::class)->findRootCategories(['name' => 'ASC']);
         $descendantMap = $this->getDescendantMap();
 
@@ -274,7 +278,9 @@ final class StatisticsManager
                 $index
             );
 
-            $weekdayData['values'] = array_map(static fn($value) => $value / $weekdaysCount, $weekdayData['values']);
+            if ($weekdaysCount > 0) {
+                $weekdayData['values'] = array_map(static fn($value) => $value / $weekdaysCount, $weekdayData['values']);
+            }
         }
 
         return $result;
@@ -377,11 +383,15 @@ final class StatisticsManager
         }
     }
 
+    /**
+     * Counts how many times a given ISO weekday (0=Monday … 6=Sunday) appears in the
+     * inclusive date range [$after, $before].
+     */
     private function countWeekdaysBetweenDates(CarbonInterface $after, CarbonInterface $before, int $weekday): int
     {
         if ($weekday < 0 || $weekday > 6) {
             throw new \InvalidArgumentException(
-                'Invalid weekday. Please provide a value between 0 and 6 (Sunday to Saturday).'
+                'Invalid weekday. Please provide a value between 0 and 6 (Monday to Sunday).'
             );
         }
 
@@ -397,7 +407,8 @@ final class StatisticsManager
         $count = $fullWeeks;
 
         $remainder = $totalDays % 7;
-        $startWeekday = $startDate->dayOfWeek;
+        // Use ISO weekday (1=Mon…7=Sun), shifted to 0-based (0=Mon…6=Sun) to match $weekday.
+        $startWeekday = $startDate->dayOfWeekIso - 1;
 
         for ($i = 0; $i < $remainder; $i++) {
             if ((($startWeekday + $i) % 7) === $weekday) {

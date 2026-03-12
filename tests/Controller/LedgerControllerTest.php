@@ -736,4 +736,77 @@ class LedgerControllerTest extends BaseApiTestCase
 
         self::assertGreaterThanOrEqual(400, $response->getStatusCode(), 'amount[gte] > amount[lte] must not return 2xx.');
     }
+
+    /**
+     * Regression: when withNestedCategories=1 and the requested category IDs do not exist,
+     * getCategoriesWithDescendantsByType() returns [] and $categoryIds becomes [].
+     * The old code passed `null` (no filter) → all transactions returned.
+     * The fix passes [0] as an impossible sentinel → zero results.
+     */
+    public function testWithNestedCategoriesNonExistentIdReturnsEmpty(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'                => '2021-01-01',
+            'before'               => '2021-01-31',
+            'category[]'           => [999999],
+            'withNestedCategories' => '1',
+        ]));
+
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+        self::assertSame(0, $content['count'], 'Non-existent category IDs must yield zero results, not all transactions.');
+        self::assertSame([], $content['list']);
+    }
+
+    /**
+     * Regression: totalValue must be computed via SQL (sumConverted), not by iterating the
+     * in-memory $transactions array. When perPage=1, the page contains one item, but
+     * totalValue must still reflect ALL matching transactions, not just the one on the page.
+     */
+    public function testTotalValueCoversAllPagesNotJustCurrentPage(): void
+    {
+        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof ExpenseCategory);
+
+        $date = Carbon::parse('2025-11-15T12:00:00Z');
+
+        $this->createExpense(amount: 100.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'tv-page-test-a');
+        $this->createExpense(amount: 200.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'tv-page-test-b');
+        $this->em->clear();
+
+        // Fetch only the first page (1 item)
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'   => '2025-11-01',
+            'before'  => '2025-11-30',
+            'type'    => 'expense',
+            'note'    => 'tv-page-test',
+            'perPage' => '1',
+            'page'    => '1',
+        ]));
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        // count must be 2 (both transactions), totalValue must reflect both (not just the page)
+        self::assertSame(2, $content['count']);
+        self::assertCount(1, $content['list'], 'Only 1 item on page 1.');
+        // totalValue should be negative (expenses) and cover both transactions
+        self::assertLessThan(-100.0, $content['totalValue'], 'totalValue must cover transactions on ALL pages, not only the current page.');
+    }
+
+    /**
+     * Complement: a non-existent category without withNestedCategories must also return empty.
+     * This goes through the plain $categoryIds ?: null path — valid IDs, zero match.
+     */
+    public function testNonExistentCategoryIdWithoutExpansionReturnsEmpty(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'      => '2021-01-01',
+            'before'     => '2021-01-31',
+            'category[]' => [999999],
+        ]));
+
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+        self::assertSame(0, $content['count'], 'Non-existent category ID must yield zero results.');
+    }
 }

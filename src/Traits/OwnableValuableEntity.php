@@ -22,7 +22,7 @@ trait OwnableValuableEntity
     {
         $owner = $this->getOwner();
         assert($owner instanceof \App\Entity\User);
-        return $this->convertedValues[$owner->getBaseCurrency()];
+        return $this->convertedValues[$owner->getBaseCurrency()] ?? 0.0;
     }
 
     public function getOwner(): ?UserInterface
@@ -41,7 +41,7 @@ trait OwnableValuableEntity
     {
         $owner = $this->getOwner();
         assert($owner instanceof \App\Entity\User);
-        return $this->convertedValues[$currencyCode ?? $owner->getBaseCurrency()];
+        return $this->convertedValues[$currencyCode ?? $owner->getBaseCurrency()] ?? 0.0;
     }
 
     public function getConvertedValues(): array

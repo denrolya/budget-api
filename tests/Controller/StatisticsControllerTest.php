@@ -508,6 +508,81 @@ class StatisticsControllerTest extends BaseApiTestCase
         self::assertEqualsWithDelta(2000, array_sum(array_column($content, 'total')), 0.01);
     }
 
+    private const CATEGORY_TIMELINE_URL = '/api/v2/statistics/category/timeline';
+
+    /**
+     * Regression: `$categories !== []` was true for null, so omitting the categories param
+     * caused getCategoriesWithDescendantsByType(null) to be called, which ran unnecessary
+     * queries and returned [] (no categories), breaking the transaction filter.
+     * The endpoint must return 200 and a valid response structure when no categories are given.
+     */
+    public function testCategoryTimelineWithoutCategoriesDoesNotCrash(): void
+    {
+        $response = $this->client->request(
+            Request::METHOD_GET,
+            $this->buildURL(self::CATEGORY_TIMELINE_URL, [
+                'after'  => '2021-01-01',
+                'before' => '2021-01-31',
+            ])
+        );
+
+        self::assertResponseIsSuccessful();
+        // Without a categories filter the endpoint returns null (no timeline to show).
+        // The response body is empty — just assert the request did not crash.
+    }
+
+    /**
+     * With a valid category filter the timeline must include that category key.
+     */
+    public function testCategoryTimelineWithCategoryFilterReturnsCategoryData(): void
+    {
+        $groceries = $this->em->getRepository(\App\Entity\ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        self::assertNotNull($groceries);
+
+        $response = $this->client->request(
+            Request::METHOD_GET,
+            $this->buildURL(self::CATEGORY_TIMELINE_URL, [
+                'after'      => '2021-01-01',
+                'before'     => '2021-01-31',
+                'categories' => [$groceries->getId()],
+            ])
+        );
+
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+        self::assertIsArray($content);
+        self::assertNotEmpty($content, 'Timeline must contain at least one category entry.');
+        // Each entry should have a name key corresponding to a category name
+        foreach ($content as $categoryName => $periods) {
+            self::assertIsString($categoryName);
+            self::assertIsArray($periods);
+        }
+    }
+
+    /**
+     * Regression: when categories[] contains IDs that do not exist, getCategoriesWithDescendantsByType()
+     * returns [] and the old code passed [] to getList(), which dropped the filter entirely and
+     * returned ALL transactions. The fix uses [0] as an impossible sentinel so zero results are returned.
+     */
+    public function testValueByPeriodWithNonExistentCategoryReturnsZero(): void
+    {
+        $response = $this->client->request(
+            Request::METHOD_GET,
+            $this->buildURL(self::VALUE_BY_PERIOD_URL, [
+                'after'       => '2021-01-01',
+                'before'      => '2021-01-31',
+                'categories'  => [999999],
+            ])
+        );
+
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        self::assertCount(1, $content);
+        self::assertEqualsWithDelta(0.0, $content[0]['expense'], 0.001, 'Non-existent category must yield zero expense, not all transactions.');
+        self::assertEqualsWithDelta(0.0, $content[0]['income'],  0.001, 'Non-existent category must yield zero income, not all transactions.');
+    }
+
     private function findByName(array $items, string $name): ?array
     {
         foreach ($items as $item) {

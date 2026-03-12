@@ -208,8 +208,10 @@ class BudgetController extends AbstractFOSRestController
     public function historyAverages(Budget $budget, Request $request, TransactionRepository $transactionRepo): View
     {
         $months = max(1, (int) ($request->query->get('months', 6)));
-        $end    = CarbonImmutable::now()->endOfDay();
-        $start  = $end->subMonths($months)->startOfDay();
+        // Align to full calendar months so the query window matches the $monthSlots array exactly.
+        // e.g. months=6 on 2026-03-12 → window: 2025-10-01 … 2026-03-31 (6 complete months).
+        $end   = CarbonImmutable::now()->endOfMonth()->endOfDay();
+        $start = CarbonImmutable::now()->startOfMonth()->subMonths($months - 1)->startOfDay();
 
         $actuals      = $transactionRepo->getActualsByCategoryForPeriod($start, $end);
         $activeMonths = $transactionRepo->getCategoryActiveMonths($start, $end);

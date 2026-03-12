@@ -556,4 +556,68 @@ class TransactionControllerTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         self::assertEquals(2, $response->toArray()['count']);
     }
+
+    private const EXPORT_CSV_URL = '/api/v2/transaction/export.csv';
+
+    /**
+     * Regression: passing no currencies param sent null to CSVExporter::stream(array $currencies),
+     * which is a TypeError under strict_types=1. Must return 200 with a CSV content-type.
+     */
+    public function testExportCsvWithoutFiltersDoesNotCrash(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::EXPORT_CSV_URL, [
+            'after'  => '2021-01-01',
+            'before' => '2021-01-31',
+        ]));
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('text/csv', $response->getHeaders()['content-type'][0]);
+    }
+
+    /**
+     * CSV export with currencies filter must return only matching rows and not crash.
+     */
+    public function testExportCsvWithCurrenciesFilter(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::EXPORT_CSV_URL, [
+            'after'        => '2021-01-01',
+            'before'       => '2021-01-31',
+            'currencies[]' => ['EUR'],
+        ]));
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('text/csv', $response->getHeaders()['content-type'][0]);
+
+        $body = $response->getContent();
+        // Every data row's currency column must be EUR
+        $lines = array_filter(explode("\n", $body));
+        $headers = null;
+        $currencyIdx = null;
+        foreach ($lines as $line) {
+            $cols = str_getcsv(trim($line));
+            if ($headers === null) {
+                $headers = $cols;
+                $currencyIdx = array_search('currency', $headers, true);
+                continue;
+            }
+            if ($currencyIdx !== false && isset($cols[$currencyIdx])) {
+                self::assertSame('EUR', $cols[$currencyIdx]);
+            }
+        }
+    }
+
+    /**
+     * CSV export with a non-existent currency must succeed (not crash) and return a CSV content-type.
+     */
+    public function testExportCsvWithUnknownCurrencyDoesNotCrash(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::EXPORT_CSV_URL, [
+            'after'        => '2021-01-01',
+            'before'       => '2021-01-31',
+            'currencies[]' => ['GBP'],
+        ]));
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('text/csv', $response->getHeaders()['content-type'][0]);
+    }
 }

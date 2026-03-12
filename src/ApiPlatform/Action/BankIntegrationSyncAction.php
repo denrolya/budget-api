@@ -35,13 +35,17 @@ final class BankIntegrationSyncAction extends AbstractController
             throw new AccessDeniedHttpException();
         }
 
-        $from = $request->query->get('from')
-            ? new DateTimeImmutable($request->query->get('from'))
-            : null;
+        try {
+            $from = $request->query->get('from')
+                ? new DateTimeImmutable($request->query->get('from'))
+                : null;
 
-        $to = $request->query->get('to')
-            ? new DateTimeImmutable($request->query->get('to'))
-            : null;
+            $to = $request->query->get('to')
+                ? new DateTimeImmutable($request->query->get('to'))
+                : null;
+        } catch (\Exception) {
+            return new JsonResponse(['error' => 'Invalid date format for "from" or "to". Expected YYYY-MM-DD.'], Response::HTTP_BAD_REQUEST);
+        }
 
         try {
             $created = $this->syncService->sync($integration, $from, $to);

@@ -33,15 +33,15 @@ class ExchangeRatesController extends AbstractFOSRestController
         $fromParam = $request->query->get('from');
         $toParam   = $request->query->get('to');
 
-        if ($fromParam === null && $toParam === null) {
+        if ($fromParam === null) {
             return $this->view(
-                ['error' => 'Either "from" or "from" and "to" query parameters are required (YYYY-MM-DD).'],
+                ['error' => 'The "from" query parameter is required (YYYY-MM-DD). Optionally also pass "to".'],
                 Response::HTTP_BAD_REQUEST
             );
         }
 
         try {
-            $from = CarbonImmutable::createFromFormat('Y-m-d', $fromParam ?? $toParam);
+            $from = CarbonImmutable::createFromFormat('Y-m-d', $fromParam);
             if ($from === false) {
                 throw new \RuntimeException('Invalid date format.');
             }

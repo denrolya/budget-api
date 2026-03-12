@@ -226,13 +226,15 @@ class TransactionRepository extends ServiceEntityRepository
         ?float $amountLte = null,
         ?array $debts = null,
         ?array $currencies = null,
+        bool $excludeTransferTransactions = false,
     ): float {
         $jsonPath = '$.' . $baseCurrency;
 
         $sum = function (string $forType) use (
             $jsonPath, $after, $before, $affectingProfitOnly,
             $categories, $accounts, $excludedCategories,
-            $isDraft, $note, $amountGte, $amountLte, $debts, $currencies
+            $isDraft, $note, $amountGte, $amountLte, $debts, $currencies,
+            $excludeTransferTransactions
         ): float {
             return (float) ($this->getBaseQueryBuilder(
                 after: $after,
@@ -248,6 +250,7 @@ class TransactionRepository extends ServiceEntityRepository
                 amountLte: $amountLte,
                 debts: $debts,
                 currencies: $currencies,
+                excludeTransferTransactions: $excludeTransferTransactions,
             )
                 ->select('SUM(JSON_EXTRACT(t.convertedValues, :jsonPath))')
                 ->setParameter('jsonPath', $jsonPath)

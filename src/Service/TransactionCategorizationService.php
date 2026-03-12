@@ -43,6 +43,17 @@ class TransactionCategorizationService
         Category::CATEGORY_TRANSFER_FEE,
     ];
 
+    /**
+     * Fallback/unknown category IDs excluded from the index by ID (not name).
+     * These are assigned when no match is found — including them would poison future suggestions,
+     * causing a self-reinforcing loop where "Card payment → Balance Adjustment" trains the index
+     * to keep assigning "Balance Adjustment" to every unrecognised bank note.
+     */
+    private const FALLBACK_CATEGORY_IDS = [
+        Category::EXPENSE_CATEGORY_ID_UNKNOWN,
+        Category::INCOME_CATEGORY_ID_UNKNOWN,
+    ];
+
     /** @var array<string, array{categoryId: int, displayNote: string, sortedTokens: string}> */
     private array $expenseIndex = [];
 
@@ -65,8 +76,9 @@ class TransactionCategorizationService
     public function buildAllIndexes(int $ownerId): void
     {
         $this->ownerId = $ownerId;
-        $since  = (new \DateTimeImmutable(sprintf('-%d years', self::INDEX_LOOKBACK_YEARS)))->format('Y-m-d');
-        $inList = $this->inPlaceholders(self::SYSTEM_CATEGORY_NAMES);
+        $since      = (new \DateTimeImmutable(sprintf('-%d years', self::INDEX_LOOKBACK_YEARS)))->format('Y-m-d');
+        $nameList   = $this->inPlaceholders(self::SYSTEM_CATEGORY_NAMES);
+        $idList     = $this->inPlaceholders(self::FALLBACK_CATEGORY_IDS);
 
         $rows = $this->connection->fetchAllAssociative(
             "SELECT t.note, t.category_id, t.type, COUNT(*) AS cnt
@@ -79,9 +91,10 @@ class TransactionCategorizationService
                AND t.note IS NOT NULL
                AND t.note != ''
                AND t.category_id IS NOT NULL
-               AND c.name NOT IN ({$inList})
+               AND c.name NOT IN ({$nameList})
+               AND t.category_id NOT IN ({$idList})
              GROUP BY t.note, t.category_id, t.type",
-            array_merge([$ownerId, $since], self::SYSTEM_CATEGORY_NAMES),
+            array_merge([$ownerId, $since], self::SYSTEM_CATEGORY_NAMES, self::FALLBACK_CATEGORY_IDS),
         );
 
         $expenseAcc = [];
@@ -112,9 +125,10 @@ class TransactionCategorizationService
     public function buildIndex(int $ownerId, bool $isIncome): void
     {
         $this->ownerId = $ownerId;
-        $type   = $isIncome ? 'income' : 'expense';
-        $since  = (new \DateTimeImmutable(sprintf('-%d years', self::INDEX_LOOKBACK_YEARS)))->format('Y-m-d');
-        $inList = $this->inPlaceholders(self::SYSTEM_CATEGORY_NAMES);
+        $type     = $isIncome ? 'income' : 'expense';
+        $since    = (new \DateTimeImmutable(sprintf('-%d years', self::INDEX_LOOKBACK_YEARS)))->format('Y-m-d');
+        $nameList = $this->inPlaceholders(self::SYSTEM_CATEGORY_NAMES);
+        $idList   = $this->inPlaceholders(self::FALLBACK_CATEGORY_IDS);
 
         $rows = $this->connection->fetchAllAssociative(
             "SELECT t.note, t.category_id, COUNT(*) AS cnt
@@ -127,9 +141,10 @@ class TransactionCategorizationService
                AND t.note IS NOT NULL
                AND t.note != ''
                AND t.category_id IS NOT NULL
-               AND c.name NOT IN ({$inList})
+               AND c.name NOT IN ({$nameList})
+               AND t.category_id NOT IN ({$idList})
              GROUP BY t.note, t.category_id",
-            array_merge([$ownerId, $since, $type], self::SYSTEM_CATEGORY_NAMES),
+            array_merge([$ownerId, $since, $type], self::SYSTEM_CATEGORY_NAMES, self::FALLBACK_CATEGORY_IDS),
         );
 
         $acc = [];

@@ -49,25 +49,38 @@ class BankWebhookService
             throw new \LogicException(sprintf('Provider "%s" does not support webhooks.', $bank->value));
         }
 
-        $this->logger->info('[BankWebhook] Raw payload from {bank}: {payload}', [
+        $eventType = (string) ($payload['event_type'] ?? 'unknown');
+
+        $this->logger->info('[BankWebhook] Raw payload from {bank}: event={event} payload={payload}', [
             'bank'    => $bank->value,
+            'event'   => $eventType,
             'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         ]);
 
         $data = $provider->parseWebhookPayload($payload);
 
         if ($data === null) {
-            $this->logger->info('[BankWebhook] Non-transaction payload from {bank}, skipped.', ['bank' => $bank->value]);
+            $this->logger->info('[BankWebhook] Payload yielded no transaction (event={event}, bank={bank}) — see Wise logs above for reason.', [
+                'event' => $eventType,
+                'bank'  => $bank->value,
+            ]);
 
             return null;
         }
+
+        $this->logger->info('[BankWebhook] Parsed: external_account={ext} amount={amt} currency={cur} note="{note}"', [
+            'ext'  => $data->externalAccountId,
+            'amt'  => $data->amount,
+            'cur'  => $data->currency ?? 'n/a',
+            'note' => $data->note,
+        ]);
 
         $account = $this->em->getRepository(BankCardAccount::class)->findOneBy([
             'externalAccountId' => $data->externalAccountId,
         ]);
 
         if ($account === null) {
-            $this->logger->warning('[BankWebhook] No account found for externalAccountId {id}', [
+            $this->logger->warning('[BankWebhook] No BankCardAccount found for externalAccountId={id} — is this balance linked in the app?', [
                 'id' => $data->externalAccountId,
             ]);
 
@@ -75,8 +88,10 @@ class BankWebhookService
         }
 
         if ($this->isDuplicate($account, $data)) {
-            $this->logger->info('[BankWebhook] Duplicate transaction skipped for account #{id}', [
-                'id' => $account->getId(),
+            $this->logger->info('[BankWebhook] Duplicate skipped: account=#{id} amount={amt} at {ts}', [
+                'id'  => $account->getId(),
+                'amt' => abs($data->amount),
+                'ts'  => $data->executedAt->format('Y-m-d H:i'),
             ]);
 
             return null;
@@ -91,11 +106,11 @@ class BankWebhookService
         $this->em->persist($transaction);
         $this->em->flush();
 
-        $this->logger->info('[BankWebhook] Transaction #{tx_id} created: {type} {amount} {currency} for account #{account_id} | raw_note="{raw_note}" saved_note="{saved_note}" category="{category}"', [
+        $this->logger->info('[BankWebhook] Transaction #{tx_id} created: {type} {amount} {currency} account=#{account_id} | raw_note="{raw_note}" saved_note="{saved_note}" category="{category}"', [
             'tx_id'      => $transaction->getId(),
             'type'       => $data->amount >= 0 ? 'credit' : 'debit',
             'amount'     => abs($data->amount),
-            'currency'   => $data->currency,
+            'currency'   => $data->currency ?? 'n/a',
             'account_id' => $account->getId(),
             'raw_note'   => $data->note,
             'saved_note' => $transaction->getNote(),

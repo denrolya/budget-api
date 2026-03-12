@@ -12,7 +12,9 @@ use Carbon\CarbonInterface;
 use DateTimeImmutable;
 use JsonException;
 use Psr\Cache\InvalidArgumentException;
+use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
@@ -39,15 +41,19 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class WiseProvider implements BankProviderInterface, WebhookCapableInterface
 {
     private const CACHE_TTL = 86400; // 24 hours
-    private const WEBHOOK_TRIGGER_UPDATE  = 'balances#update';  // any balance change (credit or debit)
-    private const WEBHOOK_TRIGGER_CREDIT  = 'balances#credit';  // money credited to balance
-    private const WEBHOOK_DELIVERY_VERSION = '3.0.0';
+    private const WEBHOOK_TRIGGER_UPDATE    = 'balances#update';              // any balance change (credit or debit)
+    private const WEBHOOK_TRIGGER_CREDIT    = 'balances#credit';              // money credited to balance
+    private const WEBHOOK_TRIGGER_CARD_TX   = 'cards#transaction-state-change'; // card tx with merchant data
+    private const WEBHOOK_DELIVERY_VERSION      = '3.0.0';
+    private const WEBHOOK_CARD_DELIVERY_VERSION = '2.1.0'; // v2.1.0 adds debits[].balance_id + creation_time
 
     public function __construct(
         private readonly HttpClientInterface $wiseClient,  // wise_client scoped client (Bearer auth pre-configured)
         private readonly CacheInterface $cache,
         private readonly string $baseCurrency,             // e.g. EUR from parameters.yaml
         private readonly array $allowedCurrencies,         // currencies to include in rate output
+        #[Autowire(service: 'monolog.logger.bank')]
+        private readonly LoggerInterface $logger = new \Psr\Log\NullLogger(),
     ) {
     }
 
@@ -107,13 +113,30 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
 
     public function parseWebhookPayload(array $payload): ?DraftTransactionData
     {
-        $eventType = (string) ($payload['event_type'] ?? '');
+        $eventType     = (string) ($payload['event_type'] ?? '');
+        $schemaVersion = (string) ($payload['schema_version'] ?? 'unknown');
+
+        $this->logger->info('[Wise] Webhook received: event={event} schema={schema}', [
+            'event'  => $eventType,
+            'schema' => $schemaVersion,
+        ]);
+
+        // cards#transaction-state-change (v2.1.0) carries merchant name and balance_id.
+        // This is the primary source for card purchase transactions.
+        if ($eventType === self::WEBHOOK_TRIGGER_CARD_TX) {
+            return $this->parseCardTransactionPayload($payload['data'] ?? [], $payload);
+        }
+
         if ($eventType !== self::WEBHOOK_TRIGGER_CREDIT && $eventType !== self::WEBHOOK_TRIGGER_UPDATE) {
+            $this->logger->info('[Wise] Unrecognised event type, skipping.', ['event' => $eventType]);
+
             return null;
         }
 
         $data = $payload['data'] ?? [];
         if (!is_array($data)) {
+            $this->logger->warning('[Wise] Payload data is not an array.', ['event' => $eventType]);
+
             return null;
         }
 
@@ -167,11 +190,145 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
     }
 
     /**
+     * Parses cards#transaction-state-change (v2.1.0).
+     *
+     * Only COMPLETED transactions are processed.
+     * v2.1.0 adds debits[].balance_id (account matching) and debits[].creation_time (timestamp).
+     * Merchant name is taken from data.merchant.name when present.
+     *
+     * Expected shape:
+     *   data.transaction_state         → "COMPLETED" | "IN_PROGRESS" | "DECLINED" | "CANCELLED"
+     *   data.transaction_amount.value  → signed amount in merchant currency
+     *   data.transaction_amount.currency
+     *   data.merchant.name             → merchant display name (may be absent for non-POS)
+     *   data.transaction_type          → POS_PURCHASE | ECOM_PURCHASE | CASH_WITHDRAWAL | REFUND | …
+     *   data.debits[].balance_id       → our externalAccountId
+     *   data.debits[].debited_amount   → amount debited from balance
+     *   data.debits[].creation_time    → ISO timestamp of the balance movement
+     *   data.credits[].balance_id      → for credit/refund transactions
+     *   data.credits[].credited_amount
+     *   data.credits[].creation_time
+     */
+    private function parseCardTransactionPayload(mixed $data, array $payload): ?DraftTransactionData
+    {
+        if (!is_array($data)) {
+            $this->logger->warning('[Wise] cards#transaction-state-change: data is not an array.');
+
+            return null;
+        }
+
+        $state  = strtoupper((string) ($data['transaction_state'] ?? ''));
+        $txType = strtolower((string) ($data['transaction_type'] ?? ''));
+
+        $this->logger->info('[Wise] cards#transaction-state-change: state={state} type={type}', [
+            'state' => $state,
+            'type'  => $txType,
+        ]);
+
+        if ($state !== 'COMPLETED') {
+            $this->logger->info('[Wise] cards#transaction-state-change: skipping non-COMPLETED state.', ['state' => $state]);
+
+            return null;
+        }
+
+        $debits  = is_array($data['debits'] ?? null)  ? $data['debits']  : [];
+        $credits = is_array($data['credits'] ?? null) ? $data['credits'] : [];
+        $isDebit = !empty($debits);
+        $entries = $isDebit ? $debits : $credits;
+
+        $this->logger->info('[Wise] cards#transaction-state-change: debits={d} credits={c}', [
+            'd' => count($debits),
+            'c' => count($credits),
+        ]);
+
+        if (empty($entries)) {
+            // v2.0.0 payload lacks debits/credits — cannot match account.
+            $this->logger->warning('[Wise] cards#transaction-state-change: no debits/credits — likely v2.0.0 payload, cannot match account. Raw data keys: {keys}', [
+                'keys' => implode(', ', array_keys($data)),
+            ]);
+
+            return null;
+        }
+
+        $firstEntry  = $entries[0];
+        $balanceId   = $firstEntry['balance_id'] ?? null;
+        $amountKey   = $isDebit ? 'debited_amount' : 'credited_amount';
+        $rawAmount   = isset($firstEntry[$amountKey]) ? (float) $firstEntry[$amountKey] : null;
+        $occurredAt  = $firstEntry['creation_time'] ?? $payload['sent_at'] ?? null;
+
+        $this->logger->info('[Wise] cards#transaction-state-change: balance_id={bid} {amtKey}={amt} creation_time={ts}', [
+            'bid'    => $balanceId ?? 'null',
+            'amtKey' => $amountKey,
+            'amt'    => $rawAmount ?? 'null',
+            'ts'     => $occurredAt ?? 'null',
+        ]);
+
+        if ($balanceId === null || $rawAmount === null || $occurredAt === null) {
+            $this->logger->warning('[Wise] cards#transaction-state-change: missing required field(s), skipping.');
+
+            return null;
+        }
+
+        $txAmount = $data['transaction_amount'] ?? [];
+        $currency = isset($txAmount['currency']) ? (string) $txAmount['currency'] : null;
+
+        $signedAmount = $isDebit ? -abs($rawAmount) : abs($rawAmount);
+
+        // Merchant name is the most meaningful note for card transactions.
+        $merchant     = $data['merchant'] ?? [];
+        $merchantName = is_array($merchant) ? trim((string) ($merchant['name'] ?? '')) : '';
+
+        $this->logger->info('[Wise] cards#transaction-state-change: merchant={merchant} currency={currency}', [
+            'merchant' => $merchantName !== '' ? $merchantName : '(empty)',
+            'currency' => $currency ?? 'null',
+        ]);
+
+        $note = $merchantName !== '' ? $merchantName : match ($txType) {
+            'cash_withdrawal' => 'Cash withdrawal',
+            'cash_advance'    => 'Cash advance',
+            'ecom_purchase'   => 'Online purchase',
+            'pos_purchase'    => 'Card payment',
+            'refund'          => 'Card refund',
+            'chargeback'      => 'Chargeback',
+            default           => 'Card transaction',
+        };
+
+        $this->logger->info('[Wise] cards#transaction-state-change: parsed OK → balance_id={bid} amount={amt} note="{note}"', [
+            'bid'  => $balanceId,
+            'amt'  => $signedAmount,
+            'note' => $note,
+        ]);
+
+        return new DraftTransactionData(
+            externalAccountId: (string) $balanceId,
+            amount: $signedAmount,
+            executedAt: new DateTimeImmutable((string) $occurredAt),
+            note: $note,
+            currency: $currency,
+        );
+    }
+
+    /**
      * Parses balances#update (all versions) and balances#credit v2.0.0.
      * All use the same flat data structure with snake_case fields.
+     *
+     * CARD channel transactions are intentionally skipped here — they are handled
+     * by parseCardTransactionPayload() via the cards#transaction-state-change webhook,
+     * which carries full merchant data. Returning null prevents duplicate drafts.
      */
     private function parseFlatPayload(array $data): ?DraftTransactionData
     {
+        $channel = strtoupper(trim((string) ($data['channel_name'] ?? '')));
+
+        // Skip CARD: handled by cards#transaction-state-change (merchant name available there).
+        if ($channel === 'CARD') {
+            $this->logger->info('[Wise] balances#update CARD channel skipped (step_id={step}) — expect cards#transaction-state-change for this tx.', [
+                'step' => $data['step_id'] ?? 'n/a',
+            ]);
+
+            return null;
+        }
+
         $resource = $data['resource'] ?? [];
         if (!is_array($resource)) {
             $resource = [];
@@ -183,6 +340,13 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
         $occurredAt = $data['occurred_at'] ?? null;
 
         if ($balanceId === null || $amount === null || $currency === null || $occurredAt === null) {
+            $this->logger->warning('[Wise] balances#update: missing required field(s) — balance_id={bid} amount={amt} currency={cur} occurred_at={ts}', [
+                'bid' => $balanceId ?? 'null',
+                'amt' => $amount ?? 'null',
+                'cur' => $currency ?? 'null',
+                'ts'  => $occurredAt ?? 'null',
+            ]);
+
             return null;
         }
 
@@ -195,6 +359,14 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
         }
 
         $note = $this->buildNoteFromFlatData($data);
+
+        $this->logger->info('[Wise] balances#update parsed: channel={channel} balance_id={bid} amount={amt} {currency} note="{note}"', [
+            'channel' => $channel ?: 'n/a',
+            'bid'     => $balanceId,
+            'amt'     => $signedAmount,
+            'currency' => $currency,
+            'note'    => $note,
+        ]);
 
         return new DraftTransactionData(
             externalAccountId: (string) $balanceId,
@@ -219,10 +391,15 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             throw new RuntimeException('Wise registerWebhook failed while listing subscriptions: ' . $e->getMessage(), 0, $e);
         }
 
-        // Determine which events still need registration.
-        // Also delete stale subscriptions pointing to our URL that use the wrong schema version —
-        // Wise schema 2.0.0 omits balance_id in real events; 3.0.0 is required for account matching.
-        $eventsToRegister = [self::WEBHOOK_TRIGGER_UPDATE];
+        // Map of event → required schema version.
+        // balances#update needs 3.0.0 (omits balance_id in 2.0.0).
+        // cards#transaction-state-change needs 2.1.0 (adds debits[].balance_id + creation_time).
+        $requiredVersions = [
+            self::WEBHOOK_TRIGGER_UPDATE  => self::WEBHOOK_DELIVERY_VERSION,
+            self::WEBHOOK_TRIGGER_CARD_TX => self::WEBHOOK_CARD_DELIVERY_VERSION,
+        ];
+        $eventsToRegister = array_keys($requiredVersions);
+
         foreach ($subscriptions as $subscription) {
             $event    = $subscription['trigger_on'] ?? null;
             $delivery = $subscription['delivery'] ?? [];
@@ -230,8 +407,13 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
                 continue;
             }
 
+            // Only manage events we own.
+            if (!array_key_exists($event, $requiredVersions)) {
+                continue;
+            }
+
             $existingVersion = (string) ($delivery['version'] ?? '');
-            if ($existingVersion !== self::WEBHOOK_DELIVERY_VERSION) {
+            if ($existingVersion !== $requiredVersions[$event]) {
                 // Wrong schema version — delete so we can recreate with the correct version.
                 $subId = $subscription['id'] ?? null;
                 if ($subId !== null) {
@@ -241,12 +423,12 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
                         // Best-effort; if delete fails we still try to create the new one below.
                     }
                 }
-                // Leave the event in $eventsToRegister so a fresh 3.0.0 sub gets created.
+                // Leave the event in $eventsToRegister so a fresh sub gets created.
                 continue;
             }
 
             // Correct version already exists — no need to register this event.
-            $eventsToRegister = array_filter($eventsToRegister, fn(string $e) => $e !== $event);
+            $eventsToRegister = array_values(array_filter($eventsToRegister, fn(string $e) => $e !== $event));
         }
 
         foreach ($eventsToRegister as $event) {
@@ -256,7 +438,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
                         'name'       => sprintf('Budget Wise %s', $event),
                         'trigger_on' => $event,
                         'delivery'   => [
-                            'version' => self::WEBHOOK_DELIVERY_VERSION,
+                            'version' => $requiredVersions[$event],
                             'url'     => $webhookUrl,
                         ],
                     ],

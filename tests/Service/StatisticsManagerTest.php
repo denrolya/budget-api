@@ -206,6 +206,106 @@ class StatisticsManagerTest extends TestCase
         self::assertNotEmpty($nonEmptyDays);
     }
 
+    public function testGenerateTransactionsValueByCategoriesByWeekdaysEmptyInputReturnsSevenEmptyDays(): void
+    {
+        $categoryRepo = $this->createMock(CategoryRepository::class);
+        $expenseCategoryRepo = $this->createMock(ExpenseCategoryRepository::class);
+        $expenseCategoryRepo->method('findRootCategories')->willReturn([]);
+
+        $statisticsManager = $this->createStatisticsManager(
+            $this->createAssetsManagerMock(),
+            $this->createMock(TransactionRepository::class),
+            $categoryRepo,
+            $expenseCategoryRepo,
+        );
+
+        $result = $statisticsManager->generateTransactionsValueByCategoriesByWeekdays([]);
+
+        self::assertCount(7, $result);
+        foreach ($result as $day) {
+            self::assertSame([], $day['values'], "Day {$day['name']} should have no values for empty input.");
+        }
+    }
+
+    /**
+     * Regression: old code used Carbon::dayOfWeek (0=Sun) as the divisor index, while buckets
+     * used dayOfWeekIso-1 (0=Mon). Monday transactions were divided by Sunday counts, etc.
+     *
+     * 2024-01-01 is a Monday. Two Monday transactions over exactly one week → average = (10+20)/1 = 30.
+     */
+    public function testGenerateTransactionsValueByCategoriesByWeekdaysMondayAverageDividedByMondayCount(): void
+    {
+        $food = $this->createCategory(1, 'Food');
+        $account = $this->createAccount(1, 'Cash', 'EUR');
+
+        // Both on Mondays (2024-01-01 and 2024-01-08), ordered DESC
+        $transactions = [
+            $this->createTransactionMock(20.0, Transaction::EXPENSE, '2024-01-08', $food, $account),
+            $this->createTransactionMock(10.0, Transaction::EXPENSE, '2024-01-01', $food, $account),
+        ];
+
+        $categoryRepo = $this->createMock(CategoryRepository::class);
+        $categoryRepo->method('buildDescendantMap')->willReturn([1 => [1]]);
+
+        $expenseCategoryRepo = $this->createMock(ExpenseCategoryRepository::class);
+        $expenseCategoryRepo->method('findRootCategories')->willReturn([$food]);
+
+        $statisticsManager = $this->createStatisticsManager(
+            $this->createAssetsManagerMock(),
+            $this->createMock(TransactionRepository::class),
+            $categoryRepo,
+            $expenseCategoryRepo,
+        );
+
+        $result = $statisticsManager->generateTransactionsValueByCategoriesByWeekdays($transactions);
+
+        // result[0] = Monday
+        self::assertSame('Monday', $result[0]['name']);
+        // Range Jan 1–8 contains exactly 2 Mondays → average = 30 / 2 = 15
+        self::assertEqualsWithDelta(15.0, $result[0]['values']['Food'], 0.001, 'Monday average must be divided by Monday count.');
+
+        // Sunday (index 6) has no Food values
+        self::assertSame('Sunday', $result[6]['name']);
+        self::assertArrayNotHasKey('Food', $result[6]['values']);
+    }
+
+    /**
+     * A single Sunday transaction must land in result[6] (Sunday), not result[0] (Monday).
+     * 2024-01-07 is a Sunday (dayOfWeekIso=7, index=6).
+     */
+    public function testGenerateTransactionsValueByCategoriesByWeekdaysSundayLandsInCorrectSlot(): void
+    {
+        $food = $this->createCategory(1, 'Food');
+        $account = $this->createAccount(1, 'Cash', 'EUR');
+
+        $transactions = [
+            $this->createTransactionMock(50.0, Transaction::EXPENSE, '2024-01-07', $food, $account), // Sunday
+        ];
+
+        $categoryRepo = $this->createMock(CategoryRepository::class);
+        $categoryRepo->method('buildDescendantMap')->willReturn([1 => [1]]);
+
+        $expenseCategoryRepo = $this->createMock(ExpenseCategoryRepository::class);
+        $expenseCategoryRepo->method('findRootCategories')->willReturn([$food]);
+
+        $statisticsManager = $this->createStatisticsManager(
+            $this->createAssetsManagerMock(),
+            $this->createMock(TransactionRepository::class),
+            $categoryRepo,
+            $expenseCategoryRepo,
+        );
+
+        $result = $statisticsManager->generateTransactionsValueByCategoriesByWeekdays($transactions);
+
+        self::assertSame('Sunday', $result[6]['name']);
+        self::assertArrayHasKey('Food', $result[6]['values']);
+
+        // Monday through Saturday must have no Food value
+        foreach (array_slice($result, 0, 6) as $day) {
+            self::assertArrayNotHasKey('Food', $day['values'], "{$day['name']} must have no Food value.");
+        }
+    }
+
     public function testAverageByPeriod(): void
     {
         $category = $this->createCategory(1, 'Food');

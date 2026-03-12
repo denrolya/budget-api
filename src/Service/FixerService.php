@@ -160,7 +160,7 @@ class FixerService extends BaseExchangeRatesProvider
      */
     public function getRates(?CarbonInterface $date = null): array
     {
-        return (!$date || $date->day === CarbonImmutable::now()->day)
+        return (!$date || $date->isSameDay(CarbonImmutable::now()))
             ? $this->getLatest()
             : $this->getHistorical($date);
     }
