@@ -49,7 +49,7 @@ class BankWebhookService
             throw new \LogicException(sprintf('Provider "%s" does not support webhooks.', $bank->value));
         }
 
-        $this->logger->debug('[BankWebhook] Raw payload from {bank}: {payload}', [
+        $this->logger->info('[BankWebhook] Raw payload from {bank}: {payload}', [
             'bank'    => $bank->value,
             'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
         ]);
@@ -91,12 +91,15 @@ class BankWebhookService
         $this->em->persist($transaction);
         $this->em->flush();
 
-        $this->logger->info('[BankWebhook] Transaction #{tx_id} created: {type} {amount} {currency} for account #{account_id}', [
+        $this->logger->info('[BankWebhook] Transaction #{tx_id} created: {type} {amount} {currency} for account #{account_id} | raw_note="{raw_note}" saved_note="{saved_note}" category="{category}"', [
             'tx_id'      => $transaction->getId(),
             'type'       => $data->amount >= 0 ? 'credit' : 'debit',
             'amount'     => abs($data->amount),
             'currency'   => $data->currency,
             'account_id' => $account->getId(),
+            'raw_note'   => $data->note,
+            'saved_note' => $transaction->getNote(),
+            'category'   => $transaction->getCategory()?->getName() ?? 'none',
         ]);
 
         return $transaction;
