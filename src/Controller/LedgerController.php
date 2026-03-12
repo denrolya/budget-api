@@ -9,6 +9,7 @@ use App\Entity\Transaction;
 use App\Entity\Transfer;
 use App\Entity\User;
 use App\Pagination\Paginator;
+use App\Repository\CategoryRepository;
 use App\Repository\TransactionRepository;
 use App\Repository\TransferRepository;
 use Carbon\CarbonImmutable;
@@ -24,6 +25,7 @@ final class LedgerController extends AbstractFOSRestController
     public function __construct(
         private readonly TransactionRepository $transactionRepository,
         private readonly TransferRepository $transferRepository,
+        private readonly CategoryRepository $categoryRepository,
     ) {
     }
 
@@ -43,6 +45,10 @@ final class LedgerController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'debt', description: 'Filter by debt IDs', nullable: true)]
     #[Rest\QueryParam(name: 'note', description: 'Search substring in note', nullable: true, allowBlank: true)]
     #[Rest\QueryParam(name: 'isDraft', requirements: '(0|1)', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'withNestedCategories', requirements: '^(0|1)$', default: null, description: 'Expand category filter to include descendants', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'currencies', description: 'Filter by account currency codes', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'amount[gte]', description: 'Amount >= value (numeric)', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'amount[lte]', description: 'Amount <= value (numeric)', nullable: true, allowBlank: true)]
     #[Rest\QueryParam(name: 'perPage', requirements: '^(20|50|100|[1-9][0-9]*)$', default: Paginator::PER_PAGE)]
     #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1)]
     #[Rest\View(serializerGroups: ['transaction:collection:read', 'transfer:collection:read'])]
@@ -57,6 +63,8 @@ final class LedgerController extends AbstractFOSRestController
         ?array $debt = null,
         ?string $note = null,
         ?string $isDraft = null,
+        ?string $withNestedCategories = null,
+        ?array $currencies = null,
         int $perPage = Paginator::PER_PAGE,
         int $page = 1,
     ): View {
@@ -67,14 +75,33 @@ final class LedgerController extends AbstractFOSRestController
             default => null,
         };
 
+        $amount    = $request->query->all('amount');
+        $amountGte = isset($amount['gte']) && is_numeric($amount['gte']) ? (float) $amount['gte'] : null;
+        $amountLte = isset($amount['lte']) && is_numeric($amount['lte']) ? (float) $amount['lte'] : null;
+
+        if ($amountGte !== null && $amountLte !== null && $amountGte > $amountLte) {
+            throw new \InvalidArgumentException('amount[gte] cannot be greater than amount[lte]');
+        }
+
         // ── Normalize account/category/debt to int arrays ──────────────────
         $accountIds  = $this->toIntArray($account);
         $categoryIds = $this->toIntArray($category);
         $debtIds     = $this->toIntArray($debt);
 
+        // ── Expand categories to include descendants when requested ─────────
+        if ($withNestedCategories === '1' && $categoryIds !== []) {
+            $txType = ($type === 'transfer') ? null : $type;
+            $expanded = $this->categoryRepository->getCategoriesWithDescendantsByType($categoryIds, $txType);
+            $categoryIds = array_map(static fn($c) => $c->getId(), $expanded);
+        }
+
         $includeTransactions = ($type === null || $type === Transaction::EXPENSE || $type === Transaction::INCOME);
-        // Transfers have no isDraft field — exclude them when draft filtering is active
-        $includeTransfers    = ($type === null || $type === 'transfer') && $isDraftBool === null;
+        // Transfers have no isDraft/currency/amount fields — exclude them when those filters are active
+        $includeTransfers    = ($type === null || $type === 'transfer')
+            && $isDraftBool === null
+            && $amountGte === null
+            && $amountLte === null
+            && empty($currencies);
 
         // ── Fetch data ──────────────────────────────────────────────────────
         $transactions = $includeTransactions ? $this->transactionRepository->getListForLedger(
@@ -86,6 +113,9 @@ final class LedgerController extends AbstractFOSRestController
             debts: $debtIds ?: null,
             note: $note,
             isDraft: $isDraftBool,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+            currencies: $currencies ?: null,
         ) : [];
 
         $transfers = $includeTransfers ? $this->transferRepository->getListForLedger(

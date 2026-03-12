@@ -517,4 +517,223 @@ class LedgerControllerTest extends BaseApiTestCase
         // totalValue for expense-only filter must be <= 0 (expenses are negative)
         self::assertLessThanOrEqual(0.0, $content['totalValue']);
     }
+
+    /**
+     * withNestedCategories=1 expands a parent category to include its descendants.
+     * withNestedCategories=0 (or absent) matches only the exact category IDs.
+     */
+    public function testWithNestedCategoriesFilter(): void
+    {
+        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof ExpenseCategory);
+
+        $foodCategory = $groceries->getParent();
+        assert($foodCategory !== null, 'Groceries must have a parent (Food & Drinks) in fixtures.');
+
+        $date = Carbon::parse('2026-01-15T12:00:00Z');
+
+        // Transaction under child (Groceries) — must appear when parent is filtered with withNested=1
+        $this->createExpense(
+            amount: 7.50,
+            account: $this->accountCashEUR,
+            category: $groceries,
+            executedAt: $date,
+            note: 'ledger-nested-cat-hit',
+        );
+
+        $this->em->clear();
+
+        // withNested=1 + parent category ID → child transaction must appear
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'                => '2026-01-01',
+            'before'               => '2026-01-31',
+            'type'                 => 'expense',
+            'category[]'           => [$foodCategory->getId()],
+            'withNestedCategories' => '1',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        $notes = array_column($items, 'note');
+        self::assertContains('ledger-nested-cat-hit', $notes, 'Child-category transaction must appear when withNestedCategories=1.');
+
+        // withNested=0 (or absent) + parent category ID → child transaction must NOT appear
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'                => '2026-01-01',
+            'before'               => '2026-01-31',
+            'type'                 => 'expense',
+            'category[]'           => [$foodCategory->getId()],
+            'withNestedCategories' => '0',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        $notes = array_column($items, 'note');
+        self::assertNotContains('ledger-nested-cat-hit', $notes, 'Child-category transaction must NOT appear when withNestedCategories=0.');
+    }
+
+    /**
+     * currencies[] filter returns only transactions whose account currency matches.
+     * Transfers must be excluded when currencies filter is active.
+     */
+    public function testCurrenciesFilter(): void
+    {
+        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof ExpenseCategory);
+
+        $date = Carbon::parse('2026-02-10T12:00:00Z');
+
+        $this->createExpense(
+            amount: 20.0,
+            account: $this->accountCashEUR,
+            category: $groceries,
+            executedAt: $date,
+            note: 'ledger-currencies-eur',
+        );
+        $this->createExpense(
+            amount: 500.0,
+            account: $this->accountCashUAH,
+            category: $groceries,
+            executedAt: $date,
+            note: 'ledger-currencies-uah',
+        );
+
+        // Also add a transfer in the same period — it must NOT appear when currencies filter is active
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount'     => '5.0',
+                'executedAt' => '2026-02-10T12:00:00Z',
+                'from'       => $this->iri($this->accountCashEUR),
+                'to'         => $this->iri($this->accountCashUAH),
+                'note'       => 'ledger-currencies-transfer',
+                'rate'       => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->em->clear();
+
+        // EUR only
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'        => '2026-02-01',
+            'before'       => '2026-02-28',
+            'currencies[]' => ['EUR'],
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+
+        foreach ($items as $item) {
+            // No transfer items (they have no currency field of their own)
+            self::assertArrayNotHasKey('from', $item, 'Transfers must be excluded when currencies filter is active.');
+            self::assertSame('EUR', $item['account']['currency'], 'Only EUR transactions must appear.');
+        }
+
+        $notes = array_column($items, 'note');
+        self::assertContains('ledger-currencies-eur', $notes);
+        self::assertNotContains('ledger-currencies-uah', $notes);
+
+        // UAH only
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'        => '2026-02-01',
+            'before'       => '2026-02-28',
+            'currencies[]' => ['UAH'],
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+
+        $notes = array_column($items, 'note');
+        self::assertContains('ledger-currencies-uah', $notes);
+        self::assertNotContains('ledger-currencies-eur', $notes);
+    }
+
+    /**
+     * amount[gte] / amount[lte] filter returns only transactions within the range.
+     * Transfers must be excluded when amount filters are active.
+     */
+    public function testAmountRangeFilter(): void
+    {
+        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof ExpenseCategory);
+
+        $date = Carbon::parse('2026-03-10T12:00:00Z');
+
+        $this->createExpense(amount: 10.0,  account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'amt-10');
+        $this->createExpense(amount: 50.0,  account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'amt-50');
+        $this->createExpense(amount: 200.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'amt-200');
+
+        // Also add a transfer — must NOT appear when amount filters are active
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount'     => '30.0',
+                'executedAt' => '2026-03-10T12:00:00Z',
+                'from'       => $this->iri($this->accountCashEUR),
+                'to'         => $this->iri($this->accountCashUAH),
+                'note'       => 'amt-transfer',
+                'rate'       => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->em->clear();
+
+        // gte=20, lte=100 → only amt-50
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'        => '2026-03-01',
+            'before'       => '2026-03-31',
+            'type'         => 'expense',
+            'amount[gte]'  => '20',
+            'amount[lte]'  => '100',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+
+        foreach ($items as $item) {
+            self::assertArrayNotHasKey('from', $item, 'Transfers must be excluded when amount filter is active.');
+        }
+
+        $notes = array_column($items, 'note');
+        self::assertContains('amt-50', $notes);
+        self::assertNotContains('amt-10', $notes);
+        self::assertNotContains('amt-200', $notes);
+
+        // gte only
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'       => '2026-03-01',
+            'before'      => '2026-03-31',
+            'type'        => 'expense',
+            'amount[gte]' => '100',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        $notes = array_column($items, 'note');
+        self::assertContains('amt-200', $notes);
+        self::assertNotContains('amt-10', $notes);
+        self::assertNotContains('amt-50', $notes);
+
+        // lte only
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'       => '2026-03-01',
+            'before'      => '2026-03-31',
+            'type'        => 'expense',
+            'amount[lte]' => '15',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        $notes = array_column($items, 'note');
+        self::assertContains('amt-10', $notes);
+        self::assertNotContains('amt-50', $notes);
+        self::assertNotContains('amt-200', $notes);
+    }
+
+    /**
+     * amount[gte] > amount[lte] must result in an error response (not 2xx).
+     * TODO: improve to 400 by mapping InvalidArgumentException to BadRequestHttpException.
+     */
+    public function testInvalidAmountRangeReturnsError(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'       => '2026-03-01',
+            'before'      => '2026-03-31',
+            'amount[gte]' => '500',
+            'amount[lte]' => '100',
+        ]));
+
+        self::assertGreaterThanOrEqual(400, $response->getStatusCode(), 'amount[gte] > amount[lte] must not return 2xx.');
+    }
 }

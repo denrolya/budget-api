@@ -131,6 +131,9 @@ class TransactionRepository extends ServiceEntityRepository
         ?array $debts = null,
         ?string $note = null,
         ?bool $isDraft = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+        ?array $currencies = null,
         int $limit = 1000,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER,
@@ -145,6 +148,9 @@ class TransactionRepository extends ServiceEntityRepository
             debts: $debts,
             isDraft: $isDraft,
             note: $note,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+            currencies: $currencies,
             orderField: $orderField,
             order: $order,
             excludeTransferTransactions: true,
@@ -451,8 +457,11 @@ class TransactionRepository extends ServiceEntityRepository
             return;
         }
 
+        $flat = [];
+        array_walk_recursive($currencies, static function (mixed $v) use (&$flat): void { $flat[] = $v; });
+
         $normalized = [];
-        foreach ($currencies as $c) {
+        foreach ($flat as $c) {
             if (!is_string($c)) {
                 continue;
             }
