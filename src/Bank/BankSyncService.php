@@ -155,6 +155,8 @@ class BankSyncService
 
             foreach ($items as $item) {
                 if ($this->isDuplicate($account, $item)) {
+                    // Duplicate exists — try to enrich if incoming note is better.
+                    $this->enrichExistingDraft($account, $item);
                     continue;
                 }
 
@@ -191,22 +193,91 @@ class BankSyncService
         ];
     }
 
+    /**
+     * Legacy generic notes that carry no real information.
+     * Shared with BankWebhookService — if an existing draft has one of these,
+     * it can be enriched with real data from a richer source.
+     */
+    private const GENERIC_NOTES = [
+        '',
+        'Card payment',
+        'Online purchase',
+        'Cash withdrawal',
+        'Cash advance',
+        'Card transaction',
+        'Card refund',
+        'Chargeback',
+        'Balance transfer',
+        'Currency conversion',
+        'International transfer',
+        'SEPA transfer',
+        'Direct debit',
+        'Wise transaction',
+        'Transfer received',
+    ];
+
     private function isDuplicate(BankCardAccount $account, DraftTransactionData $data): bool
     {
-        // Round executedAt to minute precision for comparison
+        return $this->findDuplicate($account, $data) !== null;
+    }
+
+    private function findDuplicate(BankCardAccount $account, DraftTransactionData $data): ?Transaction
+    {
         $minuteStr = $data->executedAt->format('Y-m-d H:i');
 
-        $qb = $this->em->createQueryBuilder()
-            ->select('COUNT(t.id)')
+        return $this->em->createQueryBuilder()
+            ->select('t')
             ->from(Transaction::class, 't')
             ->where('t.account = :account')
             ->andWhere('t.amount = :amount')
             ->andWhere('DATE_FORMAT(t.executedAt, \'%Y-%m-%d %H:%i\') = :ts')
             ->setParameter('account', $account)
             ->setParameter('amount', abs($data->amount))
-            ->setParameter('ts', $minuteStr);
+            ->setParameter('ts', $minuteStr)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 
-        return (int) $qb->getQuery()->getSingleScalarResult() > 0;
+    /**
+     * When a duplicate exists and the incoming data has a richer note,
+     * update the existing draft's note and re-categorize.
+     */
+    private function enrichExistingDraft(BankCardAccount $account, DraftTransactionData $data): void
+    {
+        if (trim($data->note) === '') {
+            return;
+        }
+
+        $existing = $this->findDuplicate($account, $data);
+        if ($existing === null) {
+            return;
+        }
+
+        try {
+            $existingNote = trim($existing->getNote() ?? '');
+        } catch (\Error) {
+            $existingNote = '';
+        }
+
+        if ($existingNote !== '' && !in_array($existingNote, self::GENERIC_NOTES, true)) {
+            return;
+        }
+
+        $isIncome       = $data->amount > 0;
+        $categorization = $this->categorizationService->suggest($data->note, $isIncome);
+
+        $existing->setNote($categorization->note);
+
+        if ($isIncome) {
+            $category = $this->em->getRepository(IncomeCategory::class)->find($categorization->categoryId);
+        } else {
+            $category = $this->em->getRepository(ExpenseCategory::class)->find($categorization->categoryId);
+        }
+
+        if ($category !== null) {
+            $existing->setCategory($category);
+        }
     }
 
     private function buildDraftTransaction(BankCardAccount $account, DraftTransactionData $data): Transaction

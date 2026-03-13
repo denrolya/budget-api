@@ -591,21 +591,15 @@ class WiseProviderTest extends TestCase
         self::assertNull($result);
     }
 
-    public function testRegisterWebhookSkipsCreateWhenBothSubscriptionsExist(): void
+    public function testRegisterWebhookSkipsCreateWhenSubscriptionExists(): void
     {
-        // Both balances#update (3.0.0) and cards#transaction-state-change (2.1.0) already exist
-        // → no POSTs, only the two GETs.
+        // balances#update 3.0.0 already exists → no POSTs, only GETs.
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([
             [
                 'id'         => 'abc-123',
                 'trigger_on' => 'balances#update',
                 'delivery'   => ['version' => '3.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
-            ],
-            [
-                'id'         => 'def-456',
-                'trigger_on' => 'cards#transaction-state-change',
-                'delivery'   => ['version' => '2.1.0', 'url' => 'https://example.com/api/webhooks/wise'],
             ],
         ]);
 
@@ -620,35 +614,9 @@ class WiseProviderTest extends TestCase
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
     }
 
-    public function testRegisterWebhookSkipsCreateWhenCorrectSubscriptionAlreadyExists(): void
-    {
-        // balances#update 3.0.0 already exists; cards#transaction-state-change does not
-        // → 1 POST for the card event.
-        $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
-        $subscriptionsBody = json_encode([
-            [
-                'id'         => 'abc-123',
-                'trigger_on' => 'balances#update',
-                'delivery'   => ['version' => '3.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
-            ],
-        ]);
-
-        $this->http
-            ->expects(self::exactly(3))
-            ->method('request')
-            ->willReturnOnConsecutiveCalls(
-                $this->mockResponse($profilesBody),
-                $this->mockResponse($subscriptionsBody),
-                $this->mockResponse('{}'),  // POST cards#transaction-state-change 2.1.0
-            );
-
-        $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
-    }
-
     public function testRegisterWebhookReplacesStaleSchemaSubscription(): void
     {
-        // Existing balances#update subscription uses 2.0.0 (wrong) — expect DELETE + POST.
-        // cards#transaction-state-change is also missing → 1 more POST.
+        // Existing balances#update uses 2.0.0 (wrong) — expect DELETE + POST.
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([
             [
@@ -659,14 +627,13 @@ class WiseProviderTest extends TestCase
         ]);
 
         $this->http
-            ->expects(self::exactly(5))
+            ->expects(self::exactly(4))
             ->method('request')
             ->willReturnOnConsecutiveCalls(
                 $this->mockResponse($profilesBody),     // GET /v2/profiles
                 $this->mockResponse($subscriptionsBody), // GET subscriptions
                 $this->mockResponse(''),                 // DELETE stale balances#update sub
                 $this->mockResponse('{}'),               // POST balances#update 3.0.0
-                $this->mockResponse('{}'),               // POST cards#transaction-state-change 2.1.0
             );
 
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
@@ -678,13 +645,12 @@ class WiseProviderTest extends TestCase
         $subscriptionsBody = json_encode([]);
 
         $this->http
-            ->expects(self::exactly(4))
+            ->expects(self::exactly(3))
             ->method('request')
             ->willReturnOnConsecutiveCalls(
                 $this->mockResponse($profilesBody),
                 $this->mockResponse($subscriptionsBody),
                 $this->mockResponse('{}'), // POST balances#update
-                $this->mockResponse('{}'), // POST cards#transaction-state-change
             );
 
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
@@ -694,14 +660,7 @@ class WiseProviderTest extends TestCase
     {
         // Verify that the balances#update POST uses schema version 3.0.0.
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
-        $subscriptionsBody = json_encode([
-            // Only card sub exists; balances#update is missing.
-            [
-                'id'         => 'def-456',
-                'trigger_on' => 'cards#transaction-state-change',
-                'delivery'   => ['version' => '2.1.0', 'url' => 'https://example.com/api/webhooks/wise'],
-            ],
-        ]);
+        $subscriptionsBody = json_encode([]);
 
         $capturedJson = null;
         $this->http
@@ -726,48 +685,12 @@ class WiseProviderTest extends TestCase
         self::assertSame('3.0.0', $capturedJson['delivery']['version'] ?? null);
     }
 
-    public function testRegisterWebhookCreatesCardSubscriptionWith210(): void
+    public function testRegisterWebhookSkips403AndContinues(): void
     {
-        // Verify that the cards#transaction-state-change POST uses schema version 2.1.0.
-        $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
-        $subscriptionsBody = json_encode([
-            // Only balances#update exists; card sub is missing.
-            [
-                'id'         => 'abc-123',
-                'trigger_on' => 'balances#update',
-                'delivery'   => ['version' => '3.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
-            ],
-        ]);
-
-        $capturedJson = null;
-        $this->http
-            ->expects(self::exactly(3))
-            ->method('request')
-            ->willReturnCallback(function (string $method, string $url, array $options = []) use (&$capturedJson, $profilesBody, $subscriptionsBody) {
-                if ($method === 'POST') {
-                    $capturedJson = $options['json'] ?? null;
-                }
-                if (str_contains($url, '/v2/profiles')) {
-                    return $this->mockResponse($profilesBody);
-                }
-                if ($method === 'GET') {
-                    return $this->mockResponse($subscriptionsBody);
-                }
-                return $this->mockResponse('{}');
-            });
-
-        $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
-
-        self::assertSame('cards#transaction-state-change', $capturedJson['trigger_on'] ?? null);
-        self::assertSame('2.1.0', $capturedJson['delivery']['version'] ?? null);
-    }
-
-    public function testRegisterWebhookThrowsLogicExceptionOn403(): void
-    {
+        // 403 on a subscription POST should log a warning and continue, not throw.
         $profilesBody      = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([]);
 
-        // Build a real ResponseInterface mock that returns 403 and throws on getContent(true)
         $forbiddenResponse = $this->createMock(ResponseInterface::class);
         $forbiddenResponse->method('getStatusCode')->willReturn(403);
         $forbiddenResponse->method('getContent')->willReturnCallback(
@@ -775,7 +698,7 @@ class WiseProviderTest extends TestCase
                 if ($throw) {
                     throw $httpException;
                 }
-                return '{"error":"unauthorized"}';
+                return '{"code":"EVENT_TYPE_NOT_PERMITTED"}';
             }
         );
 
@@ -784,8 +707,7 @@ class WiseProviderTest extends TestCase
             public function getResponse(): ResponseInterface { return $this->r; }
         };
 
-        // GET profiles + GET subscriptions (empty) + POST balances#update (→ 403, throws immediately).
-        // The card event POST is never reached because the exception is thrown first.
+        // GET profiles + GET subscriptions (empty) + POST balances#update → 403 (skipped with warning).
         $this->http
             ->expects(self::exactly(3))
             ->method('request')
@@ -795,7 +717,7 @@ class WiseProviderTest extends TestCase
                 $forbiddenResponse,
             );
 
-        $this->expectException(\LogicException::class);
+        // Should NOT throw — 403 is now logged and skipped.
         $this->provider->registerWebhook([], 'https://example.com/api/webhooks/wise');
     }
 

@@ -510,10 +510,15 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
         // Map of event → required schema version.
         // balances#update needs 3.0.0 (omits balance_id in 2.0.0).
-        // cards#transaction-state-change needs 2.1.0 (adds debits[].balance_id + creation_time).
+        //
+        // NOTE: cards#transaction-state-change is application-level only
+        // (not available for profile/personal-token subscriptions).
+        // Card transactions are captured via balances#update (CARD channel)
+        // and enriched via Activities API polling.
+        // If cards#transaction-state-change is ever registered manually via
+        // Wise UI, parseWebhookPayload() will still handle it.
         $requiredVersions = [
-            self::WEBHOOK_TRIGGER_UPDATE  => self::WEBHOOK_DELIVERY_VERSION,
-            self::WEBHOOK_TRIGGER_CARD_TX => self::WEBHOOK_CARD_DELIVERY_VERSION,
+            self::WEBHOOK_TRIGGER_UPDATE => self::WEBHOOK_DELIVERY_VERSION,
         ];
         $eventsToRegister = array_keys($requiredVersions);
 
@@ -563,11 +568,14 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
             } catch (HttpExceptionInterface | TransportExceptionInterface $e) {
                 if ($e instanceof HttpExceptionInterface) {
                     $message = $this->formatWiseHttpError('registerWebhook(create)', $e);
-                    // 403 = token lacks webhook management permission; treat as a skippable
-                    // condition so the command does not fail — register webhooks manually
-                    // in Wise UI (Settings → Developer tools → Webhooks) if this occurs.
+                    // 403 = token lacks permission for this event type (e.g. app-level-only events
+                    // on a personal token). Log and continue — don't block other registrations.
                     if ($e->getResponse()->getStatusCode() === 403) {
-                        throw new \LogicException($message, 0, $e);
+                        $this->logger->warning('[Wise] {msg} — skipping, register manually in Wise UI if needed.', [
+                            'msg'   => $message,
+                            'event' => $event,
+                        ]);
+                        continue;
                     }
                     throw new RuntimeException($message, 0, $e);
                 }
