@@ -164,17 +164,36 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
             $cursor     = $page['cursor'] ?? null;
 
             foreach ($activities as $activity) {
-                $primary  = $activity['primaryAmount'] ?? [];
-                $currency = isset($primary['currency']) ? (string) $primary['currency'] : null;
+                // primaryAmount is a string like "840 HUF" or "-5,047.61 EUR"
+                $primary  = $activity['primaryAmount'] ?? null;
+                $currency = null;
+                $value    = null;
+                if (is_string($primary) && preg_match('/([+-]?[\d,\.]+)\s+([A-Z]{3})/i', $primary, $m)) {
+                    $currency = strtoupper($m[2]);
+                    $value    = (float) str_replace(',', '', $m[1]);
+                } elseif (is_array($primary)) {
+                    // fallback for potential future object format
+                    $currency = isset($primary['currency']) ? (string) $primary['currency'] : null;
+                    $value    = isset($primary['value']) ? (float) $primary['value'] : null;
+                }
 
                 // Filter: only activities matching the requested balance's currency
                 if ($currency !== $balanceCurrency) {
                     continue;
                 }
 
-                $value = isset($primary['value']) ? (float) $primary['value'] : null;
                 if ($value === null) {
                     continue;
+                }
+
+                // Determine sign: Activities API returns unsigned amounts for debits.
+                // CARD_PAYMENT is always a debit → negate. Explicit +/- in the string takes precedence.
+                $hasExplicitSign = is_string($primary) && preg_match('/^[+-]/', ltrim($primary));
+                if (!$hasExplicitSign) {
+                    $activityType = strtoupper((string) ($activity['type'] ?? ''));
+                    if ($activityType === 'CARD_PAYMENT') {
+                        $value = -abs($value);
+                    }
                 }
 
                 $title       = strip_tags(trim((string) ($activity['title'] ?? '')));
@@ -187,6 +206,14 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
                 // Note: prefer title (often merchant name), fall back to description, then empty.
                 $note = $title !== '' ? $title : ($description !== '' ? $description : '');
+
+                $this->logger->info('[Wise] activity: type={type} amount={amt} {cur} note="{note}" date={date}', [
+                    'type' => $activity['type'] ?? '?',
+                    'amt'  => $value,
+                    'cur'  => $currency,
+                    'note' => $note,
+                    'date' => $createdOn,
+                ]);
 
                 $results[] = new DraftTransactionData(
                     externalAccountId: $externalAccountId,

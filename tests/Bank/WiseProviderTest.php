@@ -722,6 +722,69 @@ class WiseProviderTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // fetchTransactions (Activities API)
+    // -------------------------------------------------------------------------
+
+    public function testFetchTransactionsParsesStringPrimaryAmount(): void
+    {
+        // Activities API returns primaryAmount as a string like "840 HUF", not an object.
+        // This test guards against the regression where object-based parsing silently dropped all activities.
+        $this->makeCacheCallThrough();
+
+        $profilesBody  = json_encode([['id' => 47346835, 'type' => 'personal']]);
+        $balancesBody  = json_encode([
+            ['id' => 89046937, 'totalWorth' => ['currency' => 'HUF', 'value' => 1000.00]],
+        ]);
+        $activitiesBody = json_encode([
+            'cursor'     => null,
+            'activities' => [
+                [
+                    'type'            => 'CARD_PAYMENT',
+                    'resource'        => ['type' => 'CARD_TRANSACTION', 'id' => '123'],
+                    'title'           => '<strong>Lidl Budapest</strong>',
+                    'description'     => 'Card payment',
+                    'primaryAmount'   => '840 HUF',
+                    'secondaryAmount' => '2.10 EUR',
+                    'status'          => 'COMPLETED',
+                    'createdOn'       => '2026-03-13T10:32:42Z',
+                    'updatedOn'       => '2026-03-13T10:32:43Z',
+                ],
+                [
+                    // Different currency — should be filtered out
+                    'type'          => 'CARD_PAYMENT',
+                    'resource'      => ['type' => 'CARD_TRANSACTION', 'id' => '456'],
+                    'title'         => '<strong>Amazon</strong>',
+                    'primaryAmount' => '12.99 EUR',
+                    'status'        => 'COMPLETED',
+                    'createdOn'     => '2026-03-13T09:00:00Z',
+                    'updatedOn'     => '2026-03-13T09:00:01Z',
+                ],
+            ],
+        ]);
+
+        $this->http
+            ->expects(self::exactly(3))
+            ->method('request')
+            ->willReturnOnConsecutiveCalls(
+                $this->mockResponse($profilesBody),
+                $this->mockResponse($balancesBody),
+                $this->mockResponse($activitiesBody),
+            );
+
+        $results = $this->provider->fetchTransactions(
+            credentials: [],
+            externalAccountId: '89046937',
+            from: new \DateTimeImmutable('2026-02-11T00:00:00Z'),
+            to: new \DateTimeImmutable('2026-03-13T23:59:59Z'),
+        );
+
+        self::assertCount(1, $results, 'Only the HUF activity should be returned');
+        self::assertSame(-840.0, $results[0]->amount);
+        self::assertSame('HUF', $results[0]->currency);
+        self::assertSame('Lidl Budapest', $results[0]->note);
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
