@@ -166,7 +166,6 @@ class StatisticsManagerTest extends TestCase
 
         self::assertNotNull($result);
         self::assertSame('Salary', $result['name']);
-        self::assertSame('salary-icon', $result['icon']);
         self::assertSame(80.0, $result['value']);
     }
 
@@ -376,7 +375,6 @@ class StatisticsManagerTest extends TestCase
     {
         $category = (new ExpenseCategory())
             ->setName($name)
-            ->setIcon($icon)
             ->setCreatedAt(CarbonImmutable::now())
             ->setUpdatedAt(CarbonImmutable::now());
 
@@ -389,7 +387,6 @@ class StatisticsManagerTest extends TestCase
     {
         $category = (new IncomeCategory())
             ->setName($name)
-            ->setIcon($icon)
             ->setCreatedAt(CarbonImmutable::now())
             ->setUpdatedAt(CarbonImmutable::now());
 
