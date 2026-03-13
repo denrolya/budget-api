@@ -11,6 +11,7 @@ use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Entity\User;
+use App\Service\PushNotificationService;
 use App\Service\TransactionCategorizationService;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -35,6 +36,7 @@ class BankWebhookService
         private readonly LoggerInterface $logger,
         private readonly TransactionCategorizationService $categorizationService,
         private readonly BankSyncService $syncService,
+        private readonly PushNotificationService $pushService,
     ) {
     }
 
@@ -143,6 +145,8 @@ class BankWebhookService
             'cat'  => $transaction->getCategory()?->getName() ?? 'none',
         ]);
 
+        $this->notifyTransaction($transaction, $owner, $account);
+
         return $transaction;
     }
 
@@ -246,6 +250,30 @@ class BankWebhookService
         $this->em->flush();
 
         return $existing;
+    }
+
+    private function notifyTransaction(Transaction $transaction, User $owner, BankCardAccount $account): void
+    {
+        try {
+            $isExpense = $transaction instanceof Expense;
+            $amount    = $transaction->getAmount();
+            $currency  = $account->getCurrency();
+            $note      = $transaction->getNote() ?? '';
+            $category  = $transaction->getCategory()?->getName() ?? '';
+
+            $sign = $isExpense ? '−' : '+';
+            $body = trim(sprintf('%s%s %s · %s', $sign, number_format($amount, 2), $currency, $note ?: $category));
+
+            $this->pushService->sendToUser($owner, [
+                'title' => $account->getName(),
+                'body'  => $body,
+                'url'   => '/m/ledger',
+                'tag'   => 'tx-'.$account->getId(),
+            ]);
+        } catch (\Throwable $e) {
+            // Never let a push failure break the webhook flow
+            $this->logger->warning('[BankWebhook] Push notification failed: {msg}', ['msg' => $e->getMessage()]);
+        }
     }
 
     private function buildDraftTransaction(BankCardAccount $account, DraftTransactionData $data): Transaction

@@ -14,8 +14,10 @@
     "doctrine/doctrine-migrations-bundle": "^3.3",
     "doctrine/orm": "~2.16",
     "friendsofsymfony/rest-bundle": "^3.7",
+    "jms/serializer-bundle": "^5.4",
     "league/csv": "^9.27",
     "lexik/jwt-authentication-bundle": "^2.20",
+    "minishlink/web-push": "^10.0",
     "nelmio/cors-bundle": "^2.4",
     "nesbot/carbon": "^2.72",
     "phpdocumentor/reflection-docblock": "^5.3",
@@ -38,8 +40,7 @@
     "symfony/serializer": "6.4.*",
     "symfony/twig-bundle": "6.4.*",
     "symfony/validator": "6.4.*",
-    "symfony/yaml": "6.4.*",
-    "jms/serializer-bundle": "^5.4"
+    "symfony/yaml": "6.4.*"
   },
   "require-dev": {
     "dama/doctrine-test-bundle": "^8.0",
