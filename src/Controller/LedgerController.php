@@ -103,7 +103,8 @@ final class LedgerController extends AbstractFOSRestController
             && $isDraftBool === null
             && $amountGte === null
             && $amountLte === null
-            && empty($currencies);
+            && empty($currencies)
+            && empty($debtIds);
 
         // ── Fetch data ──────────────────────────────────────────────────────
         $transactions = $includeTransactions ? $this->transactionRepository->getListForLedger(
