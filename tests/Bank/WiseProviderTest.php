@@ -414,9 +414,10 @@ class WiseProviderTest extends TestCase
         self::assertNull($result);
     }
 
-    public function testParseWebhookPayloadSkipsCardChannelInBalancesUpdate(): void
+    public function testParseWebhookPayloadProcessesCardChannelInBalancesUpdate(): void
     {
-        // balances#update for CARD channel must return null — handled by cards#transaction-state-change.
+        // balances#update for CARD channel must create a draft — cards#transaction-state-change
+        // is not reliably delivered, so CARD channel events serve as the reliable fallback.
         $result = $this->provider->parseWebhookPayload([
             'event_type' => 'balances#update',
             'data' => [
@@ -431,7 +432,11 @@ class WiseProviderTest extends TestCase
             ],
         ]);
 
-        self::assertNull($result);
+        self::assertNotNull($result);
+        self::assertSame('89046937', $result->externalAccountId);
+        self::assertSame(-11482.0, $result->amount);
+        self::assertSame('HUF', $result->currency);
+        self::assertSame('', $result->note); // empty — no merchant data in balances#update
     }
 
     public function testParseCardTransactionWebhookCreatesDraftWithMerchantName(): void
@@ -470,7 +475,7 @@ class WiseProviderTest extends TestCase
         self::assertSame('2026-03-12T18:37:10+00:00', $result->executedAt->format(\DateTimeInterface::ATOM));
     }
 
-    public function testParseCardTransactionWebhookFallsBackToTransactionTypeWhenNoMerchant(): void
+    public function testParseCardTransactionWebhookReturnsEmptyNoteWhenNoMerchant(): void
     {
         $result = $this->provider->parseWebhookPayload([
             'event_type' => 'cards#transaction-state-change',
@@ -481,15 +486,52 @@ class WiseProviderTest extends TestCase
                 'transaction_amount' => ['value' => 100.0, 'currency' => 'EUR'],
                 'merchant'           => [],
                 'debits' => [
-                    ['balance_id' => 555, 'debited_amount' => 100.0, 'creation_time' => '2026-03-12T10:00:00Z'],
+                    ['balance_id' => 555, 'debited_amount' => 100.0, 'rate' => 1.0, 'creation_time' => '2026-03-12T10:00:00Z'],
                 ],
                 'credits' => [],
             ],
         ]);
 
         self::assertInstanceOf(DraftTransactionData::class, $result);
-        self::assertSame('Cash withdrawal', $result->note);
+        self::assertSame('', $result->note); // empty — no merchant data, same currency
         self::assertEqualsWithDelta(-100.0, $result->amount, 0.001);
+    }
+
+    public function testParseCardTransactionWebhookIncludesExchangeRateForCrossCurrency(): void
+    {
+        $result = $this->provider->parseWebhookPayload([
+            'event_type'     => 'cards#transaction-state-change',
+            'schema_version' => '2.1.0',
+            'sent_at'        => '2026-03-13T08:09:43Z',
+            'data'           => [
+                'transaction_state'  => 'COMPLETED',
+                'transaction_type'   => 'POS_PURCHASE',
+                'transaction_amount' => ['value' => 15.20, 'currency' => 'EUR'],
+                'merchant'           => [
+                    'name'     => 'Lidl',
+                    'location' => ['country' => 'Hungary', 'city' => 'Budapest'],
+                ],
+                'debits' => [
+                    [
+                        'balance_id'     => 89046937,
+                        'debited_amount' => 5692.0,
+                        'rate'           => 374.4737,
+                        'creation_time'  => '2026-03-13T08:09:43Z',
+                    ],
+                ],
+                'credits' => [],
+            ],
+        ]);
+
+        self::assertInstanceOf(DraftTransactionData::class, $result);
+        self::assertSame('89046937', $result->externalAccountId);
+        self::assertEqualsWithDelta(-5692.0, $result->amount, 0.001);
+        self::assertSame('EUR', $result->currency);
+        // Note should include merchant name, city, and exchange rate info
+        self::assertStringContainsString('Lidl', $result->note);
+        self::assertStringContainsString('Budapest', $result->note);
+        self::assertStringContainsString('EUR', $result->note);
+        self::assertStringContainsString('374.4737', $result->note);
     }
 
     public function testParseCardTransactionWebhookReturnsNullForNonCompleted(): void

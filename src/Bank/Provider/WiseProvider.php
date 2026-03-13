@@ -6,6 +6,7 @@ use App\Bank\BankProvider;
 use App\Bank\BankProviderInterface;
 use App\Bank\DTO\BankAccountData;
 use App\Bank\DTO\DraftTransactionData;
+use App\Bank\PollingCapableInterface;
 use App\Bank\WebhookCapableInterface;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
@@ -38,7 +39,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * externalAccountId on BankCardAccount = Wise balanceId (numeric string).
  * HTTP auth (Bearer token) is configured on the wise_client scoped HTTP client.
  */
-class WiseProvider implements BankProviderInterface, WebhookCapableInterface
+class WiseProvider implements BankProviderInterface, WebhookCapableInterface, PollingCapableInterface
 {
     private const CACHE_TTL = 86400; // 24 hours
     private const WEBHOOK_TRIGGER_UPDATE    = 'balances#update';              // any balance change (credit or debit)
@@ -105,6 +106,129 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
     public function fetchExchangeRates(array $credentials): ?array
     {
         return $this->getLatest();
+    }
+
+    // -------------------------------------------------------------------------
+    // PollingCapableInterface — Activities API (no SCA required)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Fetches transactions for a Wise balance via the Activities API.
+     *
+     * The Activities API (GET /v1/profiles/{id}/activities) does not return balance_id
+     * per activity, so we match by currency: we look up the balance's currency from
+     * GET /v4/profiles/{id}/balances (cached) and filter activities by that currency.
+     *
+     * @return DraftTransactionData[]
+     */
+    public function fetchTransactions(
+        array $credentials,
+        string $externalAccountId,
+        DateTimeImmutable $from,
+        DateTimeImmutable $to,
+    ): array {
+        $profileId      = $this->getPersonalProfileId();
+        $balanceCurrency = $this->getBalanceCurrency($profileId, $externalAccountId);
+
+        if ($balanceCurrency === null) {
+            $this->logger->warning('[Wise] fetchTransactions: cannot resolve currency for balance {bid}', [
+                'bid' => $externalAccountId,
+            ]);
+
+            return [];
+        }
+
+        $results = [];
+        $cursor  = null;
+
+        do {
+            $query = [
+                'since'  => $from->format('c'),
+                'until'  => $to->format('c'),
+                'status' => 'COMPLETED',
+                'size'   => 100,
+            ];
+            if ($cursor !== null) {
+                $query['nextCursor'] = $cursor;
+            }
+
+            try {
+                $page = $this->requestJson('GET', "/v1/profiles/{$profileId}/activities", 'fetchTransactions', [
+                    'query' => $query,
+                ]);
+            } catch (RuntimeException $e) {
+                throw new RuntimeException("Wise fetchTransactions failed: {$e->getMessage()}", 0, $e);
+            }
+
+            $activities = $page['activities'] ?? [];
+            $cursor     = $page['cursor'] ?? null;
+
+            foreach ($activities as $activity) {
+                $primary  = $activity['primaryAmount'] ?? [];
+                $currency = isset($primary['currency']) ? (string) $primary['currency'] : null;
+
+                // Filter: only activities matching the requested balance's currency
+                if ($currency !== $balanceCurrency) {
+                    continue;
+                }
+
+                $value = isset($primary['value']) ? (float) $primary['value'] : null;
+                if ($value === null) {
+                    continue;
+                }
+
+                $title       = strip_tags(trim((string) ($activity['title'] ?? '')));
+                $description = trim((string) ($activity['description'] ?? ''));
+                $createdOn   = $activity['createdOn'] ?? null;
+
+                if ($createdOn === null) {
+                    continue;
+                }
+
+                // Note: prefer title (often merchant name), fall back to description, then empty.
+                $note = $title !== '' ? $title : ($description !== '' ? $description : '');
+
+                $results[] = new DraftTransactionData(
+                    externalAccountId: $externalAccountId,
+                    amount: $value, // Activities API returns signed values (negative for debits)
+                    executedAt: new DateTimeImmutable((string) $createdOn),
+                    note: $note,
+                    currency: $currency,
+                );
+            }
+        } while ($cursor !== null && !empty($activities));
+
+        $this->logger->info('[Wise] fetchTransactions: {n} activities for balance {bid} ({cur})', [
+            'n'   => count($results),
+            'bid' => $externalAccountId,
+            'cur' => $balanceCurrency,
+        ]);
+
+        return $results;
+    }
+
+    /**
+     * Resolves the currency for a given balance ID via the balances API (cached per request).
+     */
+    private function getBalanceCurrency(int $profileId, string $balanceId): ?string
+    {
+        try {
+            $balances = $this->cache->get("wise.balances.{$profileId}", function (ItemInterface $item) use ($profileId) {
+                $item->expiresAfter(300); // 5 min cache for balance list
+
+                return $this->requestJson('GET', "/v4/profiles/{$profileId}/balances?types=STANDARD", 'getBalanceCurrency');
+            });
+        } catch (RuntimeException) {
+            return null;
+        }
+
+        foreach ($balances as $balance) {
+            if ((string) ($balance['id'] ?? '') === $balanceId) {
+                return $balance['totalWorth']['currency'] ?? $balance['amount']['currency'] ?? null;
+            }
+        }
+
+        return null;
     }
 
     // -------------------------------------------------------------------------
@@ -193,26 +317,17 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
      * Parses cards#transaction-state-change (v2.1.0).
      *
      * Only COMPLETED transactions are processed.
-     * v2.1.0 adds debits[].balance_id (account matching) and debits[].creation_time (timestamp).
-     * Merchant name is taken from data.merchant.name when present.
+     * v2.1.0 adds debits[].balance_id, debits[].creation_time, debits[].rate.
      *
-     * Expected shape:
-     *   data.transaction_state         → "COMPLETED" | "IN_PROGRESS" | "DECLINED" | "CANCELLED"
-     *   data.transaction_amount.value  → signed amount in merchant currency
-     *   data.transaction_amount.currency
-     *   data.merchant.name             → merchant display name (may be absent for non-POS)
-     *   data.transaction_type          → POS_PURCHASE | ECOM_PURCHASE | CASH_WITHDRAWAL | REFUND | …
-     *   data.debits[].balance_id       → our externalAccountId
-     *   data.debits[].debited_amount   → amount debited from balance
-     *   data.debits[].creation_time    → ISO timestamp of the balance movement
-     *   data.credits[].balance_id      → for credit/refund transactions
-     *   data.credits[].credited_amount
-     *   data.credits[].creation_time
+     * Note format (only real data, empty if nothing meaningful):
+     *   Same currency:       "Lidl Budapest"
+     *   Cross-currency:      "Lidl Budapest · 15.20 EUR → 5692 HUF @ 374.47"
+     *   No merchant:         "Budapest, HU" or "15.20 EUR → 5692 HUF @ 374.47" or ""
      */
     private function parseCardTransactionPayload(mixed $data, array $payload): ?DraftTransactionData
     {
         if (!is_array($data)) {
-            $this->logger->warning('[Wise] cards#transaction-state-change: data is not an array.');
+            $this->logger->warning('[Wise] cards#tx: data is not an array.');
 
             return null;
         }
@@ -220,14 +335,12 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
         $state  = strtoupper((string) ($data['transaction_state'] ?? ''));
         $txType = strtolower((string) ($data['transaction_type'] ?? ''));
 
-        $this->logger->info('[Wise] cards#transaction-state-change: state={state} type={type}', [
+        $this->logger->info('[Wise] cards#tx: state={state} type={type}', [
             'state' => $state,
             'type'  => $txType,
         ]);
 
         if ($state !== 'COMPLETED') {
-            $this->logger->info('[Wise] cards#transaction-state-change: skipping non-COMPLETED state.', ['state' => $state]);
-
             return null;
         }
 
@@ -236,16 +349,8 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
         $isDebit = !empty($debits);
         $entries = $isDebit ? $debits : $credits;
 
-        $this->logger->info('[Wise] cards#transaction-state-change: debits={d} credits={c}', [
-            'd' => count($debits),
-            'c' => count($credits),
-        ]);
-
         if (empty($entries)) {
-            // v2.0.0 payload lacks debits/credits — cannot match account.
-            $this->logger->warning('[Wise] cards#transaction-state-change: no debits/credits — likely v2.0.0 payload, cannot match account. Raw data keys: {keys}', [
-                'keys' => implode(', ', array_keys($data)),
-            ]);
+            $this->logger->warning('[Wise] cards#tx: no debits/credits — v2.0.0 payload, cannot match account.');
 
             return null;
         }
@@ -256,44 +361,65 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
         $rawAmount   = isset($firstEntry[$amountKey]) ? (float) $firstEntry[$amountKey] : null;
         $occurredAt  = $firstEntry['creation_time'] ?? $payload['sent_at'] ?? null;
 
-        $this->logger->info('[Wise] cards#transaction-state-change: balance_id={bid} {amtKey}={amt} creation_time={ts}', [
-            'bid'    => $balanceId ?? 'null',
-            'amtKey' => $amountKey,
-            'amt'    => $rawAmount ?? 'null',
-            'ts'     => $occurredAt ?? 'null',
-        ]);
-
         if ($balanceId === null || $rawAmount === null || $occurredAt === null) {
-            $this->logger->warning('[Wise] cards#transaction-state-change: missing required field(s), skipping.');
+            $this->logger->warning('[Wise] cards#tx: missing required field(s), skipping.');
 
             return null;
         }
 
-        $txAmount = $data['transaction_amount'] ?? [];
-        $currency = isset($txAmount['currency']) ? (string) $txAmount['currency'] : null;
-
+        $txAmount     = $data['transaction_amount'] ?? [];
+        $txCurrency   = isset($txAmount['currency']) ? (string) $txAmount['currency'] : null;
+        $txValue      = isset($txAmount['value']) ? abs((float) $txAmount['value']) : null;
         $signedAmount = $isDebit ? -abs($rawAmount) : abs($rawAmount);
 
-        // Merchant name is the most meaningful note for card transactions.
+        // ── Build rich note ─────────────────────────────────────────────────
         $merchant     = $data['merchant'] ?? [];
         $merchantName = is_array($merchant) ? trim((string) ($merchant['name'] ?? '')) : '';
+        $location     = is_array($merchant) ? ($merchant['location'] ?? []) : [];
+        $city         = is_array($location) ? trim((string) ($location['city'] ?? '')) : '';
+        $country      = is_array($location) ? trim((string) ($location['country'] ?? '')) : '';
+        $rate         = $firstEntry['rate'] ?? null;
 
-        $this->logger->info('[Wise] cards#transaction-state-change: merchant={merchant} currency={currency}', [
-            'merchant' => $merchantName !== '' ? $merchantName : '(empty)',
-            'currency' => $currency ?? 'null',
-        ]);
+        // Determine balance currency from the entry (debited_amount is in balance currency)
+        // The txCurrency is the merchant currency; if they differ, include FX info.
+        $balCurrency  = $txCurrency; // default: same currency
+        // If rate exists in the entry, it means a conversion happened
+        if ($rate !== null && $rate != 1.0) {
+            // Balance currency is different from tx currency — we know the balance currency
+            // from the account (looked up later), but for note purposes we can compute it:
+            // debited_amount is in balance currency, transaction_amount is in merchant currency.
+            // We'll use the account's known currency from the balance context.
+            $balCurrency = null; // will be filled from the account's currency if available
+        }
 
-        $note = $merchantName !== '' ? $merchantName : match ($txType) {
-            'cash_withdrawal' => 'Cash withdrawal',
-            'cash_advance'    => 'Cash advance',
-            'ecom_purchase'   => 'Online purchase',
-            'pos_purchase'    => 'Card payment',
-            'refund'          => 'Card refund',
-            'chargeback'      => 'Chargeback',
-            default           => 'Card transaction',
-        };
+        $noteParts = [];
 
-        $this->logger->info('[Wise] cards#transaction-state-change: parsed OK → balance_id={bid} amount={amt} note="{note}"', [
+        // 1. Merchant name
+        if ($merchantName !== '') {
+            $noteParts[] = $merchantName;
+        }
+
+        // 2. City (only if not already part of merchant name)
+        if ($city !== '' && ($merchantName === '' || !str_contains(strtolower($merchantName), strtolower($city)))) {
+            $noteParts[] = $city;
+        } elseif ($merchantName === '' && $country !== '') {
+            $noteParts[] = $country;
+        }
+
+        // 3. Exchange rate info (cross-currency only)
+        if ($rate !== null && $rate != 1.0 && $txValue !== null && $txCurrency !== null) {
+            $noteParts[] = sprintf(
+                '%s %s → %s @ %s',
+                number_format($txValue, 2, '.', ''),
+                $txCurrency,
+                number_format(abs($rawAmount), 2, '.', ''),
+                round((float) $rate, 4),
+            );
+        }
+
+        $note = implode(' · ', $noteParts);
+
+        $this->logger->info('[Wise] cards#tx: parsed → balance_id={bid} amount={amt} note="{note}"', [
             'bid'  => $balanceId,
             'amt'  => $signedAmount,
             'note' => $note,
@@ -304,7 +430,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
             amount: $signedAmount,
             executedAt: new DateTimeImmutable((string) $occurredAt),
             note: $note,
-            currency: $currency,
+            currency: $txCurrency,
         );
     }
 
@@ -312,22 +438,13 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
      * Parses balances#update (all versions) and balances#credit v2.0.0.
      * All use the same flat data structure with snake_case fields.
      *
-     * CARD channel transactions are intentionally skipped here — they are handled
-     * by parseCardTransactionPayload() via the cards#transaction-state-change webhook,
-     * which carries full merchant data. Returning null prevents duplicate drafts.
+     * CARD channel transactions are processed here as a reliable fallback.
+     * If cards#transaction-state-change also fires for the same tx, the
+     * upstream duplicate detection will discard the second draft.
      */
     private function parseFlatPayload(array $data): ?DraftTransactionData
     {
         $channel = strtoupper(trim((string) ($data['channel_name'] ?? '')));
-
-        // Skip CARD: handled by cards#transaction-state-change (merchant name available there).
-        if ($channel === 'CARD') {
-            $this->logger->info('[Wise] balances#update CARD channel skipped (step_id={step}) — expect cards#transaction-state-change for this tx.', [
-                'step' => $data['step_id'] ?? 'n/a',
-            ]);
-
-            return null;
-        }
 
         $resource = $data['resource'] ?? [];
         if (!is_array($resource)) {
@@ -569,53 +686,33 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface
     }
 
     /**
-     * Builds a human-readable note from a flat balances#update / balances#credit-v2 payload.
+     * Builds a note from a flat balances#update / balances#credit-v2 payload.
      *
-     * Priority:
-     *   CARD channel  → merchant.name > description > "Card payment"
-     *   Other channels → description > usable transfer_reference > channel-specific label
-     *
-     * UUID-like and bare-numeric references are considered internal Wise IDs and are dropped.
+     * Only includes REAL data (merchant name, bank description, meaningful reference).
+     * Returns empty string when no meaningful data is available — the transaction
+     * already carries account, category, amount, and direction, so labels like
+     * "Card payment" or "Balance transfer" are redundant.
      */
     private function buildNoteFromFlatData(array $data): string
     {
-        $channel     = strtoupper(trim((string) ($data['channel_name'] ?? '')));
-        $description = trim((string) ($data['description'] ?? ''));
-        $reference   = trim((string) ($data['transfer_reference'] ?? ''));
-        $merchant    = $data['merchant'] ?? [];
+        $description  = trim((string) ($data['description'] ?? ''));
+        $reference    = trim((string) ($data['transfer_reference'] ?? ''));
+        $merchant     = $data['merchant'] ?? [];
         $merchantName = is_array($merchant) ? trim((string) ($merchant['name'] ?? '')) : '';
 
-        // Card transaction: merchant name is the most meaningful piece of info
-        if ($channel === 'CARD') {
-            if ($merchantName !== '') {
-                return $merchantName;
-            }
-            if ($description !== '') {
-                return $description;
-            }
-
-            return 'Card payment';
+        if ($merchantName !== '') {
+            return $merchantName;
         }
 
-        // Non-card: prefer an explicit description
         if ($description !== '') {
             return $description;
         }
 
-        // Use transfer_reference only when it looks meaningful (not a UUID or bare number)
         if ($this->usableReference($reference)) {
             return $reference;
         }
 
-        // Final fallback: a readable label per channel
-        return match ($channel) {
-            'BALANCE'    => 'Balance transfer',
-            'CONVERSION' => 'Currency conversion',
-            'SWIFT'      => 'International transfer',
-            'SEPA'       => 'SEPA transfer',
-            'DIRECT_DEBIT' => 'Direct debit',
-            default      => $channel !== '' ? ucfirst(strtolower($channel)) . ' transaction' : 'Wise transaction',
-        };
+        return '';
     }
 
     /**

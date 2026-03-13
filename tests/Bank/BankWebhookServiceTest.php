@@ -141,6 +141,7 @@ class BankWebhookServiceTest extends BaseApiTestCase
             ->setExecutedAt($executedAt)
             ->setAccount($this->uahCard)
             ->setCategory($category)
+            ->setNote('Already has a note')
             ->setOwner($this->testUser);
         $this->em->persist($existing);
         $this->em->flush();
@@ -156,6 +157,7 @@ class BankWebhookServiceTest extends BaseApiTestCase
 
         $result = $this->service->handle(BankProvider::Monobank, []);
 
+        // Duplicate with non-generic existing note → skip (no enrichment)
         self::assertNull($result);
     }
 

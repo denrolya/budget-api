@@ -51,7 +51,7 @@ class BankWebhookService
 
         $eventType = (string) ($payload['event_type'] ?? 'unknown');
 
-        $this->logger->info('[BankWebhook] Raw payload from {bank}: event={event} payload={payload}', [
+        $this->logger->debug('[BankWebhook] Raw payload from {bank}: event={event} payload={payload}', [
             'bank'    => $bank->value,
             'event'   => $eventType,
             'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
@@ -88,6 +88,18 @@ class BankWebhookService
         }
 
         if ($this->isDuplicate($account, $data)) {
+            // Try enrichment: if incoming note has real data and existing draft is empty/generic, update it.
+            $enriched = $this->enrichExistingDraft($account, $data);
+            if ($enriched !== null) {
+                $this->logger->info('[BankWebhook] Draft #{tx_id} enriched: note="{note}" category="{cat}"', [
+                    'tx_id' => $enriched->getId(),
+                    'note'  => $enriched->getNote(),
+                    'cat'   => $enriched->getCategory()?->getName() ?? 'none',
+                ]);
+
+                return $enriched;
+            }
+
             $this->logger->info('[BankWebhook] Duplicate skipped: account=#{id} amount={amt} at {ts}', [
                 'id'  => $account->getId(),
                 'amt' => abs($data->amount),
@@ -122,19 +134,104 @@ class BankWebhookService
 
     private function isDuplicate(BankCardAccount $account, DraftTransactionData $data): bool
     {
+        return $this->findDuplicate($account, $data) !== null;
+    }
+
+    /**
+     * Find the existing transaction that matches (account + amount + executedAt to minute).
+     */
+    private function findDuplicate(BankCardAccount $account, DraftTransactionData $data): ?Transaction
+    {
         $minuteStr = $data->executedAt->format('Y-m-d H:i');
 
-        $qb = $this->em->createQueryBuilder()
-            ->select('COUNT(t.id)')
+        return $this->em->createQueryBuilder()
+            ->select('t')
             ->from(Transaction::class, 't')
             ->where('t.account = :account')
             ->andWhere('t.amount = :amount')
             ->andWhere('DATE_FORMAT(t.executedAt, \'%Y-%m-%d %H:%i\') = :ts')
             ->setParameter('account', $account)
             ->setParameter('amount', abs($data->amount))
-            ->setParameter('ts', $minuteStr);
+            ->setParameter('ts', $minuteStr)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
 
-        return (int) $qb->getQuery()->getSingleScalarResult() > 0;
+    /**
+     * Legacy generic notes produced by older versions of WiseProvider.
+     * If an existing draft has one of these notes, it can be enriched with real data.
+     */
+    private const GENERIC_NOTES = [
+        '',
+        'Card payment',
+        'Online purchase',
+        'Cash withdrawal',
+        'Cash advance',
+        'Card transaction',
+        'Card refund',
+        'Chargeback',
+        'Balance transfer',
+        'Currency conversion',
+        'International transfer',
+        'SEPA transfer',
+        'Direct debit',
+        'Wise transaction',
+        'Transfer received',
+    ];
+
+    /**
+     * When a duplicate is detected and the incoming note has real data,
+     * update the existing draft's note and re-categorize.
+     */
+    private function enrichExistingDraft(BankCardAccount $account, DraftTransactionData $data): ?Transaction
+    {
+        // No enrichment possible if incoming note is empty
+        if (trim($data->note) === '') {
+            return null;
+        }
+
+        $existing = $this->findDuplicate($account, $data);
+        if ($existing === null) {
+            return null;
+        }
+
+        try {
+            $existingNote = trim($existing->getNote() ?? '');
+        } catch (\Error) {
+            $existingNote = ''; // uninitialized property
+        }
+
+        // Only enrich if existing note is empty or a generic label
+        if ($existingNote !== '' && !in_array($existingNote, self::GENERIC_NOTES, true)) {
+            return null;
+        }
+
+        // Re-categorize with the richer note
+        $owner = $account->getOwner();
+        assert($owner instanceof User);
+        $this->categorizationService->resetIndex();
+        $this->categorizationService->buildAllIndexes($owner->getId());
+
+        $isIncome       = $data->amount > 0;
+        $categorization = $this->categorizationService->suggest($data->note, $isIncome);
+
+        $existing->setNote($categorization->note);
+
+        // Update category if categorization found a better match
+        if ($isIncome) {
+            $category = $this->em->getRepository(IncomeCategory::class)->find($categorization->categoryId);
+        } else {
+            $category = $this->em->getRepository(ExpenseCategory::class)->find($categorization->categoryId);
+        }
+
+        if ($category !== null) {
+            $existing->setCategory($category);
+        }
+
+        $this->em->flush();
+
+        return $existing;
     }
 
     private function buildDraftTransaction(BankCardAccount $account, DraftTransactionData $data): Transaction
