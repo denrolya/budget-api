@@ -30,22 +30,6 @@ class ExpenseCategory extends Category
     public const CATEGORY_TAX = 'Tax';
     public const CATEGORY_SHOPPING = 'Shopping';
 
-    #[ORM\Column(type: 'boolean', nullable: false, options: ['default' => false])]
-    #[Groups(['category:collection:read', 'category:write'])]
-    private bool $isFixed = false;
-
-    public function getIsFixed(): bool
-    {
-        return $this->isFixed;
-    }
-
-    public function setIsFixed(bool $isFixed): self
-    {
-        $this->isFixed = $isFixed;
-
-        return $this;
-    }
-
     public function getType(): string
     {
         return Category::EXPENSE_CATEGORY_TYPE;

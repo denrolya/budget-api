@@ -231,7 +231,6 @@ final class StatisticsManager
             if ($value > $max) {
                 $max = $value;
                 $result = [
-                    'icon' => $category->getIcon(),
                     'name' => $category->getName(),
                     'value' => $max,
                 ];

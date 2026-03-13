@@ -152,42 +152,6 @@ abstract class Category
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     private bool $isAffectingProfit = true;
 
-    #[ORM\Column(type: Types::STRING, length: 150, nullable: true)]
-    #[Groups([
-        'transaction:collection:read',
-        'account:item:read',
-        'debt:collection:read',
-        'category:collection:read',
-        'category:tree:read',
-        'category:write',
-    ])]
-    #[Serializer\Groups([
-        'category:collection:read',
-        'category:tree:read',
-        'account:item:read',
-        'transaction:collection:read',
-        'debt:collection:read',
-    ])]
-    private ?string $icon;
-
-    #[ORM\Column(type: Types::STRING, length: 150, nullable: true)]
-    #[Groups([
-        'transaction:collection:read',
-        'account:item:read',
-        'debt:collection:read',
-        'category:collection:read',
-        'category:tree:read',
-        'category:write',
-    ])]
-    #[Serializer\Groups([
-        'category:collection:read',
-        'category:tree:read',
-        'account:item:read',
-        'transaction:collection:read',
-        'debt:collection:read',
-    ])]
-    private ?string $color;
-
     #[Assert\Valid]
     #[ORM\ManyToMany(targetEntity: CategoryTag::class, cascade: ["persist"], inversedBy: "categories")]
     #[ORM\JoinTable(name: "categories_tags")]
@@ -352,30 +316,6 @@ abstract class Category
     public function setIsAffectingProfit(bool $isAffectingProfit): self
     {
         $this->isAffectingProfit = $isAffectingProfit;
-
-        return $this;
-    }
-
-    public function getIcon(): ?string
-    {
-        return $this->icon;
-    }
-
-    public function setIcon(?string $icon): self
-    {
-        $this->icon = $icon;
-
-        return $this;
-    }
-
-    public function getColor(): ?string
-    {
-        return $this->color;
-    }
-
-    public function setColor(?string $color): self
-    {
-        $this->color = $color;
 
         return $this;
     }
