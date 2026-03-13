@@ -34,6 +34,7 @@ class BankWebhookService
         #[Autowire(service: 'monolog.logger.bank')]
         private readonly LoggerInterface $logger,
         private readonly TransactionCategorizationService $categorizationService,
+        private readonly BankSyncService $syncService,
     ) {
     }
 
@@ -127,6 +128,19 @@ class BankWebhookService
             'raw_note'   => $data->note,
             'saved_note' => $transaction->getNote(),
             'category'   => $transaction->getCategory()?->getName() ?? 'none',
+        ]);
+
+        // Immediately enrich the draft with Activities API data (merchant name, exchange rate, etc.).
+        // Uses a ±2-minute window around the transaction time so we fetch only this one transaction.
+        $this->syncService->syncAccount(
+            $account,
+            $data->executedAt->modify('-2 minutes'),
+            $data->executedAt->modify('+2 minutes'),
+        );
+
+        $this->logger->info('[BankWebhook] Post-webhook enrichment done: note="{note}" category="{cat}"', [
+            'note' => $transaction->getNote() ?? '',
+            'cat'  => $transaction->getCategory()?->getName() ?? 'none',
         ]);
 
         return $transaction;

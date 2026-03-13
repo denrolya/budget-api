@@ -164,11 +164,12 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
             $cursor     = $page['cursor'] ?? null;
 
             foreach ($activities as $activity) {
-                // primaryAmount is a string like "840 HUF" or "-5,047.61 EUR"
-                $primary  = $activity['primaryAmount'] ?? null;
+                // primaryAmount is a string like "840 HUF", "<positive>+ 1,350,000 HUF</positive>", "-5,047.61 EUR"
+                $primary        = $activity['primaryAmount'] ?? null;
+                $primaryStripped = is_string($primary) ? strip_tags($primary) : '';
                 $currency = null;
                 $value    = null;
-                if (is_string($primary) && preg_match('/([+-]?[\d,\.]+)\s+([A-Z]{3})/i', $primary, $m)) {
+                if ($primaryStripped !== '' && preg_match('/([+-]?[\d,\.]+)\s+([A-Z]{3})/i', $primaryStripped, $m)) {
                     $currency = strtoupper($m[2]);
                     $value    = (float) str_replace(',', '', $m[1]);
                 } elseif (is_array($primary)) {
@@ -186,12 +187,13 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
                     continue;
                 }
 
-                // Determine sign: Activities API returns unsigned amounts for debits.
-                // CARD_PAYMENT is always a debit → negate. Explicit +/- in the string takes precedence.
-                $hasExplicitSign = is_string($primary) && preg_match('/^[+-]/', ltrim($primary));
+                // Determine sign: strip HTML first, then check for explicit +/-.
+                // CARD_PAYMENT and outgoing TRANSFER have no sign prefix → negate.
+                // Incoming TRANSFER has explicit + (e.g. "<positive>+ 1,350,000 HUF</positive>") → keep positive.
+                $hasExplicitSign = (bool) preg_match('/^[+-]/', ltrim($primaryStripped));
                 if (!$hasExplicitSign) {
                     $activityType = strtoupper((string) ($activity['type'] ?? ''));
-                    if ($activityType === 'CARD_PAYMENT') {
+                    if (in_array($activityType, ['CARD_PAYMENT', 'TRANSFER'], true)) {
                         $value = -abs($value);
                     }
                 }

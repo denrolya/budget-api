@@ -99,6 +99,53 @@ class BankSyncService
     }
 
     /**
+     * Sync a single account for a narrow time window.
+     * Called from BankWebhookService immediately after creating a draft,
+     * to enrich it with richer data from the polling provider (e.g. merchant name from Activities API).
+     */
+    public function syncAccount(BankCardAccount $account, DateTimeImmutable $from, DateTimeImmutable $to): void
+    {
+        $integration = $account->getBankIntegration();
+        if ($integration === null) {
+            return;
+        }
+
+        $provider = $this->registry->get($integration->getProvider());
+        if (!$provider instanceof PollingCapableInterface) {
+            return;
+        }
+
+        $externalId = $account->getExternalAccountId();
+        if (!$externalId) {
+            return;
+        }
+
+        $this->categorizationService->resetIndex();
+        $this->categorizationService->buildAllIndexes((int) $integration->getOwner()->getId());
+
+        try {
+            $items = $provider->fetchTransactions($integration->getCredentials(), $externalId, $from, $to);
+        } catch (\Throwable $e) {
+            $this->logger->warning('[BankSync] post-webhook enrichment failed for account #{id}: {msg}', [
+                'id'  => $account->getId(),
+                'msg' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        foreach ($items as $item) {
+            if ($this->isDuplicate($account, $item)) {
+                $this->enrichExistingDraft($account, $item);
+            } else {
+                $this->em->persist($this->buildDraftTransaction($account, $item));
+            }
+        }
+
+        $this->em->flush();
+    }
+
+    /**
      * Sync a single BankIntegration. Returns number of new draft transactions created.
      */
     public function sync(BankIntegration $integration, ?DateTimeImmutable $from = null, ?DateTimeImmutable $to = null): int

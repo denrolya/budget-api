@@ -4,6 +4,7 @@ namespace App\Tests\Bank;
 
 use App\Bank\BankProvider;
 use App\Bank\BankProviderRegistry;
+use App\Bank\BankSyncService;
 use App\Bank\BankWebhookService;
 use App\Bank\DTO\DraftTransactionData;
 use App\Bank\Provider\MonobankProvider;
@@ -57,7 +58,8 @@ class BankWebhookServiceTest extends BaseApiTestCase
 
         $registry = new BankProviderRegistry([$this->mockWebhookProvider]);
 
-        $this->service = new BankWebhookService($registry, $this->em, new NullLogger(), $this->makeCategorizationServiceMock());
+        $mockSyncService = $this->createMock(BankSyncService::class);
+        $this->service = new BankWebhookService($registry, $this->em, new NullLogger(), $this->makeCategorizationServiceMock(), $mockSyncService);
     }
 
     private function makeCategorizationServiceMock(): TransactionCategorizationService
@@ -87,7 +89,7 @@ class BankWebhookServiceTest extends BaseApiTestCase
         $nonWebhookProvider->method('getProvider')->willReturn(BankProvider::Wise);
 
         $registry = new BankProviderRegistry([$nonWebhookProvider]);
-        $service  = new BankWebhookService($registry, $this->em, new NullLogger(), $this->makeCategorizationServiceMock());
+        $service  = new BankWebhookService($registry, $this->em, new NullLogger(), $this->makeCategorizationServiceMock(), $this->createMock(BankSyncService::class));
 
         $this->expectException(\LogicException::class);
         $this->expectExceptionMessageMatches('/wise/i');
