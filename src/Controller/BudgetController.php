@@ -213,7 +213,7 @@ class BudgetController extends AbstractFOSRestController
         $end   = CarbonImmutable::now()->endOfMonth()->endOfDay();
         $start = CarbonImmutable::now()->startOfMonth()->subMonths($months - 1)->startOfDay();
 
-        $actuals      = $transactionRepo->getActualsByCategoryForPeriod($start, $end);
+        $actuals = $transactionRepo->getActualsByCategoryForPeriod($start, $end);
         $activeMonths = $transactionRepo->getCategoryActiveMonths($start, $end);
         $byMonth      = $transactionRepo->getActualsByCategoryByMonth($start, $end);
 

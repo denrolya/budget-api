@@ -618,7 +618,8 @@ class TransactionRepository extends ServiceEntityRepository
 
     /**
      * Returns actual income/expense amounts per category for a given date range,
-     * grouped by the account's native currency (same pivot pattern as countByDayForAccounts).
+     * aggregated per currency using each transaction's stored convertedValues snapshot.
+     * Using historical snapshots keeps results consistent with value-by-period totals.
      * Only includes categories where isAffectingProfit = true.
      *
      * @return array<array{categoryId: int, convertedValues: array<string, array{income: float, expense: float}>}>
@@ -626,13 +627,11 @@ class TransactionRepository extends ServiceEntityRepository
     public function getActualsByCategoryForPeriod(\DateTimeInterface $start, \DateTimeInterface $end): array
     {
         $rows = $this->createQueryBuilder('t')
-            ->innerJoin('t.account', 'a')
             ->innerJoin('t.category', 'c')
             ->select(
                 'IDENTITY(t.category) AS category_id',
-                'a.currency AS currency',
-                "SUM(CASE WHEN t INSTANCE OF " . Income::class . " THEN t.amount ELSE 0 END) AS income",
-                "SUM(CASE WHEN t INSTANCE OF " . Expense::class . " THEN t.amount ELSE 0 END) AS expense"
+                't.convertedValues AS converted_values',
+                'CASE WHEN t INSTANCE OF ' . Income::class . " THEN 'income' ELSE 'expense' END AS transaction_type",
             )
             ->andWhere('t.executedAt >= :start')
             ->andWhere('t.executedAt <= :end')
@@ -640,22 +639,18 @@ class TransactionRepository extends ServiceEntityRepository
             ->setParameter('start', $start)
             ->setParameter('end', $end)
             ->setParameter('isAffectingProfit', true)
-            ->groupBy('category_id, a.currency')
-            ->orderBy('category_id', 'ASC')
-            ->addOrderBy('a.currency', 'ASC')
             ->getQuery()
             ->getArrayResult();
 
         $pivoted = [];
         foreach ($rows as $row) {
             $catId = (int) $row['category_id'];
-            if (!isset($pivoted[$catId])) {
-                $pivoted[$catId] = ['categoryId' => $catId, 'convertedValues' => []];
+            $type  = $row['transaction_type'];
+            $pivoted[$catId] ??= ['categoryId' => $catId, 'convertedValues' => []];
+            foreach ((array) $row['converted_values'] as $currency => $value) {
+                $pivoted[$catId]['convertedValues'][$currency] ??= ['income' => 0.0, 'expense' => 0.0];
+                $pivoted[$catId]['convertedValues'][$currency][$type] += (float) $value;
             }
-            $pivoted[$catId]['convertedValues'][$row['currency']] = [
-                'income'  => (float) $row['income'],
-                'expense' => (float) $row['expense'],
-            ];
         }
 
         return array_values($pivoted);
@@ -718,14 +713,12 @@ class TransactionRepository extends ServiceEntityRepository
     public function getCategoryDailyStatsForPeriod(\DateTimeInterface $start, \DateTimeInterface $end): array
     {
         $rows = $this->createQueryBuilder('t')
-            ->innerJoin('t.account', 'a')
             ->innerJoin('t.category', 'c')
             ->select(
                 'IDENTITY(t.category) AS category_id',
                 'DATE(t.executedAt) AS day',
-                'a.currency AS currency',
-                "SUM(CASE WHEN t INSTANCE OF " . Income::class . " THEN t.amount ELSE 0 END) AS income",
-                "SUM(CASE WHEN t INSTANCE OF " . Expense::class . " THEN t.amount ELSE 0 END) AS expense"
+                't.convertedValues AS converted_values',
+                'CASE WHEN t INSTANCE OF ' . Income::class . " THEN 'income' ELSE 'expense' END AS transaction_type",
             )
             ->andWhere('t.executedAt >= :start')
             ->andWhere('t.executedAt <= :end')
@@ -733,25 +726,22 @@ class TransactionRepository extends ServiceEntityRepository
             ->setParameter('start', $start)
             ->setParameter('end', $end)
             ->setParameter('isAffectingProfit', true)
-            ->groupBy('category_id, day, a.currency')
             ->orderBy('category_id', 'ASC')
             ->addOrderBy('day', 'ASC')
-            ->addOrderBy('a.currency', 'ASC')
             ->getQuery()
             ->getArrayResult();
 
-        // Pivot: catId → day → currency → {income, expense}
         $byCat = [];
         foreach ($rows as $row) {
             $catId = (int) $row['category_id'];
             $day   = $row['day'];
-            $cur   = $row['currency'];
+            $type  = $row['transaction_type'];
             $byCat[$catId] ??= [];
             $byCat[$catId][$day] ??= ['day' => $day, 'convertedValues' => []];
-            $byCat[$catId][$day]['convertedValues'][$cur] = [
-                'income'  => (float) $row['income'],
-                'expense' => (float) $row['expense'],
-            ];
+            foreach ((array) $row['converted_values'] as $currency => $value) {
+                $byCat[$catId][$day]['convertedValues'][$currency] ??= ['income' => 0.0, 'expense' => 0.0];
+                $byCat[$catId][$day]['convertedValues'][$currency][$type] += (float) $value;
+            }
         }
 
         $result = [];
