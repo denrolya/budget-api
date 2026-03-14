@@ -158,7 +158,7 @@ class BankSyncService
             );
         }
 
-        $from ??= new DateTimeImmutable('-30 days');
+        $from ??= $integration->getLastSyncedAt() ?? new DateTimeImmutable('-30 days');
         $to ??= new DateTimeImmutable();
 
         /** @var BankCardAccount[] $accounts */

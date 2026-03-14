@@ -117,6 +117,7 @@ class BankWebhookService
 
         $transaction = $this->buildDraftTransaction($account, $data);
         $this->em->persist($transaction);
+        $this->advanceLastSyncedAt($account, $data->executedAt);
         $this->em->flush();
 
         $this->logger->info('[BankWebhook] Transaction #{tx_id} created: {type} {amount} {currency} account=#{account_id} | raw_note="{raw_note}" saved_note="{saved_note}" category="{category}"', [
@@ -246,6 +247,23 @@ class BankWebhookService
         $this->em->flush();
 
         return $existing;
+    }
+
+    /**
+     * Advance the integration's lastSyncedAt so manual sync skips already-webhhooked transactions.
+     */
+    private function advanceLastSyncedAt(BankCardAccount $account, \DateTimeInterface $executedAt): void
+    {
+        $integration = $account->getBankIntegration();
+        if ($integration === null) {
+            return;
+        }
+
+        $timestamp = $executedAt instanceof \DateTimeImmutable
+            ? $executedAt
+            : \DateTimeImmutable::createFromInterface($executedAt);
+
+        $integration->advanceLastSyncedAt($timestamp);
     }
 
     private function buildDraftTransaction(BankCardAccount $account, DraftTransactionData $data): Transaction

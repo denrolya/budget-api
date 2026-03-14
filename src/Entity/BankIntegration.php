@@ -247,6 +247,19 @@ class BankIntegration implements OwnableInterface
         return $this;
     }
 
+    /**
+     * Advance lastSyncedAt to the given timestamp if it is later than the current value.
+     * Used by webhooks to keep the sync window up-to-date without overwriting a more recent timestamp.
+     */
+    public function advanceLastSyncedAt(\DateTimeImmutable $timestamp): self
+    {
+        if ($this->lastSyncedAt === null || $timestamp > $this->lastSyncedAt) {
+            $this->lastSyncedAt = $timestamp;
+        }
+
+        return $this;
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
