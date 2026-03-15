@@ -419,7 +419,7 @@ task('db:push', function () {
 
     writeln('<info>Dumping local database…</info>');
     $pass = $local['password'] !== '' ? "-p{$local['password']}" : '';
-    runLocally("mysqldump -u {$local['username']} $pass {$local['name']} > $tmp");
+    runLocally("mysqldump --set-gtid-purged=OFF -u {$local['username']} $pass {$local['name']} > $tmp");
 
     // Upload dump via SCP, then import on remote — port 3306 stays closed externally
     writeln('<info>Uploading dump to server…</info>');
