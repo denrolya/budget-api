@@ -1,42 +1,103 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\Delete;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\Post;
+use ApiPlatform\Metadata\Put;
+use App\DataPersister\BudgetDataPersister;
 use App\Repository\BudgetRepository;
+use App\Traits\OwnableEntity;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: BudgetRepository::class)]
 #[ORM\Table(name: 'budget')]
-class Budget
+#[ApiResource(
+    operations: [
+        new GetCollection(normalizationContext: ['groups' => ['budget:collection:read']]),
+        new Post(
+            processor: BudgetDataPersister::class,
+            normalizationContext: ['groups' => ['budget:item:read']],
+        ),
+        new Get(
+            requirements: ['id' => '\d+'],
+            normalizationContext: ['groups' => ['budget:item:read']],
+        ),
+        new Put(requirements: ['id' => '\d+']),
+        new Delete(requirements: ['id' => '\d+']),
+    ],
+    denormalizationContext: ['groups' => ['budget:write']],
+    order: ['startDate' => 'DESC'],
+    paginationEnabled: false,
+)]
+class Budget implements OwnableInterface
 {
+    use OwnableEntity;
+
     public const PERIOD_MONTHLY = 'monthly';
-    public const PERIOD_YEARLY  = 'yearly';
-    public const PERIOD_CUSTOM  = 'custom';
+    public const PERIOD_YEARLY = 'yearly';
+    public const PERIOD_CUSTOM = 'custom';
+
+    private const ALLOWED_PERIOD_TYPES = [
+        self::PERIOD_MONTHLY,
+        self::PERIOD_YEARLY,
+        self::PERIOD_CUSTOM,
+    ];
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
+    #[Groups(['budget:collection:read', 'budget:item:read'])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    #[Groups(['budget:collection:read', 'budget:item:read', 'budget:write'])]
     private ?string $name = null;
 
+    #[Assert\NotBlank]
+    #[Assert\Choice(choices: self::ALLOWED_PERIOD_TYPES)]
     #[ORM\Column(type: Types::STRING, length: 10)]
+    #[Groups(['budget:collection:read', 'budget:item:read', 'budget:write'])]
     private string $periodType = self::PERIOD_MONTHLY;
 
+    #[Assert\NotNull]
     #[ORM\Column(type: Types::DATE_IMMUTABLE)]
+    #[Groups(['budget:collection:read', 'budget:item:read', 'budget:write'])]
     private DateTimeImmutable $startDate;
 
+    #[Assert\NotNull]
     #[ORM\Column(type: Types::DATE_IMMUTABLE)]
+    #[Groups(['budget:collection:read', 'budget:item:read', 'budget:write'])]
     private DateTimeImmutable $endDate;
 
-    #[ORM\OneToMany(mappedBy: 'budget', targetEntity: BudgetLine::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    /** @var Collection<int, BudgetLine> */
+    #[ORM\OneToMany(
+        mappedBy: 'budget',
+        targetEntity: BudgetLine::class,
+        cascade: ['persist', 'remove'],
+        fetch: 'EAGER',
+        orphanRemoval: true,
+    )]
+    #[Groups(['budget:item:read'])]
     private Collection $lines;
+
+    /**
+     * Non-persisted field: when set during creation, lines are copied from the source budget.
+     */
+    #[Groups(['budget:write'])]
+    private ?int $copiedFromId = null;
 
     public function __construct()
     {
@@ -113,26 +174,14 @@ class Budget
         return $this;
     }
 
-    public function toArray(): array
+    public function getCopiedFromId(): ?int
     {
-        return [
-            'id'         => $this->id,
-            'name'       => $this->name,
-            'periodType' => $this->periodType,
-            'startDate'  => $this->startDate->format('Y-m-d'),
-            'endDate'    => $this->endDate->format('Y-m-d'),
-            'lines'      => $this->lines->map(fn(BudgetLine $l) => $l->toArray())->toArray(),
-        ];
+        return $this->copiedFromId;
     }
 
-    public function toListArray(): array
+    public function setCopiedFromId(?int $copiedFromId): self
     {
-        return [
-            'id'         => $this->id,
-            'name'       => $this->name,
-            'periodType' => $this->periodType,
-            'startDate'  => $this->startDate->format('Y-m-d'),
-            'endDate'    => $this->endDate->format('Y-m-d'),
-        ];
+        $this->copiedFromId = $copiedFromId;
+        return $this;
     }
 }

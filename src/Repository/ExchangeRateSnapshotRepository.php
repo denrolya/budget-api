@@ -42,6 +42,7 @@ class ExchangeRateSnapshotRepository extends ServiceEntityRepository
         return $qb->getQuery()->getOneOrNullResult();
     }
 
+    /** @return ExchangeRateSnapshot[] */
     public function findSnapshotsInRange(DateTimeInterface $fromDateTime, DateTimeInterface $toDateTime): array
     {
         $qb = $this->createQueryBuilder('s')

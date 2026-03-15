@@ -18,16 +18,6 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/v2/account', name: 'api_v2_account_')]
 class AccountController extends AbstractFOSRestController
 {
-
-    #[Rest\View(serializerGroups: ['account:collection:read'])]
-    #[Route('', name: 'collection_read', methods: ['get'])]
-    public function collection(ManagerRegistry $doctrine): View
-    {
-        return $this->view(
-            $doctrine->getRepository(Account::class)->findAll()
-        );
-    }
-
     /**
      * TODO: Check efficiency. Add frontend data display. Do we really need this and AccountItemProvider? which one are we consuming currently?
      */
