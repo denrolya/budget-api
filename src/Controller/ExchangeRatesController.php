@@ -5,9 +5,8 @@ namespace App\Controller;
 use App\Attribute\MapCarbonDate;
 use App\Bank\Provider\MonobankProvider;
 use App\Bank\Provider\WiseProvider;
-use App\Entity\ExchangeRateSnapshot;
 use App\Repository\ExchangeRateSnapshotRepository;
-use App\Service\FixerService;
+use App\Service\ExchangeRateSnapshotResolver;
 use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
@@ -69,16 +68,20 @@ class ExchangeRatesController extends AbstractFOSRestController
         );
     }
 
+    /**
+     * Returns exchange rates for a given date.
+     * Now routes through ExchangeRateSnapshotResolver: checks DB first, calls Fixer only if no snapshot exists.
+     */
     #[Rest\QueryParam(name: 'date', description: 'Date (Y-m-d)', nullable: true)]
-    #[Route('', name: 'historical', methods: ['get'])] // Still used by V1 frontend app
+    #[Route('', name: 'historical', methods: ['get'])]
     #[Route('/fixer', name: 'fixer_rates', methods: ['get'])]
     public function fixerRates(
-        FixerService $fixerService,
+        ExchangeRateSnapshotResolver $snapshotResolver,
         #[MapCarbonDate(format: 'Y-m-d', default: 'today')] CarbonImmutable $date,
     ): View {
         try {
-            $rates = $fixerService->getHistorical($date);
-        } catch (InvalidArgumentException) {
+            $rates = $snapshotResolver->getRatesForDate($date);
+        } catch (\RuntimeException) {
             return $this->view(
                 ['error' => 'An error occurred while fetching the exchange rates. Please try again later.'],
                 Response::HTTP_INTERNAL_SERVER_ERROR

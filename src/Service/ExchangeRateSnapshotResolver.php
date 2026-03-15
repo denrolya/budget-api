@@ -2,10 +2,10 @@
 
 namespace App\Service;
 
-use DateTimeInterface;
 use App\Entity\ExchangeRateSnapshot;
 use App\Repository\ExchangeRateSnapshotRepository;
 use Carbon\CarbonImmutable;
+use DateTimeInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
@@ -13,81 +13,64 @@ use Doctrine\ORM\NonUniqueResultException;
 readonly class ExchangeRateSnapshotResolver
 {
     public function __construct(
-        private ExchangeRateSnapshotRepository $snapshotRepo,
-        private EntityManagerInterface $em,
+        private ExchangeRateSnapshotRepository $snapshotRepository,
+        private EntityManagerInterface $entityManager,
         private FixerService $fixerService,
     ) {
     }
 
     /**
-     * Single-date resolver with "today" auto-fetch.
+     * Single-date resolver: checks DB first, fetches from Fixer only when needed.
+     * Persists every new fetch so the same date is never fetched again.
+     *
      * @throws NonUniqueResultException
      */
     public function getClosestOrFetch(DateTimeInterface $date): ExchangeRateSnapshot
     {
         $carbon = CarbonImmutable::instance($date)->startOfDay();
 
-        $snapshot = $this->snapshotRepo->findClosestSnapshot($carbon);
+        $snapshot = $this->snapshotRepository->findClosestSnapshot($carbon);
         if ($snapshot instanceof ExchangeRateSnapshot) {
             return $snapshot;
         }
 
-        // Past date with no snapshot -> data hole, fail
-        if ($carbon->isPast() && !$carbon->isToday()) {
-            throw new \RuntimeException(
-                sprintf('No exchange rate snapshot available for %s or any earlier date.', $carbon->toDateString())
-            );
-        }
-
-        // Future date: do not auto-fetch
         if ($carbon->isFuture()) {
             throw new \RuntimeException(
                 sprintf('No snapshot available for future date %s.', $carbon->toDateString())
             );
         }
 
-        // Today and no snapshot -> try to fetch and persist once
-        return $this->fetchAndStoreTodaySnapshot($carbon);
+        return $this->fetchAndPersistSnapshot($carbon);
     }
 
     /**
      * Bulk resolver: accepts many dates and returns a map dateString => snapshot.
-     * Fixer is called at most once for "today" in this request.
+     * Fixer is called at most once per missing date.
+     *
+     * @param DateTimeInterface[] $dates
+     * @return array<string, ExchangeRateSnapshot>
      * @throws NonUniqueResultException
      */
     public function resolveSnapshotsForDates(array $dates): array
     {
         $result = [];
-        $today = CarbonImmutable::today();
 
-        // Normalize to unique day strings
         $uniqueDates = [];
         foreach ($dates as $date) {
-            if (!$date instanceof DateTimeInterface) {
-                continue;
-            }
             $day = CarbonImmutable::instance($date)->startOfDay();
             $uniqueDates[$day->toDateString()] = $day;
         }
 
-        // First, try DB-only for all dates
         foreach ($uniqueDates as $key => $day) {
-            $snapshot = $this->snapshotRepo->findClosestSnapshot($day);
+            $snapshot = $this->snapshotRepository->findClosestSnapshot($day);
             if ($snapshot instanceof ExchangeRateSnapshot) {
                 $result[$key] = $snapshot;
             }
         }
 
-        // Handle missing dates
         foreach ($uniqueDates as $key => $day) {
             if (isset($result[$key])) {
-                continue; // already resolved
-            }
-
-            if ($day->isPast() && !$day->isToday()) {
-                throw new \RuntimeException(
-                    sprintf('No exchange rate snapshot available for %s or any earlier date.', $day->toDateString())
-                );
+                continue;
             }
 
             if ($day->isFuture()) {
@@ -96,59 +79,150 @@ readonly class ExchangeRateSnapshotResolver
                 );
             }
 
-            // Only "today" left here; ensure we have a snapshot for today
-            $todaySnapshot = $this->fetchAndStoreTodaySnapshot($today);
-
-            // Today can cover only today, not arbitrary earlier date.
-            if ($day->isToday()) {
-                $result[$key] = $todaySnapshot;
-            }
+            $result[$key] = $this->fetchAndPersistSnapshot($day);
         }
 
         return $result;
     }
 
-    private function fetchAndStoreTodaySnapshot(CarbonImmutable $day): ExchangeRateSnapshot
+    /**
+     * Returns the rates array (currency => float) for a given date.
+     * Uses DB snapshot when available; calls Fixer only when no snapshot exists.
+     *
+     * @return array<string, float>
+     * @throws NonUniqueResultException
+     * @throws \RuntimeException
+     */
+    public function getRatesForDate(DateTimeInterface $date): array
     {
-        // Re-check DB in case another process already created it
-        $existing = $this->snapshotRepo->findOneBy(['effectiveAt' => $day]);
+        $carbon = CarbonImmutable::instance($date)->startOfDay();
+
+        $existingSnapshot = $this->snapshotRepository->findExactSnapshot($carbon);
+        if ($existingSnapshot instanceof ExchangeRateSnapshot) {
+            return $this->snapshotToRatesArray($existingSnapshot);
+        }
+
+        if ($carbon->isFuture()) {
+            $closestSnapshot = $this->snapshotRepository->findClosestSnapshot($carbon);
+            if ($closestSnapshot instanceof ExchangeRateSnapshot) {
+                return $this->snapshotToRatesArray($closestSnapshot);
+            }
+
+            throw new \RuntimeException(
+                sprintf('No snapshot available for future date %s.', $carbon->toDateString())
+            );
+        }
+
+        $snapshot = $this->fetchAndPersistSnapshot($carbon);
+
+        return $this->snapshotToRatesArray($snapshot);
+    }
+
+    /**
+     * Fetches rates from Fixer and persists as a new snapshot.
+     * Re-checks DB first to handle race conditions.
+     */
+    private function fetchAndPersistSnapshot(CarbonImmutable $day): ExchangeRateSnapshot
+    {
+        $existing = $this->snapshotRepository->findOneBy(['effectiveAt' => $day]);
         if ($existing instanceof ExchangeRateSnapshot) {
             return $existing;
         }
 
-        $rates = $this->fixerService->getLatest();
-        if ($rates === []) {
-            throw new \RuntimeException('Failed to fetch latest rates for today.');
+        $isToday = $day->isToday();
+
+        try {
+            $rates = $isToday
+                ? $this->fixerService->getLatest()
+                : $this->fixerService->getHistorical($day);
+        } catch (\Throwable $exception) {
+            throw new \RuntimeException(
+                sprintf('Failed to fetch rates for %s: %s', $day->toDateString(), $exception->getMessage()),
+                0,
+                $exception,
+            );
+        }
+
+        if ($rates === [] || $rates === null) {
+            throw new \RuntimeException(
+                sprintf('No rates returned from Fixer for %s.', $day->toDateString())
+            );
         }
 
         $snapshot = new ExchangeRateSnapshot();
         $snapshot->setEffectiveAt($day);
 
-        // Map Fixer response -> snapshot fields
-        if (isset($rates['USD'])) {
-            $snapshot->setUsdPerEur((string)$rates['USD']);
-        }
-        if (isset($rates['HUF'])) {
-            $snapshot->setHufPerEur((string)$rates['HUF']);
-        }
-        if (isset($rates['UAH'])) {
-            $snapshot->setUahPerEur((string)$rates['UAH']);
-        }
-
-        // BTC / ETH can stay null or be filled from another provider elsewhere
+        $this->applyRatesToSnapshot($snapshot, $rates);
 
         try {
-            $this->em->persist($snapshot);
-            $this->em->flush();
+            $this->entityManager->persist($snapshot);
+            $this->entityManager->flush();
         } catch (UniqueConstraintViolationException) {
-            // Another process won the race -> read again
-            $existing = $this->snapshotRepo->findOneBy(['effectiveAt' => $day]);
+            $existing = $this->snapshotRepository->findOneBy(['effectiveAt' => $day]);
             if ($existing instanceof ExchangeRateSnapshot) {
                 return $existing;
             }
-            throw new \RuntimeException('Failed to create snapshot for today due to a race condition, and it could not be read back from the database.');
+
+            throw new \RuntimeException(
+                sprintf('Race condition while creating snapshot for %s.', $day->toDateString())
+            );
         }
 
         return $snapshot;
+    }
+
+    /** @param array<string, float> $rates */
+    private function applyRatesToSnapshot(ExchangeRateSnapshot $snapshot, array $rates): void
+    {
+        if (isset($rates['USD'])) {
+            $snapshot->setUsdPerEur((string) $rates['USD']);
+        }
+        if (isset($rates['HUF'])) {
+            $snapshot->setHufPerEur((string) $rates['HUF']);
+        }
+        if (isset($rates['UAH'])) {
+            $snapshot->setUahPerEur((string) $rates['UAH']);
+        }
+        if (isset($rates['BTC'])) {
+            $snapshot->setEurPerBtc((string) (1.0 / $rates['BTC']));
+        }
+        if (isset($rates['ETH'])) {
+            $snapshot->setEurPerEth((string) (1.0 / $rates['ETH']));
+        }
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private function snapshotToRatesArray(ExchangeRateSnapshot $snapshot): array
+    {
+        $rates = ['EUR' => 1.0];
+
+        $usd = $snapshot->getUsdPerEurFloat();
+        if ($usd !== null) {
+            $rates['USD'] = $usd;
+        }
+
+        $huf = $snapshot->getHufPerEurFloat();
+        if ($huf !== null) {
+            $rates['HUF'] = $huf;
+        }
+
+        $uah = $snapshot->getUahPerEurFloat();
+        if ($uah !== null) {
+            $rates['UAH'] = $uah;
+        }
+
+        $btcPerEur = $snapshot->getBtcPerEurFloat();
+        if ($btcPerEur !== null) {
+            $rates['BTC'] = $btcPerEur;
+        }
+
+        $ethPerEur = $snapshot->getEthPerEurFloat();
+        if ($ethPerEur !== null) {
+            $rates['ETH'] = $ethPerEur;
+        }
+
+        return $rates;
     }
 }

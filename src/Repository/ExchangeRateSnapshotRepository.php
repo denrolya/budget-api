@@ -23,6 +23,11 @@ class ExchangeRateSnapshotRepository extends ServiceEntityRepository
         parent::__construct($registry, ExchangeRateSnapshot::class);
     }
 
+    public function findExactSnapshot(DateTimeInterface $datetime): ?ExchangeRateSnapshot
+    {
+        return $this->findOneBy(['effectiveAt' => $datetime]);
+    }
+
     /**
      * @throws NonUniqueResultException
      */
