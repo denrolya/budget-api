@@ -105,7 +105,7 @@ class BankIntegration implements OwnableInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['bank_integration:read'])]
+    #[Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
     #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
     private ?int $id = null;
 
@@ -115,7 +115,7 @@ class BankIntegration implements OwnableInterface
     private ?User $owner = null;
 
     #[ORM\Column(type: Types::STRING, length: 50, enumType: BankProvider::class)]
-    #[Groups(['bank_integration:read', 'bank_integration:write'])]
+    #[Groups(['bank_integration:read', 'bank_integration:write', 'account:collection:read', 'account:item:read'])]
     #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
     #[Serializer\Type('string')]
     #[Serializer\Accessor(getter: 'getProviderValue')]
@@ -130,7 +130,7 @@ class BankIntegration implements OwnableInterface
     private array $credentials = [];
 
     #[ORM\Column(type: Types::BOOLEAN, nullable: false, options: ['default' => true])]
-    #[Groups(['bank_integration:read', 'bank_integration:write'])]
+    #[Groups(['bank_integration:read', 'bank_integration:write', 'account:collection:read', 'account:item:read'])]
     #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
     private bool $isActive = true;
 
@@ -139,14 +139,14 @@ class BankIntegration implements OwnableInterface
         * Null = auto (single-mode providers ignore this).
      */
     #[ORM\Column(type: Types::STRING, length: 20, nullable: true, enumType: SyncMethod::class)]
-    #[Groups(['bank_integration:read', 'bank_integration:write'])]
+    #[Groups(['bank_integration:read', 'bank_integration:write', 'account:collection:read', 'account:item:read'])]
     #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
     #[Serializer\Type('string')]
     #[Serializer\Accessor(getter: 'getSyncMethodValue')]
     private ?SyncMethod $syncMethod = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
-    #[Groups(['bank_integration:read'])]
+    #[Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
     #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
     private ?\DateTimeImmutable $lastSyncedAt = null;
 

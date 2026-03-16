@@ -46,7 +46,7 @@ class BankCardAccount extends Account
 
     #[ORM\ManyToOne(targetEntity: BankIntegration::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    #[Groups(['account:item:read', 'account:write'])]
+    #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
     #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
     private ?BankIntegration $bankIntegration = null;
 
