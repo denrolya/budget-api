@@ -2,17 +2,19 @@
 
 namespace App\Controller;
 
+use App\Attribute\MapCarbonDate;
+use App\Attribute\MapCarbonInterval;
 use App\Entity\Account;
 use App\Entity\Transaction;
 use App\Repository\TransactionRepository;
 use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
+use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
 use Doctrine\Persistence\ManagerRegistry;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/account', name: 'api_v2_account_')]
@@ -54,27 +56,20 @@ class AccountController extends AbstractFOSRestController
         return $this->view($account);
     }
 
-    /**
-     * TODO: Optimize for big intervals (e.g. 1 year) and accounts with many transactions (e.g. 1000+).
-     * TODO: Describe query parameters as in TransactionsController
-     * Returns account balance history as a time series.
-     *
-     * Algorithm: walk backward from account.balance (current) through transactions,
-     * undoing each one to reconstruct balance at every requested date point.
-     * Handles past-dated transactions correctly — no snapshots needed.
-     *
-     * Query params:
-     *   after    – ISO date string, default: 6 months ago
-     *   before   – ISO date string, default: today
-     *   interval – ISO 8601 duration (P1D, P1W, P1M), default: P1W
-     */
+    #[Rest\QueryParam(name: 'after', description: 'After date (Y-m-d)', nullable: true)]
+    #[Rest\QueryParam(name: 'before', description: 'Before date (Y-m-d)', nullable: true)]
+    #[Rest\QueryParam(name: 'interval', description: 'ISO 8601 duration (P1D, P1W, P1M)', default: 'P1W', nullable: true)]
     #[Rest\View]
     #[Route('/{id<\d+>}/balance-history', name: 'balance_history', methods: ['get'])]
-    public function balanceHistory(Account $account, Request $request, TransactionRepository $transactionRepo): View
-    {
-        $after  = CarbonImmutable::parse($request->query->get('after',  '-6 months'))->startOfDay();
-        $before = CarbonImmutable::parse($request->query->get('before', 'now'))->endOfDay();
-        $interval = $request->query->get('interval', 'P1W');
+    public function balanceHistory(
+        Account $account,
+        TransactionRepository $transactionRepo,
+        #[MapCarbonDate(format: 'Y-m-d', default: '-6 months')] CarbonImmutable $after,
+        #[MapCarbonDate(format: 'Y-m-d', default: 'now')] CarbonImmutable $before,
+        #[MapCarbonInterval(default: 'P1W')] CarbonInterval $interval,
+    ): View {
+        $after  = $after->startOfDay();
+        $before = $before->endOfDay();
 
         // Generate chart date points using the requested interval.
         $dates = CarbonPeriod::create($after, $interval, $before)->toArray();
@@ -111,24 +106,20 @@ class AccountController extends AbstractFOSRestController
         ]);
     }
 
-    /**
-     * Returns transaction counts grouped by day for the given account.
-     *
-     * Query params:
-     *   after  – ISO date string, default: 1 year ago
-     *   before – ISO date string, default: today
-     */
+    #[Rest\QueryParam(name: 'after', description: 'After date (Y-m-d)', nullable: true)]
+    #[Rest\QueryParam(name: 'before', description: 'Before date (Y-m-d)', nullable: true)]
     #[Rest\View]
     #[Route('/{id<\d+>}/daily-stats', name: 'daily_stats', methods: ['get'])]
-    public function dailyStats(Account $account, Request $request, TransactionRepository $transactionRepo): View
-    {
-        $after  = CarbonImmutable::parse($request->query->get('after',  '-1 year'))->startOfDay();
-        $before = CarbonImmutable::parse($request->query->get('before', 'now'))->endOfDay();
-
+    public function dailyStats(
+        Account $account,
+        TransactionRepository $transactionRepo,
+        #[MapCarbonDate(format: 'Y-m-d', default: '-1 year')] CarbonImmutable $after,
+        #[MapCarbonDate(format: 'Y-m-d', default: 'now')] CarbonImmutable $before,
+    ): View {
         return $this->view([
             'data' => $transactionRepo->countByDay(
-                after: $after,
-                before: $before,
+                after: $after->startOfDay(),
+                before: $before->endOfDay(),
                 accounts: [$account->getId()],
             ),
         ]);

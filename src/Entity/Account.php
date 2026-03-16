@@ -10,6 +10,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use ApiPlatform\Serializer\Filter\PropertyFilter;
+use App\ApiPlatform\AccountCollectionProvider;
 use App\Repository\AccountRepository;
 use App\Traits\OwnableEntity;
 use App\Traits\TimestampableEntity;
@@ -40,7 +41,10 @@ use Symfony\Component\Validator\Constraints as Assert;
 ])]
 #[ApiResource(
   operations: [
-    new GetCollection(normalizationContext: ['groups' => ['account:collection:read']]),
+    new GetCollection(
+      normalizationContext: ['groups' => ['account:collection:read']],
+      provider: AccountCollectionProvider::class,
+    ),
     new Post(normalizationContext: ['groups' => 'account:write']),
     new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'account:item:read']),
     new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => ['account:write', 'bank_integration:read']]),
@@ -225,6 +229,9 @@ class Account implements OwnableInterface
   #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
   #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
   private bool $isDisplayedOnSidebar = false;
+
+  #[Groups(['account:collection:read'])]
+  private int $draftCount = 0;
 
   /**
    * @throws RandomException
@@ -447,6 +454,18 @@ class Account implements OwnableInterface
   public function setIsDisplayedOnSidebar(bool $isDisplayedOnSidebar): self
   {
     $this->isDisplayedOnSidebar = $isDisplayedOnSidebar;
+
+    return $this;
+  }
+
+  public function getDraftCount(): int
+  {
+    return $this->draftCount;
+  }
+
+  public function setDraftCount(int $draftCount): self
+  {
+    $this->draftCount = $draftCount;
 
     return $this;
   }

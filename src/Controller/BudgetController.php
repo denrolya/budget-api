@@ -10,7 +10,6 @@ use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/budget', name: 'api_v2_budget_')]
@@ -44,15 +43,15 @@ class BudgetController extends AbstractFOSRestController
         ]);
     }
 
+    #[Rest\QueryParam(name: 'months', requirements: '^[1-9][0-9]*$', default: 6, description: 'Number of months to analyze')]
     #[Rest\View]
     #[Route('/{id<\d+>}/history-averages', name: 'history_averages', methods: ['GET'])]
     public function historyAverages(
         Budget $budget,
-        Request $request,
         TransactionRepository $transactionRepository,
+        int $months = 6,
     ): View {
-        $monthsParam = $request->query->get('months', '6');
-        $months = max(1, (int) $monthsParam);
+        $months = max(1, $months);
         $end = CarbonImmutable::now()->endOfMonth()->endOfDay();
         $start = CarbonImmutable::now()->startOfMonth()->subMonths($months - 1)->startOfDay();
 
@@ -73,8 +72,8 @@ class BudgetController extends AbstractFOSRestController
         return $this->view([
             'data' => $actuals,
             'months' => $months,
-            'from' => $start->format('Y-m-d'),
-            'to' => $end->format('Y-m-d'),
+            'after' => $start->format('Y-m-d'),
+            'before' => $end->format('Y-m-d'),
         ]);
     }
 

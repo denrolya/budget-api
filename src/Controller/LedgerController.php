@@ -30,6 +30,7 @@ final class LedgerController extends AbstractFOSRestController
     }
 
     /**
+     * TODO: Check if wee need type transfer at all. 
      * Unified ledger endpoint: returns non-transfer transactions merged with transfers,
      * sorted by executedAt DESC, paginated.
      *
@@ -123,6 +124,7 @@ final class LedgerController extends AbstractFOSRestController
             currencies: $currencies ?: null,
         ) : [];
 
+        // TODO: amount filters
         $transfers = $includeTransfers ? $this->transferRepository->getListForLedger(
             after: $after,
             before: $before,

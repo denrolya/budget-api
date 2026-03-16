@@ -271,6 +271,36 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * @param int[] $accountIdentifiers
+     * @return array<int, int> Map of accountId → draft count
+     */
+    public function countDraftsByAccountIdentifiers(array $accountIdentifiers): array
+    {
+        if ($accountIdentifiers === []) {
+            return [];
+        }
+
+        $queryBuilder = $this->createQueryBuilder('transaction')
+            ->select('IDENTITY(transaction.account) AS accountId')
+            ->addSelect('COUNT(transaction.id) AS draftCount')
+            ->where('transaction.isDraft = :isDraft')
+            ->andWhere('transaction.account IN (:accountIdentifiers)')
+            ->setParameter('isDraft', true)
+            ->setParameter('accountIdentifiers', $accountIdentifiers)
+            ->groupBy('transaction.account');
+
+        /** @var array<array{accountId: int, draftCount: string}> $rows */
+        $rows = $queryBuilder->getQuery()->getResult();
+
+        $counts = [];
+        foreach ($rows as $row) {
+            $counts[(int) $row['accountId']] = (int) $row['draftCount'];
+        }
+
+        return $counts;
+    }
+
+    /**
      * Single source of truth for listing filters.
      */
     protected function getBaseQueryBuilder(

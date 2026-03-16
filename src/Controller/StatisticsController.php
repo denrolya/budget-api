@@ -205,52 +205,44 @@ class StatisticsController extends AbstractFOSRestController
         );
     }
 
-    /**
-     * Returns transaction counts and converted volumes grouped by calendar day,
-     * applying the full set of transaction filters (same params as the listing API).
-     *
-     * Query params: after, before, accounts[], categories[], excludedCategories[],
-     *   type, currencies[], isDraft, note, amount[gte], amount[lte], affectingProfit
-     */
+    #[Rest\QueryParam(name: 'after', description: 'After date (Y-m-d)', nullable: true)]
+    #[Rest\QueryParam(name: 'before', description: 'Before date (Y-m-d)', nullable: true)]
+    #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'accounts', description: 'Filter by accounts', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'excludedCategories', description: 'Exclude categories', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'currencies', description: 'Filter by currencies', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'isDraft', requirements: '^(0|1|true|false)$', default: null, description: 'true=only draft, false=only non-draft, null=all', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'note', description: 'Search substring in note', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'amount[gte]', description: 'Amount >= value (numeric)', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'amount[lte]', description: 'Amount <= value (numeric)', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'affectingProfit', requirements: '^(0|1|true|false)$', default: false, description: 'Only profit-affecting transactions', nullable: true, allowBlank: false)]
     #[Rest\View]
     #[Route('/daily', name: 'daily_stats', methods: ['get'])]
-    public function dailyStats(Request $request, TransactionRepository $transactionRepo): View
-    {
-        $after  = CarbonImmutable::parse($request->query->get('after',  '-1 year'))->startOfDay();
-        $before = CarbonImmutable::parse($request->query->get('before', 'now'))->endOfDay();
+    public function dailyStats(
+        Request $request,
+        TransactionRepository $transactionRepo,
+        #[MapCarbonDate(format: 'Y-m-d', default: '-1 year')] CarbonImmutable $after,
+        #[MapCarbonDate(format: 'Y-m-d', default: 'now')] CarbonImmutable $before,
+        ?string $type = null,
+        ?array $accounts = null,
+        ?array $categories = null,
+        ?array $excludedCategories = null,
+        ?array $currencies = null,
+        ?bool $isDraft = null,
+        ?string $note = null,
+        bool $affectingProfit = false,
+    ): View {
+        $amount    = $request->query->all('amount');
+        $amountGte = isset($amount['gte']) && is_numeric($amount['gte']) ? (float) $amount['gte'] : null;
+        $amountLte = isset($amount['lte']) && is_numeric($amount['lte']) ? (float) $amount['lte'] : null;
 
-        $toIntArray = static function (mixed $raw): ?array {
-            if (empty($raw)) {
-                return null;
-            }
-            $ids = array_values(array_map('intval', array_filter((array) $raw, 'is_numeric')));
-            return $ids ?: null;
-        };
-
-        $accounts           = $toIntArray($request->query->all()['accounts'] ?? []);
-        $categories         = $toIntArray($request->query->all()['categories'] ?? []);
-        $excludedCategories = $toIntArray($request->query->all()['excludedCategories'] ?? []);
-
-        $rawType = $request->query->get('type');
-        $type    = in_array($rawType, ['income', 'expense'], true) ? $rawType : null;
-
-        $rawCurrencies = (array) ($request->query->all()['currencies'] ?? []);
-        $currencies    = array_values(array_filter(array_map('strtoupper', $rawCurrencies)));
-        $currencies    = $currencies ?: null;
-
-        $isDraftRaw = $request->query->get('isDraft');
-        $isDraft    = $isDraftRaw !== null ? filter_var($isDraftRaw, FILTER_VALIDATE_BOOLEAN) : null;
-
-        $note      = $request->query->get('note') ?: null;
-        $amountGte = ($v = $request->query->get('amount[gte]')) !== null ? (float) $v : null;
-        $amountLte = ($v = $request->query->get('amount[lte]')) !== null ? (float) $v : null;
-
-        $affectingProfit = filter_var($request->query->get('affectingProfit', false), FILTER_VALIDATE_BOOLEAN);
+        $note = (is_string($note) && trim($note) !== '') ? trim($note) : null;
 
         return $this->view([
             'data' => $transactionRepo->countByDay(
-                after: $after,
-                before: $before,
+                after: $after->startOfDay(),
+                before: $before->endOfDay(),
                 affectingProfitOnly: $affectingProfit,
                 type: $type,
                 categories: $categories,

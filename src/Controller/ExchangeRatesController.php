@@ -12,58 +12,30 @@ use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
 use Psr\Cache\InvalidArgumentException;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/exchange-rates', name: 'api_v2_exchange_rates_')]
 class ExchangeRatesController extends AbstractFOSRestController
 {
-    /**
-     * Returns snapshots for a single date or a date range.
-     *
-     * Query parameters:
-     *   - from (required): start date in YYYY-MM-DD
-     *   - to   (optional): end date in YYYY-MM-DD; if omitted, "from" is used as a single day
-     */
+    #[Rest\QueryParam(name: 'after', description: 'Start date (Y-m-d), required', nullable: false)]
+    #[Rest\QueryParam(name: 'before', description: 'End date (Y-m-d), defaults to after', nullable: true)]
     #[Route('/snapshots', name: 'snapshots', methods: ['get'])]
-    public function snapshots(Request $request, ExchangeRateSnapshotRepository $snapshotRepository): View
-    {
-        $fromParam = $request->query->get('from');
-        $toParam   = $request->query->get('to');
+    public function snapshots(
+        ExchangeRateSnapshotRepository $snapshotRepository,
+        #[MapCarbonDate(format: 'Y-m-d')] CarbonImmutable $after,
+        #[MapCarbonDate(format: 'Y-m-d')] ?CarbonImmutable $before = null,
+    ): View {
+        $before = $before ?? $after;
 
-        if ($fromParam === null) {
-            return $this->view(
-                ['error' => 'The "from" query parameter is required (YYYY-MM-DD). Optionally also pass "to".'],
-                Response::HTTP_BAD_REQUEST
-            );
+        if ($before->lessThan($after)) {
+            [$after, $before] = [$before, $after];
         }
 
-        try {
-            $from = CarbonImmutable::createFromFormat('Y-m-d', $fromParam);
-            if ($from === false) {
-                throw new \RuntimeException('Invalid date format.');
-            }
-
-            $to = $toParam !== null ? CarbonImmutable::createFromFormat('Y-m-d', $toParam) : $from;
-            if ($to === false) {
-                throw new \RuntimeException('Invalid "to" date format.');
-            }
-        } catch (\Throwable) {
-            return $this->view(
-                ['error' => 'Invalid date format. Expected YYYY-MM-DD.'],
-                Response::HTTP_BAD_REQUEST
-            );
-        }
-
-        if ($to->lessThan($from)) {
-            [$from, $to] = [$to, $from];
-        }
-
-        $snapshots = $snapshotRepository->findSnapshotsInRange($from->startOfDay(), $to->endOfDay());
+        $snapshots = $snapshotRepository->findSnapshotsInRange($after->startOfDay(), $before->endOfDay());
 
         return $this->view(
-            ['from' => $from->toDateString(), 'to' => $to->toDateString(), 'snapshots' => $snapshots],
+            ['after' => $after->toDateString(), 'before' => $before->toDateString(), 'snapshots' => $snapshots],
             Response::HTTP_OK
         );
     }

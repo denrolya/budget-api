@@ -390,15 +390,15 @@ class BudgetControllerTest extends BaseApiTestCase
 
         self::assertArrayHasKey('data', $content);
         self::assertArrayHasKey('months', $content);
-        self::assertArrayHasKey('from', $content);
-        self::assertArrayHasKey('to', $content);
+        self::assertArrayHasKey('after', $content);
+        self::assertArrayHasKey('before', $content);
         self::assertSame(3, $content['months']);
         self::assertIsArray($content['data']);
     }
 
     /**
      * Regression: old code set $start = now()->subMonths($months), a mid-month date.
-     * The fix aligns to calendar-month boundaries. Verify via the `from`/`to` fields.
+     * The fix aligns to calendar-month boundaries. Verify via the `after`/`before` fields.
      */
     public function testHistoryAveragesWindowAlignedToCalendarMonthBoundaries(): void
     {
@@ -412,18 +412,18 @@ class BudgetControllerTest extends BaseApiTestCase
             self::assertResponseIsSuccessful();
             $content = $response->toArray();
 
-            // `from` must be the 1st day of a month (never mid-month)
+            // `after` must be the 1st day of a month (never mid-month)
             self::assertMatchesRegularExpression(
                 '/^\d{4}-\d{2}-01$/',
-                $content['from'],
-                "months=$months: `from` must be the 1st of a month, got {$content['from']}"
+                $content['after'],
+                "months=$months: `after` must be the 1st of a month, got {$content['after']}"
             );
 
-            // `to` must be the last day of a month
-            $toDate = \Carbon\CarbonImmutable::parse($content['to']);
+            // `before` must be the last day of a month
+            $beforeDate = \Carbon\CarbonImmutable::parse($content['before']);
             self::assertTrue(
-                $toDate->isSameDay($toDate->endOfMonth()),
-                "months=$months: `to` must be the last day of a month, got {$content['to']}"
+                $beforeDate->isSameDay($beforeDate->endOfMonth()),
+                "months=$months: `before` must be the last day of a month, got {$content['before']}"
             );
         }
     }
