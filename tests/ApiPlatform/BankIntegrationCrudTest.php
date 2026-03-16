@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\ApiPlatform;
 
 use App\Bank\BankProvider;
@@ -24,6 +26,9 @@ class BankIntegrationCrudTest extends BaseApiTestCase
     // POST — create
     // -------------------------------------------------------------------------
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testCreateRequiresAuth(): void
     {
         $this->client->request('POST', self::BASE, [
@@ -34,6 +39,9 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testCreateIntegrationSetsOwnerFromJwt(): void
     {
         $response = $this->client->request('POST', self::BASE, [
@@ -54,6 +62,9 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         self::assertSame($this->testUser->getId(), $integration->getOwner()->getId());
     }
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testCreateWiseIntegration(): void
     {
         $response = $this->client->request('POST', self::BASE, [
@@ -71,6 +82,9 @@ class BankIntegrationCrudTest extends BaseApiTestCase
     // GET collection
     // -------------------------------------------------------------------------
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testListRequiresAuth(): void
     {
         $this->client->request('GET', self::BASE, [
@@ -80,6 +94,9 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testListReturnsOnlyOwnIntegrations(): void
     {
         // Create two integrations for testUser.
@@ -104,6 +121,9 @@ class BankIntegrationCrudTest extends BaseApiTestCase
     // GET item
     // -------------------------------------------------------------------------
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testGetIntegrationById(): void
     {
         $created = $this->client->request('POST', self::BASE, [
@@ -117,8 +137,13 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         self::assertSame($created['id'], $content['id']);
         self::assertSame('monobank', $content['provider']);
         self::assertArrayHasKey('createdAt', $content);
+        // Security: credentials must NOT be exposed in read responses
+        self::assertArrayNotHasKey('credentials', $content, 'Credentials must not be serialized in GET responses.');
     }
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testGetIntegrationOwnedByOtherUserReturns403(): void
     {
         // Create an integration directly in the DB for a different (anonymous) user.
@@ -143,6 +168,9 @@ class BankIntegrationCrudTest extends BaseApiTestCase
     // DELETE
     // -------------------------------------------------------------------------
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testDeleteRequiresAuth(): void
     {
         $created = $this->client->request('POST', self::BASE, [
@@ -156,6 +184,9 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testDeleteOwnIntegration(): void
     {
         $created = $this->client->request('POST', self::BASE, [
@@ -171,6 +202,9 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         self::assertNull($this->em->getRepository(BankIntegration::class)->find($id));
     }
 
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
     public function testDeleteIntegrationOwnedByOtherUserReturns403(): void
     {
         $user2 = new \App\Entity\User();

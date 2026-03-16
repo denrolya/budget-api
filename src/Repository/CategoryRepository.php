@@ -6,10 +6,7 @@ use App\Entity\Category;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
-use Carbon\CarbonInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\ORM\NonUniqueResultException;
-use Doctrine\ORM\NoResultException;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -106,78 +103,6 @@ class CategoryRepository extends ServiceEntityRepository
         }
 
         return $ids;
-    }
-
-    public function calculateValue(
-        Category|int $category,
-        string $currency,
-        ?CarbonInterface $after,
-        ?CarbonInterface $before
-    ): ?float {
-        if (is_int($category)) {
-            $category = $this->find($category);
-            if (!$category) {
-                throw new \InvalidArgumentException('Invalid category ID');
-            }
-        }
-
-        $qb = $this
-            ->getEntityManager()
-            ->createQueryBuilder()
-            ->from(Transaction::class, 't')
-            ->select('SUM(JSON_EXTRACT(t.convertedValues, :baseCurrency))')
-            ->where('t.category = :categoryId')
-            ->setParameter('baseCurrency', '$.'.$currency)
-            ->setParameter('categoryId', $category->getId());
-
-        if (isset($after, $before)) {
-            $qb->andWhere('DATE(t.executedAt) >= :after')
-                ->setParameter('after', $after)
-                ->andWhere('DATE(t.executedAt) <= :before')
-                ->setParameter('before', $before);
-        }
-
-        return $qb->getQuery()->getSingleScalarResult() ?? 0;
-    }
-
-    /**
-     * New method to calculate category total value using SQL
-     *
-     * @throws NonUniqueResultException
-     * @throws NoResultException
-     */
-    public function calculateTotalValue(
-        $category,
-        string $currency,
-        ?CarbonInterface $after,
-        ?CarbonInterface $before
-    ): float {
-        if (is_int($category)) {
-            $category = $this->find($category);
-            if (!$category) {
-                throw new \InvalidArgumentException('Invalid category ID');
-            }
-        }
-
-        $map = $this->buildDescendantMap();
-        $categoryIds = $map[$category->getId()] ?? [$category->getId()];
-        $qb = $this
-            ->getEntityManager()
-            ->createQueryBuilder()
-            ->from(Transaction::class, 't')
-            ->select('SUM(JSON_EXTRACT(t.convertedValues, :baseCurrency))')
-            ->where('t.category IN (:categoryIds)')
-            ->setParameter('baseCurrency', '$.'.$currency)
-            ->setParameter('categoryIds', $categoryIds);
-
-        if (isset($after, $before)) {
-            $qb->andWhere('DATE(t.executedAt) >= :after')
-                ->setParameter('after', $after)
-                ->andWhere('DATE(t.executedAt) <= :before')
-                ->setParameter('before', $before);
-        }
-
-        return $qb->getQuery()->getSingleScalarResult() ?? 0;
     }
 }
 

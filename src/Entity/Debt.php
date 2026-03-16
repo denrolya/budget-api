@@ -2,9 +2,9 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
@@ -27,11 +27,21 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: DebtRepository::class)]
 #[ApiResource(
+    description: 'A debt owed to or by someone. Tracks balance via linked transactions. Soft-deletable via closedAt.',
     operations: [
-        new GetCollection(normalizationContext: ['groups' => 'debt:collection:read']),
-        new Post(normalizationContext: ['groups' => 'debt:collection:read']),
-        new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'debt:item:read']),
-        new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'debt:collection:read']),
+        new GetCollection(
+            description: 'List all debts (open and closed) for the authenticated user.',
+            normalizationContext: ['groups' => 'debt:collection:read'],
+        ),
+        new Post(
+            description: 'Create a new debt record. Link transactions to it to track payments.',
+            normalizationContext: ['groups' => 'debt:collection:read'],
+        ),
+        new Put(
+            description: 'Update debt details (debtor name, note, balance, closedAt).',
+            requirements: ['id' => '\d+'],
+            normalizationContext: ['groups' => 'debt:collection:read'],
+        ),
         new Delete(requirements: ['id' => '\d+']),
     ],
     denormalizationContext: ['groups' => 'debt:write'],
@@ -78,6 +88,7 @@ class Debt implements OwnableInterface, ValuableInterface
     #[Serializer\Groups(['debt:item:read'])]
     private Collection $transactions;
 
+    #[ApiProperty(description: 'Debt balance converted to the user\'s base currency. Keyed by currency code.')]
     #[ORM\Column(type: Types::JSON, nullable: false)]
     #[Groups(['debt:collection:read', 'debt:item:read'])]
     #[Serializer\Groups(['debt:collection:read'])]
@@ -89,6 +100,7 @@ class Debt implements OwnableInterface, ValuableInterface
     #[Serializer\Groups(['debt:collection:read'])]
     protected ?DateTimeInterface $createdAt;
 
+    #[ApiProperty(description: 'When set, the debt is considered settled/closed. Used for soft-delete filtering.')]
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     #[Groups(['debt:collection:read', 'debt:item:read', 'debt:write'])]
     #[Serializer\Groups(['debt:collection:read'])]

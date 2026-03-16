@@ -23,6 +23,16 @@ final class BankIntegrationSyncAction extends AbstractController
     ) {
     }
 
+    /**
+     * @see \App\Tests\ApiPlatform\Action\BankIntegrationSyncActionTest
+     * @tested testUnauthenticatedGets401
+     * @tested testUnknownIntegrationReturns404
+     * @tested testWrongOwnerReturns403
+     * @tested testMonobankSyncReturns422DueToNoPollingSupport
+     * @tested testSyncReturnsCreatedDraftCount
+     * @tested testSyncForwardsDateRangeToService
+     * @tested testBankApiErrorReturns502
+     */
     public function __invoke(Request $request, int $id): Response
     {
         $integration = $this->em->getRepository(BankIntegration::class)->find($id);

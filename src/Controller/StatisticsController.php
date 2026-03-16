@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Attribute\MapCarbonDate;
 use App\Attribute\MapCarbonInterval;
 use App\Entity\Expense;
+use App\Entity\Income;
 use App\Entity\Transaction;
 use App\Repository\CategoryRepository;
 use App\Repository\TransactionRepository;
@@ -33,6 +34,23 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', default: [], description: 'Filter by categories', nullable: false, allowBlank: false)]
     #[Route('/value-by-period', name: 'value_by_period', methods: ['get'])]
+    /**
+     * @see \App\Tests\Controller\StatisticsControllerTest
+     * @tested testValueByPeriodWithoutArguments
+     * @tested testValueByPeriodWithBeforeAndAfter
+     * @tested testValueByPeriodWithOneDayInterval
+     * @tested testValueByPeriodWithOneWeekInterval
+     * @tested testValueByPeriodWithOneMonthInterval
+     * @tested testValueByPeriodWithCustomInterval
+     * @tested testValueByPeriodWithBooleanInterval
+     * @tested testValueByPeriodWithWrongBeforeAndAfter
+     * @tested testValueByPeriodWithNonExistentCategoryReturnsZero
+     * @tested testValueByPeriod_typeExpense_returnsOnlyExpenseValues
+     * @tested testValueByPeriod_typeIncome_returnsOnlyIncomeValues
+     * @tested testValueByPeriod_accountsFilter_restrictsToAccount
+     * @tested testValueByPeriod_emptyRange_returnsZeros
+     * @tested testValueByPeriod_withoutAuth_returns401
+     */
     public function value(
         EntityManagerInterface $em,
         CategoryRepository $categoryRepo,
@@ -64,6 +82,12 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: false, allowBlank: false)]
     #[Rest\View(serializerGroups: ['category:tree:read'])]
     #[Route('/category/tree', name: 'category_tree', methods: ['get'])]
+    /**
+     * @see \App\Tests\Controller\StatisticsControllerTest
+     * @tested testCategoryTreeWithBeforeAndAfter
+     * @tested testCategoryTreeWithBeforeAfterAndType
+     * @tested testCategoryTree_withoutAuth_returns401
+     */
     public function categoryTree(
         TransactionRepository $transactionRepo,
         StatisticsManager $statisticsManager,
@@ -87,6 +111,11 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
     #[Rest\View(serializerGroups: ['category:tree:read'])]
     #[Route('/category/timeline', name: 'category_timeline', methods: ['get'])]
+    /**
+     * @see \App\Tests\Controller\StatisticsControllerTest
+     * @tested testCategoryTimelineWithoutCategoriesDoesNotCrash
+     * @tested testCategoryTimelineWithCategoryFilterReturnsCategoryData
+     */
     public function categoryTimeline(
         TransactionRepository $transactionRepo,
         CategoryRepository $categoryRepo,
@@ -117,6 +146,12 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: false)]
     #[Rest\View(serializerGroups: ['account:collection:read'])]
     #[Route('/account-distribution', name: 'account_distribution', methods: ['get'])]
+    /**
+     * @see \App\Tests\Controller\StatisticsControllerTest
+     * @tested testAccountDistribution_returnsCorrectShape
+     * @tested testAccountDistribution_incomeType_returnsDistribution
+     * @tested testAccountDistribution_withoutAuth_returns401
+     */
     public function accountDistribution(
         ManagerRegistry $doctrine,
         StatisticsManager $statisticsManager,
@@ -139,6 +174,11 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: Transaction::EXPENSE, nullable: true, allowBlank: false)]
     #[Route('/by-weekdays', name: 'by_weekdays', methods: ['get'])]
+    /**
+     * @see \App\Tests\Controller\StatisticsControllerTest
+     * @tested testByWeekdays_returnsCorrectShape
+     * @tested testByWeekdays_withoutAuth_returns401
+     */
     public function transactionsValueByWeekdays(
         TransactionRepository $transactionRepo,
         StatisticsManager $statisticsManager,
@@ -157,6 +197,11 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: Transaction::EXPENSE, nullable: true, allowBlank: false)]
     #[Route('/top-value-category', name: 'top_value_category', methods: ['get'])]
+    /**
+     * @see \App\Tests\Controller\StatisticsControllerTest
+     * @tested testTopValueCategory_returnsCorrectShape
+     * @tested testTopValueCategory_withoutAuth_returns401
+     */
     public function topValueCategory(
         TransactionRepository $transactionRepo,
         StatisticsManager $statisticsManager,
@@ -178,6 +223,13 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', default: [], description: 'Filter by categories', nullable: false, allowBlank: false)]
     #[Route('/avg', name: 'average', methods: ['get'])]
+    /**
+     * @see \App\Tests\Controller\StatisticsControllerTest
+     * @tested testAvg_returnsCorrectShape
+     * @tested testAvg_withTypeFilter_returnsFilteredAverage
+     * @tested testAvg_withAccountsFilter_restrictsResults
+     * @tested testAvg_withoutAuth_returns401
+     */
     public function average(
         TransactionRepository $transactionRepo,
         CategoryRepository $categoryRepo,
@@ -221,6 +273,14 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'affectingProfit', requirements: '^(0|1|true|false)$', default: false, description: 'Only profit-affecting transactions', nullable: true, allowBlank: false)]
     #[Rest\View]
     #[Route('/daily', name: 'daily_stats', methods: ['get'])]
+    /**
+     * @see \App\Tests\Controller\StatisticsControllerTest
+     * @tested testDaily_returnsCorrectShape
+     * @tested testDaily_withTypeFilter_returnsFilteredData
+     * @tested testDaily_withAccountsFilter_restrictsResults
+     * @tested testDaily_emptyRange_returnsEmptyData
+     * @tested testDaily_withoutAuth_returns401
+     */
     public function dailyStats(
         Request $request,
         TransactionRepository $transactionRepo,

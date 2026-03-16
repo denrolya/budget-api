@@ -161,53 +161,6 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
-     * COUNT(*) for ledger transactions (excluding transfer-linked ones). No hydration.
-     */
-    public function countForLedger(
-        ?CarbonInterface $after,
-        ?CarbonInterface $before,
-        ?string $type = null,
-        ?array $accounts = null,
-        ?array $categories = null,
-        ?array $debts = null,
-        ?string $note = null,
-    ): int {
-        return (int) $this->getBaseQueryBuilder(
-            after: $after,
-            before: $before,
-            affectingProfitOnly: false,
-            type: $type,
-            categories: $categories,
-            accounts: $accounts,
-            debts: $debts,
-            note: $note,
-            excludeTransferTransactions: true,
-        )
-            ->select('COUNT(t.id)')
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
-
-    /**
-     * Compatibility wrapper: find by executedAt range.
-     *
-     * @return array<Transaction>
-     */
-    public function findWithinPeriod(CarbonInterface $after, ?CarbonInterface $before = null): array
-    {
-        return $this->getBaseQueryBuilder(
-            after: $after,
-            before: $before,
-            affectingProfitOnly: false,
-            orderField: self::ORDER_FIELD,
-            order: self::ORDER
-        )
-            ->getQuery()
-            ->getResult();
-    }
-
-
-    /**
      * Returns the net converted value of matching transactions in the given base currency.
      * Incomes are positive, expenses are negative. Uses SQL SUM — no object hydration.
      */

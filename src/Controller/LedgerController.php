@@ -30,13 +30,38 @@ final class LedgerController extends AbstractFOSRestController
     }
 
     /**
-     * TODO: Check if wee need type transfer at all. 
+     * TODO: Check if wee need type transfer at all.
      * Unified ledger endpoint: returns non-transfer transactions merged with transfers,
      * sorted by executedAt DESC, paginated.
      *
      * type=expense|income  → only the respective transaction type, no transfers
      * type=transfer        → only transfers, no transactions
      * type absent          → all (non-transfer transactions + transfers)
+     *
+     * @see \App\Tests\Controller\LedgerControllerTest
+     * @tested testUnauthenticatedRequestIsRejected
+     * @tested testAuthenticatedUserCanAccessLedger
+     * @tested testTransferTransactionsAreExcludedAndTransfersIncluded
+     * @tested testTypeExpenseFilterReturnsOnlyExpenses
+     * @tested testTypeIncomeFilterReturnsOnlyIncomes
+     * @tested testTypeTransferFilterReturnsOnlyTransfers
+     * @tested testPagination
+     * @tested testItemsAreSortedDescendingByExecutedAt
+     * @tested testAccountFilter
+     * @tested testCategoryFilter
+     * @tested testDebtFilter
+     * @tested testNoteFilterMatchesTransactionsAndTransfers
+     * @tested testIsDraftFilter
+     * @tested testTotalValueExcludesTransfers
+     * @tested testWithNestedCategoriesFilter
+     * @tested testCurrenciesFilter
+     * @tested testAmountRangeFilter
+     * @tested testInvalidAmountRangeReturnsError
+     * @tested testWithNestedCategoriesNonExistentIdReturnsEmpty
+     * @tested testTotalValueCoversAllPagesNotJustCurrentPage
+     * @tested testCombinedFilters_accountAndCategoryAndDateRange
+     * @tested testEmptyDateRange_returnsZeroResults
+     * @tested testNonExistentCategoryIdWithoutExpansionReturnsEmpty
      */
     #[Rest\QueryParam(name: 'after', description: 'Start date (Y-m-d)', nullable: true)]
     #[Rest\QueryParam(name: 'before', description: 'End date (Y-m-d)', nullable: true)]

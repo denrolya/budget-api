@@ -7,10 +7,9 @@ use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Get;
-use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
 use App\ApiPlatform\CategoryDeepSearchFilter;
@@ -36,9 +35,8 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\DiscriminatorColumn(name: "type", type: "string")]
 #[ORM\DiscriminatorMap(["expense" => Expense::class, "income" => Income::class])]
 #[ApiResource(
+    description: 'An income or expense transaction. Uses single-table inheritance with a `type` discriminator (expense/income). Amounts are in the account\'s native currency; convertedValues holds the amount in the user\'s base currency.',
     operations: [
-        new GetCollection(normalizationContext: ['groups' => 'transaction:collection:read']),
-        // TODO: Remove single entity submission endpoint and rename this into /transactions accepting either array body or single entity(should be accepting different types by now)
         new Post(name: 'post_bulk', uriTemplate: '/transactions/bulk', controller: TransactionBulkCreateAction::class, deserialize: false, status: 201, openapiContext: [
             'summary' => 'Bulk create transactions',
             'description' => 'Create multiple income/expense transactions in a single request.',
@@ -71,9 +69,8 @@ use Symfony\Component\Validator\Constraints as Assert;
                 ],
             ],
         ]),
-        new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transaction:item:read']),
-        new Put(requirements: ['id' => '\d+'], status: 204, output: false),
-        new Delete(requirements: ['id' => '\d+']),
+        new Put(description: 'Update a transaction. Returns 204 with no body.', requirements: ['id' => '\d+'], status: 204, output: false),
+        new Delete(description: 'Delete a transaction and reverse its effect on the account balance.', requirements: ['id' => '\d+']),
     ],
     denormalizationContext: ['groups' => 'transaction:write'],
     order: ['executedAt' => 'DESC'],
@@ -93,7 +90,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 ])]
 #[Serializer\Discriminator([
     'field' => 'type',
-    'groups' => ['transaction:collection:read', 'account:item:read', 'debt:collection:read'],
+    'groups' => ['transaction:collection:read', 'debt:collection:read'],
     'map' => [
         'expense' => Expense::class,
         'income' => Income::class,
@@ -111,8 +108,8 @@ abstract class Transaction implements OwnableInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['transaction:collection:read', 'transaction:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
     protected ?int $id = null;
 
     #[Assert\NotBlank]
@@ -122,11 +119,10 @@ abstract class Transaction implements OwnableInterface
         'transaction:collection:read',
         'transaction:item:read',
         'transaction:write',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
-    #[Serializer\Groups(['transaction:collection:read', 'account:item:read', 'debt:collection:read'])]
+    #[Serializer\Groups(['transaction:collection:read', 'debt:collection:read'])]
     protected Account $account;
 
     #[Assert\NotBlank]
@@ -137,24 +133,22 @@ abstract class Transaction implements OwnableInterface
         'transaction:collection:read',
         'transaction:item:read',
         'transaction:write',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
     #[Serializer\Groups([
         'transaction:collection:read',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
     #[Serializer\Type(Types::FLOAT)]
     protected string $amount = '0.0';
 
+    #[ApiProperty(description: 'Amount converted to the user\'s base currency. Keyed by currency code, e.g. {"EUR": 42.50}. Computed server-side using exchange rates at executedAt.')]
     #[ORM\Column(type: Types::JSON, nullable: false)]
-    #[Groups(['transaction:collection:read', 'transaction:item:read', 'account:item:read', 'debt:collection:read', 'transfer:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     #[Serializer\Groups([
         'transaction:collection:read',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
@@ -165,13 +159,11 @@ abstract class Transaction implements OwnableInterface
         'transaction:collection:read',
         'transaction:item:read',
         'transaction:write',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
     #[Serializer\Groups([
         'transaction:collection:read',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
@@ -183,13 +175,11 @@ abstract class Transaction implements OwnableInterface
         'transaction:collection:read',
         'transaction:item:read',
         'transaction:write',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
     #[Serializer\Groups([
         'transaction:collection:read',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
@@ -206,20 +196,19 @@ abstract class Transaction implements OwnableInterface
         'transaction:collection:read',
         'transaction:item:read',
         'transaction:write',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
     #[Serializer\Groups([
         'transaction:collection:read',
-        'account:item:read',
         'debt:collection:read',
         'transfer:collection:read',
     ])]
     protected Category $category;
 
+    #[ApiProperty(description: 'Draft transactions are unconfirmed (e.g. auto-created by bank sync) and do not affect the account balance until confirmed.')]
     #[ORM\Column(type: Types::BOOLEAN, nullable: false)]
-    #[Groups(['transaction:collection:read', 'transaction:item:read', 'transaction:write', 'account:item:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:item:read', 'transaction:write'])]
     #[Serializer\Groups(['transaction:collection:read'])]
     private bool $isDraft;
 
@@ -231,7 +220,7 @@ abstract class Transaction implements OwnableInterface
     #[ORM\ManyToOne(targetEntity: Transfer::class, cascade: ["remove"], inversedBy: "transactions")]
     private ?Transfer $transfer = null;
 
-    #[Groups(['transaction:collection:read', 'transaction:item:read', 'debt:collection:read', 'account:item:read', 'transfer:collection:read'])]
+    #[Groups(['transaction:collection:read', 'transaction:item:read', 'debt:collection:read', 'transfer:collection:read'])]
     abstract public function getType(): string;
 
     public function __construct(bool $isDraft = false)

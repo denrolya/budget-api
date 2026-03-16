@@ -22,8 +22,10 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Table(name: 'budget_line')]
 #[ORM\UniqueConstraint(name: 'uq_budget_category', columns: ['budget_id', 'category_id'])]
 #[ApiResource(
+    description: 'A single line item in a budget, setting a planned spending amount for a specific category.',
     operations: [
         new Post(
+            description: 'Add a budget line to a budget. One line per category per budget (unique constraint).',
             uriTemplate: '/budgets/{budgetId}/lines',
             uriVariables: [
                 'budgetId' => new Link(fromClass: Budget::class, toProperty: 'budget'),
@@ -34,6 +36,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             normalizationContext: ['groups' => ['budget-line:read']],
         ),
         new Put(
+            description: 'Update planned amount, currency, or note for this budget line.',
             uriTemplate: '/budgets/{budgetId}/lines/{id}',
             uriVariables: [
                 'budgetId' => new Link(fromClass: Budget::class, toProperty: 'budget'),
@@ -73,14 +76,15 @@ class BudgetLine
     /**
      * Non-persisted field: used during POST denormalization to resolve the Category entity.
      */
+    #[ApiProperty(description: 'Category ID to associate with this budget line. Write-only; read responses return categoryId from the resolved entity.')]
     #[Groups(['budget-line:write'])]
     private ?int $categoryId = null;
 
+    #[ApiProperty(description: 'The planned spending limit for this category in plannedCurrency.', builtinTypes: [new \Symfony\Component\PropertyInfo\Type(builtinType: 'float')])]
     #[Assert\NotNull]
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
     #[Groups(['budget:item:read', 'budget-line:read', 'budget-line:write'])]
     #[Serializer\Type(Types::FLOAT)]
-    #[ApiProperty(builtinTypes: [new \Symfony\Component\PropertyInfo\Type(builtinType: 'float')])]
     private string $plannedAmount = '0';
 
     #[Assert\NotBlank]

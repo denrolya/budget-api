@@ -14,9 +14,10 @@ use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 #[ApiResource(
+    description: 'The authenticated user. Exposes user preferences such as base currency and dashboard widget configuration.',
     operations: [
-        new Get(),
-        new Put(),
+        new Get(description: 'Get the current user profile and preferences.'),
+        new Put(description: 'Update user preferences (base currency, dashboard statistics).'),
     ],
 )]
 #[ORM\Entity(repositoryClass: UserRepository::class)]
@@ -41,10 +42,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::STRING)]
     private string $password;
 
+    #[ApiProperty(description: 'The currency used for all converted values and statistics across the app.')]
     #[ORM\Column(name: 'base_currency', type: Types::STRING, length: 3, nullable: false)]
     #[Groups(['user:item:read', 'user:write'])]
     private string $baseCurrency = 'EUR';
 
+    #[ApiProperty(description: 'Ordered list of dashboard widget identifiers to display on the home page (e.g. moneyFlow, expenseCategoriesTree).')]
     #[ORM\Column(name: 'dashboard_statistics', type: Types::JSON)]
     #[Groups(['user:item:read', 'user:write'])]
     private array $dashboardStatistics;

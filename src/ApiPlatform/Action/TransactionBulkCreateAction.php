@@ -31,6 +31,17 @@ final readonly class TransactionBulkCreateAction
     }
 
     /**
+     * @see \App\Tests\ApiPlatform\Action\BulkTransactionCreateActionTest
+     * @tested testUnauthorizedUserCannotBulkCreate
+     * @tested testBulkCreateSuccessWithMixedTypes
+     * @tested testBulkCreateFailsWhenPayloadIsNotArray
+     * @tested testBulkCreateFailsOnInvalidItemAndDoesNotPersistAnything
+     * @tested testBulkCreateFailsOnEmptyArrayPayload
+     * @tested testBulkCreateFailsOnUnsupportedTransactionType
+     * @tested testBulkCreateWithCompensationsPersistsExpenseAndLinkedIncomes
+     * @tested testBulkCreateUpdatesAccountBalanceAndSetsConvertedValues
+     * @tested testBulkCreateFailsWhenNoExchangeRateSnapshotForPastDate
+     *
      * @throws ExceptionInterface
      */
     public function __invoke(Request $request): Response

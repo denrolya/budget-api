@@ -12,6 +12,13 @@ use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 
 /**
+ * API contract tests for Ledger endpoints.
+ *
+ * Endpoints covered:
+ *   GET /api/v2/ledger — unified list of transactions and transfers with filters
+ *
+ * Fixtures: BaseApiTestCase (shared accounts, categories, transactions)
+ *
  * @group ledger
  */
 class LedgerControllerTest extends BaseApiTestCase
@@ -19,6 +26,8 @@ class LedgerControllerTest extends BaseApiTestCase
     private const LEDGER_URL = '/api/v2/ledger';
 
     /**
+     * @covers \App\Controller\LedgerController::list
+     *
      * @group smoke
      */
     public function testUnauthenticatedRequestIsRejected(): void
@@ -28,6 +37,8 @@ class LedgerControllerTest extends BaseApiTestCase
     }
 
     /**
+     * @covers \App\Controller\LedgerController::list
+     *
      * @group smoke
      */
     public function testAuthenticatedUserCanAccessLedger(): void
@@ -47,6 +58,8 @@ class LedgerControllerTest extends BaseApiTestCase
     /**
      * The ledger must NOT return transactions that are linked to a transfer (t.transfer IS NOT NULL).
      * It MUST return the Transfer entities themselves.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testTransferTransactionsAreExcludedAndTransfersIncluded(): void
     {
@@ -115,6 +128,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * type=expense returns only expense transactions, no transfers.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testTypeExpenseFilterReturnsOnlyExpenses(): void
     {
@@ -136,6 +151,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * type=income returns only income transactions, no transfers.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testTypeIncomeFilterReturnsOnlyIncomes(): void
     {
@@ -157,6 +174,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * type=transfer returns only transfer items, no transactions.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testTypeTransferFilterReturnsOnlyTransfers(): void
     {
@@ -194,6 +213,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * Pagination: page + perPage work correctly and count reflects total regardless of page.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testPagination(): void
     {
@@ -234,6 +255,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * Items are returned sorted descending by executedAt.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testItemsAreSortedDescendingByExecutedAt(): void
     {
@@ -260,6 +283,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * account[] filter returns only items linked to the specified account.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testAccountFilter(): void
     {
@@ -289,6 +314,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * category[] filter returns only transactions in the selected category.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testCategoryFilter(): void
     {
@@ -328,6 +355,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * debt[] filter returns only transactions linked to the selected debt.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testDebtFilter(): void
     {
@@ -379,6 +408,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * note filter matches both transactions and transfers by substring.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testNoteFilterMatchesTransactionsAndTransfers(): void
     {
@@ -423,6 +454,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * isDraft=1 returns only draft transactions; isDraft=0 excludes drafts.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testIsDraftFilter(): void
     {
@@ -502,6 +535,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
     /**
      * totalValue sums only transaction net values, not transfers.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testTotalValueExcludesTransfers(): void
     {
@@ -520,6 +555,8 @@ class LedgerControllerTest extends BaseApiTestCase
     /**
      * withNestedCategories=1 expands a parent category to include its descendants.
      * withNestedCategories=0 (or absent) matches only the exact category IDs.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testWithNestedCategoriesFilter(): void
     {
@@ -572,6 +609,8 @@ class LedgerControllerTest extends BaseApiTestCase
     /**
      * currencies[] filter returns only transactions whose account currency matches.
      * Transfers must be excluded when currencies filter is active.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testCurrenciesFilter(): void
     {
@@ -645,6 +684,8 @@ class LedgerControllerTest extends BaseApiTestCase
     /**
      * amount[gte] / amount[lte] filter returns only transactions within the range.
      * Transfers must be excluded when amount filters are active.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testAmountRangeFilter(): void
     {
@@ -723,6 +764,8 @@ class LedgerControllerTest extends BaseApiTestCase
     /**
      * amount[gte] > amount[lte] must result in an error response (not 2xx).
      * TODO: improve to 400 by mapping InvalidArgumentException to BadRequestHttpException.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testInvalidAmountRangeReturnsError(): void
     {
@@ -741,6 +784,8 @@ class LedgerControllerTest extends BaseApiTestCase
      * getCategoriesWithDescendantsByType() returns [] and $categoryIds becomes [].
      * The old code passed `null` (no filter) → all transactions returned.
      * The fix passes [0] as an impossible sentinel → zero results.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testWithNestedCategoriesNonExistentIdReturnsEmpty(): void
     {
@@ -761,6 +806,8 @@ class LedgerControllerTest extends BaseApiTestCase
      * Regression: totalValue must be computed via SQL (sumConverted), not by iterating the
      * in-memory $transactions array. When perPage=1, the page contains one item, but
      * totalValue must still reflect ALL matching transactions, not just the one on the page.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testTotalValueCoversAllPagesNotJustCurrentPage(): void
     {
@@ -793,8 +840,56 @@ class LedgerControllerTest extends BaseApiTestCase
     }
 
     /**
+     * Combined filters: account + category + date range work together.
+     *
+     * @covers \App\Controller\LedgerController::list
+     */
+    public function testCombinedFilters_accountAndCategoryAndDateRange(): void
+    {
+        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        assert($groceries instanceof ExpenseCategory);
+
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'      => '2021-01-01',
+            'before'     => '2021-01-31',
+            'type'       => 'expense',
+            'account[]'  => [$this->accountCashEUR->getId()],
+            'category[]' => [$groceries->getId()],
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+        foreach ($content['list'] as $item) {
+            self::assertSame('expense', $item['type']);
+            self::assertSame($this->accountCashEUR->getId(), $item['account']['id']);
+            self::assertSame($groceries->getId(), $item['category']['id']);
+        }
+    }
+
+    /**
+     * Empty date range returns zero results.
+     *
+     * @covers \App\Controller\LedgerController::list
+     */
+    public function testEmptyDateRange_returnsZeroResults(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after'  => '2099-01-01',
+            'before' => '2099-12-31',
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+        self::assertSame(0, $content['count']);
+        self::assertEmpty($content['list']);
+        self::assertEqualsWithDelta(0.0, $content['totalValue'], 0.001);
+    }
+
+    /**
      * Complement: a non-existent category without withNestedCategories must also return empty.
      * This goes through the plain $categoryIds ?: null path — valid IDs, zero match.
+     *
+     * @covers \App\Controller\LedgerController::list
      */
     public function testNonExistentCategoryIdWithoutExpansionReturnsEmpty(): void
     {

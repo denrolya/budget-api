@@ -25,13 +25,19 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: BudgetRepository::class)]
 #[ORM\Table(name: 'budget')]
 #[ApiResource(
+    description: 'A budget plan for a specific time period. Contains budget lines that set spending limits per category.',
     operations: [
-        new GetCollection(normalizationContext: ['groups' => ['budget:collection:read']]),
+        new GetCollection(
+            description: 'List all budgets ordered by start date (newest first).',
+            normalizationContext: ['groups' => ['budget:collection:read']],
+        ),
         new Post(
+            description: 'Create a new budget. Set copiedFromId to clone lines from an existing budget.',
             processor: BudgetDataPersister::class,
             normalizationContext: ['groups' => ['budget:item:read']],
         ),
         new Get(
+            description: 'Get a budget with all its budget lines.',
             requirements: ['id' => '\d+'],
             normalizationContext: ['groups' => ['budget:item:read']],
         ),
@@ -66,6 +72,7 @@ class Budget implements OwnableInterface
     #[Groups(['budget:collection:read', 'budget:item:read', 'budget:write'])]
     private ?string $name = null;
 
+    #[ApiProperty(description: 'Budget period type: monthly, yearly, or custom. Determines how startDate/endDate are interpreted.')]
     #[Assert\NotBlank]
     #[Assert\Choice(choices: self::ALLOWED_PERIOD_TYPES)]
     #[ORM\Column(type: Types::STRING, length: 10)]
@@ -96,6 +103,7 @@ class Budget implements OwnableInterface
     /**
      * Non-persisted field: when set during creation, lines are copied from the source budget.
      */
+    #[ApiProperty(description: 'Set during POST to clone budget lines from an existing budget. Write-only, not persisted.')]
     #[Groups(['budget:write'])]
     private ?int $copiedFromId = null;
 

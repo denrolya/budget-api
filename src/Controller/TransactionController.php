@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Attribute\MapCarbonDate;
-use App\Entity\Expense;
-use App\Entity\Income;
 use App\Pagination\Paginator;
 use App\Service\AssetsManager;
 use App\Service\CSVExporter;
@@ -36,6 +34,28 @@ final class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'note', description: 'Search substring in note', nullable: true, allowBlank: true)]
     #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: Paginator::PER_PAGE)]
     #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1)]
+    /**
+     * @see \App\Tests\Controller\TransactionControllerTest
+     * @tested testAuthorizedUserCanAccessListOfTransactions
+     * @tested testTransactionsListPagination
+     * @tested testBeforeAfterFilters
+     * @tested testAccountsFilter
+     * @tested testCategoriesFilter
+     * @tested testWithNestedCategoriesFilter
+     * @tested testIsDraftFilter
+     * @tested testTypeFilter
+     * @tested testCurrenciesFilter
+     * @tested testAmountRangeFilter
+     * @tested testInvalidAmountRangeReturnsError
+     * @tested testNoteFilter
+     * @tested testTransactionListItem_hasCorrectShape
+     * @tested testExcludedCategoriesFilter
+     * @tested testCombinedFilters_typeAndAccount
+     * @tested testCombinedFilters_noteAndType
+     * @tested testTransactionList_withoutAuth_returns401
+     * @tested testTransactionList_noResults_returnsEmptyListWithZeroTotals
+     * @tested testGetCollectionApiPlatform_removedEndpoint_returns404
+     */
     #[Rest\View(serializerGroups: ['transaction:collection:read'])]
     #[Route('', name: 'collection_read', methods: ['GET'])]
     public function list(
@@ -99,6 +119,12 @@ final class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'withNestedCategories', requirements: '^(0|1|true|false)$', default: true, nullable: true)]
     #[Rest\QueryParam(name: 'isDraft', requirements: '^(0|1|true|false)$', default: null, nullable: true)]
     #[Rest\QueryParam(name: 'note', nullable: true, allowBlank: true)]
+    /**
+     * @see \App\Tests\Controller\TransactionControllerTest
+     * @tested testExportCsvWithoutFiltersDoesNotCrash
+     * @tested testExportCsvWithCurrenciesFilter
+     * @tested testExportCsvWithUnknownCurrencyDoesNotCrash
+     */
     #[Route('/export.csv', name: 'collection_export_csv', methods: ['GET'])]
     public function exportCsv(
         Request $request,
@@ -149,33 +175,4 @@ final class TransactionController extends AbstractFOSRestController
         return $response;
     }
 
-    #[Route('', name: 'collection_create_bulk', methods: ['POST'])]
-    #[Rest\View(statusCode: Response::HTTP_CREATED, serializerGroups: ['transaction:read'])]
-    public function bulkCreate(Request $request): View
-    {
-        $data = json_decode($request->getContent(), true);
-
-        if (!is_array($data)) {
-            throw new \InvalidArgumentException('Request body must be a JSON array of transactions');
-        }
-
-        if ($data === []) {
-            throw new \InvalidArgumentException('At least one transaction is required');
-        }
-
-        $transactions = [];
-        foreach ($data as $item) {
-            $transaction = $this->container->get('serializer')->denormalize(
-                $item,
-                ($item['type'] ?? null) === 'expense' ? Expense::class : Income::class,
-                'json'
-            );
-            $this->container->get('doctrine.orm.entity_manager')->persist($transaction);
-            $transactions[] = $transaction;
-        }
-
-        $this->container->get('doctrine.orm.entity_manager')->flush();
-
-        return $this->view($transactions);
-    }
 }

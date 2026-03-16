@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Post;
 use App\Repository\BankCardAccountRepository;
@@ -13,41 +14,48 @@ use JMS\Serializer\Annotation as Serializer;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: BankCardAccountRepository::class)]
 #[ApiResource(
+    description: 'A bank card account linked to a BankIntegration for automatic transaction syncing.',
     operations: [
-        new Post(uriTemplate: '/accounts/bank', normalizationContext: ['groups' => 'account:write']),
+        new Post(
+            description: 'Create a new bank card account. Link it to a BankIntegration and set externalAccountId to enable webhook/sync.',
+            uriTemplate: '/accounts/bank',
+            normalizationContext: ['groups' => 'account:write'],
+        ),
     ],
     denormalizationContext: ['groups' => 'account:write'],
 )]
 class BankCardAccount extends Account
 {
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true)]
-    #[Groups(['account:item:read', 'account:write'])]
-    #[Serializer\Groups(['account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read'])]
     private ?string $bankName;
 
     #[ORM\Column(type: Types::STRING, length: 16, nullable: true)]
-    #[Groups(['account:item:read', 'account:write'])]
-    #[Serializer\Groups(['account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read'])]
     private ?string $cardNumber;
 
     #[ORM\Column(type: Types::STRING, length: 34, nullable: true)]
-    #[Groups(['account:item:read', 'account:write'])]
-    #[Serializer\Groups(['account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read'])]
     private ?string $iban;
 
     /**
      * The account/balance identifier as the bank knows it.
      * Format is bank-specific: for Wise it's the balanceId, for Monobank it's the account id string.
      */
+    #[ApiProperty(description: 'The account identifier as known by the bank. Format is provider-specific: Wise balanceId, Monobank account id string.')]
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
-    #[Groups(['account:item:read', 'account:write'])]
-    #[Serializer\Groups(['account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read'])]
     private ?string $externalAccountId = null;
 
+    #[ApiProperty(description: 'The bank integration this account is linked to for automatic transaction syncing via webhooks or polling.')]
     #[ORM\ManyToOne(targetEntity: BankIntegration::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
-    #[Groups(['account:collection:read', 'account:item:read', 'account:write'])]
-    #[Serializer\Groups(['account:collection:read', 'account:item:read'])]
+    #[Groups(['account:collection:read', 'account:write'])]
+    #[Serializer\Groups(['account:collection:read'])]
     private ?BankIntegration $bankIntegration = null;
 
     public function getBankName(): ?string

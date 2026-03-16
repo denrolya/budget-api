@@ -22,6 +22,9 @@ final class BankIntegrationAccountsAction extends AbstractController
     ) {
     }
 
+    /**
+     * @see \App\Tests\ApiPlatform\BankIntegrationCrudTest
+     */
     public function __invoke(Request $request, int $id): Response
     {
         $integration = $this->em->getRepository(BankIntegration::class)->find($id);

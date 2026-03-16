@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -25,6 +26,7 @@ use Symfony\Component\Serializer\Annotation\Groups;
 #[ORM\Table(name: 'bank_integration')]
 #[ORM\HasLifecycleCallbacks]
 #[ApiResource(
+    description: 'A connection to a bank provider (Wise, Monobank) for automatic transaction syncing via webhooks or polling.',
     operations: [
         new GetCollection(
             normalizationContext: ['groups' => ['bank_integration:read']],
@@ -105,8 +107,8 @@ class BankIntegration implements OwnableInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
-    #[Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
-    #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
+    #[Groups(['bank_integration:read', 'account:collection:read'])]
+    #[Serializer\Groups(['bank_integration:read', 'account:collection:read'])]
     private ?int $id = null;
 
     #[Gedmo\Blameable(on: 'create')]
@@ -115,8 +117,8 @@ class BankIntegration implements OwnableInterface
     private ?User $owner = null;
 
     #[ORM\Column(type: Types::STRING, length: 50, enumType: BankProvider::class)]
-    #[Groups(['bank_integration:read', 'bank_integration:write', 'account:collection:read', 'account:item:read'])]
-    #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
+    #[Groups(['bank_integration:read', 'bank_integration:write', 'account:collection:read'])]
+    #[Serializer\Groups(['bank_integration:read', 'account:collection:read'])]
     #[Serializer\Type('string')]
     #[Serializer\Accessor(getter: 'getProviderValue')]
     private BankProvider $provider;
@@ -129,25 +131,28 @@ class BankIntegration implements OwnableInterface
     #[Groups(['bank_integration:write'])]
     private array $credentials = [];
 
+    #[ApiProperty(description: 'When false, webhooks and sync operations are ignored for this integration.')]
     #[ORM\Column(type: Types::BOOLEAN, nullable: false, options: ['default' => true])]
-    #[Groups(['bank_integration:read', 'bank_integration:write', 'account:collection:read', 'account:item:read'])]
-    #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
+    #[Groups(['bank_integration:read', 'bank_integration:write', 'account:collection:read'])]
+    #[Serializer\Groups(['bank_integration:read', 'account:collection:read'])]
     private bool $isActive = true;
 
     /**
      * Preferred sync method. Only meaningful when the provider supports both webhook and polling.
         * Null = auto (single-mode providers ignore this).
      */
+    #[ApiProperty(description: 'Preferred sync method (webhook or polling). Null means auto-detect based on provider capabilities.')]
     #[ORM\Column(type: Types::STRING, length: 20, nullable: true, enumType: SyncMethod::class)]
-    #[Groups(['bank_integration:read', 'bank_integration:write', 'account:collection:read', 'account:item:read'])]
-    #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
+    #[Groups(['bank_integration:read', 'bank_integration:write', 'account:collection:read'])]
+    #[Serializer\Groups(['bank_integration:read', 'account:collection:read'])]
     #[Serializer\Type('string')]
     #[Serializer\Accessor(getter: 'getSyncMethodValue')]
     private ?SyncMethod $syncMethod = null;
 
+    #[ApiProperty(description: 'Timestamp of the last successful transaction sync (via webhook or polling). Used as the start of the next sync window.')]
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
-    #[Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
-    #[Serializer\Groups(['bank_integration:read', 'account:collection:read', 'account:item:read'])]
+    #[Groups(['bank_integration:read', 'account:collection:read'])]
+    #[Serializer\Groups(['bank_integration:read', 'account:collection:read'])]
     private ?\DateTimeImmutable $lastSyncedAt = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: false)]

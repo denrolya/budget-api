@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Controller;
 
 use App\Entity\Category;
@@ -12,9 +14,24 @@ use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
+/**
+ * API contract tests for Transaction endpoints.
+ *
+ * Endpoints covered:
+ *   GET    /api/v2/transaction            — paginated list with filters
+ *   POST   /api/transactions/expense      — create expense
+ *   POST   /api/transactions/income       — create income
+ *   PUT    /api/transactions/{id}         — update transaction
+ *   DELETE /api/transactions/{id}         — delete transaction
+ *   GET    /api/v2/transaction/export.csv — CSV export
+ *
+ * Fixtures: BaseApiTestCase (shared accounts, categories, transactions)
+ */
 class TransactionControllerTest extends BaseApiTestCase
 {
     /**
+     * @covers \App\Controller\TransactionController::list
+     *
      * @group smoke
      * @group transactions
      */
@@ -35,6 +52,8 @@ class TransactionControllerTest extends BaseApiTestCase
     /**
      * Jan 2021: 30 EUR Cash expenses + 5 UAH Card expenses + 4 EUR Cash incomes = 39 total
      * totalValue = income(2000) - expense(1530) = 470
+     *
+     * @covers \App\Controller\TransactionController::list
      *
      * @group smoke
      * @group transactions
@@ -147,6 +166,8 @@ class TransactionControllerTest extends BaseApiTestCase
     }
 
     /**
+     * @covers \App\Controller\TransactionController::list
+     *
      * @group smoke
      * @group transactions
      */
@@ -187,6 +208,8 @@ class TransactionControllerTest extends BaseApiTestCase
      * UAH Card: 5 expenses × 10 EUR each = 50 EUR, totalValue=-50
      * EUR Cash: 30 expenses (1480 EUR) + 4 incomes (2000 EUR), totalValue=520
      * Both: all 39 transactions, totalValue=470
+     *
+     * @covers \App\Controller\TransactionController::list
      */
     public function testAccountsFilter(): void
     {
@@ -238,6 +261,8 @@ class TransactionControllerTest extends BaseApiTestCase
     /**
      * Food & Drinks with nested (Groceries+EatingOut): 31 in Jan 2021, totalValue=-1130
      * Food & Drinks + Rent: 35 in Jan 2021, totalValue=-1530
+     *
+     * @covers \App\Controller\TransactionController::list
      */
     public function testCategoriesFilter(): void
     {
@@ -291,6 +316,8 @@ class TransactionControllerTest extends BaseApiTestCase
     /**
      * Food & Drinks withNested=1 (Jan2021-Jan2022): 90 transactions (Groceries+EatingOut all year)
      * Food & Drinks withNested=0: 0 transactions (no direct transactions under root)
+     *
+     * @covers \App\Controller\TransactionController::list
      */
     public function testWithNestedCategoriesFilter(): void
     {
@@ -331,6 +358,9 @@ class TransactionControllerTest extends BaseApiTestCase
         self::assertCount(0, $content['list']);
     }
 
+    /**
+     * @covers \App\Controller\TransactionController::list
+     */
     public function testIsDraftFilter(): void
     {
         $after = Carbon::parse('2021-01-01')->startOfDay();
@@ -361,6 +391,8 @@ class TransactionControllerTest extends BaseApiTestCase
     /**
      * type=expense: 35 transactions, totalValue=-1530
      * type=income: 4 transactions, totalValue=2000
+     *
+     * @covers \App\Controller\TransactionController::list
      */
     public function testTypeFilter(): void
     {
@@ -394,6 +426,8 @@ class TransactionControllerTest extends BaseApiTestCase
      * currencies[] filter: only transactions from accounts with matching currency.
      * EUR Cash account: EUR; UAH Card account: UAH.
      * Jan 2021: 34 EUR transactions (30 expenses + 4 incomes), 5 UAH transactions.
+     *
+     * @covers \App\Controller\TransactionController::list
      */
     public function testCurrenciesFilter(): void
     {
@@ -448,6 +482,8 @@ class TransactionControllerTest extends BaseApiTestCase
     /**
      * amount[gte] / amount[lte] filters: only transactions within the specified range.
      * Jan 2021 EUR Cash expenses: 30 items at various amounts.
+     *
+     * @covers \App\Controller\TransactionController::list
      */
     public function testAmountRangeFilter(): void
     {
@@ -502,6 +538,8 @@ class TransactionControllerTest extends BaseApiTestCase
     /**
      * amount[gte] > amount[lte] must result in an error response (not 2xx).
      * TODO: improve to 400 by mapping InvalidArgumentException to BadRequestHttpException.
+     *
+     * @covers \App\Controller\TransactionController::list
      */
     public function testInvalidAmountRangeReturnsError(): void
     {
@@ -516,6 +554,8 @@ class TransactionControllerTest extends BaseApiTestCase
 
     /**
      * note filter performs a case-insensitive substring match.
+     *
+     * @covers \App\Controller\TransactionController::list
      */
     public function testNoteFilter(): void
     {
@@ -557,11 +597,238 @@ class TransactionControllerTest extends BaseApiTestCase
         self::assertEquals(2, $response->toArray()['count']);
     }
 
+    // ──────────────────────────────────────────────────────────────────────
+    //  Response shape validation
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Assert that each transaction in the list has all fields the frontend reads.
+     *
+     * @covers \App\Controller\TransactionController::list
+     */
+    public function testTransactionListItem_hasCorrectShape(): void
+    {
+        $after = Carbon::parse('2021-01-01')->startOfDay();
+        $before = Carbon::parse('2021-01-31')->endOfDay();
+
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+        ]));
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        self::assertNotEmpty($content['list']);
+        $transaction = $content['list'][0];
+
+        // Fields the frontend RawTransactionDTO expects
+        self::assertArrayHasKey('id', $transaction);
+        self::assertArrayHasKey('account', $transaction);
+        self::assertArrayHasKey('amount', $transaction);
+        self::assertArrayHasKey('convertedValues', $transaction);
+        self::assertArrayHasKey('note', $transaction);
+        self::assertArrayHasKey('executedAt', $transaction);
+        self::assertArrayHasKey('category', $transaction);
+        self::assertArrayHasKey('isDraft', $transaction);
+        self::assertArrayHasKey('type', $transaction);
+
+        // Account sub-object
+        self::assertIsArray($transaction['account']);
+        self::assertArrayHasKey('id', $transaction['account']);
+        self::assertArrayHasKey('name', $transaction['account']);
+        self::assertArrayHasKey('currency', $transaction['account']);
+
+        // Category sub-object
+        self::assertIsArray($transaction['category']);
+        self::assertArrayHasKey('id', $transaction['category']);
+        self::assertArrayHasKey('name', $transaction['category']);
+
+        // Type checks
+        self::assertIsInt($transaction['id']);
+        self::assertIsNumeric($transaction['amount']);
+        self::assertIsBool($transaction['isDraft']);
+        self::assertContains($transaction['type'], ['expense', 'income']);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  Excluded categories filter
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * excludedCategories[] filter: remove specific categories from results.
+     * Food & Drinks has 31 transactions in Jan 2021. Excluding it should leave 8 (39-31).
+     *
+     * @covers \App\Controller\TransactionController::list
+     */
+    public function testExcludedCategoriesFilter(): void
+    {
+        $after = Carbon::parse('2021-01-01')->startOfDay();
+        $before = Carbon::parse('2021-01-31')->endOfDay();
+
+        // Use Rent — a leaf category that has transactions assigned directly
+        $rentCategory = $this->em->getRepository(Category::class)->findOneBy(['name' => 'Rent']);
+
+        // Without exclusion
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+        ]));
+        self::assertResponseIsSuccessful();
+        $totalWithoutExclusion = $response->toArray()['count'];
+
+        // With exclusion
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'excludedCategories' => [$rentCategory->getId()],
+        ]));
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        self::assertLessThan($totalWithoutExclusion, $content['count'], 'Excluding Rent category must reduce count.');
+
+        // Verify none of the returned transactions belong to excluded category
+        foreach ($content['list'] as $item) {
+            self::assertNotEquals(
+                $rentCategory->getId(),
+                $item['category']['id'],
+                'Excluded category transactions must not appear.',
+            );
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  Combined filters
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Combining type + accounts + categories filters.
+     *
+     * @covers \App\Controller\TransactionController::list
+     */
+    public function testCombinedFilters_typeAndAccount(): void
+    {
+        $after = Carbon::parse('2021-01-01')->startOfDay();
+        $before = Carbon::parse('2021-01-31')->endOfDay();
+        $eurId = $this->accountCashEUR->getId();
+
+        // EUR Cash + expense only
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'type' => Transaction::EXPENSE,
+            'accounts[]' => $eurId,
+        ]));
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        // EUR Cash expenses: 30 in Jan 2021
+        self::assertEquals(30, $content['count']);
+        foreach ($content['list'] as $item) {
+            self::assertEquals($eurId, $item['account']['id']);
+            self::assertSame('expense', $item['type']);
+        }
+
+        // EUR Cash + income only
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
+            'type' => Transaction::INCOME,
+            'accounts[]' => $eurId,
+        ]));
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        // EUR Cash incomes: 4 in Jan 2021
+        self::assertEquals(4, $content['count']);
+        foreach ($content['list'] as $item) {
+            self::assertEquals($eurId, $item['account']['id']);
+            self::assertSame('income', $item['type']);
+        }
+    }
+
+    /**
+     * Combining note filter with type filter.
+     *
+     * @covers \App\Controller\TransactionController::list
+     */
+    public function testCombinedFilters_noteAndType(): void
+    {
+        $groceries = $this->em->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        $salary = $this->em->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_INCOME_SALARY]);
+        assert($groceries !== null && $salary !== null);
+
+        $date = Carbon::parse('2026-06-15T12:00:00Z');
+        $this->createExpense(amount: 25.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'combo test expense');
+        $this->createIncome(amount: 100.0, account: $this->accountCashEUR, category: $salary, executedAt: $date, note: 'combo test income');
+        $this->em->clear();
+
+        // Search "combo test" + type=expense → only expense
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => '2026-06-01',
+            'before' => '2026-06-30',
+            'note' => 'combo test',
+            'type' => Transaction::EXPENSE,
+        ]));
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+        self::assertEquals(1, $content['count']);
+        self::assertSame('combo test expense', $content['list'][0]['note']);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  Security
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * @covers \App\Controller\TransactionController::list
+     */
+    public function testTransactionList_withoutAuth_returns401(): void
+    {
+        $this->client->request('GET', self::TRANSACTION_LIST_URL, ['headers' => ['authorization' => null]]);
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  Empty results
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * @covers \App\Controller\TransactionController::list
+     */
+    public function testTransactionList_noResults_returnsEmptyListWithZeroTotals(): void
+    {
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => '2099-01-01',
+            'before' => '2099-12-31',
+        ]));
+        self::assertResponseIsSuccessful();
+        $content = $response->toArray();
+
+        self::assertCount(0, $content['list']);
+        self::assertEquals(0, $content['count']);
+        self::assertEquals(0, $content['totalValue']);
+    }
+
+    /**
+     * Verify that the removed GetCollection endpoint on Transaction entity is no longer accessible.
+     *
+     * @covers \App\Controller\TransactionController::list
+     */
+    public function testGetCollectionApiPlatform_removedEndpoint_returns404(): void
+    {
+        $response = $this->client->request('GET', '/api/transactions');
+        // Should be 404 since GetCollection was removed
+        self::assertContains($response->getStatusCode(), [404, 405]);
+    }
+
     private const EXPORT_CSV_URL = '/api/v2/transaction/export.csv';
 
     /**
      * Regression: passing no currencies param sent null to CSVExporter::stream(array $currencies),
      * which is a TypeError under strict_types=1. Must return 200 with a CSV content-type.
+     *
+     * @covers \App\Controller\TransactionController::exportCsv
      */
     public function testExportCsvWithoutFiltersDoesNotCrash(): void
     {
@@ -576,6 +843,8 @@ class TransactionControllerTest extends BaseApiTestCase
 
     /**
      * CSV export with currencies filter must return only matching rows and not crash.
+     *
+     * @covers \App\Controller\TransactionController::exportCsv
      */
     public function testExportCsvWithCurrenciesFilter(): void
     {
@@ -608,6 +877,8 @@ class TransactionControllerTest extends BaseApiTestCase
 
     /**
      * CSV export with a non-existent currency must succeed (not crash) and return a CSV content-type.
+     *
+     * @covers \App\Controller\TransactionController::exportCsv
      */
     public function testExportCsvWithUnknownCurrencyDoesNotCrash(): void
     {

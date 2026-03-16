@@ -6,6 +6,7 @@ use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
 use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\ExistsFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\GetCollection;
@@ -34,10 +35,21 @@ use Symfony\Component\Validator\Constraints as Assert;
     'income' => IncomeCategory::class,
 ])]
 #[ApiResource(
+    description: 'A transaction category (expense or income). Supports hierarchical nesting via parent/root/children. Uses single-table inheritance.',
     operations: [
-        new GetCollection(normalizationContext: ['groups' => 'category:collection:read']),
-        new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'category:write']),
-        new Delete(requirements: ['id' => '\d+']),
+        new GetCollection(
+            description: 'List all categories (flat). Use exists[root] filter to get only root or only child categories.',
+            normalizationContext: ['groups' => 'category:collection:read'],
+        ),
+        new Put(
+            description: 'Update category name, parent, or isAffectingProfit flag.',
+            requirements: ['id' => '\d+'],
+            normalizationContext: ['groups' => 'category:write'],
+        ),
+        new Delete(
+            description: 'Delete a category and all its transactions (cascade).',
+            requirements: ['id' => '\d+'],
+        ),
     ],
     denormalizationContext: ['groups' => 'category:write'],
     order: ['name' => 'ASC'],
@@ -80,7 +92,6 @@ abstract class Category
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::INTEGER)]
     #[Groups([
-        'account:item:read',
         'debt:collection:read',
         'category:collection:read',
         'category:tree:read',
@@ -90,7 +101,6 @@ abstract class Category
     #[Serializer\Groups([
         'category:collection:read',
         'category:tree:read',
-        'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
         'transfer:collection:read'
@@ -110,7 +120,6 @@ abstract class Category
     #[ORM\Column(type: "string", length: 255)]
     #[Groups([
         'transaction:collection:read',
-        'account:item:read',
         'debt:collection:read',
         'category:collection:read',
         'category:tree:read',
@@ -120,7 +129,6 @@ abstract class Category
     #[Serializer\Groups([
         'category:collection:read',
         'category:tree:read',
-        'account:item:read',
         'transaction:collection:read',
         'debt:collection:read',
     ])]
@@ -147,17 +155,20 @@ abstract class Category
     #[ORM\OrderBy(["executedAt" => "ASC"])]
     private Collection $transactions;
 
+    #[ApiProperty(description: 'When true, transactions in this category count toward profit/loss calculations. Set to false for transfers, debt repayments, etc.')]
     #[ORM\Column(type: Types::BOOLEAN, nullable: false)]
     #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     private bool $isAffectingProfit = true;
 
-    #[Groups(['category:tree:read', 'account:item:read'])]
-    #[Serializer\Groups(['category:tree:read', 'account:item:read'])]
+    #[ApiProperty(description: 'Sum of transaction amounts directly in this category (excluding children). Computed at read time for tree views.')]
+    #[Groups(['category:tree:read'])]
+    #[Serializer\Groups(['category:tree:read'])]
     private float $value = 0;
 
-    #[Groups(['category:tree:read', 'account:item:read'])]
-    #[Serializer\Groups(['category:tree:read', 'account:item:read'])]
+    #[ApiProperty(description: 'Sum of transaction amounts in this category and all descendants. Computed at read time for tree views.')]
+    #[Groups(['category:tree:read'])]
+    #[Serializer\Groups(['category:tree:read'])]
     private float $total = 0;
 
     #[Groups(['category:collection:read', 'category:tree:read'])]

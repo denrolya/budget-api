@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\ApiPlatform\Action;
 
 use App\Bank\BankProvider;
@@ -10,6 +12,11 @@ use App\Entity\User;
 use App\Tests\BaseApiTestCase;
 
 /**
+ * API contract tests for BankIntegration sync endpoint.
+ *
+ * Endpoints covered:
+ *   POST /api/bank-integrations/{id}/sync  — trigger a manual sync for a bank integration
+ *
  * @group bank
  */
 class BankIntegrationSyncActionTest extends BaseApiTestCase
@@ -53,6 +60,9 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
     // Authentication / authorisation
     // -------------------------------------------------------------------------
 
+    /**
+     * @covers \App\ApiPlatform\Action\BankIntegrationSyncAction::__invoke
+     */
     public function testUnauthenticatedGets401(): void
     {
         $this->client->request('POST', $this->url($this->wiseIntegrationId), [
@@ -63,6 +73,9 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    /**
+     * @covers \App\ApiPlatform\Action\BankIntegrationSyncAction::__invoke
+     */
     public function testUnknownIntegrationReturns404(): void
     {
         $this->client->request('POST', $this->url(99999), ['json' => []]);
@@ -70,6 +83,9 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    /**
+     * @covers \App\ApiPlatform\Action\BankIntegrationSyncAction::__invoke
+     */
     public function testWrongOwnerReturns403(): void
     {
         $user2 = new User();
@@ -91,6 +107,8 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
      * Monobank is webhook-only and does not implement PollingCapableInterface.
      * BankSyncService::sync() throws LogicException which the action maps to 422.
      * No mocking required — this exercises the real service.
+     *
+     * @covers \App\ApiPlatform\Action\BankIntegrationSyncAction::__invoke
      */
     public function testMonobankSyncReturns422DueToNoPollingSupport(): void
     {
@@ -109,6 +127,8 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
 
     /**
      * The action delegates to BankSyncService and echoes back the created-draft count.
+     *
+     * @covers \App\ApiPlatform\Action\BankIntegrationSyncAction::__invoke
      */
     public function testSyncReturnsCreatedDraftCount(): void
     {
@@ -126,6 +146,8 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
 
     /**
      * A date range is accepted as query params; both are forwarded to BankSyncService.
+     *
+     * @covers \App\ApiPlatform\Action\BankIntegrationSyncAction::__invoke
      */
     public function testSyncForwardsDateRangeToService(): void
     {
@@ -154,6 +176,8 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
 
     /**
      * Unexpected errors from the bank API are surfaced as 502 Bad Gateway.
+     *
+     * @covers \App\ApiPlatform\Action\BankIntegrationSyncAction::__invoke
      */
     public function testBankApiErrorReturns502(): void
     {

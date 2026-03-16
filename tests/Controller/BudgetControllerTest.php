@@ -10,6 +10,23 @@ use App\Entity\ExpenseCategory;
 use App\Tests\BaseApiTestCase;
 
 /**
+ * API contract tests for Budget endpoints.
+ *
+ * Endpoints covered:
+ *   GET    /api/budgets                            — list budgets
+ *   POST   /api/budgets                            — create budget
+ *   GET    /api/budgets/{id}                       — get single budget
+ *   PUT    /api/budgets/{id}                       — update budget
+ *   DELETE /api/budgets/{id}                       — delete budget
+ *   POST   /api/budgets/{budgetId}/lines           — create budget line
+ *   PUT    /api/budgets/{budgetId}/lines/{id}      — update budget line
+ *   DELETE /api/budgets/{budgetId}/lines/{id}      — delete budget line
+ *   GET    /api/v2/budget/{id}/analytics           — budget analytics
+ *   GET    /api/v2/budget/{id}/analytics/daily     — daily budget analytics
+ *   GET    /api/v2/budget/{id}/history-averages    — historical averages
+ *
+ * Fixtures: BaseApiTestCase (shared accounts, categories, transactions)
+ *
  * @group budget
  */
 class BudgetControllerTest extends BaseApiTestCase
@@ -34,6 +51,8 @@ class BudgetControllerTest extends BaseApiTestCase
     // ──────────────────────────────────────────────────────────────────────────
 
     /**
+     * @covers \App\Entity\Budget
+     *
      * @group smoke
      */
     public function testListRequiresAuth(): void
@@ -43,6 +62,8 @@ class BudgetControllerTest extends BaseApiTestCase
     }
 
     /**
+     * @covers \App\Entity\Budget
+     *
      * @group smoke
      */
     public function testListReturnsBudgets(): void
@@ -68,6 +89,9 @@ class BudgetControllerTest extends BaseApiTestCase
     // Get single (API Platform)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * @covers \App\Entity\Budget
+     */
     public function testGetBudgetReturnsLinesAndMeta(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -90,6 +114,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertArrayHasKey('plannedCurrency', $line);
     }
 
+    /**
+     * @covers \App\Entity\Budget
+     */
     public function testGetNonExistentBudgetReturns404(): void
     {
         $this->client->request('GET', self::BUDGET_API_URL . '/999999');
@@ -100,6 +127,9 @@ class BudgetControllerTest extends BaseApiTestCase
     // Create (API Platform)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * @covers \App\DataPersister\BudgetDataPersister
+     */
     public function testCreateMonthlyBudget(): void
     {
         $response = $this->client->request('POST', self::BUDGET_API_URL, [
@@ -119,6 +149,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertEmpty($content['lines']);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetDataPersister
+     */
     public function testCreateBudgetWithoutNameDefaultsToNull(): void
     {
         $response = $this->client->request('POST', self::BUDGET_API_URL, [
@@ -135,6 +168,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertEquals('yearly', $content['periodType']);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetDataPersister
+     */
     public function testCreateBudgetCopiesLinesFromSource(): void
     {
         $source = $this->findBudget('January 2021');
@@ -161,6 +197,9 @@ class BudgetControllerTest extends BaseApiTestCase
     // Update (API Platform)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * @covers \App\DataPersister\BudgetDataPersister
+     */
     public function testUpdateBudgetName(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -179,6 +218,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertEquals('Updated Name', $content['name']);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetDataPersister
+     */
     public function testUpdateBudgetDates(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -201,6 +243,9 @@ class BudgetControllerTest extends BaseApiTestCase
     // Delete (API Platform)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * @covers \App\DataPersister\BudgetDataPersister
+     */
     public function testDeleteBudget(): void
     {
         $budget = $this->findBudget('Full Year 2021');
@@ -213,6 +258,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetDataPersister
+     */
     public function testDeleteBudgetCascadesLines(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -232,6 +280,9 @@ class BudgetControllerTest extends BaseApiTestCase
     // Budget Lines (API Platform subresource)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * @covers \App\DataPersister\BudgetLineDataPersister
+     */
     public function testCreateLine(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -260,6 +311,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertArrayHasKey('id', $content);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetLineDataPersister
+     */
     public function testUpdateLine(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -283,6 +337,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertEquals('HUF', $content['plannedCurrency']);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetLineDataPersister
+     */
     public function testDeleteLine(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -302,6 +359,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertNotContains($lineId, $lineIds);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetLineDataPersister
+     */
     public function testDeleteLineFromWrongBudgetReturns404(): void
     {
         $januaryBudget = $this->findBudget('January 2021');
@@ -323,6 +383,8 @@ class BudgetControllerTest extends BaseApiTestCase
     /**
      * Analytics for Jan 2021 budget should return category actuals
      * matching the transactions loaded by TransactionFixtures.
+     *
+     * @covers \App\Controller\BudgetController::analytics
      */
     public function testAnalyticsReturnsCorrectShape(): void
     {
@@ -350,6 +412,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertArrayHasKey('expense', $convertedValue);
     }
 
+    /**
+     * @covers \App\Controller\BudgetController::analytics
+     */
     public function testAnalyticsRequiresAuth(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -366,6 +431,9 @@ class BudgetControllerTest extends BaseApiTestCase
     // historyAverages (BudgetController v2)
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * @covers \App\Controller\BudgetController::historyAverages
+     */
     public function testHistoryAveragesRequiresAuth(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -377,6 +445,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    /**
+     * @covers \App\Controller\BudgetController::historyAverages
+     */
     public function testHistoryAveragesReturnsExpectedStructure(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -399,6 +470,8 @@ class BudgetControllerTest extends BaseApiTestCase
     /**
      * Regression: old code set $start = now()->subMonths($months), a mid-month date.
      * The fix aligns to calendar-month boundaries. Verify via the `after`/`before` fields.
+     *
+     * @covers \App\Controller\BudgetController::historyAverages
      */
     public function testHistoryAveragesWindowAlignedToCalendarMonthBoundaries(): void
     {
@@ -433,6 +506,8 @@ class BudgetControllerTest extends BaseApiTestCase
      * query start to a mid-month day N months ago. The fix sets $start = startOfMonth(subMonths($months - 1)).
      *
      * This test verifies the endpoint does not crash and that `months` param is respected.
+     *
+     * @covers \App\Controller\BudgetController::historyAverages
      */
     public function testHistoryAveragesMonthsParamIsRespected(): void
     {
@@ -451,6 +526,8 @@ class BudgetControllerTest extends BaseApiTestCase
      * Verify boundary exactness: a transaction on the first day of the oldest window month
      * must appear; one on the last day of the previous month must not.
      * months=1 → window = exactly the current calendar month.
+     *
+     * @covers \App\Controller\BudgetController::historyAverages
      */
     public function testHistoryAveragesIncludesFirstDayOfWindowAndExcludesDayBefore(): void
     {
@@ -494,6 +571,9 @@ class BudgetControllerTest extends BaseApiTestCase
     // Edge cases: empty budget, custom period, multi-currency, notes
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * @covers \App\Entity\Budget
+     */
     public function testGetEmptyBudgetReturnsZeroLines(): void
     {
         $budget = $this->findBudget('Empty June 2020');
@@ -506,6 +586,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertEmpty($content['lines']);
     }
 
+    /**
+     * @covers \App\Entity\Budget
+     */
     public function testGetCustomPeriodBudget(): void
     {
         $budget = $this->findBudget('Q1 2021');
@@ -520,6 +603,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertCount(4, $content['lines']);
     }
 
+    /**
+     * @covers \App\Entity\Budget
+     */
     public function testMultiCurrencyLinesReturnCorrectCurrency(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -533,6 +619,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertEquals(['EUR', 'UAH'], $currencies);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetLineDataPersister
+     */
     public function testCreateLineWithNote(): void
     {
         $budget = $this->findBudget('Empty June 2020');
@@ -559,6 +648,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertEquals('Monthly rent payment', $content['note']);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetLineDataPersister
+     */
     public function testUpdateLineNote(): void
     {
         $budget = $this->findBudget('Full Year 2021');
@@ -586,6 +678,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertEquals('Updated note text', $content['note']);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetLineDataPersister
+     */
     public function testClearLineNote(): void
     {
         $budget = $this->findBudget('Full Year 2021');
@@ -617,6 +712,9 @@ class BudgetControllerTest extends BaseApiTestCase
         );
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetLineDataPersister
+     */
     public function testCreateLineWithInvalidCategoryReturns422(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -635,6 +733,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
+    /**
+     * @covers \App\Controller\BudgetController::analytics
+     */
     public function testAnalyticsOnEmptyBudgetReturnsEmptyData(): void
     {
         $budget = $this->findBudget('Empty June 2020');
@@ -650,6 +751,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertIsArray($content['data']);
     }
 
+    /**
+     * @covers \App\Controller\BudgetController::analyticsDailyStats
+     */
     public function testDailyAnalyticsReturnsCorrectShape(): void
     {
         $budget = $this->findBudget('January 2021');
@@ -665,6 +769,9 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertIsArray($content['data']);
     }
 
+    /**
+     * @covers \App\DataPersister\BudgetLineDataPersister
+     */
     public function testUpdateLineOnWrongBudgetReturns404(): void
     {
         $januaryBudget = $this->findBudget('January 2021');

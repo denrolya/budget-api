@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Controller;
 
 use App\Bank\BankWebhookService;
@@ -23,6 +25,9 @@ class BankWebhookControllerTest extends BaseApiTestCase
     // Provider slug routing
     // -------------------------------------------------------------------------
 
+    /**
+     * @covers \App\Controller\BankWebhookController::receive
+     */
     public function testUnknownProviderReturns404(): void
     {
         $this->client->request('POST', self::WEBHOOK_BASE . '/notabank', [
@@ -36,6 +41,9 @@ class BankWebhookControllerTest extends BaseApiTestCase
     // Payload validation
     // -------------------------------------------------------------------------
 
+    /**
+     * @covers \App\Controller\BankWebhookController::receive
+     */
     public function testInvalidJsonBodyReturns400(): void
     {
         $this->client->request('POST', self::WEBHOOK_BASE . '/monobank', [
@@ -53,6 +61,8 @@ class BankWebhookControllerTest extends BaseApiTestCase
     /**
      * Monobank sends a ping/confirmation event when the webhook is first registered.
      * BankWebhookService returns null (not a transaction) → 200 OK with empty body.
+     *
+     * @covers \App\Controller\BankWebhookController::receive
      */
     public function testMonobankPingReturns200(): void
     {
@@ -79,6 +89,8 @@ class BankWebhookControllerTest extends BaseApiTestCase
     /**
      * When BankWebhookService creates a draft transaction the action returns 201
      * with {"id": <transaction-id>}.
+     *
+     * @covers \App\Controller\BankWebhookController::receive
      */
     public function testStatementItemCreatesTransactionAndReturns201(): void
     {
@@ -114,6 +126,8 @@ class BankWebhookControllerTest extends BaseApiTestCase
 
     /**
      * Duplicate or unknown-account events: service returns null → 200.
+     *
+     * @covers \App\Controller\BankWebhookController::receive
      */
     public function testUnknownAccountOrDuplicateReturns200(): void
     {
@@ -132,9 +146,29 @@ class BankWebhookControllerTest extends BaseApiTestCase
     }
 
     // -------------------------------------------------------------------------
+    // Empty / missing body
+    // -------------------------------------------------------------------------
+
+    /**
+     * @covers \App\Controller\BankWebhookController::receive
+     */
+    public function testEmptyBody_returns400(): void
+    {
+        $this->client->request('POST', self::WEBHOOK_BASE . '/monobank', [
+            'body'    => '',
+            'headers' => ['Content-Type' => 'application/json'],
+        ]);
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    // -------------------------------------------------------------------------
     // Service exceptions
     // -------------------------------------------------------------------------
 
+    /**
+     * @covers \App\Controller\BankWebhookController::receive
+     */
     public function testUnhandledServiceExceptionReturns500(): void
     {
         $mock = $this->createMock(BankWebhookService::class);

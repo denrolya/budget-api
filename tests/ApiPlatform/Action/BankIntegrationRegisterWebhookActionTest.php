@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\ApiPlatform\Action;
 
 use App\Bank\BankProvider;
@@ -10,6 +12,11 @@ use App\Entity\User;
 use App\Tests\BaseApiTestCase;
 
 /**
+ * API contract tests for BankIntegration webhook registration endpoint.
+ *
+ * Endpoints covered:
+ *   POST /api/bank-integrations/{id}/register-webhook  — register a webhook for a bank integration
+ *
  * @group bank
  */
 class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
@@ -62,6 +69,9 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
     // Authentication / authorisation
     // -------------------------------------------------------------------------
 
+    /**
+     * @covers \App\ApiPlatform\Action\BankIntegrationRegisterWebhookAction::__invoke
+     */
     public function testUnauthenticatedGets401(): void
     {
         $this->client->request('POST', $this->url($this->monobankIntegrationId), [
@@ -72,6 +82,9 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
+    /**
+     * @covers \App\ApiPlatform\Action\BankIntegrationRegisterWebhookAction::__invoke
+     */
     public function testUnknownIntegrationReturns404(): void
     {
         $this->client->request('POST', $this->url(99999), ['json' => []]);
@@ -79,6 +92,9 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    /**
+     * @covers \App\ApiPlatform\Action\BankIntegrationRegisterWebhookAction::__invoke
+     */
     public function testWrongOwnerReturns403(): void
     {
         // Create a second user and an integration belonging to them.
@@ -102,6 +118,8 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
      * The default test client connects to localhost. Without WEBHOOK_BASE_URL the
      * action must refuse to register a webhook because the bank cannot reach a
      * private address.
+     *
+     * @covers \App\ApiPlatform\Action\BankIntegrationRegisterWebhookAction::__invoke
      */
     public function testLocalhostRequestIsBlockedWith422(): void
     {
@@ -121,6 +139,8 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
     /**
      * Wise supports webhooks too. On localhost, registration is still blocked
      * because the callback URL is not publicly reachable.
+     *
+     * @covers \App\ApiPlatform\Action\BankIntegrationRegisterWebhookAction::__invoke
      */
     public function testWiseWebhookRegistrationIsBlockedOnLocalhostWith422(): void
     {
@@ -140,6 +160,8 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
     /**
      * When WEBHOOK_BASE_URL is set the action bypasses the localhost check, calls
      * registerWebhook on the provider, and returns the resolved webhook URL.
+     *
+     * @covers \App\ApiPlatform\Action\BankIntegrationRegisterWebhookAction::__invoke
      */
     public function testRegisterWebhookSuccessReturnWebhookUrl(): void
     {
@@ -161,6 +183,8 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
 
     /**
      * When the bank API call fails the action must surface 502 Bad Gateway.
+     *
+     * @covers \App\ApiPlatform\Action\BankIntegrationRegisterWebhookAction::__invoke
      */
     public function testBankApiFailureReturns502(): void
     {

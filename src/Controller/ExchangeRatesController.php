@@ -20,6 +20,12 @@ class ExchangeRatesController extends AbstractFOSRestController
 {
     /**
      * TODO: remove and use API Platform?
+     *
+     * @see \App\Tests\Controller\ExchangeRatesTest
+     * @tested testSnapshots_returnsCorrectShape
+     * @tested testSnapshots_swappedDates_autoCorrects
+     * @tested testSnapshots_singleDate_beforeDefaultsToAfter
+     * @tested testSnapshots_withoutAuth_returns401
      */
     #[Rest\QueryParam(name: 'after', description: 'Start date (Y-m-d), required', nullable: false)]
     #[Rest\QueryParam(name: 'before', description: 'End date (Y-m-d), defaults to after', nullable: true)]
@@ -46,6 +52,11 @@ class ExchangeRatesController extends AbstractFOSRestController
     /**
      * Returns exchange rates for a given date.
      * Now routes through ExchangeRateSnapshotResolver: checks DB first, calls Fixer only if no snapshot exists.
+     *
+     * @see \App\Tests\Controller\ExchangeRatesTest
+     * @tested testFixer_returnsRatesShape
+     * @tested testFixerBaseUrl_alsoWorks
+     * @tested testFixer_withoutAuth_returns401
      */
     #[Rest\QueryParam(name: 'date', description: 'Date (Y-m-d)', nullable: true)]
     #[Route('', name: 'historical', methods: ['get'])]
@@ -66,6 +77,12 @@ class ExchangeRatesController extends AbstractFOSRestController
         return $this->view(compact('rates'), Response::HTTP_OK);
     }
 
+    /**
+     * @see \App\Tests\Controller\ExchangeRatesTest
+     * @tested testMonobankRates_returnsCorrectShape
+     * @tested testMonobankRates_providerError_returns500
+     * @tested testMonobankRates_withoutAuth_returns401
+     */
     #[Route('/monobank', name: 'monobank_rates', methods: ['get'])]
     public function monobankRates(MonobankProvider $monobankProvider): View
     {
@@ -81,6 +98,13 @@ class ExchangeRatesController extends AbstractFOSRestController
         return $this->view(compact('rates'), Response::HTTP_OK);
     }
 
+    /**
+     * @see \App\Tests\Controller\ExchangeRatesTest
+     * @tested testWiseRates_returnsCorrectShape
+     * @tested testWiseRates_withDateParam_returnsRates
+     * @tested testWiseRates_providerError_returns500
+     * @tested testWiseRates_withoutAuth_returns401
+     */
     #[Rest\QueryParam(name: 'date', description: 'Date (Y-m-d)', nullable: true)]
     #[Route('/wise', name: 'wise_rates', methods: ['get'])]
     public function wiseRates(

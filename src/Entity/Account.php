@@ -5,7 +5,6 @@ namespace App\Entity;
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
-use ApiPlatform\Metadata\Get;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
@@ -39,14 +38,22 @@ use Symfony\Component\Validator\Constraints as Assert;
   "cash" => CashAccount::class,
 ])]
 #[ApiResource(
+  description: 'A financial account (bank card, cash, internet wallet, or basic). Uses single-table inheritance with a `type` discriminator.',
   operations: [
     new GetCollection(
+      description: 'Retrieve all accounts for the authenticated user, ordered by last update. Includes draftCount and converted balances.',
       normalizationContext: ['groups' => ['account:collection:read']],
       provider: AccountCollectionProvider::class,
     ),
-    new Post(normalizationContext: ['groups' => 'account:write']),
-    new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'account:item:read']),
-    new Put(requirements: ['id' => '\d+'], normalizationContext: ['groups' => ['account:write', 'bank_integration:read']]),
+    new Post(
+      description: 'Create a new basic account. Use POST /accounts/bank for bank card accounts.',
+      normalizationContext: ['groups' => 'account:write'],
+    ),
+    new Put(
+      description: 'Update an existing account (name, balance, currency, archive status, sidebar visibility).',
+      requirements: ['id' => '\d+'],
+      normalizationContext: ['groups' => ['account:write', 'bank_integration:read']],
+    ),
   ],
   denormalizationContext: ['groups' => 'account:write'],
   order: ['updatedAt' => 'DESC'],
@@ -55,7 +62,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ApiFilter(PropertyFilter::class)]
 #[Serializer\Discriminator([
   'field' => 'type',
-  'groups' => ['account:collection:read', 'account:write', 'account:item:read', 'debt:collection:read'],
+  'groups' => ['account:collection:read', 'account:write', 'debt:collection:read'],
   'map' => [
     'basic' => Account::class,
     'bank' => BankCardAccount::class,
@@ -102,7 +109,6 @@ class Account implements OwnableInterface
   #[Groups([
     'account:collection:read',
     'account:write',
-    'account:item:read',
     'debt:collection:read',
     'transfer:collection:read',
     'transaction:collection:read',
@@ -110,7 +116,6 @@ class Account implements OwnableInterface
   #[Serializer\Groups([
     'account:collection:read',
     'account:write',
-    'account:item:read',
     'transaction:collection:read',
     'debt:collection:read',
     'transfer:collection:read',
@@ -119,14 +124,14 @@ class Account implements OwnableInterface
 
   #[Gedmo\Timestampable(on: 'create')]
   #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: false)]
-  #[Groups(['account:item:read'])]
-  #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
+  #[Groups(['account:collection:read'])]
+  #[Serializer\Groups(['account:collection:read', 'account:write'])]
   protected ?DateTimeInterface $createdAt;
 
   #[Gedmo\Timestampable(on: 'update')]
   #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: false)]
   #[Groups(['account:collection:read', 'account:write'])]
-  #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
+  #[Serializer\Groups(['account:collection:read', 'account:write'])]
   protected ?DateTimeInterface $updatedAt;
 
   #[Assert\NotBlank]
@@ -134,7 +139,6 @@ class Account implements OwnableInterface
   #[Groups([
     'account:collection:read',
     'account:write',
-    'account:item:read',
     'transaction:collection:read',
     'debt:collection:read',
     'transfer:collection:read',
@@ -142,7 +146,6 @@ class Account implements OwnableInterface
   #[Serializer\Groups([
     'account:collection:read',
     'account:write',
-    'account:item:read',
     'transaction:collection:read',
     'debt:collection:read',
     'transfer:collection:read',
@@ -155,7 +158,6 @@ class Account implements OwnableInterface
   #[Groups([
     'account:collection:read',
     'account:write',
-    'account:item:read',
     'transaction:collection:read',
     'debt:collection:read',
     'transfer:collection:read',
@@ -170,7 +172,6 @@ class Account implements OwnableInterface
   #[Serializer\Groups([
     'account:collection:read',
     'account:write',
-    'account:item:read',
     'transaction:collection:read',
     'debt:collection:read',
     'transfer:collection:read',
@@ -180,8 +181,8 @@ class Account implements OwnableInterface
   #[Assert\NotBlank]
   #[Assert\Type('numeric')]
   #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
-  #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
-  #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
+  #[Groups(['account:collection:read', 'account:write'])]
+  #[Serializer\Groups(['account:collection:read', 'account:write'])]
   #[Context(denormalizationContext: [AbstractObjectNormalizer::DISABLE_TYPE_ENFORCEMENT => true])]
   #[Serializer\Type(Types::FLOAT)]
   private string $balance = '0.0';
@@ -190,26 +191,19 @@ class Account implements OwnableInterface
   #[ORM\OrderBy(["executedAt" => "ASC"])]
   private Collection $transactions;
 
+  #[ApiProperty(description: 'When set, the account is considered archived and hidden from active views.')]
   #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-  #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
-  #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
+  #[Groups(['account:collection:read', 'account:write'])]
+  #[Serializer\Groups(['account:collection:read', 'account:write'])]
   private ?DateTimeInterface $archivedAt;
 
-  #[Groups(['account:item:read'])]
-  #[ApiProperty]
-  #[Serializer\Groups(['account:item:read'])]
-  private ?array $topExpenseCategories;
-
-  #[Groups(['account:item:read'])]
-  #[ApiProperty]
-  #[Serializer\Groups(['account:item:read'])]
-  private ?array $topIncomeCategories;
-
+  #[ApiProperty(description: 'Whether this account appears in the sidebar navigation for quick access.')]
   #[ORM\Column(type: Types::BOOLEAN)]
-  #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
-  #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
+  #[Groups(['account:collection:read', 'account:write'])]
+  #[Serializer\Groups(['account:collection:read', 'account:write'])]
   private bool $isDisplayedOnSidebar = false;
 
+  #[ApiProperty(description: 'Number of unconfirmed (draft) transactions on this account. Computed at read time, not persisted.')]
   #[Groups(['account:collection:read'])]
   private int $draftCount = 0;
 
@@ -334,54 +328,6 @@ class Account implements OwnableInterface
     return 'balance';
   }
 
-  #[Groups(['account:item:read'])]
-  #[Serializer\VirtualProperty]
-  #[Serializer\Groups(['account:item:read'])]
-  public function getNumberOfTransactions(): int
-  {
-    return count($this->transactions);
-  }
-
-  #[Groups(['account:item:read'])]
-  #[Serializer\VirtualProperty]
-  #[Serializer\Groups(['account:item:read'])]
-  public function getLatestTransactions(int $numberOfItems = 10): array
-  {
-    return array_slice($this->transactions->toArray(), -$numberOfItems, $numberOfItems);
-  }
-
-  public function getTopExpenseCategories(): array
-  {
-    if ($this->topExpenseCategories === null) {
-      throw new \LogicException('Field topExpenseCategories has not been initialized');
-    }
-
-    return $this->topExpenseCategories;
-  }
-
-  public function setTopExpenseCategories(array $topExpenseCategories): self
-  {
-    $this->topExpenseCategories = $topExpenseCategories;
-
-    return $this;
-  }
-
-  public function getTopIncomeCategories(): array
-  {
-    if ($this->topIncomeCategories === null) {
-      throw new \LogicException('Field topIncomeCategories has not been initialized');
-    }
-
-    return $this->topIncomeCategories;
-  }
-
-  public function setTopIncomeCategories(array $topIncomeCategories): self
-  {
-    $this->topIncomeCategories = $topIncomeCategories;
-
-    return $this;
-  }
-
   public function getIsDisplayedOnSidebar(): bool
   {
     return $this->isDisplayedOnSidebar;
@@ -406,7 +352,7 @@ class Account implements OwnableInterface
     return $this;
   }
 
-  #[Groups(['account:collection:read', 'account:write', 'account:item:read'])]
+  #[Groups(['account:collection:read', 'account:write'])]
   public function getType(): string
   {
     return self::ACCOUNT_TYPE_BASIC;

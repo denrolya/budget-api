@@ -3,7 +3,6 @@
 namespace App\Repository;
 
 use App\Entity\Transfer;
-use App\Pagination\Paginator;
 use Carbon\CarbonInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
@@ -31,26 +30,6 @@ class TransferRepository extends ServiceEntityRepository
         parent::__construct($registry, Transfer::class);
     }
 
-    public function getPaginator(
-        ?CarbonInterface $after,
-        ?CarbonInterface $before,
-        ?array $accounts = null,
-        int $limit = Paginator::PER_PAGE,
-        int $page = 1,
-        string $orderField = self::ORDER_FIELD,
-        string $order = self::ORDER,
-    ): Paginator {
-        $qb = $this->getBaseQueryBuilder(
-            after: $after,
-            before: $before,
-            accounts: $accounts,
-            orderField: $orderField,
-            order: $order,
-        );
-
-        return (new Paginator($qb, $limit))->paginate($page);
-    }
-
     /**
      * Returns all transfers matching the given filters, for use in the unified ledger endpoint.
      *
@@ -76,26 +55,6 @@ class TransferRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
-    }
-
-    /**
-     * COUNT(*) for ledger transfers. No object hydration.
-     */
-    public function countForLedger(
-        ?CarbonInterface $after,
-        ?CarbonInterface $before,
-        ?array $accounts = null,
-        ?string $note = null,
-    ): int {
-        return (int) $this->getBaseQueryBuilder(
-            after: $after,
-            before: $before,
-            accounts: $accounts,
-            note: $note,
-        )
-            ->select('COUNT(t.id)')
-            ->getQuery()
-            ->getSingleScalarResult();
     }
 
     /**

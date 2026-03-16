@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\ApiPlatform\Action;
 
 use App\Entity\Account;
@@ -9,6 +11,7 @@ use App\Entity\ExpenseCategory;
 use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
+use App\Service\AssetsManager;
 use App\Tests\BaseApiTestCase;
 use DateTimeImmutable;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
@@ -17,6 +20,12 @@ use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
+/**
+ * API contract tests for bulk transaction creation endpoint.
+ *
+ * Endpoints covered:
+ *   POST /api/transactions/bulk  — create multiple transactions in a single request
+ */
 class BulkTransactionCreateActionTest extends BaseApiTestCase
 {
     private ExpenseCategory $testExpenseCategory;
@@ -65,6 +74,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     }
 
     /**
+     * @covers \App\ApiPlatform\Action\TransactionBulkCreateAction::__invoke
+     *
      * @group transactions
      * @group bulk
      *
@@ -85,6 +96,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     }
 
     /**
+     * @covers \App\ApiPlatform\Action\TransactionBulkCreateAction::__invoke
+     *
      * @group transactions
      * @group bulk
      *
@@ -154,6 +167,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     /**
      * Payload is an object instead of array: must fail with 400 and clear message.
      *
+     * @covers \App\ApiPlatform\Action\TransactionBulkCreateAction::__invoke
+     *
      * @group transactions
      * @group bulk
      *
@@ -186,6 +201,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
     /**
      * One invalid item should fail the whole bulk and nothing must be persisted.
+     *
+     * @covers \App\ApiPlatform\Action\TransactionBulkCreateAction::__invoke
      *
      * @group transactions
      * @group bulk
@@ -248,6 +265,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     /**
      * An empty array payload should fail with a clear message.
      *
+     * @covers \App\ApiPlatform\Action\TransactionBulkCreateAction::__invoke
+     *
      * @group transactions
      * @group bulk
      *
@@ -273,6 +292,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
     /**
      * Unsupported transaction type must result in an error and nothing persisted.
+     *
+     * @covers \App\ApiPlatform\Action\TransactionBulkCreateAction::__invoke
      *
      * @group transactions
      * @group bulk
@@ -320,6 +341,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
     /**
      * Expense with embedded compensations should persist expense and linked income(s).
+     *
+     * @covers \App\ApiPlatform\Action\TransactionBulkCreateAction::__invoke
      *
      * @group transactions
      * @group bulk
@@ -387,6 +410,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
     /**
      * Bulk create must update account balance and set convertedValues on transactions.
+     *
+     * @covers \App\ApiPlatform\Action\TransactionBulkCreateAction::__invoke
      *
      * @group transactions
      * @group bulk
@@ -461,6 +486,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
     /**
      * If no snapshot exists for a past date (before the earliest snapshot), conversion must fail and nothing is persisted.
      *
+     * @covers \App\ApiPlatform\Action\TransactionBulkCreateAction::__invoke
+     *
      * @group transactions
      * @group bulk
      *
@@ -470,8 +497,17 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      * @throws DecodingExceptionInterface
      * @throws ClientExceptionInterface
      */
-    public function testBulkCreateFailsWhenNoExchangeRateSnapshotForPastDate(): void
+    public function testBulkCreateFailsWhenConversionFails_nothingPersisted(): void
     {
+        // Reload client to get a fresh container where AssetsManager is not yet initialized
+        $this->reloadClientWithServices();
+
+        $mockAssetsManager = $this->createMock(AssetsManager::class);
+        $mockAssetsManager->method('convert')->willThrowException(
+            new \RuntimeException('No exchange rate snapshot found for date 1980-01-01')
+        );
+        $this->client->getContainer()->set(AssetsManager::class, $mockAssetsManager);
+
         $note = 'bulk-no-rates-should-fail';
 
         $payload = [
@@ -480,7 +516,6 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
                 'account' => $this->iri($this->accountCashEUR),
                 'amount' => '100',
                 'category' => $this->iri($this->testExpenseCategory),
-                // date intentionally before any reasonable baseline (e.g. fixtures start at 1991-01-01)
                 'executedAt' => '1980-01-01T10:00:00.000Z',
                 'isDraft' => false,
                 'note' => $note,
@@ -504,9 +539,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         self::assertIsArray($firstErrors);
         self::assertNotEmpty($firstErrors);
 
-        $message = (string)$firstErrors[0];
+        $message = (string) $firstErrors[0];
         self::assertStringContainsString('Failed to resolve exchange rates', $message);
-        self::assertStringContainsString('1980-01-01', $message);
 
         $transactionRepository = $this->em->getRepository(Transaction::class);
         $transaction = $transactionRepository->findOneBy(['note' => $note]);

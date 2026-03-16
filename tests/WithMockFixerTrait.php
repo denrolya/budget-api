@@ -21,7 +21,7 @@ trait WithMockFixerTrait
     {
         $mockFixerService = $this->getMockBuilder(FixerService::class)
             ->disableOriginalConstructor()
-            ->onlyMethods(['convert', 'getLatest'])
+            ->onlyMethods(['convert', 'getLatest', 'getHistorical'])
             ->getMock();
 
         $defaultCallback = static function (
@@ -42,6 +42,7 @@ trait WithMockFixerTrait
             ->willReturnCallback($callback ?? $defaultCallback);
 
         $mockFixerService->method('getLatest')->willReturn(self::EXCHANGE_RATES);
+        $mockFixerService->method('getHistorical')->willReturn(self::EXCHANGE_RATES);
 
         return $mockFixerService;
     }

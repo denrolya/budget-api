@@ -19,6 +19,12 @@ class BudgetController extends AbstractFOSRestController
     // Analytics
     // ──────────────────────────────────────────────────────────────────────────
 
+    /**
+     * @see \App\Tests\Controller\BudgetControllerTest
+     * @tested testAnalyticsReturnsCorrectShape
+     * @tested testAnalyticsRequiresAuth
+     * @tested testAnalyticsOnEmptyBudgetReturnsEmptyData
+     */
     #[Rest\View]
     #[Route('/{id<\d+>}/analytics', name: 'analytics', methods: ['GET'])]
     public function analytics(Budget $budget, TransactionRepository $transactionRepository): View
@@ -31,6 +37,10 @@ class BudgetController extends AbstractFOSRestController
         ]);
     }
 
+    /**
+     * @see \App\Tests\Controller\BudgetControllerTest
+     * @tested testDailyAnalyticsReturnsCorrectShape
+     */
     #[Rest\View]
     #[Route('/{id<\d+>}/analytics/daily', name: 'analytics_daily', methods: ['GET'])]
     public function analyticsDailyStats(Budget $budget, TransactionRepository $transactionRepository): View
@@ -43,6 +53,14 @@ class BudgetController extends AbstractFOSRestController
         ]);
     }
 
+    /**
+     * @see \App\Tests\Controller\BudgetControllerTest
+     * @tested testHistoryAveragesRequiresAuth
+     * @tested testHistoryAveragesReturnsExpectedStructure
+     * @tested testHistoryAveragesWindowAlignedToCalendarMonthBoundaries
+     * @tested testHistoryAveragesMonthsParamIsRespected
+     * @tested testHistoryAveragesIncludesFirstDayOfWindowAndExcludesDayBefore
+     */
     #[Rest\QueryParam(name: 'months', requirements: '^[1-9][0-9]*$', default: 6, description: 'Number of months to analyze')]
     #[Rest\View]
     #[Route('/{id<\d+>}/history-averages', name: 'history_averages', methods: ['GET'])]

@@ -6,6 +6,7 @@ use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -31,12 +32,26 @@ use JMS\Serializer\Annotation as Serializer;
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: TransferRepository::class)]
 #[ApiResource(
+    description: 'A money transfer between two accounts. Automatically creates paired expense/income transactions and an optional fee expense.',
     operations: [
-        new GetCollection(normalizationContext: ['groups' => 'transfer:collection:read']),
-        new Post(processor: TransferDataPersister::class),
+        new GetCollection(
+            description: 'List all transfers with their linked transactions, ordered by execution date.',
+            normalizationContext: ['groups' => 'transfer:collection:read'],
+        ),
+        new Post(
+            description: 'Create a transfer between two accounts. Specify amount, rate (for cross-currency), and optional fee.',
+            processor: TransferDataPersister::class,
+        ),
         new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transfer:item:read']),
-        new Put(requirements: ['id' => '\d+'], processor: TransferDataPersister::class),
-        new Delete(requirements: ['id' => '\d+']),
+        new Put(
+            description: 'Update a transfer. Recalculates linked transactions and account balances.',
+            requirements: ['id' => '\d+'],
+            processor: TransferDataPersister::class,
+        ),
+        new Delete(
+            description: 'Delete a transfer and its linked transactions, reversing balance changes.',
+            requirements: ['id' => '\d+'],
+        ),
     ],
     denormalizationContext: ['groups' => 'transfer:write'],
     order: ['executedAt' => 'DESC'],
@@ -71,21 +86,24 @@ class Transfer implements OwnableInterface
 
     #[Assert\Type("numeric")]
     #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
-    #[Groups(['account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
+    #[Groups(['debt:collection:read', 'transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
     #[Serializer\Groups(['transfer:collection:read'])]
     private string $amount = '0';
 
+    #[ApiProperty(description: 'Exchange rate applied when transferring between accounts with different currencies. Set to 1 for same-currency transfers.')]
     #[Assert\Type("numeric")]
     #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
     #[Serializer\Groups(['transfer:collection:read'])]
     private string $rate = '0';
 
+    #[ApiProperty(description: 'Transfer fee amount in the source account currency. Creates a separate fee expense transaction if non-zero.')]
     #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
     #[Serializer\Groups(['transfer:collection:read'])]
     private string $fee = '0';
 
+    #[ApiProperty(description: 'Optional account to charge the fee to. If null, the fee is charged to the source (from) account.')]
     #[Groups(['transfer:write'])]
     private ?Account $feeAccount = null;
 

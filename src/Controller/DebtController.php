@@ -15,6 +15,16 @@ class DebtController extends AbstractFOSRestController
 {
     use SoftDeletableTogglerController;
 
+    /**
+     * @see \App\Tests\Controller\DebtCrudTest
+     * @tested testListDebts_returnsCorrectShape
+     * @tested testListDebts_fixtureValues
+     * @tested testListDebts_withClosedFalse_excludesClosedDebts
+     * @tested testListDebts_withClosedTrue_includesClosedDebts
+     * @tested testListDebts_withoutAuth_returns401
+     * @tested testListDebts_convertedValuesPresent
+     * @tested testApiPlatformDebtList_alsoWorks
+     */
     #[Rest\View(serializerGroups: ['debt:collection:read'])]
     #[Rest\QueryParam(name: 'withClosed', default: false, description: 'Should fetch debts that were closed too', nullable: true, allowBlank: false)]
     #[Route('', name: 'collection_read', methods:['get'] )]

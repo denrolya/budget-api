@@ -30,6 +30,15 @@ class BankWebhookController extends AbstractFOSRestController
     /**
      * Receives webhook payloads from a bank identified by {provider} slug.
      * Example: POST /api/webhooks/monobank
+     *
+     * @see \App\Tests\Controller\BankWebhookControllerTest
+     * @tested testUnknownProviderReturns404
+     * @tested testInvalidJsonBodyReturns400
+     * @tested testMonobankPingReturns200
+     * @tested testStatementItemCreatesTransactionAndReturns201
+     * @tested testUnknownAccountOrDuplicateReturns200
+     * @tested testEmptyBody_returns400
+     * @tested testUnhandledServiceExceptionReturns500
      */
     #[Route('/{provider}', name: 'receive', methods: ['POST'])]
     public function receive(Request $request, string $provider): View

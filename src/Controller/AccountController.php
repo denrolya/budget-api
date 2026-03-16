@@ -5,13 +5,10 @@ namespace App\Controller;
 use App\Attribute\MapCarbonDate;
 use App\Attribute\MapCarbonInterval;
 use App\Entity\Account;
-use App\Entity\Transaction;
 use App\Repository\TransactionRepository;
-use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
-use Doctrine\Persistence\ManagerRegistry;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
@@ -20,47 +17,17 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/v2/account', name: 'api_v2_account_')]
 class AccountController extends AbstractFOSRestController
 {
-    /**
-     * TODO: Remove if unused on frontend
-     * TODO: Check efficiency. Add frontend data display. Do we really need this and AccountItemProvider? which one are we consuming currently?
-     */
-    #[Rest\View(serializerGroups: ['account:item:read'])]
-    #[Route('/{id<\d+>}', name: 'item_read', methods: ['get'])]
-    public function item(ManagerRegistry $doctrine, StatisticsManager $statisticsManager, Account $account): View
-    {
-        /** @var TransactionRepository $transactionRepo */
-        $transactionRepo = $doctrine->getRepository(Transaction::class);
-
-        $accountTransactions = $transactionRepo->getList(
-            categories: null,
-            accounts: [$account]
-        );
-
-        $account->setTopExpenseCategories(
-            $statisticsManager->generateCategoryTreeWithValues(
-                transactions: array_filter($accountTransactions, static function (Transaction $transaction) {
-                    return $transaction->isExpense();
-                }),
-                type: Transaction::EXPENSE,
-            )
-        );
-
-        $account->setTopIncomeCategories(
-            $statisticsManager->generateCategoryTreeWithValues(
-                transactions: array_filter($accountTransactions, static function (Transaction $transaction) {
-                    return $transaction->isIncome();
-                }),
-                type: Transaction::INCOME,
-            )
-        );
-
-        return $this->view($account);
-    }
-
     #[Rest\QueryParam(name: 'after', description: 'After date (Y-m-d)', nullable: true)]
     #[Rest\QueryParam(name: 'before', description: 'Before date (Y-m-d)', nullable: true)]
     #[Rest\QueryParam(name: 'interval', description: 'ISO 8601 duration (P1D, P1W, P1M)', default: 'P1W', nullable: true)]
     #[Rest\View]
+    /**
+     * @see \App\Tests\Controller\AccountStatsTest
+     * @tested testBalanceHistory_returnsCorrectShape
+     * @tested testBalanceHistory_weeklyInterval
+     * @tested testBalanceHistory_emptyRange_returnsEmptyData
+     * @tested testBalanceHistory_withoutAuth_returns401
+     */
     #[Route('/{id<\d+>}/balance-history', name: 'balance_history', methods: ['get'])]
     public function balanceHistory(
         Account $account,
@@ -110,6 +77,13 @@ class AccountController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'after', description: 'After date (Y-m-d)', nullable: true)]
     #[Rest\QueryParam(name: 'before', description: 'Before date (Y-m-d)', nullable: true)]
     #[Rest\View]
+    /**
+     * @see \App\Tests\Controller\AccountStatsTest
+     * @tested testDailyStats_returnsCorrectShape
+     * @tested testDailyStats_emptyRange_returnsEmptyData
+     * @tested testDailyStats_uahAccount_returnsData
+     * @tested testDailyStats_withoutAuth_returns401
+     */
     #[Route('/{id<\d+>}/daily-stats', name: 'daily_stats', methods: ['get'])]
     public function dailyStats(
         Account $account,

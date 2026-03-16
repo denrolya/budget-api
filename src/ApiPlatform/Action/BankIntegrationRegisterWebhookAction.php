@@ -22,6 +22,16 @@ final class BankIntegrationRegisterWebhookAction extends AbstractController
     ) {
     }
 
+    /**
+     * @see \App\Tests\ApiPlatform\Action\BankIntegrationRegisterWebhookActionTest
+     * @tested testUnauthenticatedGets401
+     * @tested testUnknownIntegrationReturns404
+     * @tested testWrongOwnerReturns403
+     * @tested testLocalhostRequestIsBlockedWith422
+     * @tested testWiseWebhookRegistrationIsBlockedOnLocalhostWith422
+     * @tested testRegisterWebhookSuccessReturnWebhookUrl
+     * @tested testBankApiFailureReturns502
+     */
     public function __invoke(Request $request, int $id): Response
     {
         $integration = $this->em->getRepository(BankIntegration::class)->find($id);
