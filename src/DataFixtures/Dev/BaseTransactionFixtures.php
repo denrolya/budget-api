@@ -2,7 +2,7 @@
 namespace App\DataFixtures\Dev;
 
 use App\EventListener\TransactionListener;
-use App\EventListener\ValuableEntityEventListener;
+use App\EventListener\DebtConvertedValueListener;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
@@ -11,12 +11,12 @@ abstract class BaseTransactionFixtures extends Fixture implements DependentFixtu
 {
     protected ParameterBagInterface $params;
     protected TransactionListener $transactionListener;
-    protected ValuableEntityEventListener $valuableEntityListener;
+    protected DebtConvertedValueListener $valuableEntityListener;
 
     public function __construct(
         ParameterBagInterface $params,
         TransactionListener $transactionListener,
-        ValuableEntityEventListener $valuableEntityListener,
+        DebtConvertedValueListener $valuableEntityListener,
     ) {
         $this->params = $params;
         $this->transactionListener = $transactionListener;

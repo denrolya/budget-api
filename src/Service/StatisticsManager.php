@@ -4,6 +4,7 @@ namespace App\Service;
 
 use App\Entity\Account;
 use App\Entity\Category;
+use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
@@ -58,7 +59,7 @@ final class StatisticsManager
             foreach ($bucketed[$index] as $transaction) {
                 if ($transaction->getType() === Transaction::EXPENSE) {
                     $expenses[] = $transaction;
-                } elseif ($transaction->getType() === Transaction::INCOME) {
+                } else {
                     $incomes[] = $transaction;
                 }
             }
@@ -66,7 +67,7 @@ final class StatisticsManager
             $result[] = [
                 'after' => $bound['after']->timestamp,
                 'before' => $bound['before']->timestamp,
-                'expense' => $this->assetsManager->sumTransactions($expenses),
+                'expense' => $this->sumNetOfCompensations($expenses),
                 'income' => $this->assetsManager->sumTransactions($incomes),
             ];
         }
@@ -77,12 +78,16 @@ final class StatisticsManager
     /**
      * Builds category tree and sets value/total on each node.
      * Uses a pre-built descendant ID map instead of recursive getDescendantsFlat() / isChildOf() calls.
+     *
+     * Expense values are net of any linked compensations (contra-expense model): each Expense
+     * entity contributes getConvertedValue() minus the sum of its getCompensations() collection.
+     *
      * @return Category[] Root categories with nested children, each with value/total set.
      */
     public function generateCategoryTreeWithValues(
         array $transactions,
         ?string $type = null,
-        array $categories = []
+        array $categories = [],
     ): array {
         $categories = $categories !== [] ? $categories : $this->getRootCategories($type);
 
@@ -96,7 +101,11 @@ final class StatisticsManager
             $transactionsByCatId[$transaction->getCategory()->getId()][] = $transaction;
         }
 
-        $this->hydrateCategoryValues($categories, $transactionsByCatId, $this->getDescendantMap());
+        $this->hydrateCategoryValues(
+            $categories,
+            $transactionsByCatId,
+            $this->getDescendantMap(),
+        );
 
         return $categories;
     }
@@ -347,39 +356,57 @@ final class StatisticsManager
     /**
      * Recursively hydrates setValue/setTotal on each category using a pre-built descendant ID map.
      * Eliminates isChildOf() — no per-transaction recursive DB queries.
+     *
+     * Expense values are net of linked compensations via $expense->getCompensations() (Doctrine
+     * EXTRA_LAZY collection). Income categories are unaffected.
      */
     private function hydrateCategoryValues(
         array $categories,
         array $transactionsByCatId,
-        array $descendantMap
+        array $descendantMap,
     ): void {
         foreach ($categories as $category) {
             $catId = $category->getId();
             $descendantIds = $descendantMap[$catId] ?? [$catId];
 
-            // Direct value: only transactions assigned to this exact category.
-            $category->setValue(
-                $this->assetsManager->sumTransactions($transactionsByCatId[$catId] ?? [])
-            );
+            $category->setValue($this->sumNetOfCompensations($transactionsByCatId[$catId] ?? []));
 
-            // Total value: all transactions in the subtree (self + descendants).
             $subtree = [];
             foreach ($descendantIds as $descId) {
-                foreach ($transactionsByCatId[$descId] ?? [] as $t) {
-                    $subtree[] = $t;
+                foreach ($transactionsByCatId[$descId] ?? [] as $transaction) {
+                    $subtree[] = $transaction;
                 }
             }
-            $category->setTotal($this->assetsManager->sumTransactions($subtree));
+            $category->setTotal($this->sumNetOfCompensations($subtree));
 
             // Recurse into children — one EXTRA_LAZY SELECT per non-leaf, not per-transaction.
             if (count($descendantIds) > 1 && $category->hasChildren()) {
                 $this->hydrateCategoryValues(
                     $category->getChildren()->toArray(),
                     $transactionsByCatId,
-                    $descendantMap
+                    $descendantMap,
                 );
             }
         }
+    }
+
+    /**
+     * Sums transaction converted values, reducing each Expense by the sum of its linked
+     * compensations. Uses $expense->getCompensations() (EXTRA_LAZY Doctrine collection),
+     * which fires one SELECT per Expense that has compensations.
+     */
+    private function sumNetOfCompensations(array $transactions): float
+    {
+        $total = $this->assetsManager->sumTransactions($transactions);
+        foreach ($transactions as $transaction) {
+            if ($transaction instanceof Expense) {
+                $total -= $this->assetsManager->sumTransactions(
+                    $transaction->getCompensations()->toArray()
+                );
+            }
+        }
+
+        return $total;
     }
 
     /**

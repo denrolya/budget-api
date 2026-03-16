@@ -23,7 +23,6 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JMS\Serializer\Annotation as Serializer;
-use Random\RandomException;
 use Symfony\Component\Serializer\Annotation\Context;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
@@ -196,25 +195,6 @@ class Account implements OwnableInterface
   #[Serializer\Groups(['account:collection:read', 'account:write', 'account:item:read'])]
   private ?DateTimeInterface $archivedAt;
 
-  #[ORM\Column(type: Types::STRING, length: 30)]
-  #[Groups([
-    'account:collection:read',
-    'account:write',
-    'account:item:read',
-    'transaction:collection:read',
-    'debt:collection:read',
-    'transfer:collection:read',
-  ])]
-  #[Serializer\Groups([
-    'account:collection:read',
-    'account:write',
-    'account:item:read',
-    'transaction:collection:read',
-    'debt:collection:read',
-    'transfer:collection:read',
-  ])]
-  private string $color;
-
   #[Groups(['account:item:read'])]
   #[ApiProperty]
   #[Serializer\Groups(['account:item:read'])]
@@ -233,13 +213,9 @@ class Account implements OwnableInterface
   #[Groups(['account:collection:read'])]
   private int $draftCount = 0;
 
-  /**
-   * @throws RandomException
-   */
   public function __construct()
   {
     $this->transactions = new ArrayCollection();
-    $this->color = '#' . str_pad(dechex(random_int(0, 0xFFFFFF)), 6, '0', STR_PAD_LEFT);
   }
 
   public function __toString(): string
@@ -353,49 +329,9 @@ class Account implements OwnableInterface
     return $this;
   }
 
-  public function getColor(): string
-  {
-    return $this->color;
-  }
-
-  public function setColor(string $color): self
-  {
-    $this->color = $color;
-
-    return $this;
-  }
-
   public function getValuableField(): string
   {
     return 'balance';
-  }
-
-  #[Groups([
-    'account:collection:read',
-    'account:write',
-    'account:item:read',
-    'transaction:collection:read',
-    'debt:collection:read',
-    'transfer:collection:read',
-  ])]
-  #[Serializer\VirtualProperty]
-  #[Serializer\Groups([
-    'account:collection:read',
-    'account:write',
-    'account:item:read',
-    'transaction:collection:read',
-    'debt:collection:read',
-  ])]
-  public function getIcon(): string
-  {
-    $icons = [
-      self::ACCOUNT_TYPE_CASH => 'ion-ios-cash',
-      self::ACCOUNT_TYPE_INTERNET => 'ion-ios-globe',
-      self::ACCOUNT_TYPE_BANK_CARD => 'ion-ios-card',
-      self::ACCOUNT_TYPE_BASIC => 'ion-ios-wallet',
-    ];
-
-    return $icons[$this->getType()];
   }
 
   #[Groups(['account:item:read'])]

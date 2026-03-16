@@ -666,6 +666,9 @@ class TransactionRepository extends ServiceEntityRepository
             ->andWhere('t.executedAt >= :start')
             ->andWhere('t.executedAt <= :end')
             ->andWhere('c.isAffectingProfit = :isAffectingProfit')
+            // Compensation incomes are isAffectingProfit=false and therefore already excluded
+            // by the filter above. They are NOT subtracted from expense here — budget analytics
+            // shows gross expense per category; net calculation is handled by the statistics layer.
             ->setParameter('start', $start)
             ->setParameter('end', $end)
             ->setParameter('isAffectingProfit', true)

@@ -7,7 +7,7 @@ use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\User;
 use App\EventListener\TransactionListener;
-use App\EventListener\ValuableEntityEventListener;
+use App\EventListener\DebtConvertedValueListener;
 use Carbon\CarbonImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
@@ -17,7 +17,7 @@ class DebtFixtures extends Fixture implements DependentFixtureInterface
 {
     public function __construct(
         private TransactionListener $transactionListener,
-        private ValuableEntityEventListener $valuableEntityListener
+        private DebtConvertedValueListener $valuableEntityListener
     ) {}
 
     public function load(ObjectManager $manager): void

@@ -142,8 +142,8 @@ class StatisticsManagerTest extends TestCase
 
     public function testGenerateTopValueCategoryStatisticsReturnsLargestRootCategory(): void
     {
-        $food = $this->createCategory(1, 'Food', 'food-icon');
-        $salary = $this->createIncomeCategory(2, 'Salary', 'salary-icon');
+        $food = $this->createCategory(1, 'Food');
+        $salary = $this->createIncomeCategory(2, 'Salary');
         $account = $this->createAccount(1, 'Cash', 'EUR');
 
         $transactions = [
@@ -371,7 +371,7 @@ class StatisticsManagerTest extends TestCase
         return $assetsManager;
     }
 
-    private function createCategory(int $id, string $name, ?string $icon = null): ExpenseCategory
+    private function createCategory(int $id, string $name): ExpenseCategory
     {
         $category = (new ExpenseCategory())
             ->setName($name)
@@ -383,7 +383,7 @@ class StatisticsManagerTest extends TestCase
         return $category;
     }
 
-    private function createIncomeCategory(int $id, string $name, ?string $icon = null): IncomeCategory
+    private function createIncomeCategory(int $id, string $name): IncomeCategory
     {
         $category = (new IncomeCategory())
             ->setName($name)

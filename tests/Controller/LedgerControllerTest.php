@@ -97,7 +97,6 @@ class LedgerControllerTest extends BaseApiTestCase
             self::assertArrayHasKey('id',       $transfer[$side], "$side.id must be present");
             self::assertArrayHasKey('name',     $transfer[$side], "$side.name must be present (JMS group missing if not)");
             self::assertArrayHasKey('currency', $transfer[$side], "$side.currency must be present");
-            self::assertArrayHasKey('color',    $transfer[$side], "$side.color must be present");
         }
 
         // amount / rate / fee must be present and numeric (not serialized as opaque strings)

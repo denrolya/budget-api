@@ -5,7 +5,6 @@ namespace App\Controller;
 use App\Attribute\MapCarbonDate;
 use App\Attribute\MapCarbonInterval;
 use App\Entity\Expense;
-use App\Entity\Income;
 use App\Entity\Transaction;
 use App\Repository\CategoryRepository;
 use App\Repository\TransactionRepository;
@@ -75,7 +74,10 @@ class StatisticsController extends AbstractFOSRestController
         $transactions = $transactionRepo->getList(after: $after, before: $before, type: $type);
 
         return $this->view(
-            $statisticsManager->generateCategoryTreeWithValues(transactions: $transactions, type: $type)
+            $statisticsManager->generateCategoryTreeWithValues(
+                transactions: $transactions,
+                type: $type,
+            )
         );
     }
 

@@ -8,7 +8,7 @@ use App\Entity\InternetAccount;
 use App\Entity\Transfer;
 use App\Entity\User;
 use App\EventListener\TransactionListener;
-use App\EventListener\ValuableEntityEventListener;
+use App\EventListener\DebtConvertedValueListener;
 use App\Service\TransferService;
 use Carbon\CarbonImmutable;
 use Doctrine\Persistence\ObjectManager;
@@ -29,7 +29,7 @@ class TransferFixtures extends BaseTransactionFixtures
     public function __construct(
         ParameterBagInterface $params,
         TransactionListener $transactionListener,
-        ValuableEntityEventListener $valuableEntityListener,
+        DebtConvertedValueListener $valuableEntityListener,
         private readonly TransferService $transferService,
     ) {
         parent::__construct($params, $transactionListener, $valuableEntityListener);

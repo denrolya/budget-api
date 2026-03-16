@@ -152,13 +152,6 @@ abstract class Category
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     private bool $isAffectingProfit = true;
 
-    #[Assert\Valid]
-    #[ORM\ManyToMany(targetEntity: CategoryTag::class, cascade: ["persist"], inversedBy: "categories")]
-    #[ORM\JoinTable(name: "categories_tags")]
-    #[Groups(['category:collection:read', 'category:tree:read', 'category:write'])]
-    #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
-    private Collection $tags;
-
     #[Groups(['category:tree:read', 'account:item:read'])]
     #[Serializer\Groups(['category:tree:read', 'account:item:read'])]
     private float $value = 0;
@@ -176,7 +169,6 @@ abstract class Category
         $this->name = $name;
         $this->transactions = new ArrayCollection();
         $this->children = new ArrayCollection();
-        $this->tags = new ArrayCollection();
     }
 
     public function __toString(): string
@@ -367,29 +359,6 @@ abstract class Category
     public function hasChildren(): bool
     {
         return !$this->children->isEmpty();
-    }
-
-    public function addTag(CategoryTag ...$tags): self
-    {
-        foreach ($tags as $tag) {
-            if (!$this->tags->contains($tag)) {
-                $this->tags->add($tag);
-            }
-        }
-
-        return $this;
-    }
-
-    public function removeTag(CategoryTag $tag): self
-    {
-        $this->tags->removeElement($tag);
-
-        return $this;
-    }
-
-    public function getTags(): Collection
-    {
-        return $this->tags;
     }
 
     public function getValue(): float

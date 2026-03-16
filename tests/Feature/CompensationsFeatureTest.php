@@ -40,12 +40,12 @@ final class CompensationsFeatureTest extends BaseApiTestCase
      * An expense created together with compensations must:
      * - Update the account balance by the net amount (expense − sum of compensations).
      * - Increment the account transaction count by 1 (expense) + N (compensations).
-     * - Persist the expense's net converted value after subtracting each compensation.
+     * - Persist the expense's gross converted value (independent of compensations).
      * - Store individual converted values on each compensation income record.
      */
     public function testCreateExpenseWithCompensationsProperlyCalculatesValueAndAccountBalances(): void
     {
-        $this->mockAssetsManager->expects(self::exactly(9))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(3))->method('convert');
         $executionDate = Carbon::now()->startOfDay();
 
         $balanceBefore = (float)$this->accountCashUAH->getBalance();
@@ -98,9 +98,9 @@ final class CompensationsFeatureTest extends BaseApiTestCase
         self::assertTrue($executionDate->eq($transaction->getExecutedAt()));
         self::assertCount(2, $transaction->getCompensations());
 
-        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(100, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(4, $transaction->getConvertedValue('USD'), 0.01);
 
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
@@ -111,16 +111,15 @@ final class CompensationsFeatureTest extends BaseApiTestCase
     // ── Update expense ────────────────────────────────────────────────────────
 
     /**
-     * Updating the expense amount recalculates the net converted value for the
-     * expense (expense − compensations) and adjusts the account balance by the
-     * difference. Compensation converted values are also recalculated.
+     * Updating the expense amount recalculates the expense's gross converted
+     * value and adjusts the account balance by the difference.
+     * Compensation converted values are unaffected.
      *
-     * Scenario: expense 100→50 with comps [25, 25]. Old net = 50 (balance −50).
-     * New net = 50−25−25 = 0. Balance increases by 50 (net delta).
+     * Scenario: expense 100→50 with comps [25, 25]. Balance increases by 50.
      */
     public function testUpdateExpenseWithCompensationsAmountRecalculatesValueAndAccountBalances(): void
     {
-        $this->mockAssetsManager->expects(self::exactly(10))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(4))->method('convert');
         $transaction = $this->createExpense(
             amount: 100,
             account: $this->accountCashUAH,
@@ -148,9 +147,9 @@ final class CompensationsFeatureTest extends BaseApiTestCase
         $countAfterCreate = $this->accountCashUAH->getTransactionsCount();
 
         self::assertCount(2, $transaction->getCompensations());
-        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(100, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(4, $transaction->getConvertedValue('USD'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
@@ -165,7 +164,7 @@ final class CompensationsFeatureTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
 
         self::assertEquals($countAfterCreate, $this->accountCashUAH->getTransactionsCount());
-        // expense reduced 100→50, comps [25,25] unchanged; net went from -50 to 0, balance increases by 50
+        // expense reduced 100→50, balance increases by 50
         self::assertEqualsWithDelta($balanceAfterCreate + 50, (float)$this->accountCashUAH->getBalance(), 0.01);
 
         $this->em->clear();
@@ -174,22 +173,21 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
         self::assertEquals('Updated transaction note', $transaction->getNote());
         self::assertEquals(50, $transaction->getAmount());
-        self::assertEqualsWithDelta(0, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(0, $transaction->getConvertedValue('USD'), 0.01);
-        self::assertEquals(0, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(1.67, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
     }
 
     /**
      * Adding a new compensation while also changing the expense amount correctly
-     * updates the balance and the net converted value for all three transactions
-     * (expense + 2 existing comps + 1 new comp).
+     * updates the balance and the gross converted value for the expense.
      *
      * Scenario: expense 100→150 + comp[25] + comp[25] + comp[10].
-     * Net = 150−60 = 90 UAH. Old net was 50, balance decreases by 40.
+     * Balance delta from captured point: −50 (expense increase) + 10 (new comp) = −40.
      */
     public function testAddCompensationToExpenseAndUpdateAmountRecalculatesValuesAndAccountBalances(): void
     {
-        $this->mockAssetsManager->expects(self::exactly(13))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(5))->method('convert');
         $transaction = $this->createExpense(
             amount: 100,
             account: $this->accountCashUAH,
@@ -216,9 +214,9 @@ final class CompensationsFeatureTest extends BaseApiTestCase
         $balanceBefore = (float)$this->accountCashUAH->getBalance();
 
         self::assertCount(2, $transaction->getCompensations());
-        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(100, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(4, $transaction->getConvertedValue('USD'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
@@ -251,11 +249,11 @@ final class CompensationsFeatureTest extends BaseApiTestCase
         $transaction = $this->em->getRepository(Expense::class)->find($transaction->getId());
         self::assertEquals($countAfterCreate + 1, $this->accountCashUAH->getTransactionsCount());
         self::assertCount(3, $transaction->getCompensations());
-        // $balanceBefore captured after create (net=-50, balance=99950); new net=-90; delta=-40
+        // $balanceBefore captured after create; expense +50, new comp +10; delta = -50+10 = -40
         self::assertEqualsWithDelta($balanceBefore - 40, (float)$this->accountCashUAH->getBalance(), 0.01);
-        self::assertEquals(90, $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(3, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(3.6, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(150, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(5, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(6, $transaction->getConvertedValue('USD'), 0.01);
 
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
@@ -269,15 +267,15 @@ final class CompensationsFeatureTest extends BaseApiTestCase
     // ── Update compensation ───────────────────────────────────────────────────
 
     /**
-     * Updating a compensation's amount triggers a full recalculation of the
-     * parent expense's net converted value and adjusts the account balance.
+     * Updating a compensation's amount adjusts the account balance.
+     * The parent expense's converted value is unaffected (stores gross).
      *
      * Scenario: expense 100 with comps [25, 25]. Update comp[1] to 50.
-     * New net = 100−25−50 = 25 UAH. Old net was 50. Balance increases by 25.
+     * Account gains 25 more (comp increased). Expense convertedValues unchanged.
      */
     public function testUpdateCompensationAmountRecalculatesValueAndAccountBalances(): void
     {
-        $this->mockAssetsManager->expects(self::exactly(11))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(4))->method('convert');
 
         $balanceBefore = (float)$this->accountCashUAH->getBalance();
         $countBefore = $this->accountCashUAH->getTransactionsCount();
@@ -306,9 +304,9 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
         self::assertEquals($countBefore + 3, $this->accountCashUAH->getTransactionsCount());
         self::assertCount(2, $transaction->getCompensations());
-        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(100, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(4, $transaction->getConvertedValue('USD'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
@@ -329,12 +327,12 @@ final class CompensationsFeatureTest extends BaseApiTestCase
         $transaction = $this->em->getRepository(Expense::class)->find($transaction->getId());
         self::assertEquals($countBefore + 3, $this->accountCashUAH->getTransactionsCount());
         self::assertCount(2, $transaction->getCompensations());
-        // net: expense100 - comp25 - comp50 = 25 UAH deducted from original balance
+        // balance: before - 100 + 25 + 25 + 25 (comp increase) = before - 25
         self::assertEqualsWithDelta($balanceBefore - 25, (float)$this->accountCashUAH->getBalance(), 0.01);
         self::assertEquals('Updated Compensation', $transaction->getCompensations()[1]->getNote());
-        self::assertEquals(25, $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(0.83, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(1, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(100, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(4, $transaction->getConvertedValue('USD'), 0.01);
 
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(1.66, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
@@ -383,9 +381,9 @@ final class CompensationsFeatureTest extends BaseApiTestCase
         );
 
         self::assertCount(2, $transaction->getCompensations());
-        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(100, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(4, $transaction->getConvertedValue('USD'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
@@ -401,16 +399,15 @@ final class CompensationsFeatureTest extends BaseApiTestCase
     }
 
     /**
-     * Deleting one of two compensations recalculates the expense net value
-     * upward (more of the expense is now uncovered). The account balance
-     * reflects the additional net cost.
+     * Deleting one of two compensations adjusts the account balance.
+     * The parent expense's converted value is unaffected (stores gross).
      *
-     * Scenario: expense 100 with comps [25, 25]. Net = 50 (balance −50).
-     * Delete comp[1, 25]. New net = 75. Balance decreases by additional 25.
+     * Scenario: expense 100 with comps [25, 25]. Delete comp[1].
+     * Account loses the 25 credit. Expense convertedValues unchanged at 100.
      */
     public function testDeleteCompensationToExpenseRecalculatesValueAndAccountBalances(): void
     {
-        $this->mockAssetsManager->expects(self::exactly(10))->method('convert');
+        $this->mockAssetsManager->expects(self::exactly(3))->method('convert');
 
         $balanceBefore = (float)$this->accountCashUAH->getBalance();
         $countBefore = $this->accountCashUAH->getTransactionsCount();
@@ -439,9 +436,9 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
         self::assertEquals($countBefore + 3, $this->accountCashUAH->getTransactionsCount());
         self::assertCount(2, $transaction->getCompensations());
-        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(1.66, $transaction->getConvertedValue('EUR'), 0.01);
-        self::assertEqualsWithDelta(2, $transaction->getConvertedValue('USD'), 0.01);
+        self::assertEquals(100, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEqualsWithDelta(4, $transaction->getConvertedValue('USD'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[1]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
@@ -455,10 +452,10 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
         $transaction = $this->em->getRepository(Expense::class)->find($transaction->getId());
         self::assertCount(1, $transaction->getCompensations());
-        // after create: balance - 50 net; after delete comp25: balance - 50 - 25 = balance - 75
+        // after create: balance - 50 net; after delete comp25: balance - 75
         self::assertEqualsWithDelta($balanceBefore - 75, (float)$this->accountCashUAH->getBalance(), 0.01);
-        self::assertEquals(75, $transaction->getConvertedValue('UAH'));
-        self::assertEqualsWithDelta(2.5, $transaction->getConvertedValue('EUR'), 0.01);
+        self::assertEquals(100, $transaction->getConvertedValue('UAH'));
+        self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
 
         self::assertEqualsWithDelta(0.83, $transaction->getCompensations()[0]->getConvertedValue('EUR'), 0.01);
         self::assertEqualsWithDelta(1, $transaction->getCompensations()[0]->getConvertedValue('USD'), 0.01);
@@ -495,9 +492,8 @@ final class CompensationsFeatureTest extends BaseApiTestCase
             ]
         );
 
-        // net = 100 − 40 = 60 UAH
         self::assertCount(1, $transaction->getCompensations());
-        self::assertEquals(60, $transaction->getConvertedValue('UAH'));
+        self::assertEquals(100, $transaction->getConvertedValue('UAH'));
         self::assertEqualsWithDelta($balanceBefore - 60, (float)$this->accountCashUAH->getBalance(), 0.01);
 
         $this->client->request(
@@ -557,13 +553,13 @@ final class CompensationsFeatureTest extends BaseApiTestCase
     }
 
     /**
-     * When the sum of compensations exceeds the expense amount, the net
-     * converted value becomes negative (the expense is more than fully
-     * recovered, resulting in a net credit). The account balance reflects
-     * this net gain correctly.
+     * When the sum of compensations exceeds the expense amount, the expense
+     * still stores its gross converted value. The account balance reflects
+     * the net gain correctly.
      *
-     * Scenario: expense 50 with comp 80. Net = 50 − 80 = −30 UAH.
-     * Account balance increases by 30 (net credit).
+     * Scenario: expense 50 with comp 80.
+     * Account balance: −50 + 80 = +30 (net credit).
+     * Expense convertedValues: 50 (gross, unaffected by compensation).
      */
     public function testCompensationsTotalExceedingExpenseAmountProducesNetCreditBalance(): void
     {
@@ -596,7 +592,7 @@ final class CompensationsFeatureTest extends BaseApiTestCase
 
         $content = $response->toArray();
         $transaction = $this->em->getRepository(Expense::class)->find($content['id']);
-        // net converted value is negative: expense covered + surplus
-        self::assertEquals(-30, $transaction->getConvertedValue('UAH'));
+        // gross converted value — independent of compensations
+        self::assertEquals(50, $transaction->getConvertedValue('UAH'));
     }
 }

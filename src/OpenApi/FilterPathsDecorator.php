@@ -16,8 +16,6 @@ final class FilterPathsDecorator implements OpenApiFactoryInterface
         '/api/income-categories/{id}',
         '/api/expense-categories/{id}',
 
-        '/api/tags/{id}',
-
         '/api/expenses/{id}',
         '/api/incomes/{id}',
 

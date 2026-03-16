@@ -4,14 +4,26 @@ namespace App\EventListener;
 
 use App\Entity\Account;
 use App\Entity\Debt;
-use App\Entity\Expense;
-use App\Entity\Income;
 use App\Entity\Transaction;
+use App\Service\AssetsManager;
+use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\OnFlushEventArgs;
+use Doctrine\ORM\UnitOfWork;
 use Psr\Cache\InvalidArgumentException;
 
-final class TransactionListener extends BaseUpdateTransactionValueHandler implements ToggleEnabledInterface
+final class TransactionListener implements ToggleEnabledInterface
 {
+    use ToggleEnabledTrait;
+
+    private UnitOfWork $uow;
+
+    public function __construct(
+        private EntityManagerInterface $em,
+        private AssetsManager $assetsManager,
+    ) {
+        $this->uow = $em->getUnitOfWork();
+    }
+
     /**
      * @throws InvalidArgumentException
      */
@@ -34,20 +46,11 @@ final class TransactionListener extends BaseUpdateTransactionValueHandler implem
     private function handleInsertions(): void
     {
         foreach ($this->uow->getScheduledEntityInsertions() as $entity) {
-            if (!is_a($entity, Transaction::class)) {
+            if (!($entity instanceof Transaction)) {
                 continue;
             }
 
-            if ($entity instanceof Expense) {
-                $this->recalculateExpenseWithCompensationsValue($entity);
-            } elseif ($entity instanceof Income) {
-                if ($entity->getOriginalExpense()) {
-                    $this->recalculateExpenseWithCompensationsValue($entity->getOriginalExpense());
-                } else {
-                    $this->recalculateIncomeValue($entity);
-                }
-            }
-
+            $this->recalculateConvertedValues($entity);
             $this->updateAccountBalanceOnPersist($entity);
 
             if ($entity->getDebt()) {
@@ -62,18 +65,12 @@ final class TransactionListener extends BaseUpdateTransactionValueHandler implem
     private function handleUpdates(): void
     {
         foreach ($this->uow->getScheduledEntityUpdates() as $entity) {
-            if (!is_a($entity, Transaction::class)) {
+            if (!($entity instanceof Transaction)) {
                 continue;
             }
 
-            if ($entity instanceof Expense && $this->areValuableFieldsUpdated($entity)) {
-                $this->recalculateExpenseWithCompensationsValue($entity);
-            } elseif ($entity instanceof Income && $this->areValuableFieldsUpdated($entity)) {
-                if ($entity->getOriginalExpense()) {
-                    $this->recalculateExpenseWithCompensationsValue($entity->getOriginalExpense());
-                } else {
-                    $this->recalculateIncomeValue($entity);
-                }
+            if ($this->areValuableFieldsUpdated($entity)) {
+                $this->recalculateConvertedValues($entity);
             }
 
             $this->updateAccountBalanceOnUpdate($entity);
@@ -90,12 +87,8 @@ final class TransactionListener extends BaseUpdateTransactionValueHandler implem
     private function handleDeletions(): void
     {
         foreach ($this->uow->getScheduledEntityDeletions() as $entity) {
-            if (!is_a($entity, Transaction::class)) {
+            if (!($entity instanceof Transaction)) {
                 continue;
-            }
-
-            if ($entity instanceof Income && $entity->getOriginalExpense()) {
-                $this->recalculateExpenseWithCompensationsValue($entity->getOriginalExpense(), $entity->getId());
             }
 
             $this->updateAccountBalanceOnRemove($entity);
@@ -103,6 +96,31 @@ final class TransactionListener extends BaseUpdateTransactionValueHandler implem
             if ($entity->getDebt()) {
                 $this->updateDebtBalanceOnRemove($entity);
             }
+        }
+    }
+
+    private function areValuableFieldsUpdated($transaction): bool
+    {
+        $changeSet = $this->uow->getEntityChangeSet($transaction);
+
+        $isExecutionDateChanged = isset($changeSet['executedAt']);
+        $isAmountChanged = isset($changeSet['amount'])
+            && ((float)$changeSet['amount'][0] !== (float)$changeSet['amount'][1]);
+        $isAccountChanged = isset($changeSet['account']);
+
+        return $isExecutionDateChanged || $isAmountChanged || $isAccountChanged;
+    }
+
+    private function recalculateConvertedValues(Transaction $transaction): void
+    {
+        $convertedValues = $this->assetsManager->convert($transaction);
+        $transaction->setConvertedValues($convertedValues);
+
+        if ($this->uow->getEntityChangeSet($transaction) !== []) {
+            $this->uow->recomputeSingleEntityChangeSet(
+                $this->em->getClassMetadata(get_class($transaction)),
+                $transaction
+            );
         }
     }
 
@@ -167,8 +185,8 @@ final class TransactionListener extends BaseUpdateTransactionValueHandler implem
         $debtValue = $debt->getConvertedValues();
         foreach (array_keys($transaction->getConvertedValues()) as $currency) {
             $debtValue[$currency] = $transaction->isExpense()
-                ? $debtValue[$currency] + $transaction->getConvertedValue($currency)
-                : $debtValue[$currency] - $transaction->getConvertedValue($currency);
+                ? ($debtValue[$currency] ?? 0.0) + $transaction->getConvertedValue($currency)
+                : ($debtValue[$currency] ?? 0.0) - $transaction->getConvertedValue($currency);
         }
         $debt
             ->increaseBalance(($transaction->isExpense() ? $amount : -$amount))
@@ -189,7 +207,7 @@ final class TransactionListener extends BaseUpdateTransactionValueHandler implem
         $isAmountChanged = (isset($changeSet['amount']) && ((float)$changeSet['amount'][0] !== (float)$changeSet['amount'][1]));
 
         if (!isset($changeSet['convertedValues'])) {
-            throw new \RuntimeException('Converted values are not set in change set');
+            return; // amount/account/date unchanged — converted value did not change, no debt adjustment needed
         }
 
         if ($isAccountChanged || $isAmountChanged) {
@@ -220,8 +238,8 @@ final class TransactionListener extends BaseUpdateTransactionValueHandler implem
         $debtValue = $debt->getConvertedValues();
         foreach (array_keys($transaction->getConvertedValues()) as $currency) {
             $debtValue[$currency] = $transaction->isExpense()
-                ? $debtValue[$currency] - $transaction->getConvertedValue($currency)
-                : $debtValue[$currency] + $transaction->getConvertedValue($currency);
+                ? ($debtValue[$currency] ?? 0.0) - $transaction->getConvertedValue($currency)
+                : ($debtValue[$currency] ?? 0.0) + $transaction->getConvertedValue($currency);
         }
         $debt
             ->decreaseBalance(($transaction->isExpense() ? $amount : -$amount))

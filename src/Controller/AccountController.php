@@ -21,6 +21,7 @@ use Symfony\Component\Routing\Annotation\Route;
 class AccountController extends AbstractFOSRestController
 {
     /**
+     * TODO: Remove if unused on frontend
      * TODO: Check efficiency. Add frontend data display. Do we really need this and AccountItemProvider? which one are we consuming currently?
      */
     #[Rest\View(serializerGroups: ['account:item:read'])]

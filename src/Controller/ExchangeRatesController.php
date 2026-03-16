@@ -18,6 +18,9 @@ use Symfony\Component\Routing\Annotation\Route;
 #[Route('/api/v2/exchange-rates', name: 'api_v2_exchange_rates_')]
 class ExchangeRatesController extends AbstractFOSRestController
 {
+    /**
+     * TODO: remove and use API Platform?
+     */
     #[Rest\QueryParam(name: 'after', description: 'Start date (Y-m-d), required', nullable: false)]
     #[Rest\QueryParam(name: 'before', description: 'End date (Y-m-d), defaults to after', nullable: true)]
     #[Route('/snapshots', name: 'snapshots', methods: ['get'])]
