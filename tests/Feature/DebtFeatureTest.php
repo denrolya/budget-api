@@ -474,7 +474,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         $this->em->clear();
 
         // Debt appears in the open list before closing
-        $openBefore = $this->client->request('GET', '/api/v2/debt');
+        $openBefore = $this->client->request('GET', '/api/v2/debts');
         self::assertResponseIsSuccessful();
         $openIds = array_column($openBefore->toArray(), 'id');
         self::assertContains($debtId, $openIds);
@@ -493,7 +493,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertNotNull($closedDebt->getClosedAt(), 'closedAt must be set after closing');
 
         // The closed debt no longer appears in the default open list
-        $openAfter = $this->client->request('GET', '/api/v2/debt');
+        $openAfter = $this->client->request('GET', '/api/v2/debts');
         self::assertResponseIsSuccessful();
         $openIdsAfter = array_column($openAfter->toArray(), 'id');
         self::assertNotContains($debtId, $openIdsAfter);
@@ -501,7 +501,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testFetchListOfOpenedDebts(): void
     {
-        $response = $this->client->request('GET', '/api/v2/debt');
+        $response = $this->client->request('GET', '/api/v2/debts');
         self::assertResponseIsSuccessful();
 
         $content = $response->toArray();
@@ -519,7 +519,7 @@ final class DebtFeatureTest extends BaseApiTestCase
     }
 
     /**
-     * Closed debts are excluded from the default list (GET /api/v2/debt) but
+     * Closed debts are excluded from the default list (GET /api/v2/debts) but
      * are included when the `withClosed=1` query parameter is passed. This
      * verifies that the filtering is working and that closed records are still
      * accessible when explicitly requested.
@@ -544,13 +544,13 @@ final class DebtFeatureTest extends BaseApiTestCase
         $this->em->clear();
 
         // Default list (open only) must NOT contain the closed debt
-        $openList = $this->client->request('GET', '/api/v2/debt');
+        $openList = $this->client->request('GET', '/api/v2/debts');
         self::assertResponseIsSuccessful();
         $openIds = array_column($openList->toArray(), 'id');
         self::assertNotContains($debtId, $openIds, 'Closed debt must not appear in the open list');
 
         // List with withClosed=1 MUST contain the closed debt
-        $allList = $this->client->request('GET', '/api/v2/debt?withClosed=1');
+        $allList = $this->client->request('GET', '/api/v2/debts?withClosed=1');
         self::assertResponseIsSuccessful();
         $allIds = array_column($allList->toArray(), 'id');
         self::assertContains($debtId, $allIds, 'Closed debt must appear when withClosed=1');
@@ -558,7 +558,7 @@ final class DebtFeatureTest extends BaseApiTestCase
 
     public function testFetchListOfAllDebts(): void
     {
-        $response = $this->client->request('GET', '/api/v2/debt?withClosed=1');
+        $response = $this->client->request('GET', '/api/v2/debts?withClosed=1');
         self::assertResponseIsSuccessful();
 
         $content = $response->toArray();

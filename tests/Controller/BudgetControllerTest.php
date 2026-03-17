@@ -21,9 +21,9 @@ use App\Tests\BaseApiTestCase;
  *   POST   /api/budgets/{budgetId}/lines           — create budget line
  *   PUT    /api/budgets/{budgetId}/lines/{id}      — update budget line
  *   DELETE /api/budgets/{budgetId}/lines/{id}      — delete budget line
- *   GET    /api/v2/budget/{id}/analytics           — budget analytics
- *   GET    /api/v2/budget/{id}/analytics/daily     — daily budget analytics
- *   GET    /api/v2/budget/{id}/history-averages    — historical averages
+ *   GET    /api/v2/budgets/{id}/analytics           — budget analytics
+ *   GET    /api/v2/budgets/{id}/analytics/daily     — daily budget analytics
+ *   GET    /api/v2/budgets/{id}/history-averages    — historical averages
  *
  * Fixtures: BaseApiTestCase (shared accounts, categories, transactions)
  *
@@ -35,7 +35,7 @@ class BudgetControllerTest extends BaseApiTestCase
     private const BUDGET_API_URL = '/api/budgets';
 
     /** BudgetController still handles analytics */
-    private const BUDGET_V2_URL = '/api/v2/budget';
+    private const BUDGET_V2_URL = '/api/v2/budgets';
 
     private function findBudget(string $name): Budget
     {

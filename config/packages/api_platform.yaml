@@ -4,7 +4,10 @@ api_platform:
     version: '2.0.0'
     path_segment_name_generator: api_platform.path_segment_name_generator.dash
     mapping:
-        paths: [ '%kernel.project_dir%/src/Entity' ]
+        paths:
+            - '%kernel.project_dir%/src/Entity'
+            - '%kernel.project_dir%/src/Controller'
+            - '%kernel.project_dir%/src/ApiPlatform/Action'
     patch_formats:
         json: [ 'application/merge-patch+json' ]
     openapi:

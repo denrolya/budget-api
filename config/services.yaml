@@ -116,6 +116,11 @@ services:
             - { name: doctrine.event_listener, event: prePersist }
             - { name: doctrine.event_listener, event: preUpdate }
 
+    App\ApiPlatform\ControllerOpenApiDecorator:
+        decorates: api_platform.openapi.factory
+        arguments:
+            $decorated: '@.inner'
+
 when@test:
     services:
         _defaults:
@@ -131,3 +136,4 @@ when@test:
 
         App\Service\AssetsManager:
             public: true
+

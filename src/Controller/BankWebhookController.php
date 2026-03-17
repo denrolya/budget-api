@@ -6,6 +6,7 @@ use App\Bank\BankProvider;
 use App\Bank\BankWebhookService;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\View\View;
+use OpenApi\Attributes as OA;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
@@ -18,6 +19,7 @@ use Symfony\Component\Routing\Annotation\Route;
  * Route is opened in security.yaml.
  */
 #[Route('/api/webhooks', name: 'api_webhooks_')]
+#[OA\Tag(name: 'Webhooks')]
 class BankWebhookController extends AbstractFOSRestController
 {
     public function __construct(
@@ -27,6 +29,39 @@ class BankWebhookController extends AbstractFOSRestController
     ) {
     }
 
+    #[Route('/{provider}', name: 'receive', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/webhooks/{provider}',
+        summary: 'Receive a bank webhook event',
+        description: 'Public endpoint — no authentication required. Receives incoming webhook payloads from a bank provider (e.g. monobank, wise) and creates draft transactions as appropriate.',
+        tags: ['Webhooks'],
+        parameters: [
+            new OA\Parameter(
+                name: 'provider',
+                in: 'path',
+                required: true,
+                description: 'Bank provider slug (e.g. monobank, wise)',
+                schema: new OA\Schema(type: 'string', enum: ['monobank', 'wise'])
+            ),
+        ],
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(type: 'object', description: 'Provider-specific webhook payload')
+        ),
+        responses: [
+            new OA\Response(
+                response: 201,
+                description: 'Transaction created',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'id', type: 'integer', example: 42),
+                ])
+            ),
+            new OA\Response(response: 200, description: 'Ping or non-transaction event acknowledged'),
+            new OA\Response(response: 400, description: 'Invalid JSON payload'),
+            new OA\Response(response: 404, description: 'Unknown bank provider'),
+            new OA\Response(response: 500, description: 'Internal error while processing the webhook'),
+        ]
+    )]
     /**
      * Receives webhook payloads from a bank identified by {provider} slug.
      * Example: POST /api/webhooks/monobank
@@ -40,7 +75,6 @@ class BankWebhookController extends AbstractFOSRestController
      * @tested testEmptyBody_returns400
      * @tested testUnhandledServiceExceptionReturns500
      */
-    #[Route('/{provider}', name: 'receive', methods: ['POST'])]
     public function receive(Request $request, string $provider): View
     {
         try {

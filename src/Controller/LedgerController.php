@@ -16,10 +16,12 @@ use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
-#[Route('/api/v2/ledger', name: 'api_v2_ledger_')]
+#[Route('/api/v2/ledgers', name: 'api_v2_ledgers_')]
+#[OA\Tag(name: 'Ledger')]
 final class LedgerController extends AbstractFOSRestController
 {
     public function __construct(
@@ -29,6 +31,58 @@ final class LedgerController extends AbstractFOSRestController
     ) {
     }
 
+    #[Rest\QueryParam(name: 'after', description: 'Start date (Y-m-d)', nullable: true)]
+    #[Rest\QueryParam(name: 'before', description: 'End date (Y-m-d)', nullable: true)]
+    #[Rest\QueryParam(name: 'type', requirements: '(expense|income|transfer)', default: null, nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'account', description: 'Filter by account IDs', nullable: true)]
+    #[Rest\QueryParam(name: 'category', description: 'Filter by category IDs', nullable: true)]
+    #[Rest\QueryParam(name: 'debt', description: 'Filter by debt IDs', nullable: true)]
+    #[Rest\QueryParam(name: 'note', description: 'Search substring in note', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'isDraft', requirements: '(0|1)', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'withNestedCategories', requirements: '^(0|1)$', default: null, description: 'Expand category filter to include descendants', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'currencies', description: 'Filter by account currency codes', nullable: true, allowBlank: false)]
+    #[Rest\QueryParam(name: 'amount[gte]', description: 'Amount >= value (numeric)', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'amount[lte]', description: 'Amount <= value (numeric)', nullable: true, allowBlank: true)]
+    #[Rest\QueryParam(name: 'perPage', requirements: '^(20|50|100|[1-9][0-9]*)$', default: Paginator::PER_PAGE)]
+    #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1)]
+    #[Rest\View(serializerGroups: ['transaction:collection:read', 'transfer:collection:read'])]
+    #[Route('', name: 'collection_read', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/v2/ledgers',
+        summary: 'Unified ledger',
+        description: 'Returns a merged, paginated list of transactions and transfers sorted by executedAt DESC. Supports filtering by type, account, category, debt, note, draft status, currency, and amount range. Transfers are excluded when isDraft, currency, amount, or debt filters are active.',
+        tags: ['Ledger'],
+        security: [['bearerAuth' => []]],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d), default: first day of current month', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d), default: last day of current month', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'type', in: 'query', required: false, description: 'expense | income | transfer', schema: new OA\Schema(type: 'string', enum: ['expense', 'income', 'transfer'])),
+            new OA\Parameter(name: 'account[]', in: 'query', required: false, description: 'Account IDs', schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'category[]', in: 'query', required: false, description: 'Category IDs', schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'debt[]', in: 'query', required: false, description: 'Debt IDs', schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'note', in: 'query', required: false, description: 'Substring search in note', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'isDraft', in: 'query', required: false, description: '1 = only drafts, 0 = only non-drafts', schema: new OA\Schema(type: 'integer', enum: [0, 1])),
+            new OA\Parameter(name: 'withNestedCategories', in: 'query', required: false, description: '1 = expand category filter to descendants', schema: new OA\Schema(type: 'integer', enum: [0, 1])),
+            new OA\Parameter(name: 'currencies[]', in: 'query', required: false, description: 'Currency codes', schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'string'))),
+            new OA\Parameter(name: 'amount[gte]', in: 'query', required: false, description: 'Minimum amount', schema: new OA\Schema(type: 'number')),
+            new OA\Parameter(name: 'amount[lte]', in: 'query', required: false, description: 'Maximum amount', schema: new OA\Schema(type: 'number')),
+            new OA\Parameter(name: 'perPage', in: 'query', required: false, description: 'Items per page', schema: new OA\Schema(type: 'integer', default: 20)),
+            new OA\Parameter(name: 'page', in: 'query', required: false, description: 'Page number (1-based)', schema: new OA\Schema(type: 'integer', default: 1)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Paginated ledger',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'list', type: 'array', items: new OA\Items(type: 'object')),
+                    new OA\Property(property: 'count', type: 'integer', example: 142),
+                    new OA\Property(property: 'totalValue', type: 'number', format: 'float', example: -3421.50),
+                ])
+            ),
+            new OA\Response(response: 400, description: 'Invalid amount range (gte > lte)'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * TODO: Check if wee need type transfer at all.
      * Unified ledger endpoint: returns non-transfer transactions merged with transfers,
@@ -63,22 +117,6 @@ final class LedgerController extends AbstractFOSRestController
      * @tested testEmptyDateRange_returnsZeroResults
      * @tested testNonExistentCategoryIdWithoutExpansionReturnsEmpty
      */
-    #[Rest\QueryParam(name: 'after', description: 'Start date (Y-m-d)', nullable: true)]
-    #[Rest\QueryParam(name: 'before', description: 'End date (Y-m-d)', nullable: true)]
-    #[Rest\QueryParam(name: 'type', requirements: '(expense|income|transfer)', default: null, nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'account', description: 'Filter by account IDs', nullable: true)]
-    #[Rest\QueryParam(name: 'category', description: 'Filter by category IDs', nullable: true)]
-    #[Rest\QueryParam(name: 'debt', description: 'Filter by debt IDs', nullable: true)]
-    #[Rest\QueryParam(name: 'note', description: 'Search substring in note', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'isDraft', requirements: '(0|1)', nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'withNestedCategories', requirements: '^(0|1)$', default: null, description: 'Expand category filter to include descendants', nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'currencies', description: 'Filter by account currency codes', nullable: true, allowBlank: false)]
-    #[Rest\QueryParam(name: 'amount[gte]', description: 'Amount >= value (numeric)', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'amount[lte]', description: 'Amount <= value (numeric)', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'perPage', requirements: '^(20|50|100|[1-9][0-9]*)$', default: Paginator::PER_PAGE)]
-    #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1)]
-    #[Rest\View(serializerGroups: ['transaction:collection:read', 'transfer:collection:read'])]
-    #[Route('', name: 'collection_read', methods: ['GET'])]
     public function list(
         Request $request,
         #[MapCarbonDate(format: 'Y-m-d', default: 'first day of this month')] CarbonImmutable $after,

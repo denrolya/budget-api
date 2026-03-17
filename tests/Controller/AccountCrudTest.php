@@ -565,7 +565,7 @@ class AccountCrudTest extends BaseApiTestCase
      */
     public function testGetSingleAccountV2_removedEndpoint_returnsNotFound(): void
     {
-        $this->client->request('GET', '/api/v2/account/' . $this->accountCashEUR->getId());
+        $this->client->request('GET', '/api/v2/accounts/' . $this->accountCashEUR->getId());
         self::assertResponseStatusCodeSame(404);
     }
 

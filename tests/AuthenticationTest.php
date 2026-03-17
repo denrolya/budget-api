@@ -122,7 +122,7 @@ class AuthenticationTest extends BaseApiTestCase
         $token = $response->toArray()['token'];
 
         // Use the token to access a protected endpoint
-        $unauthClient->request('GET', '/api/v2/transaction', [
+        $unauthClient->request('GET', '/api/v2/transactions', [
             'auth_bearer' => $token,
         ]);
         self::assertResponseIsSuccessful();
@@ -134,7 +134,7 @@ class AuthenticationTest extends BaseApiTestCase
     public function testProtectedEndpoint_withoutToken_returns401(): void
     {
         $unauthClient = static::createClient();
-        $unauthClient->request('GET', '/api/v2/transaction');
+        $unauthClient->request('GET', '/api/v2/transactions');
         self::assertResponseStatusCodeSame(401);
     }
 
@@ -144,7 +144,7 @@ class AuthenticationTest extends BaseApiTestCase
     public function testProtectedEndpoint_withInvalidToken_returns401(): void
     {
         $unauthClient = static::createClient();
-        $unauthClient->request('GET', '/api/v2/transaction', [
+        $unauthClient->request('GET', '/api/v2/transactions', [
             'auth_bearer' => 'invalid.jwt.token',
         ]);
         self::assertResponseStatusCodeSame(401);

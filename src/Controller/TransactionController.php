@@ -12,11 +12,13 @@ use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
-#[Route('/api/v2/transaction', name: 'api_v2_transaction_')]
+#[Route('/api/v2/transactions', name: 'api_v2_transactions_')]
+#[OA\Tag(name: 'Transaction')]
 final class TransactionController extends AbstractFOSRestController
 {
     #[Rest\QueryParam(name: 'after', description: 'After date', nullable: true)]
@@ -34,6 +36,45 @@ final class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'note', description: 'Search substring in note', nullable: true, allowBlank: true)]
     #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: Paginator::PER_PAGE)]
     #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1)]
+    #[Rest\View(serializerGroups: ['transaction:collection:read'])]
+    #[Route('', name: 'collection_read', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/v2/transactions',
+        summary: 'List transactions (paginated)',
+        description: 'Returns a paginated list of transactions with converted values. Supports filtering by type, account, category, currency, draft status, note, and amount range. Category filter expands to descendants by default.',
+        security: [['bearerAuth' => []]],
+        tags: ['Transaction'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d), default: first day of current month', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d), default: last day of current month', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'type', in: 'query', required: false, description: 'expense | income', schema: new OA\Schema(type: 'string', enum: ['expense', 'income'])),
+            new OA\Parameter(name: 'accounts[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'categories[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'excludedCategories[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'currencies[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'string'))),
+            new OA\Parameter(name: 'debts[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'amount[gte]', in: 'query', required: false, schema: new OA\Schema(type: 'number')),
+            new OA\Parameter(name: 'amount[lte]', in: 'query', required: false, schema: new OA\Schema(type: 'number')),
+            new OA\Parameter(name: 'withNestedCategories', in: 'query', required: false, description: 'Expand category filter to descendants (default: true)', schema: new OA\Schema(type: 'boolean', default: true)),
+            new OA\Parameter(name: 'isDraft', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['0', '1', 'true', 'false'])),
+            new OA\Parameter(name: 'note', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'perPage', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 20)),
+            new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 1)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Paginated transaction list',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'list', type: 'array', items: new OA\Items(type: 'object')),
+                    new OA\Property(property: 'count', type: 'integer'),
+                    new OA\Property(property: 'totalValue', type: 'number', format: 'float'),
+                ])
+            ),
+            new OA\Response(response: 400, description: 'Invalid amount range'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\TransactionControllerTest
      * @tested testAuthorizedUserCanAccessListOfTransactions
@@ -56,8 +97,6 @@ final class TransactionController extends AbstractFOSRestController
      * @tested testTransactionList_noResults_returnsEmptyListWithZeroTotals
      * @tested testGetCollectionApiPlatform_removedEndpoint_returns404
      */
-    #[Rest\View(serializerGroups: ['transaction:collection:read'])]
-    #[Route('', name: 'collection_read', methods: ['GET'])]
     public function list(
         Request $request,
         AssetsManager $assetsManager,
@@ -119,13 +158,47 @@ final class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'withNestedCategories', requirements: '^(0|1|true|false)$', default: true, nullable: true)]
     #[Rest\QueryParam(name: 'isDraft', requirements: '^(0|1|true|false)$', default: null, nullable: true)]
     #[Rest\QueryParam(name: 'note', nullable: true, allowBlank: true)]
+    #[Route('/export.csv', name: 'collection_export_csv', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/v2/transactions/export.csv',
+        summary: 'Export transactions as CSV',
+        description: 'Streams a CSV file of profit-affecting transactions matching the given filters. The filename is transactions_{after}_{before}.csv.',
+        security: [['bearerAuth' => []]],
+        tags: ['Transaction'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d)', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d)', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'type', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['expense', 'income'])),
+            new OA\Parameter(name: 'accounts[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'categories[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'excludedCategories[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'currencies[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'string'))),
+            new OA\Parameter(name: 'debts[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'amount[gte]', in: 'query', required: false, schema: new OA\Schema(type: 'number')),
+            new OA\Parameter(name: 'amount[lte]', in: 'query', required: false, schema: new OA\Schema(type: 'number')),
+            new OA\Parameter(name: 'withNestedCategories', in: 'query', required: false, schema: new OA\Schema(type: 'boolean', default: true)),
+            new OA\Parameter(name: 'isDraft', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['0', '1', 'true', 'false'])),
+            new OA\Parameter(name: 'note', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'CSV file stream',
+                headers: [
+                    new OA\Header(header: 'Content-Type', schema: new OA\Schema(type: 'string', example: 'text/csv; charset=UTF-8')),
+                    new OA\Header(header: 'Content-Disposition', schema: new OA\Schema(type: 'string', example: 'attachment; filename="transactions_20240101_20240131.csv"')),
+                ]
+            ),
+            new OA\Response(response: 400, description: 'Invalid amount range'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\TransactionControllerTest
      * @tested testExportCsvWithoutFiltersDoesNotCrash
      * @tested testExportCsvWithCurrenciesFilter
      * @tested testExportCsvWithUnknownCurrencyDoesNotCrash
      */
-    #[Route('/export.csv', name: 'collection_export_csv', methods: ['GET'])]
     public function exportCsv(
         Request $request,
         CSVExporter $exporter,

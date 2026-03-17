@@ -11,7 +11,7 @@ use App\Tests\BaseApiTestCase;
  * API contract tests for Debt CRUD endpoints.
  *
  * Endpoints covered:
- *   GET    /api/v2/debt             (custom controller — DebtController::list)
+ *   GET    /api/v2/debts             (custom controller — DebtController::list)
  *   GET    /api/debts               (API Platform GetCollection)
  *   POST   /api/debts               (API Platform Post)
  *   PUT    /api/debts/{id}          (API Platform Put)
@@ -21,7 +21,7 @@ use App\Tests\BaseApiTestCase;
  */
 class DebtCrudTest extends BaseApiTestCase
 {
-    private const DEBT_V2_LIST_URL = '/api/v2/debt';
+    private const DEBT_V2_LIST_URL = '/api/v2/debts';
     private const DEBT_API_URL = '/api/debts';
 
     // ──────────────────────────────────────────────────────────────────────
@@ -300,7 +300,7 @@ class DebtCrudTest extends BaseApiTestCase
 
     public function testApiPlatformDebtList_alsoWorks(): void
     {
-        // Both /api/v2/debt and /api/debts should work
+        // Both /api/v2/debts and /api/debts should work
         $response = $this->client->request('GET', self::DEBT_API_URL);
         self::assertResponseIsSuccessful();
 

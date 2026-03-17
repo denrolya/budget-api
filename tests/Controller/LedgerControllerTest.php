@@ -15,7 +15,7 @@ use Carbon\CarbonImmutable;
  * API contract tests for Ledger endpoints.
  *
  * Endpoints covered:
- *   GET /api/v2/ledger — unified list of transactions and transfers with filters
+ *   GET /api/v2/ledgers — unified list of transactions and transfers with filters
  *
  * Fixtures: BaseApiTestCase (shared accounts, categories, transactions)
  *
@@ -23,7 +23,7 @@ use Carbon\CarbonImmutable;
  */
 class LedgerControllerTest extends BaseApiTestCase
 {
-    private const LEDGER_URL = '/api/v2/ledger';
+    private const LEDGER_URL = '/api/v2/ledgers';
 
     /**
      * @covers \App\Controller\LedgerController::list

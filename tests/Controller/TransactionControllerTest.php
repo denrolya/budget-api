@@ -18,12 +18,12 @@ use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
  * API contract tests for Transaction endpoints.
  *
  * Endpoints covered:
- *   GET    /api/v2/transaction            — paginated list with filters
+ *   GET    /api/v2/transactions            — paginated list with filters
  *   POST   /api/transactions/expense      — create expense
  *   POST   /api/transactions/income       — create income
  *   PUT    /api/transactions/{id}         — update transaction
  *   DELETE /api/transactions/{id}         — delete transaction
- *   GET    /api/v2/transaction/export.csv — CSV export
+ *   GET    /api/v2/transactions/export.csv — CSV export
  *
  * Fixtures: BaseApiTestCase (shared accounts, categories, transactions)
  */
@@ -822,7 +822,7 @@ class TransactionControllerTest extends BaseApiTestCase
         self::assertContains($response->getStatusCode(), [404, 405]);
     }
 
-    private const EXPORT_CSV_URL = '/api/v2/transaction/export.csv';
+    private const EXPORT_CSV_URL = '/api/v2/transactions/export.csv';
 
     /**
      * Regression: passing no currencies param sent null to CSVExporter::stream(array $currencies),

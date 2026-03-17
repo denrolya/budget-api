@@ -10,23 +10,49 @@ use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
+use OpenApi\Attributes as OA;
 use Symfony\Component\Routing\Annotation\Route;
 
-#[Route('/api/v2/budget', name: 'api_v2_budget_')]
+#[Route('/api/v2/budgets', name: 'api_v2_budgets_')]
+#[OA\Tag(name: 'Budget')]
 class BudgetController extends AbstractFOSRestController
 {
     // ──────────────────────────────────────────────────────────────────────────
     // Analytics
     // ──────────────────────────────────────────────────────────────────────────
 
+    #[Rest\View]
+    #[Route('/{id<\d+>}/analytics', name: 'analytics', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/v2/budgets/{id}/analytics',
+        summary: 'Budget actuals by category',
+        description: 'Returns actual income and expense totals grouped by category for the budget period.',
+        security: [['bearerAuth' => []]],
+        tags: ['Budget'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Budget ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Category actuals',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'data', type: 'array', items: new OA\Items(
+                        description: 'Per-category aggregate',
+                        type: 'object'
+                    )),
+                ])
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'Budget not found'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\BudgetControllerTest
      * @tested testAnalyticsReturnsCorrectShape
      * @tested testAnalyticsRequiresAuth
      * @tested testAnalyticsOnEmptyBudgetReturnsEmptyData
      */
-    #[Rest\View]
-    #[Route('/{id<\d+>}/analytics', name: 'analytics', methods: ['GET'])]
     public function analytics(Budget $budget, TransactionRepository $transactionRepository): View
     {
         $start = CarbonImmutable::instance($budget->getStartDate())->startOfDay();
@@ -37,12 +63,33 @@ class BudgetController extends AbstractFOSRestController
         ]);
     }
 
+    #[Rest\View]
+    #[Route('/{id<\d+>}/analytics/daily', name: 'analytics_daily', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/v2/budgets/{id}/analytics/daily',
+        summary: 'Budget daily category stats',
+        description: 'Returns per-day category breakdown of transactions within the budget period.',
+        security: [['bearerAuth' => []]],
+        tags: ['Budget'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Budget ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Daily category stats',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                ])
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'Budget not found'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\BudgetControllerTest
      * @tested testDailyAnalyticsReturnsCorrectShape
      */
-    #[Rest\View]
-    #[Route('/{id<\d+>}/analytics/daily', name: 'analytics_daily', methods: ['GET'])]
     public function analyticsDailyStats(Budget $budget, TransactionRepository $transactionRepository): View
     {
         $start = CarbonImmutable::instance($budget->getStartDate())->startOfDay();
@@ -53,6 +100,34 @@ class BudgetController extends AbstractFOSRestController
         ]);
     }
 
+    #[Rest\QueryParam(name: 'months', requirements: '^[1-9][0-9]*$', default: 6, description: 'Number of months to analyze')]
+    #[Rest\View]
+    #[Route('/{id<\d+>}/history-averages', name: 'history_averages', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/v2/budgets/{id}/history-averages',
+        summary: 'Budget category history averages with predictions',
+        description: 'Returns per-category recency-weighted average spend/income over the last N calendar months, with a prediction for the upcoming month. Requires at least 2 active months per category to produce a prediction.',
+        security: [['bearerAuth' => []]],
+        tags: ['Budget'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Budget ID', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'months', in: 'query', required: false, description: 'Number of calendar months to look back (default: 6)', schema: new OA\Schema(type: 'integer', minimum: 1, default: 6)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'History averages with predictions',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                    new OA\Property(property: 'months', type: 'integer', example: 6),
+                    new OA\Property(property: 'after', type: 'string', format: 'date', example: '2024-01-01'),
+                    new OA\Property(property: 'before', type: 'string', format: 'date', example: '2024-06-30'),
+                ])
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'Budget not found'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\BudgetControllerTest
      * @tested testHistoryAveragesRequiresAuth
@@ -61,9 +136,6 @@ class BudgetController extends AbstractFOSRestController
      * @tested testHistoryAveragesMonthsParamIsRespected
      * @tested testHistoryAveragesIncludesFirstDayOfWindowAndExcludesDayBefore
      */
-    #[Rest\QueryParam(name: 'months', requirements: '^[1-9][0-9]*$', default: 6, description: 'Number of months to analyze')]
-    #[Rest\View]
-    #[Route('/{id<\d+>}/history-averages', name: 'history_averages', methods: ['GET'])]
     public function historyAverages(
         Budget $budget,
         TransactionRepository $transactionRepository,

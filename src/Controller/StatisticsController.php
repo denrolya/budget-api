@@ -19,10 +19,12 @@ use Doctrine\Persistence\ManagerRegistry;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/statistics', name: 'api_v2_statistics_')]
+#[OA\Tag(name: 'Statistics')]
 class StatisticsController extends AbstractFOSRestController
 {
     use SoftDeletableTogglerController;
@@ -34,6 +36,34 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', default: [], description: 'Filter by categories', nullable: false, allowBlank: false)]
     #[Route('/value-by-period', name: 'value_by_period', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/statistics/value-by-period',
+        summary: 'Transaction value grouped by time period',
+        description: 'Returns income and expense totals for each period slot between after and before. Used for charts. Supports category and account filters with automatic descendant expansion.',
+        security: [['bearerAuth' => []]],
+        tags: ['Statistics'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d), default: first day of current month', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d), default: last day of current month', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'interval', in: 'query', required: false, description: 'ISO 8601 interval (P1D, P1W, P1M)', schema: new OA\Schema(type: 'string', example: 'P1M')),
+            new OA\Parameter(name: 'type', in: 'query', required: false, description: 'expense | income', schema: new OA\Schema(type: 'string', enum: ['expense', 'income'])),
+            new OA\Parameter(name: 'accounts[]', in: 'query', required: false, description: 'Filter by account IDs', schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'categories[]', in: 'query', required: false, description: 'Filter by category IDs (descendants included)', schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Period value buckets',
+                content: new OA\JsonContent(type: 'array', items: new OA\Items(properties: [
+                    new OA\Property(property: 'after', type: 'string', format: 'date-time'),
+                    new OA\Property(property: 'before', type: 'string', format: 'date-time'),
+                    new OA\Property(property: 'expense', type: 'number', format: 'float'),
+                    new OA\Property(property: 'income', type: 'number', format: 'float'),
+                ]))
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
      * @tested testValueByPeriodWithoutArguments
@@ -82,6 +112,22 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: false, allowBlank: false)]
     #[Rest\View(serializerGroups: ['category:tree:read'])]
     #[Route('/category/tree', name: 'category_tree', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/statistics/category/tree',
+        summary: 'Category spending tree',
+        description: 'Returns a hierarchical category tree with aggregated transaction values for the given period and type.',
+        security: [['bearerAuth' => []]],
+        tags: ['Statistics'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d)', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d)', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'type', in: 'query', required: true, description: 'expense | income', schema: new OA\Schema(type: 'string', enum: ['expense', 'income'])),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Category tree with values'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
      * @tested testCategoryTreeWithBeforeAndAfter
@@ -111,6 +157,23 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'categories', description: 'Filter by categories', nullable: true, allowBlank: false)]
     #[Rest\View(serializerGroups: ['category:tree:read'])]
     #[Route('/category/timeline', name: 'category_timeline', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/statistics/category/timeline',
+        summary: 'Category values over a timeline',
+        description: 'Returns per-interval totals for the given categories, enabling timeline/trend charts.',
+        security: [['bearerAuth' => []]],
+        tags: ['Statistics'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d)', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d)', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'interval', in: 'query', required: false, description: 'Period interval, default: 1 month', schema: new OA\Schema(type: 'string', default: '1 month')),
+            new OA\Parameter(name: 'categories[]', in: 'query', required: false, description: 'Category IDs to include', schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Category timeline data'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
      * @tested testCategoryTimelineWithoutCategoriesDoesNotCrash
@@ -146,6 +209,22 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: null, nullable: true, allowBlank: false)]
     #[Rest\View(serializerGroups: ['account:collection:read'])]
     #[Route('/account-distribution', name: 'account_distribution', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/statistics/account-distribution',
+        summary: 'Transaction value distribution by account',
+        description: 'Returns the share of total income or expense value per account for the given period.',
+        security: [['bearerAuth' => []]],
+        tags: ['Statistics'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d), default: first day of current year', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d), default: last day of current year', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'type', in: 'query', required: false, description: 'expense | income', schema: new OA\Schema(type: 'string', enum: ['expense', 'income'])),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Account distribution data'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
      * @tested testAccountDistribution_returnsCorrectShape
@@ -174,6 +253,22 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: Transaction::EXPENSE, nullable: true, allowBlank: false)]
     #[Route('/by-weekdays', name: 'by_weekdays', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/statistics/by-weekdays',
+        summary: 'Transaction value by weekday',
+        description: 'Returns aggregated income/expense values grouped by day of the week.',
+        security: [['bearerAuth' => []]],
+        tags: ['Statistics'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d), default: first day of current year', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d), default: last day of current year', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'type', in: 'query', required: false, description: 'expense | income, default: expense', schema: new OA\Schema(type: 'string', enum: ['expense', 'income'])),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Weekday distribution'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
      * @tested testByWeekdays_returnsCorrectShape
@@ -197,6 +292,22 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'before', description: 'Before date', nullable: true)]
     #[Rest\QueryParam(name: 'type', requirements: '(expense|income)', default: Transaction::EXPENSE, nullable: true, allowBlank: false)]
     #[Route('/top-value-category', name: 'top_value_category', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/statistics/top-value-category',
+        summary: 'Top spending/income categories',
+        description: 'Returns categories ranked by total transaction value descending for the given period.',
+        security: [['bearerAuth' => []]],
+        tags: ['Statistics'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d), default: first day of current year', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d), default: last day of current year', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'type', in: 'query', required: false, description: 'expense | income, default: expense', schema: new OA\Schema(type: 'string', enum: ['expense', 'income'])),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Top value categories'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
      * @tested testTopValueCategory_returnsCorrectShape
@@ -223,6 +334,25 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'accounts', default: [], description: 'Filter by accounts', nullable: false, allowBlank: false)]
     #[Rest\QueryParam(name: 'categories', default: [], description: 'Filter by categories', nullable: false, allowBlank: false)]
     #[Route('/avg', name: 'average', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/statistics/avg',
+        summary: 'Average transaction value per period',
+        description: 'Returns the average income and expense per period interval over the given date range. Supports account and category filters.',
+        security: [['bearerAuth' => []]],
+        tags: ['Statistics'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d)', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d)', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'interval', in: 'query', required: false, description: 'ISO 8601 interval', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'type', in: 'query', required: false, description: 'expense | income', schema: new OA\Schema(type: 'string', enum: ['expense', 'income'])),
+            new OA\Parameter(name: 'accounts[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'categories[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Average value data'),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
      * @tested testAvg_returnsCorrectShape
@@ -273,6 +403,41 @@ class StatisticsController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'affectingProfit', requirements: '^(0|1|true|false)$', default: false, description: 'Only profit-affecting transactions', nullable: true, allowBlank: false)]
     #[Rest\View]
     #[Route('/daily', name: 'daily_stats', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/statistics/daily',
+        summary: 'Daily transaction counts with filters',
+        description: 'Returns per-day transaction counts split by income/expense. Supports the same rich filter set as the ledger endpoint.',
+        security: [['bearerAuth' => []]],
+        tags: ['Statistics'],
+        parameters: [
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d), default: 1 year ago', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d), default: today', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'type', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['expense', 'income'])),
+            new OA\Parameter(name: 'accounts[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'categories[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'excludedCategories[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'integer'))),
+            new OA\Parameter(name: 'currencies[]', in: 'query', required: false, schema: new OA\Schema(type: 'array', items: new OA\Items(type: 'string'))),
+            new OA\Parameter(name: 'isDraft', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['0', '1', 'true', 'false'])),
+            new OA\Parameter(name: 'note', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'amount[gte]', in: 'query', required: false, schema: new OA\Schema(type: 'number')),
+            new OA\Parameter(name: 'amount[lte]', in: 'query', required: false, schema: new OA\Schema(type: 'number')),
+            new OA\Parameter(name: 'affectingProfit', in: 'query', required: false, description: 'Only profit-affecting transactions', schema: new OA\Schema(type: 'boolean', default: false)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Daily stats',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'data', type: 'array', items: new OA\Items(properties: [
+                        new OA\Property(property: 'day', type: 'string', format: 'date'),
+                        new OA\Property(property: 'expense', type: 'integer'),
+                        new OA\Property(property: 'income', type: 'integer'),
+                    ])),
+                ])
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
      * @tested testDaily_returnsCorrectShape

@@ -12,15 +12,46 @@ use Carbon\CarbonPeriod;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
+use OpenApi\Attributes as OA;
 use Symfony\Component\Routing\Annotation\Route;
 
-#[Route('/api/v2/account', name: 'api_v2_account_')]
+#[Route('/api/v2/accounts', name: 'api_v2_accounts_')]
+#[OA\Tag(name: 'Account')]
 class AccountController extends AbstractFOSRestController
 {
     #[Rest\QueryParam(name: 'after', description: 'After date (Y-m-d)', nullable: true)]
     #[Rest\QueryParam(name: 'before', description: 'Before date (Y-m-d)', nullable: true)]
     #[Rest\QueryParam(name: 'interval', description: 'ISO 8601 duration (P1D, P1W, P1M)', default: 'P1W', nullable: true)]
     #[Rest\View]
+    #[Route('/{id<\d+>}/balance-history', name: 'balance_history', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/accounts/{id}/balance-history',
+        summary: 'Account balance history over time',
+        description: 'Returns balance data points for the given account, walking backwards from the current balance to reconstruct the historical balance at each interval boundary.',
+        security: [['bearerAuth' => []]],
+        tags: ['Account'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d), default: 6 months ago', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d), default: today', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'interval', in: 'query', required: false, description: 'ISO 8601 interval (P1D, P1W, P1M), default: P1W', schema: new OA\Schema(type: 'string', default: 'P1W')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Balance history',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'currency', type: 'string', example: 'USD'),
+                    new OA\Property(property: 'data', type: 'array', items: new OA\Items(properties: [
+                        new OA\Property(property: 'timestamp', type: 'integer', example: 1700000000),
+                        new OA\Property(property: 'balance', type: 'number', format: 'float', example: 1234.56),
+                    ])),
+                ])
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'Account not found'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\AccountStatsTest
      * @tested testBalanceHistory_returnsCorrectShape
@@ -28,7 +59,6 @@ class AccountController extends AbstractFOSRestController
      * @tested testBalanceHistory_emptyRange_returnsEmptyData
      * @tested testBalanceHistory_withoutAuth_returns401
      */
-    #[Route('/{id<\d+>}/balance-history', name: 'balance_history', methods: ['get'])]
     public function balanceHistory(
         Account $account,
         TransactionRepository $transactionRepo,
@@ -77,6 +107,34 @@ class AccountController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'after', description: 'After date (Y-m-d)', nullable: true)]
     #[Rest\QueryParam(name: 'before', description: 'Before date (Y-m-d)', nullable: true)]
     #[Rest\View]
+    #[Route('/{id<\d+>}/daily-stats', name: 'daily_stats', methods: ['get'])]
+    #[OA\Get(
+        path: '/api/v2/accounts/{id}/daily-stats',
+        summary: 'Daily transaction counts per account',
+        description: 'Returns per-day income and expense transaction counts for the given account within the date range.',
+        security: [['bearerAuth' => []]],
+        tags: ['Account'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'after', in: 'query', required: false, description: 'Start date (Y-m-d), default: 1 year ago', schema: new OA\Schema(type: 'string', format: 'date')),
+            new OA\Parameter(name: 'before', in: 'query', required: false, description: 'End date (Y-m-d), default: today', schema: new OA\Schema(type: 'string', format: 'date')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Daily stats',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'data', type: 'array', items: new OA\Items(properties: [
+                        new OA\Property(property: 'day', type: 'string', format: 'date', example: '2024-01-15'),
+                        new OA\Property(property: 'expense', type: 'integer', example: 3),
+                        new OA\Property(property: 'income', type: 'integer', example: 1),
+                    ])),
+                ])
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'Account not found'),
+        ]
+    )]
     /**
      * @see \App\Tests\Controller\AccountStatsTest
      * @tested testDailyStats_returnsCorrectShape
@@ -84,7 +142,6 @@ class AccountController extends AbstractFOSRestController
      * @tested testDailyStats_uahAccount_returnsData
      * @tested testDailyStats_withoutAuth_returns401
      */
-    #[Route('/{id<\d+>}/daily-stats', name: 'daily_stats', methods: ['get'])]
     public function dailyStats(
         Account $account,
         TransactionRepository $transactionRepo,

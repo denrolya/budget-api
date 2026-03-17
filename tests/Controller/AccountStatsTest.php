@@ -10,8 +10,8 @@ use App\Tests\BaseApiTestCase;
  * API contract tests for Account statistics endpoints.
  *
  * Endpoints covered:
- *   GET /api/v2/account/{id}/daily-stats
- *   GET /api/v2/account/{id}/balance-history
+ *   GET /api/v2/accounts/{id}/daily-stats
+ *   GET /api/v2/accounts/{id}/balance-history
  */
 class AccountStatsTest extends BaseApiTestCase
 {
@@ -27,7 +27,7 @@ class AccountStatsTest extends BaseApiTestCase
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
-            "/api/v2/account/{$accountId}/daily-stats",
+            "/api/v2/accounts/{$accountId}/daily-stats",
             ['after' => '2021-01-01', 'before' => '2021-01-31']
         ));
         self::assertResponseIsSuccessful();
@@ -51,7 +51,7 @@ class AccountStatsTest extends BaseApiTestCase
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
-            "/api/v2/account/{$accountId}/daily-stats",
+            "/api/v2/accounts/{$accountId}/daily-stats",
             ['after' => '2025-06-01', 'before' => '2025-06-30']
         ));
         self::assertResponseIsSuccessful();
@@ -69,7 +69,7 @@ class AccountStatsTest extends BaseApiTestCase
         $accountId = $this->accountCashUAH->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
-            "/api/v2/account/{$accountId}/daily-stats",
+            "/api/v2/accounts/{$accountId}/daily-stats",
             ['after' => '2021-01-01', 'before' => '2021-01-31']
         ));
         self::assertResponseIsSuccessful();
@@ -92,7 +92,7 @@ class AccountStatsTest extends BaseApiTestCase
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
-            "/api/v2/account/{$accountId}/balance-history",
+            "/api/v2/accounts/{$accountId}/balance-history",
             ['after' => '2021-01-01', 'before' => '2021-06-30', 'interval' => 'P1M']
         ));
         self::assertResponseIsSuccessful();
@@ -117,7 +117,7 @@ class AccountStatsTest extends BaseApiTestCase
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
-            "/api/v2/account/{$accountId}/balance-history",
+            "/api/v2/accounts/{$accountId}/balance-history",
             ['after' => '2021-01-01', 'before' => '2021-01-31', 'interval' => 'P1W']
         ));
         self::assertResponseIsSuccessful();
@@ -137,7 +137,7 @@ class AccountStatsTest extends BaseApiTestCase
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
-            "/api/v2/account/{$accountId}/balance-history",
+            "/api/v2/accounts/{$accountId}/balance-history",
             ['after' => '2025-06-01', 'before' => '2025-06-30', 'interval' => 'P1M']
         ));
         self::assertResponseIsSuccessful();
@@ -156,7 +156,7 @@ class AccountStatsTest extends BaseApiTestCase
     public function testDailyStats_withoutAuth_returns401(): void
     {
         $unauthClient = static::createClient();
-        $unauthClient->request('GET', '/api/v2/account/1/daily-stats');
+        $unauthClient->request('GET', '/api/v2/accounts/1/daily-stats');
         self::assertResponseStatusCodeSame(401);
     }
 
@@ -166,7 +166,7 @@ class AccountStatsTest extends BaseApiTestCase
     public function testBalanceHistory_withoutAuth_returns401(): void
     {
         $unauthClient = static::createClient();
-        $unauthClient->request('GET', '/api/v2/account/1/balance-history');
+        $unauthClient->request('GET', '/api/v2/accounts/1/balance-history');
         self::assertResponseStatusCodeSame(401);
     }
 }
