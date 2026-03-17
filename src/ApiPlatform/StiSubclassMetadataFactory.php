@@ -43,7 +43,7 @@ class StiSubclassMetadataFactory implements ResourceMetadataCollectionFactoryInt
     ];
 
     public function __construct(
-        private readonly ResourceMetadataCollectionFactoryInterface $decorated
+        private readonly ResourceMetadataCollectionFactoryInterface $decorated,
     ) {
     }
 
@@ -51,7 +51,7 @@ class StiSubclassMetadataFactory implements ResourceMetadataCollectionFactoryInt
     {
         $collection = $this->decorated->create($resourceClass);
 
-        if (!in_array($resourceClass, self::STI_SUBCLASSES, true)) {
+        if (!\in_array($resourceClass, self::STI_SUBCLASSES, true)) {
             return $collection;
         }
 

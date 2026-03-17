@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\ApiPlatform;
 
 use ApiPlatform\Doctrine\Orm\Filter\AbstractFilter;
@@ -7,13 +9,11 @@ use ApiPlatform\Doctrine\Orm\Util\QueryNameGeneratorInterface;
 use ApiPlatform\Metadata\Operation;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
+
 class WithDeletedFilter extends AbstractFilter
 {
     private const PROPERTY_NAME = 'withDeleted';
 
-    /**
-     * @inheritDoc
-     */
     public function getDescription(string $resourceClass): array
     {
         return [
@@ -28,23 +28,20 @@ class WithDeletedFilter extends AbstractFilter
         ];
     }
 
-    /**
-     * @inheritDoc
-     */
     protected function filterProperty(
-        string                      $property,
+        string $property,
         $value,
-        QueryBuilder                $queryBuilder,
+        QueryBuilder $queryBuilder,
         QueryNameGeneratorInterface $queryNameGenerator,
-        string                      $resourceClass,
-        ?Operation                  $operation = null,
-        array                       $context = []
+        string $resourceClass,
+        ?Operation $operation = null,
+        array $context = [],
     ): void {
-        if ($property !== self::PROPERTY_NAME) {
+        if (self::PROPERTY_NAME !== $property) {
             return;
         }
 
-        if (filter_var(($value ?? null), FILTER_VALIDATE_BOOLEAN)) {
+        if (filter_var($value ?? null, \FILTER_VALIDATE_BOOLEAN)) {
             $this->disableSoftDeleteable($queryBuilder->getEntityManager());
         }
     }

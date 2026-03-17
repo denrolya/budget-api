@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Bank\BankProvider;
@@ -10,6 +12,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Throwable;
 
 /**
  * Simulates a Wise webhook event by pushing a sample payload directly
@@ -44,13 +47,23 @@ class WiseTestWebhookCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $balanceId = (string) $input->getOption('balance-id');
-        $amount    = (float) $input->getOption('amount');
-        $currency  = strtoupper((string) $input->getOption('currency'));
-        $type      = strtolower((string) $input->getOption('type'));
-        $schema    = strtolower((string) $input->getOption('schema'));
+        $rawBalanceId = $input->getOption('balance-id');
+        assert(\is_string($rawBalanceId));
+        $balanceId = $rawBalanceId;
+        $rawAmount = $input->getOption('amount');
+        assert(is_numeric($rawAmount));
+        $amount = (float) $rawAmount;
+        $rawCurrency = $input->getOption('currency');
+        assert(\is_string($rawCurrency));
+        $currency = strtoupper($rawCurrency);
+        $rawType = $input->getOption('type');
+        assert(\is_string($rawType));
+        $type = strtolower($rawType);
+        $rawSchema = $input->getOption('schema');
+        assert(\is_string($rawSchema));
+        $schema = strtolower($rawSchema);
 
-        if (!in_array($type, ['credit', 'debit'], true)) {
+        if (!\in_array($type, ['credit', 'debit'], true)) {
             $io->error('--type must be "credit" or "debit"');
 
             return Command::FAILURE;
@@ -59,38 +72,41 @@ class WiseTestWebhookCommand extends Command
         $payload = match ($schema) {
             'credit-v3' => $this->buildCreditV3Payload($balanceId, $amount, $currency),
             'credit-v2' => $this->buildFlatPayload('balances#credit', $balanceId, $amount, $currency, $type),
-            default      => $this->buildFlatPayload('balances#update', $balanceId, $amount, $currency, $type),
+            default => $this->buildFlatPayload('balances#update', $balanceId, $amount, $currency, $type),
         };
 
         $io->section('Sending payload');
-        $io->writeln(json_encode($payload, JSON_PRETTY_PRINT));
+        $io->writeln(json_encode($payload, \JSON_PRETTY_PRINT));
 
         try {
             $transaction = $this->webhookService->handle(BankProvider::Wise, $payload);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $io->error('Pipeline error: ' . $e->getMessage());
 
             return Command::FAILURE;
         }
 
-        if ($transaction === null) {
+        if (null === $transaction) {
             $io->warning(
-                'BankWebhookService returned null. Possible reasons:' . PHP_EOL
-                . '  • No BankCardAccount with externalAccountId="' . $balanceId . '" found in DB' . PHP_EOL
-                . '  • Duplicate transaction (same amount + minute already exists)' . PHP_EOL
+                'BankWebhookService returned null. Possible reasons:' . \PHP_EOL
+                . '  • No BankCardAccount with externalAccountId="' . $balanceId . '" found in DB' . \PHP_EOL
+                . '  • Duplicate transaction (same amount + minute already exists)' . \PHP_EOL
                 . '  • Payload parsed as non-transaction event',
             );
 
             return Command::FAILURE;
         }
 
-        $io->success(sprintf(
+        $executedAt = $transaction->getExecutedAt();
+        \assert(null !== $executedAt);
+
+        $io->success(\sprintf(
             'Transaction #%d created: %s %.2f %s at %s',
             $transaction->getId(),
             $type,
             $amount,
             $currency,
-            $transaction->getExecutedAt()->format('Y-m-d H:i:s'),
+            $executedAt->format('Y-m-d H:i:s'),
         ));
 
         return Command::SUCCESS;
@@ -100,17 +116,17 @@ class WiseTestWebhookCommand extends Command
     private function buildFlatPayload(string $eventType, string $balanceId, float $amount, string $currency, string $type): array
     {
         return [
-            'event_type'     => $eventType,
+            'event_type' => $eventType,
             'schema_version' => '3.0.0',
             'subscription_id' => 'test-00000000-0000-0000-0000-000000000001',
-            'sent_at'        => date('c'),
-            'data'           => [
-                'resource'         => ['id' => (int) $balanceId, 'profile_id' => 0, 'type' => 'balance-account'],
-                'amount'           => $amount,
-                'balance_id'       => (int) $balanceId,
-                'channel_name'     => 'MANUAL_TEST',
-                'currency'         => $currency,
-                'occurred_at'      => date('Y-m-d\TH:i:s\Z'),
+            'sent_at' => date('c'),
+            'data' => [
+                'resource' => ['id' => (int) $balanceId, 'profile_id' => 0, 'type' => 'balance-account'],
+                'amount' => $amount,
+                'balance_id' => (int) $balanceId,
+                'channel_name' => 'MANUAL_TEST',
+                'currency' => $currency,
+                'occurred_at' => date('Y-m-d\TH:i:s\Z'),
                 'transaction_type' => $type,
                 'transfer_reference' => 'test-' . date('Ymd-His'),
             ],
@@ -121,21 +137,21 @@ class WiseTestWebhookCommand extends Command
     private function buildCreditV3Payload(string $balanceId, float $amount, string $currency): array
     {
         return [
-            'event_type'     => 'balances#credit',
+            'event_type' => 'balances#credit',
             'schema_version' => '3.0.0',
             'subscription_id' => 'test-00000000-0000-0000-0000-000000000002',
-            'sent_at'        => date('c'),
-            'data'           => [
+            'sent_at' => date('c'),
+            'data' => [
                 'action' => [
-                    'type'       => 'credit',
-                    'id'         => 99999,
+                    'type' => 'credit',
+                    'id' => 99999,
                     'profile_id' => 0,
                     'account_id' => (int) $balanceId,
                 ],
                 'resource' => [
-                    'id'               => 'test-transfer-id',
-                    'reference'        => 'TEST/REF/' . date('Ymd'),
-                    'settled_amount'   => ['value' => $amount, 'currency' => $currency],
+                    'id' => 'test-transfer-id',
+                    'reference' => 'TEST/REF/' . date('Ymd'),
+                    'settled_amount' => ['value' => $amount, 'currency' => $currency],
                     'instructed_amount' => ['value' => $amount, 'currency' => $currency],
                 ],
             ],

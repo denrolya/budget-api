@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Feature;
 
 use App\Entity\Expense;
@@ -20,8 +22,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
     {
         parent::setUp();
 
-        $category = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($category instanceof ExpenseCategory);
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($category instanceof ExpenseCategory);
         $this->testCategory = $category;
     }
 
@@ -37,7 +39,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
     {
         $executionDate = Carbon::now()->startOfDay();
 
-        $balanceBefore = (float)$this->accountCashUAH->getBalance();
+        $balanceBefore = (float) $this->accountCashUAH->getBalance();
         $countBefore = $this->accountCashUAH->getTransactionsCount();
         $categoryCountBefore = $this->testCategory->getTransactionsCount(false);
 
@@ -53,12 +55,12 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
 
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());
-        self::assertEqualsWithDelta($balanceBefore - 100, (float)$this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($balanceBefore - 100, (float) $this->accountCashUAH->getBalance(), 0.01);
         self::assertEquals($categoryCountBefore + 1, $this->testCategory->getTransactionsCount(false));
 
         $content = $response->toArray();
         self::assertArrayHasKey('id', $content);
-        $transaction = $this->em->getRepository(Expense::class)->find($content['id']);
+        $transaction = $this->entityManager()->getRepository(Expense::class)->find($content['id']);
         self::assertInstanceOf(Expense::class, $transaction);
 
         self::assertEquals($transaction->getNote(), 'Test transaction');
@@ -101,7 +103,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertEqualsWithDelta(
             0.0003333333333333333,
             $content['convertedValues']['BTC'],
-            0.0000000000000001
+            0.0000000000000001,
         );
     }
 
@@ -112,7 +114,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
      */
     public function testCreateDraftExpenseStillUpdatesAccountBalance(): void
     {
-        $balanceBefore = (float)$this->accountCashUAH->getBalance();
+        $balanceBefore = (float) $this->accountCashUAH->getBalance();
         $countBefore = $this->accountCashUAH->getTransactionsCount();
 
         $response = $this->client->request('POST', self::EXPENSE_URL, [
@@ -132,7 +134,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertTrue($content['isDraft']);
 
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());
-        self::assertEqualsWithDelta($balanceBefore - 200, (float)$this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($balanceBefore - 200, (float) $this->accountCashUAH->getBalance(), 0.01);
     }
 
     // ── Validation ───────────────────────────────────────────────────────────
@@ -185,7 +187,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
     {
         $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
-        $balanceBefore = (float)$this->accountCashUAH->getBalance();
+        $balanceBefore = (float) $this->accountCashUAH->getBalance();
         $countBefore = $this->accountCashUAH->getTransactionsCount();
 
         $transaction = $this->createExpense(
@@ -193,11 +195,11 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             account: $this->accountCashUAH,
             category: $this->testCategory,
             executedAt: Carbon::now(),
-            note: 'Test transaction'
+            note: 'Test transaction',
         );
 
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());
-        self::assertEqualsWithDelta($balanceBefore - 100, (float)$this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($balanceBefore - 100, (float) $this->accountCashUAH->getBalance(), 0.01);
         self::assertEquals($transaction->getAmount(), $transaction->getConvertedValue('UAH'));
         self::assertEqualsWithDelta(3.33, $transaction->getConvertedValue('EUR'), 0.01);
         self::assertEquals(4, $transaction->getConvertedValue('USD'));
@@ -205,11 +207,11 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertEqualsWithDelta(
             0.0003333333333333333,
             $transaction->getConvertedValue('BTC'),
-            0.0000000000000001
+            0.0000000000000001,
         );
 
         $transactionId = $transaction->getId();
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $transactionId, [
             'json' => [
                 'amount' => '50',
                 'note' => 'Updated transaction note',
@@ -217,14 +219,14 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->clear();
-        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
+        $this->entityManager()->clear();
+        $transaction = $this->entityManager()->getRepository(Expense::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals(50, $transaction->getAmount());
         self::assertEquals('Updated transaction note', $transaction->getNote());
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());
-        self::assertEqualsWithDelta($balanceBefore - 50, (float)$this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($balanceBefore - 50, (float) $this->accountCashUAH->getBalance(), 0.01);
         self::assertEquals($transaction->getAmount(), $transaction->getConvertedValue('UAH'));
         self::assertEqualsWithDelta(1.67, $transaction->getConvertedValue('EUR'), 0.01);
         self::assertEquals(2, $transaction->getConvertedValue('USD'));
@@ -232,7 +234,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertEqualsWithDelta(
             0.00016666666666666666,
             $transaction->getConvertedValue('BTC'),
-            0.0000000000000001
+            0.0000000000000001,
         );
     }
 
@@ -246,9 +248,9 @@ final class ExpenseFeatureTest extends BaseApiTestCase
     {
         $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
-        $uahBalanceBefore = (float)$this->accountCashUAH->getBalance();
+        $uahBalanceBefore = (float) $this->accountCashUAH->getBalance();
         $uahCountBefore = $this->accountCashUAH->getTransactionsCount();
-        $eurBalanceBefore = (float)$this->accountCashEUR->getBalance();
+        $eurBalanceBefore = (float) $this->accountCashEUR->getBalance();
         $eurCountBefore = $this->accountCashEUR->getTransactionsCount();
 
         $transaction = $this->createExpense(
@@ -256,7 +258,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             account: $this->accountCashUAH,
             category: $this->testCategory,
             executedAt: Carbon::now(),
-            note: 'Test transaction'
+            note: 'Test transaction',
         );
 
         self::assertEquals($uahCountBefore + 1, $this->accountCashUAH->getTransactionsCount());
@@ -264,7 +266,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertEquals(4, $transaction->getConvertedValue('USD'));
 
         $transactionId = $transaction->getId();
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $transactionId, [
             'json' => [
                 'account' => $this->iri($this->accountCashEUR),
                 'note' => 'Updated transaction note',
@@ -272,8 +274,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->clear();
-        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
+        $this->entityManager()->clear();
+        $transaction = $this->entityManager()->getRepository(Expense::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals('Updated transaction note', $transaction->getNote());
@@ -283,8 +285,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
         self::assertEquals($uahCountBefore, $this->accountCashUAH->getTransactionsCount());
         self::assertEquals($eurCountBefore + 1, $this->accountCashEUR->getTransactionsCount());
-        self::assertEqualsWithDelta($uahBalanceBefore, (float)$this->accountCashUAH->getBalance(), 0.01);
-        self::assertEqualsWithDelta($eurBalanceBefore - 100, (float)$this->accountCashEUR->getBalance(), 0.01);
+        self::assertEqualsWithDelta($uahBalanceBefore, (float) $this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($eurBalanceBefore - 100, (float) $this->accountCashEUR->getBalance(), 0.01);
     }
 
     /**
@@ -297,9 +299,9 @@ final class ExpenseFeatureTest extends BaseApiTestCase
     {
         $this->mockAssetsManager->expects(self::exactly(2))->method('convert');
 
-        $uahBalanceBefore = (float)$this->accountCashUAH->getBalance();
+        $uahBalanceBefore = (float) $this->accountCashUAH->getBalance();
         $uahCountBefore = $this->accountCashUAH->getTransactionsCount();
-        $eurBalanceBefore = (float)$this->accountCashEUR->getBalance();
+        $eurBalanceBefore = (float) $this->accountCashEUR->getBalance();
         $eurCountBefore = $this->accountCashEUR->getTransactionsCount();
 
         $transaction = $this->createExpense(
@@ -307,7 +309,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             account: $this->accountCashUAH,
             category: $this->testCategory,
             executedAt: Carbon::now(),
-            note: 'Test transaction'
+            note: 'Test transaction',
         );
 
         self::assertEquals($uahCountBefore + 1, $this->accountCashUAH->getTransactionsCount());
@@ -315,7 +317,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         self::assertEquals(4, $transaction->getConvertedValue('USD'));
 
         $transactionId = $transaction->getId();
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $transactionId, [
             'json' => [
                 'account' => $this->iri($this->accountCashEUR),
                 'amount' => '50',
@@ -324,8 +326,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->clear();
-        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
+        $this->entityManager()->clear();
+        $transaction = $this->entityManager()->getRepository(Expense::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals('Updated transaction note', $transaction->getNote());
@@ -335,8 +337,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
         self::assertEquals($uahCountBefore, $this->accountCashUAH->getTransactionsCount());
         self::assertEquals($eurCountBefore + 1, $this->accountCashEUR->getTransactionsCount());
-        self::assertEqualsWithDelta($uahBalanceBefore, (float)$this->accountCashUAH->getBalance(), 0.01);
-        self::assertEqualsWithDelta($eurBalanceBefore - 50, (float)$this->accountCashEUR->getBalance(), 0.01);
+        self::assertEqualsWithDelta($uahBalanceBefore, (float) $this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($eurBalanceBefore - 50, (float) $this->accountCashEUR->getBalance(), 0.01);
     }
 
     /**
@@ -355,7 +357,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
 
         $executionDate = Carbon::now();
 
-        $balanceBefore = (float)$this->accountCashUAH->getBalance();
+        $balanceBefore = (float) $this->accountCashUAH->getBalance();
         $countBefore = $this->accountCashUAH->getTransactionsCount();
 
         $transaction = $this->createExpense(
@@ -363,16 +365,16 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             account: $this->accountCashUAH,
             category: $this->testCategory,
             executedAt: $executionDate,
-            note: 'Test transaction'
+            note: 'Test transaction',
         );
 
         $convertedValues = $transaction->getConvertedValues();
 
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());
-        self::assertEqualsWithDelta($balanceBefore - 100, (float)$this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($balanceBefore - 100, (float) $this->accountCashUAH->getBalance(), 0.01);
 
         $transactionId = $transaction->getId();
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $transactionId, [
             'json' => [
                 'executedAt' => $executionDate->subMonth()->toIso8601String(),
                 'note' => 'Updated transaction note',
@@ -380,12 +382,12 @@ final class ExpenseFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->clear();
-        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
+        $this->entityManager()->clear();
+        $transaction = $this->entityManager()->getRepository(Expense::class)->find($transactionId);
         self::assertNotNull($transaction);
 
         self::assertEquals($countBefore + 1, $this->accountCashUAH->getTransactionsCount());
-        self::assertEqualsWithDelta($balanceBefore - 100, (float)$this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($balanceBefore - 100, (float) $this->accountCashUAH->getBalance(), 0.01);
         self::assertEquals($convertedValues, $transaction->getConvertedValues());
     }
 
@@ -399,30 +401,31 @@ final class ExpenseFeatureTest extends BaseApiTestCase
     {
         $this->mockAssetsManager->expects(self::exactly(1))->method('convert');
 
-        $balanceBefore = (float)$this->accountCashUAH->getBalance();
+        $balanceBefore = (float) $this->accountCashUAH->getBalance();
 
         $transaction = $this->createExpense(
             amount: 100,
             account: $this->accountCashUAH,
             category: $this->testCategory,
             executedAt: Carbon::now(),
-            note: 'Test transaction'
+            note: 'Test transaction',
         );
 
         $convertedValues = $transaction->getConvertedValues();
-        $balanceAfterCreate = (float)$this->accountCashUAH->getBalance();
+        $balanceAfterCreate = (float) $this->accountCashUAH->getBalance();
         self::assertEqualsWithDelta($balanceBefore - 100, $balanceAfterCreate, 0.01);
 
         $transactionId = $transaction->getId();
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transactionId, [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $transactionId, [
             'json' => ['isDraft' => true],
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->clear();
-        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
+        $this->entityManager()->clear();
+        $transaction = $this->entityManager()->getRepository(Expense::class)->find($transactionId);
+        \assert($transaction instanceof Expense);
         self::assertTrue($transaction->getIsDraft());
-        self::assertEqualsWithDelta($balanceAfterCreate, (float)$this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($balanceAfterCreate, (float) $this->accountCashUAH->getBalance(), 0.01);
         self::assertEquals($convertedValues, $transaction->getConvertedValues());
     }
 
@@ -435,8 +438,8 @@ final class ExpenseFeatureTest extends BaseApiTestCase
     {
         $this->mockAssetsManager->expects(self::exactly(1))->method('convert');
 
-        $eatingOutCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Eating Out']);
-        assert($eatingOutCategory instanceof ExpenseCategory);
+        $eatingOutCategory = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Eating Out']);
+        \assert($eatingOutCategory instanceof ExpenseCategory);
 
         $groceriesCountBefore = $this->testCategory->getTransactionsCount(false);
         $eatingOutCountBefore = $eatingOutCategory->getTransactionsCount(false);
@@ -446,17 +449,18 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             account: $this->accountCashUAH,
             category: $this->testCategory,
             executedAt: Carbon::now(),
-            note: 'Test transaction'
+            note: 'Test transaction',
         );
 
         self::assertEquals($groceriesCountBefore + 1, $this->testCategory->getTransactionsCount(false));
 
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$transaction->getId(), [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $transaction->getId(), [
             'json' => ['category' => $this->iri($eatingOutCategory)],
         ]);
         self::assertResponseIsSuccessful();
 
-        $transaction = $this->em->getRepository(Expense::class)->find($transaction->getId());
+        $transaction = $this->entityManager()->getRepository(Expense::class)->find($transaction->getId());
+        \assert($transaction instanceof Expense);
 
         self::assertEquals($eatingOutCategory, $transaction->getCategory());
         self::assertEquals($groceriesCountBefore, $this->testCategory->getTransactionsCount(false));
@@ -472,7 +476,7 @@ final class ExpenseFeatureTest extends BaseApiTestCase
      */
     public function testDeleteExpenseUpdatesAccountAndCategory(): void
     {
-        $balanceBefore = (float)$this->accountCashUAH->getBalance();
+        $balanceBefore = (float) $this->accountCashUAH->getBalance();
         $countBefore = $this->accountCashUAH->getTransactionsCount();
         $categoryCountBefore = $this->testCategory->getTransactionsCount(false);
 
@@ -481,22 +485,22 @@ final class ExpenseFeatureTest extends BaseApiTestCase
             account: $this->accountCashUAH,
             category: $this->testCategory,
             executedAt: Carbon::now(),
-            note: 'Test transaction'
+            note: 'Test transaction',
         );
 
         $transactionId = $transaction->getId();
 
-        self::assertEqualsWithDelta($balanceBefore - 100, (float)$this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($balanceBefore - 100, (float) $this->accountCashUAH->getBalance(), 0.01);
         self::assertEquals($categoryCountBefore + 1, $this->testCategory->getTransactionsCount(false));
 
-        $this->client->request('DELETE', self::TRANSACTION_URL.'/'.$transactionId);
+        $this->client->request('DELETE', self::TRANSACTION_URL . '/' . $transactionId);
         self::assertResponseIsSuccessful();
 
-        $transaction = $this->em->getRepository(Expense::class)->find($transactionId);
+        $transaction = $this->entityManager()->getRepository(Expense::class)->find($transactionId);
         self::assertNull($transaction);
 
         self::assertEquals($countBefore, $this->accountCashUAH->getTransactionsCount());
-        self::assertEqualsWithDelta($balanceBefore, (float)$this->accountCashUAH->getBalance(), 0.01);
+        self::assertEqualsWithDelta($balanceBefore, (float) $this->accountCashUAH->getBalance(), 0.01);
         self::assertEquals($categoryCountBefore, $this->testCategory->getTransactionsCount(false));
     }
 }

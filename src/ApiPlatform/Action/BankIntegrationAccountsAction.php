@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\ApiPlatform\Action;
 
 use App\Bank\BankProviderRegistry;
@@ -12,6 +14,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Throwable;
 
 #[AsController]
 final class BankIntegrationAccountsAction extends AbstractController
@@ -41,11 +44,11 @@ final class BankIntegrationAccountsAction extends AbstractController
 
         try {
             $accounts = $provider->fetchAccounts($integration->getCredentials());
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_GATEWAY);
         }
 
-        $data = array_map(fn($a) => [
+        $data = array_map(static fn ($a) => [
             'externalId' => $a->externalId,
             'name' => $a->name,
             'currency' => $a->currency,

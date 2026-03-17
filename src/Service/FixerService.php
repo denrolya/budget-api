@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use Carbon\CarbonImmutable;
@@ -26,7 +28,7 @@ class FixerService extends BaseExchangeRatesProvider
         CacheInterface $cache,
         Security $security,
         array $allowedCurrencies,
-        string $baseCurrency
+        string $baseCurrency,
     ) {
         parent::__construct($fixerClient, $cache, $allowedCurrencies, $baseCurrency);
 
@@ -35,39 +37,32 @@ class FixerService extends BaseExchangeRatesProvider
     }
 
     /**
-     * @param float $amount
-     * @param string $currencyCode
-     * @param CarbonInterface|null $executionDate
-     * @return float
      * @throws InvalidArgumentException
      */
     public function convertToBaseCurrency(
         float $amount,
         string $currencyCode,
-        ?CarbonInterface $executionDate = null
+        ?CarbonInterface $executionDate = null,
     ): float {
         $user = $this->security->getUser();
-        assert($user instanceof \App\Entity\User || $user === null);
+        \assert($user instanceof \App\Entity\User || null === $user);
+
         return $this->convertTo(
             $amount,
             $currencyCode,
             $user?->getBaseCurrency(),
-            $executionDate?->copy()
+            $executionDate?->copy(),
         );
     }
 
     /**
      * Generates array of converted values to all base fiat currencies
      *
-     * @param float $amount
-     * @param string $fromCurrency
-     * @param CarbonInterface|null $executionDate
-     * @return array
      * @throws InvalidArgumentException
      */
     public function convert(float $amount, string $fromCurrency, ?CarbonInterface $executionDate = null): array
     {
-        if (!in_array($fromCurrency, $this->allowedCurrencies, true)) {
+        if (!\in_array($fromCurrency, $this->allowedCurrencies, true)) {
             return [];
         }
 
@@ -77,7 +72,7 @@ class FixerService extends BaseExchangeRatesProvider
                 $amount,
                 $fromCurrency,
                 $currency,
-                $executionDate
+                $executionDate,
             );
         }
 
@@ -87,29 +82,20 @@ class FixerService extends BaseExchangeRatesProvider
     /**
      * Convert amount from one currency to another
      *
-     * @param float $amount
-     * @param string $fromCurrency
-     * @param string $toCurrency
-     * @param CarbonInterface|null $executionDate
-     * @return float
      * @throws InvalidArgumentException
      */
     public function convertTo(
         float $amount,
         string $fromCurrency,
         string $toCurrency,
-        ?CarbonInterface $executionDate = null
+        ?CarbonInterface $executionDate = null,
     ): float {
         if (!$this->currencyExists($fromCurrency)) {
-            throw new \InvalidArgumentException(
-                "Invalid currency code passed as `fromCurrency` parameter: $fromCurrency. "
-            );
+            throw new \InvalidArgumentException("Invalid currency code passed as `fromCurrency` parameter: $fromCurrency. ");
         }
 
         if (!$this->currencyExists($toCurrency)) {
-            throw new \InvalidArgumentException(
-                "Invalid currency code passed as `toCurrency` parameter: $toCurrency. "
-            );
+            throw new \InvalidArgumentException("Invalid currency code passed as `toCurrency` parameter: $toCurrency. ");
         }
 
         $rates = $this->getRates($executionDate?->copy());
@@ -120,7 +106,6 @@ class FixerService extends BaseExchangeRatesProvider
     /**
      * Get the latest exchange rates and store them in cache.
      *
-     * @return array
      * @throws InvalidArgumentException
      */
     public function getLatest(): array
@@ -138,8 +123,6 @@ class FixerService extends BaseExchangeRatesProvider
     /**
      * Get exchange rates on a given date.
      *
-     * @param CarbonInterface $date
-     * @return array|null
      * @throws InvalidArgumentException
      */
     public function getHistorical(CarbonInterface $date): ?array
@@ -149,13 +132,11 @@ class FixerService extends BaseExchangeRatesProvider
         return $this->cache->get("fixer.$dateString", function (ItemInterface $item) use ($dateString) {
             $item->expiresAfter(self::CACHE_EXPIRY_SECONDS);
 
-            return $this->fetchRates('/'.$dateString);
+            return $this->fetchRates('/' . $dateString);
         });
     }
 
     /**
-     * @param CarbonInterface|null $date
-     * @return array
      * @throws InvalidArgumentException
      */
     public function getRates(?CarbonInterface $date = null): array
@@ -168,22 +149,18 @@ class FixerService extends BaseExchangeRatesProvider
     /**
      * Check if currency is supported by Fixer
      *
-     * @param string $currencyCode
-     * @return bool
      * @throws InvalidArgumentException
      */
     public function currencyExists(string $currencyCode): bool
     {
         $rates = $this->getLatest();
 
-        return array_key_exists($currencyCode, $rates);
+        return \array_key_exists($currencyCode, $rates);
     }
 
     /**
      * Fetch exchange rates from the external API.
      *
-     * @param string $endpoint
-     * @return array
      * @throws JsonException
      */
     protected function fetchRates(string $endpoint): array
@@ -194,16 +171,14 @@ class FixerService extends BaseExchangeRatesProvider
                 'query' => $queryParams,
             ])->getContent();
 
-            $data = json_decode($response, true, 512, JSON_THROW_ON_ERROR);
+            $decoded = json_decode($response, true, 512, \JSON_THROW_ON_ERROR);
+            assert(\is_array($decoded));
 
-            return $data['rates'] ?? [];
+            return \is_array($decoded['rates'] ?? null) ? $decoded['rates'] : [];
         } catch (HttpExceptionInterface|TransportExceptionInterface $e) {
-            throw new RuntimeException(
-                'Failed to fetch rates from the Fixer API: '.$e->getMessage(), $e->getCode(), $e
-            );
+            throw new RuntimeException('Failed to fetch rates from the Fixer API: ' . $e->getMessage(), $e->getCode(), $e);
         }
     }
-
 
     /** @return array{access_key: string, base: string, symbols: string} */
     private function getRequestParams(): array

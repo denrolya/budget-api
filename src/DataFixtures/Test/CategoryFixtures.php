@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\DataFixtures\Test;
 
 use App\Entity\ExpenseCategory;
@@ -86,14 +89,14 @@ class CategoryFixtures extends Fixture implements DependentFixtureInterface
         $existingIds = array_column($rows, 'id');
         $ts = $now->format('Y-m-d H:i:s');
 
-        if (!in_array(17, $existingIds, true)) {
+        if (!\in_array(17, $existingIds, true)) {
             $conn->executeStatement(
                 'INSERT INTO category (id, type, name, is_affecting_profit, created_at, updated_at) VALUES (17, \'expense\', \'Unknown\', 0, ?, ?)',
                 [$ts, $ts],
             );
         }
 
-        if (!in_array(39, $existingIds, true)) {
+        if (!\in_array(39, $existingIds, true)) {
             $conn->executeStatement(
                 'INSERT INTO category (id, type, name, is_affecting_profit, created_at, updated_at) VALUES (39, \'income\', \'Unknown\', 0, ?, ?)',
                 [$ts, $ts],
@@ -114,5 +117,8 @@ class CategoryFixtures extends Fixture implements DependentFixtureInterface
         $this->addReference('cat_inc_compensation', $compensation);
     }
 
-    public function getDependencies(): array { return [UserAndAccountFixtures::class]; }
+    public function getDependencies(): array
+    {
+        return [UserAndAccountFixtures::class];
+    }
 }

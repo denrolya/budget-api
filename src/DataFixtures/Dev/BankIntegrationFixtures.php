@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DataFixtures\Dev;
 
 use App\Bank\BankProvider;
 use App\Bank\SyncMethod;
 use App\Entity\BankIntegration;
 use App\Entity\User;
-use Carbon\CarbonImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;

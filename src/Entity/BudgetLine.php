@@ -65,11 +65,11 @@ class BudgetLine
     #[Groups(['budget:item:read', 'budget-line:read'])]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Budget::class, inversedBy: 'lines')]
+    #[ORM\ManyToOne(targetEntity: Budget::class, fetch: 'LAZY', inversedBy: 'lines')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Budget $budget;
 
-    #[ORM\ManyToOne(targetEntity: Category::class)]
+    #[ORM\ManyToOne(targetEntity: Category::class, fetch: 'LAZY')]
     #[ORM\JoinColumn(nullable: false)]
     private Category $category;
 
@@ -110,6 +110,7 @@ class BudgetLine
     public function setBudget(Budget $budget): self
     {
         $this->budget = $budget;
+
         return $this;
     }
 
@@ -121,6 +122,7 @@ class BudgetLine
     public function setCategory(Category $category): self
     {
         $this->category = $category;
+
         return $this;
     }
 
@@ -137,6 +139,7 @@ class BudgetLine
     public function setCategoryId(?int $categoryId): self
     {
         $this->categoryId = $categoryId;
+
         return $this;
     }
 
@@ -148,6 +151,7 @@ class BudgetLine
     public function setPlannedAmount(string|float|int $plannedAmount): self
     {
         $this->plannedAmount = (string) $plannedAmount;
+
         return $this;
     }
 
@@ -159,6 +163,7 @@ class BudgetLine
     public function setPlannedCurrency(string $plannedCurrency): self
     {
         $this->plannedCurrency = $plannedCurrency;
+
         return $this;
     }
 
@@ -170,6 +175,7 @@ class BudgetLine
     public function setNote(?string $note): self
     {
         $this->note = $note;
+
         return $this;
     }
 }

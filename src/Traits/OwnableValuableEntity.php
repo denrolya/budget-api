@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Traits;
 
 use App\Entity\User;
@@ -12,7 +14,7 @@ trait OwnableValuableEntity
 {
     #[Gedmo\Blameable(on: 'create')]
     #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(name: "owner_id", referencedColumnName: "id", nullable: false, onDelete: "CASCADE")]
+    #[ORM\JoinColumn(name: 'owner_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     protected ?UserInterface $owner = null;
 
     #[ORM\Column(type: Types::JSON, nullable: false)]
@@ -21,7 +23,8 @@ trait OwnableValuableEntity
     public function getValue(): float
     {
         $owner = $this->getOwner();
-        assert($owner instanceof \App\Entity\User);
+        \assert($owner instanceof User);
+
         return $this->convertedValues[$owner->getBaseCurrency()] ?? 0.0;
     }
 
@@ -40,7 +43,8 @@ trait OwnableValuableEntity
     public function getConvertedValue(?string $currencyCode = null): float
     {
         $owner = $this->getOwner();
-        assert($owner instanceof \App\Entity\User);
+        \assert($owner instanceof User);
+
         return $this->convertedValues[$currencyCode ?? $owner->getBaseCurrency()] ?? 0.0;
     }
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\ApiPlatform;
 
 use ApiPlatform\Doctrine\Orm\Filter\AbstractFilter;
@@ -44,19 +46,19 @@ final class TransferAccountsFilter extends AbstractFilter
      * Applies the filter to the query.
      */
     protected function filterProperty(
-        string                      $property,
+        string $property,
         $value,
-        QueryBuilder                $queryBuilder,
+        QueryBuilder $queryBuilder,
         QueryNameGeneratorInterface $queryNameGenerator,
-        string                      $resourceClass,
-        ?Operation                  $operation = null,
-        array                       $context = []
+        string $resourceClass,
+        ?Operation $operation = null,
+        array $context = [],
     ): void {
-        if ($property !== self::PROPERTY_NAME) {
+        if (self::PROPERTY_NAME !== $property) {
             return;
         }
 
-        if (is_array($value) && $value !== []) {
+        if (\is_array($value) && [] !== $value) {
             $alias = $queryBuilder->getRootAliases()[0];
 
             $queryBuilder

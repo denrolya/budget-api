@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
@@ -22,15 +24,16 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 class Expense extends Transaction
 {
-    #[ORM\OneToMany(mappedBy: "originalExpense", targetEntity: Income::class, cascade: ["persist", "remove"], fetch: "EXTRA_LAZY")]
+    /** @var Collection<int, Income> */
+    #[ORM\OneToMany(mappedBy: 'originalExpense', targetEntity: Income::class, cascade: ['persist', 'remove'], fetch: 'EXTRA_LAZY', orphanRemoval: true)]
     #[Groups(['transaction:collection:read', 'transaction:write', 'debt:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read'])]
-    private ?Collection $compensations;
+    private Collection $compensations;
 
-    #[Assert\IsTrue(message: "Invalid category provided")]
+    #[Assert\IsTrue(message: 'Invalid category provided')]
     public function isExpenseCategory(): bool
     {
-        return $this->getCategory()->getType() === 'expense';
+        return 'expense' === $this->getCategory()->getType();
     }
 
     public function __construct(bool $isDraft = false)
@@ -50,6 +53,9 @@ class Expense extends Transaction
         return $this->getCategory()->getIsAffectingProfit();
     }
 
+    /**
+     * @return Collection<int, Income>
+     */
     public function getCompensations(): Collection
     {
         return $this->compensations;

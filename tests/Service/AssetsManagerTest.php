@@ -1,22 +1,27 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Service;
 
-use App\Entity\Category;
 use App\Entity\Debt;
 use App\Entity\ExchangeRateSnapshot;
 use App\Entity\Expense;
 use App\Entity\Transaction;
 use App\Entity\User;
-use App\Pagination\Paginator;
 use App\Repository\CategoryRepository;
 use App\Repository\ExchangeRateSnapshotRepository;
 use App\Repository\TransactionRepository;
 use App\Service\AssetsManager;
 use App\Service\ExchangeRateSnapshotResolver;
 use App\Service\FixerService;
+use ArrayIterator;
 use Carbon\CarbonImmutable;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\Pagination\Paginator;
+use InvalidArgumentException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Security;
@@ -26,11 +31,11 @@ class AssetsManagerTest extends TestCase
     public function testGenerateTransactionPaginationDataResolvesDescendantsAndRoundsTotal(): void
     {
         $resolvedCategories = [101, 102, 103];
-        $list = new \ArrayIterator(['tx-1', 'tx-2']);
+        $list = new ArrayIterator(['tx-1', 'tx-2']);
 
         $paginator = $this->createMock(Paginator::class);
-        $paginator->method('getResults')->willReturn($list);
-        $paginator->method('getNumResults')->willReturn(22);
+        $paginator->method('getIterator')->willReturn($list);
+        $paginator->method('count')->willReturn(22);
 
         $transactionRepo = $this->createMock(TransactionRepository::class);
         $transactionRepo
@@ -93,7 +98,7 @@ class AssetsManagerTest extends TestCase
                     self::assertSame(['EUR'], $currencies);
 
                     return 12.3456;
-                }
+                },
             );
 
         $categoryRepo = $this->createMock(CategoryRepository::class);
@@ -108,9 +113,9 @@ class AssetsManagerTest extends TestCase
             $categoryRepo,
             $this->createResolverReturningSnapshot(
                 (new ExchangeRateSnapshot())
-                    ->setEffectiveAt(new \DateTimeImmutable('2024-01-01T00:00:00+00:00'))
-                    ->setUsdPerEur('2.0')
-            )
+                    ->setEffectiveAt(new DateTimeImmutable('2024-01-01T00:00:00+00:00'))
+                    ->setUsdPerEur('2.0'),
+            ),
         );
 
         $result = $assetsManager->generateTransactionPaginationData(
@@ -141,8 +146,8 @@ class AssetsManagerTest extends TestCase
     public function testGenerateTransactionPaginationDataSkipsDescendantResolutionWhenDisabled(): void
     {
         $paginator = $this->createMock(Paginator::class);
-        $paginator->method('getResults')->willReturn(new \ArrayIterator([]));
-        $paginator->method('getNumResults')->willReturn(0);
+        $paginator->method('getIterator')->willReturn(new ArrayIterator([]));
+        $paginator->method('count')->willReturn(0);
 
         $transactionRepo = $this->createMock(TransactionRepository::class);
         $transactionRepo->expects(self::once())->method('getPaginator')->willReturn($paginator);
@@ -164,9 +169,9 @@ class AssetsManagerTest extends TestCase
             $categoryRepo,
             $this->createResolverReturningSnapshot(
                 (new ExchangeRateSnapshot())
-                    ->setEffectiveAt(new \DateTimeImmutable('2024-01-01T00:00:00+00:00'))
-                    ->setUsdPerEur('2.0')
-            )
+                    ->setEffectiveAt(new DateTimeImmutable('2024-01-01T00:00:00+00:00'))
+                    ->setUsdPerEur('2.0'),
+            ),
         );
 
         $assetsManager->generateTransactionPaginationData(
@@ -182,12 +187,12 @@ class AssetsManagerTest extends TestCase
     {
         $tx1 = $this->createMock(Transaction::class);
         $tx1->method('getConvertedValue')->willReturnCallback(
-            static fn(?string $currency = null) => $currency === 'EUR' ? 10.5 : 20.0
+            static fn (?string $currency = null) => 'EUR' === $currency ? 10.5 : 20.0,
         );
 
         $tx2 = $this->createMock(Transaction::class);
         $tx2->method('getConvertedValue')->willReturnCallback(
-            static fn(?string $currency = null) => $currency === 'EUR' ? 1.25 : 2.0
+            static fn (?string $currency = null) => 'EUR' === $currency ? 1.25 : 2.0,
         );
 
         $assetsManager = $this->createAssetsManager(
@@ -195,8 +200,8 @@ class AssetsManagerTest extends TestCase
             $this->createMock(CategoryRepository::class),
             $this->createResolverReturningSnapshot(
                 (new ExchangeRateSnapshot())
-                    ->setEffectiveAt(new \DateTimeImmutable('2024-01-01T00:00:00+00:00'))
-                    ->setUsdPerEur('2.0')
+                    ->setEffectiveAt(new DateTimeImmutable('2024-01-01T00:00:00+00:00'))
+                    ->setUsdPerEur('2.0'),
             ),
         );
 
@@ -207,7 +212,7 @@ class AssetsManagerTest extends TestCase
     public function testConvertForTransactionUsesExecutedAtDate(): void
     {
         $snapshot = (new ExchangeRateSnapshot())
-            ->setEffectiveAt(new \DateTimeImmutable('2024-01-02T00:00:00+00:00'))
+            ->setEffectiveAt(new DateTimeImmutable('2024-01-02T00:00:00+00:00'))
             ->setUsdPerEur('2.0')
             ->setUahPerEur('40.0');
 
@@ -215,7 +220,7 @@ class AssetsManagerTest extends TestCase
         $snapshotRepo
             ->expects(self::once())
             ->method('findClosestSnapshot')
-            ->with(self::callback(static fn($date) => $date->format('Y-m-d') === '2024-01-15'))
+            ->with(self::callback(static fn ($date) => '2024-01-15' === $date->format('Y-m-d')))
             ->willReturn($snapshot);
 
         $resolver = $this->createResolver($snapshotRepo);
@@ -242,7 +247,7 @@ class AssetsManagerTest extends TestCase
     public function testConvertForDebtUsesCurrentDate(): void
     {
         $snapshot = (new ExchangeRateSnapshot())
-            ->setEffectiveAt(new \DateTimeImmutable('2024-01-02T00:00:00+00:00'))
+            ->setEffectiveAt(new DateTimeImmutable('2024-01-02T00:00:00+00:00'))
             ->setUsdPerEur('2.0');
 
         $snapshotRepo = $this->createMock(ExchangeRateSnapshotRepository::class);
@@ -250,9 +255,9 @@ class AssetsManagerTest extends TestCase
             ->expects(self::once())
             ->method('findClosestSnapshot')
             ->with(self::callback(static function ($date): bool {
-                return $date instanceof \DateTimeInterface
+                return $date instanceof DateTimeInterface
                     && CarbonImmutable::instance($date)->toDateString() === CarbonImmutable::today()->toDateString()
-                    && CarbonImmutable::instance($date)->hour === 0;
+                    && 0 === CarbonImmutable::instance($date)->hour;
             }))
             ->willReturn($snapshot);
 
@@ -291,15 +296,15 @@ class AssetsManagerTest extends TestCase
             $resolver,
         );
 
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Transaction has no valid executedAt date for FX lookup.');
 
         $assetsManager->convert($transaction);
     }
 
     private function createAssetsManager(
-        TransactionRepository $transactionRepo,
-        CategoryRepository $categoryRepo,
+        TransactionRepository $transactionRepository,
+        CategoryRepository $categoryRepository,
         ExchangeRateSnapshotResolver $resolver,
     ): AssetsManager {
         $user = (new User())
@@ -310,19 +315,7 @@ class AssetsManagerTest extends TestCase
         $security = $this->createMock(Security::class);
         $security->method('getUser')->willReturn($user);
 
-        /** @var MockObject&EntityManagerInterface $em */
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em
-            ->method('getRepository')
-            ->willReturnCallback(static function (string $entityClass) use ($transactionRepo, $categoryRepo) {
-                return match ($entityClass) {
-                    Transaction::class => $transactionRepo,
-                    Category::class => $categoryRepo,
-                    default => throw new \InvalidArgumentException('Unexpected repository request: '.$entityClass),
-                };
-            });
-
-        return new AssetsManager($em, $resolver, $security);
+        return new AssetsManager($transactionRepository, $categoryRepository, $resolver, $security);
     }
 
     private function createResolver(ExchangeRateSnapshotRepository $snapshotRepo): ExchangeRateSnapshotResolver

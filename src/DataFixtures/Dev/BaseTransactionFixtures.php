@@ -1,8 +1,11 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\DataFixtures\Dev;
 
-use App\EventListener\TransactionListener;
 use App\EventListener\DebtConvertedValueListener;
+use App\EventListener\TransactionListener;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
@@ -43,9 +46,10 @@ abstract class BaseTransactionFixtures extends Fixture implements DependentFixtu
         $convertedValues = [];
         foreach ($allowedCurrencies as $targetCurrency) {
             $rate = $conversionRates[$targetCurrency] ?? 1.0;
-            $precision = $targetCurrency === 'BTC' ? 8 : 2;
+            $precision = 'BTC' === $targetCurrency ? 8 : 2;
             $convertedValues[$targetCurrency] = round($usdAmount * $rate, $precision);
         }
+
         return $convertedValues;
     }
 

@@ -1,10 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\ApiPlatform\Action;
 
 use App\Bank\BankWebhookRegistrationService;
 use App\Entity\BankIntegration;
 use Doctrine\ORM\EntityManagerInterface;
+use LogicException;
+use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,6 +28,7 @@ final class BankIntegrationRegisterWebhookAction extends AbstractController
 
     /**
      * @see \App\Tests\ApiPlatform\Action\BankIntegrationRegisterWebhookActionTest
+     *
      * @tested testUnauthenticatedGets401
      * @tested testUnknownIntegrationReturns404
      * @tested testWrongOwnerReturns403
@@ -46,9 +51,9 @@ final class BankIntegrationRegisterWebhookAction extends AbstractController
 
         try {
             $webhookUrl = $this->registrationService->register($integration, $request);
-        } catch (\LogicException $e) {
+        } catch (LogicException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        } catch (\RuntimeException $e) {
+        } catch (RuntimeException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_GATEWAY);
         }
 

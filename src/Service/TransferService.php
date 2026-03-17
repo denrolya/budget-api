@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\Category;
@@ -8,7 +10,9 @@ use App\Entity\ExpenseCategory;
 use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\Transfer;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Repository\ExpenseCategoryRepository;
+use App\Repository\IncomeCategoryRepository;
+use RuntimeException;
 
 final class TransferService
 {
@@ -17,7 +21,8 @@ final class TransferService
     private ?ExpenseCategory $feeExpenseCategory = null;
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private readonly ExpenseCategoryRepository $expenseCategoryRepository,
+        private readonly IncomeCategoryRepository $incomeCategoryRepository,
         private readonly AssetsManager $assetsManager,
     ) {
     }
@@ -33,10 +38,18 @@ final class TransferService
     {
         $this->initCategories();
 
-        $owner      = $transfer->getOwner();
-        $from       = $transfer->getFrom();
-        $to         = $transfer->getTo();
+        $owner = $transfer->getOwner();
+        $from = $transfer->getFrom();
+        $to = $transfer->getTo();
         $executedAt = $transfer->getExecutedAt();
+
+        \assert(null !== $owner);
+        \assert(null !== $from);
+        \assert(null !== $to);
+        \assert(null !== $executedAt);
+        \assert(null !== $this->expenseTransferCategory);
+        \assert(null !== $this->incomeTransferCategory);
+        \assert(null !== $this->feeExpenseCategory);
 
         $expense = (new Expense())
             ->setAccount($from)
@@ -67,8 +80,8 @@ final class TransferService
         }
 
         // Compute convertedValues directly — no dependency on TransactionListener ordering.
-        foreach ($transfer->getTransactions() as $tx) {
-            $tx->setConvertedValues($this->assetsManager->convert($tx));
+        foreach ($transfer->getTransactions() as $transaction) {
+            $transaction->setConvertedValues($this->assetsManager->convert($transaction));
         }
     }
 
@@ -78,45 +91,55 @@ final class TransferService
      */
     public function updateTransactions(Transfer $transfer): void
     {
-        $fromExpense = $transfer->getFromExpense();
-        $toIncome    = $transfer->getToIncome();
-        $feeExpense  = $transfer->getFeeExpense();
+        $from = $transfer->getFrom();
+        $to = $transfer->getTo();
+        $executedAt = $transfer->getExecutedAt();
+        $owner = $transfer->getOwner();
 
-        if ($fromExpense !== null) {
+        \assert(null !== $from);
+        \assert(null !== $to);
+        \assert(null !== $executedAt);
+        \assert(null !== $owner);
+
+        $fromExpense = $transfer->getFromExpense();
+        $toIncome = $transfer->getToIncome();
+        $feeExpense = $transfer->getFeeExpense();
+
+        if (null !== $fromExpense) {
             $fromExpense
-                ->setAccount($transfer->getFrom())
+                ->setAccount($from)
                 ->setAmount((string) $transfer->getAmount())
-                ->setExecutedAt($transfer->getExecutedAt());
+                ->setExecutedAt($executedAt);
             $fromExpense->setConvertedValues($this->assetsManager->convert($fromExpense));
         }
 
-        if ($toIncome !== null) {
+        if (null !== $toIncome) {
             $toIncome
-                ->setAccount($transfer->getTo())
+                ->setAccount($to)
                 ->setAmount((string) ($transfer->getAmount() * $transfer->getRate()))
-                ->setExecutedAt($transfer->getExecutedAt());
+                ->setExecutedAt($executedAt);
             $toIncome->setConvertedValues($this->assetsManager->convert($toIncome));
         }
 
-        if ($feeExpense !== null) {
+        if (null !== $feeExpense) {
             if ($transfer->getFee() > 0) {
                 $feeExpense
-                    ->setAccount($transfer->getFeeAccount() ?? $transfer->getFrom())
+                    ->setAccount($transfer->getFeeAccount() ?? $from)
                     ->setAmount((string) $transfer->getFee())
-                    ->setExecutedAt($transfer->getExecutedAt());
+                    ->setExecutedAt($executedAt);
                 $feeExpense->setConvertedValues($this->assetsManager->convert($feeExpense));
             } else {
                 $transfer->removeTransaction($feeExpense);
             }
         } elseif ($transfer->getFee() > 0) {
-            // Fee was added on update — create it
             $this->initCategories();
+            \assert(null !== $this->feeExpenseCategory);
             $fee = (new Expense())
-                ->setAccount($transfer->getFeeAccount() ?? $transfer->getFrom())
+                ->setAccount($transfer->getFeeAccount() ?? $from)
                 ->setCategory($this->feeExpenseCategory)
-                ->setOwner($transfer->getOwner())
+                ->setOwner($owner)
                 ->setAmount((string) $transfer->getFee())
-                ->setExecutedAt($transfer->getExecutedAt());
+                ->setExecutedAt($executedAt);
             $transfer->addTransaction($fee);
             $fee->setConvertedValues($this->assetsManager->convert($fee));
         }
@@ -124,20 +147,20 @@ final class TransferService
 
     private function initCategories(): void
     {
-        if ($this->expenseTransferCategory !== null) {
+        if (null !== $this->expenseTransferCategory) {
             return;
         }
 
-        $this->expenseTransferCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy([
+        $this->expenseTransferCategory = $this->expenseCategoryRepository->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
-        ]) ?? throw new \RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER . '" not found.');
+        ]) ?? throw new RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER . '" not found.');
 
-        $this->incomeTransferCategory = $this->em->getRepository(IncomeCategory::class)->findOneBy([
+        $this->incomeTransferCategory = $this->incomeCategoryRepository->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
-        ]) ?? throw new \RuntimeException('Required income category "' . Category::CATEGORY_TRANSFER . '" not found.');
+        ]) ?? throw new RuntimeException('Required income category "' . Category::CATEGORY_TRANSFER . '" not found.');
 
-        $this->feeExpenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy([
+        $this->feeExpenseCategory = $this->expenseCategoryRepository->findOneBy([
             'name' => Category::CATEGORY_TRANSFER_FEE,
-        ]) ?? throw new \RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER_FEE . '" not found.');
+        ]) ?? throw new RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER_FEE . '" not found.');
     }
 }

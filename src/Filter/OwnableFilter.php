@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filter;
 
 use App\Entity\OwnableInterface;
@@ -18,7 +20,7 @@ class OwnableFilter extends SQLFilter
 
     public function addFilterConstraint(ClassMetadata $targetEntity, $targetTableAlias): string
     {
-        if(!$targetEntity->reflClass->implementsInterface(OwnableInterface::class)) {
+        if (null === $targetEntity->reflClass || !$targetEntity->reflClass->implementsInterface(OwnableInterface::class)) {
             return '';
         }
 

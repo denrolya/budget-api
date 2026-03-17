@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\DataFixtures\Dev;
 
 use App\Entity\ExpenseCategory;
@@ -99,11 +102,14 @@ class ExpenseCategoryFixtures extends Fixture implements DependentFixtureInterfa
                 ->setParent($parent)
                 ->setRoot($parent ? $parent->getRoot() ?? $parent : null);
             $manager->persist($category);
-            if (isset($data['children']) && $data['children'] !== []) {
+            if (isset($data['children']) && [] !== $data['children']) {
                 $this->createCategories($manager, $data['children'], $category);
             }
         }
     }
 
-    public function getDependencies(): array { return [UserFixtures::class]; }
+    public function getDependencies(): array
+    {
+        return [UserFixtures::class];
+    }
 }

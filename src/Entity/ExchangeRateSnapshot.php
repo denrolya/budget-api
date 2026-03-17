@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use App\Repository\ExchangeRateSnapshotRepository;
+use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -12,9 +15,9 @@ use Doctrine\ORM\Mapping as ORM;
     indexes: [
         new ORM\Index(
             columns: ['effective_at'],
-            name: 'idx_exchange_rate_effective_at'
+            name: 'idx_exchange_rate_effective_at',
         ),
-    ]
+    ],
 )]
 class ExchangeRateSnapshot
 {
@@ -24,14 +27,14 @@ class ExchangeRateSnapshot
     private ?int $id = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE)]
-    private ?\DateTimeImmutable $effectiveAt = null;
+    private ?DateTimeImmutable $effectiveAt = null;
 
     #[ORM\Column(
         type: Types::DECIMAL,
         precision: 18,
         scale: 8,
         nullable: true,
-        options: ['comment' => '1 EUR = N USD']
+        options: ['comment' => '1 EUR = N USD'],
     )]
     private ?string $usdPerEur = null;
 
@@ -40,7 +43,7 @@ class ExchangeRateSnapshot
         precision: 18,
         scale: 6,
         nullable: true,
-        options: ['comment' => '1 EUR = N HUF']
+        options: ['comment' => '1 EUR = N HUF'],
     )]
     private ?string $hufPerEur = null;
 
@@ -49,7 +52,7 @@ class ExchangeRateSnapshot
         precision: 18,
         scale: 8,
         nullable: true,
-        options: ['comment' => '1 EUR = N UAH']
+        options: ['comment' => '1 EUR = N UAH'],
     )]
     private ?string $uahPerEur = null;
 
@@ -59,7 +62,7 @@ class ExchangeRateSnapshot
         precision: 24,
         scale: 10,
         nullable: true,
-        options: ['comment' => '1 BTC = N EUR']
+        options: ['comment' => '1 BTC = N EUR'],
     )]
     private ?string $eurPerBtc = null;
 
@@ -69,22 +72,21 @@ class ExchangeRateSnapshot
         precision: 24,
         scale: 10,
         nullable: true,
-        options: ['comment' => '1 ETH = N EUR']
+        options: ['comment' => '1 ETH = N EUR'],
     )]
     private ?string $eurPerEth = null;
-
 
     public function getId(): ?int
     {
         return $this->id;
     }
 
-    public function getEffectiveAt(): ?\DateTimeImmutable
+    public function getEffectiveAt(): ?DateTimeImmutable
     {
         return $this->effectiveAt;
     }
 
-    public function setEffectiveAt(\DateTimeImmutable $effectiveAt): self
+    public function setEffectiveAt(DateTimeImmutable $effectiveAt): self
     {
         $this->effectiveAt = $effectiveAt;
 
@@ -153,14 +155,14 @@ class ExchangeRateSnapshot
 
     public function getUsdPerEurFloat(): ?float
     {
-        return $this->usdPerEur !== null ? (float)$this->usdPerEur : null;
+        return null !== $this->usdPerEur ? (float) $this->usdPerEur : null;
     }
 
     public function getEurPerUsdFloat(): ?float
     {
         $usdPerEur = $this->getUsdPerEurFloat();
 
-        if ($usdPerEur === null || $usdPerEur == 0.0) {
+        if (null === $usdPerEur || 0.0 == $usdPerEur) {
             return null;
         }
 
@@ -169,14 +171,14 @@ class ExchangeRateSnapshot
 
     public function getHufPerEurFloat(): ?float
     {
-        return $this->hufPerEur !== null ? (float)$this->hufPerEur : null;
+        return null !== $this->hufPerEur ? (float) $this->hufPerEur : null;
     }
 
     public function getEurPerHufFloat(): ?float
     {
         $hufPerEur = $this->getHufPerEurFloat();
 
-        if ($hufPerEur === null || $hufPerEur == 0.0) {
+        if (null === $hufPerEur || 0.0 == $hufPerEur) {
             return null;
         }
 
@@ -185,14 +187,14 @@ class ExchangeRateSnapshot
 
     public function getUahPerEurFloat(): ?float
     {
-        return $this->uahPerEur !== null ? (float)$this->uahPerEur : null;
+        return null !== $this->uahPerEur ? (float) $this->uahPerEur : null;
     }
 
     public function getEurPerUahFloat(): ?float
     {
         $uahPerEur = $this->getUahPerEurFloat();
 
-        if ($uahPerEur === null || $uahPerEur == 0.0) {
+        if (null === $uahPerEur || 0.0 == $uahPerEur) {
             return null;
         }
 
@@ -201,14 +203,14 @@ class ExchangeRateSnapshot
 
     public function getEurPerBtcFloat(): ?float
     {
-        return $this->eurPerBtc !== null ? (float)$this->eurPerBtc : null;
+        return null !== $this->eurPerBtc ? (float) $this->eurPerBtc : null;
     }
 
     public function getBtcPerEurFloat(): ?float
     {
         $eurPerBtc = $this->getEurPerBtcFloat();
 
-        if ($eurPerBtc === null || $eurPerBtc == 0.0) {
+        if (null === $eurPerBtc || 0.0 == $eurPerBtc) {
             return null;
         }
 
@@ -217,14 +219,14 @@ class ExchangeRateSnapshot
 
     public function getEurPerEthFloat(): ?float
     {
-        return $this->eurPerEth !== null ? (float)$this->eurPerEth : null;
+        return null !== $this->eurPerEth ? (float) $this->eurPerEth : null;
     }
 
     public function getEthPerEurFloat(): ?float
     {
         $eurPerEth = $this->getEurPerEthFloat();
 
-        if ($eurPerEth === null || $eurPerEth == 0.0) {
+        if (null === $eurPerEth || 0.0 == $eurPerEth) {
             return null;
         }
 
@@ -273,7 +275,7 @@ class ExchangeRateSnapshot
         $rateToEur = $this->getRateToEur($from);   // 1 FROM = N EUR
         $rateFromEur = $this->getRateFromEur($to);   // 1 EUR = N TO
 
-        if ($rateToEur === null || $rateFromEur === null) {
+        if (null === $rateToEur || null === $rateFromEur) {
             return null;
         }
 
@@ -285,34 +287,34 @@ class ExchangeRateSnapshot
 
     public function hasFiatRates(): bool
     {
-        return $this->usdPerEur !== null
-            || $this->hufPerEur !== null
-            || $this->uahPerEur !== null;
+        return null !== $this->usdPerEur
+            || null !== $this->hufPerEur
+            || null !== $this->uahPerEur;
     }
 
     public function hasCryptoRates(): bool
     {
-        return $this->eurPerBtc !== null
-            || $this->eurPerEth !== null;
+        return null !== $this->eurPerBtc
+            || null !== $this->eurPerEth;
     }
 
     public function getAvailableCurrencies(): array
     {
         $currencies = ['EUR'];
 
-        if ($this->usdPerEur !== null) {
+        if (null !== $this->usdPerEur) {
             $currencies[] = 'USD';
         }
-        if ($this->hufPerEur !== null) {
+        if (null !== $this->hufPerEur) {
             $currencies[] = 'HUF';
         }
-        if ($this->uahPerEur !== null) {
+        if (null !== $this->uahPerEur) {
             $currencies[] = 'UAH';
         }
-        if ($this->eurPerBtc !== null) {
+        if (null !== $this->eurPerBtc) {
             $currencies[] = 'BTC';
         }
-        if ($this->eurPerEth !== null) {
+        if (null !== $this->eurPerEth) {
             $currencies[] = 'ETH';
         }
 

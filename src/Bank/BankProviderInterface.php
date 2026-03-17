@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Bank;
 
 use App\Bank\DTO\BankAccountData;
@@ -17,7 +19,8 @@ interface BankProviderInterface
      * Credentials are passed explicitly so providers are stateless and work
      * both with env-based credentials (MVP) and future per-user stored credentials.
      *
-     * @param array $credentials  Key-value pairs specific to this bank (e.g. ['apiKey' => '...'])
+     * @param array $credentials Key-value pairs specific to this bank (e.g. ['apiKey' => '...'])
+     *
      * @return BankAccountData[]
      */
     public function fetchAccounts(array $credentials): array;
@@ -26,8 +29,7 @@ interface BankProviderInterface
      * Fetch the latest exchange rates from this bank, if available.
      * Returns null if the bank does not provide exchange rates.
      *
-     * @param array $credentials
-     * @return array<string, float>|null  Map of currency-code => rate-relative-to-base
+     * @return array<string, float>|null Map of currency-code => rate-relative-to-base
      */
     public function fetchExchangeRates(array $credentials): ?array;
 }

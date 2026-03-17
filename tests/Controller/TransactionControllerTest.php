@@ -8,11 +8,6 @@ use App\Entity\Category;
 use App\Entity\Transaction;
 use App\Tests\BaseApiTestCase;
 use Carbon\Carbon;
-use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\ServerExceptionInterface;
-use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 
 /**
  * API contract tests for Transaction endpoints.
@@ -249,7 +244,7 @@ class TransactionControllerTest extends BaseApiTestCase
         // Invalid account IDs
         $response = $this->client->request(
             'GET',
-            self::TRANSACTION_LIST_URL."?after={$after->toDateString()}&before={$before->toDateString()}&accounts[]=100&accounts[]=xsss&accounts[]=-1",
+            self::TRANSACTION_LIST_URL . "?after={$after->toDateString()}&before={$before->toDateString()}&accounts[]=100&accounts[]=xsss&accounts[]=-1",
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -269,8 +264,10 @@ class TransactionControllerTest extends BaseApiTestCase
         $after = Carbon::parse('2021-01-01')->startOfDay();
         $before = Carbon::parse('2021-01-31')->endOfDay();
 
-        $foodCategory = $this->em->getRepository(Category::class)->findOneBy(['name' => 'Food & Drinks']);
-        $rentCategory = $this->em->getRepository(Category::class)->findOneBy(['name' => 'Rent']);
+        $foodCategory = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => 'Food & Drinks']);
+        $rentCategory = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => 'Rent']);
+        \assert($foodCategory instanceof Category);
+        \assert($rentCategory instanceof Category);
 
         // Food & Drinks (includes Groceries + Eating Out)
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
@@ -285,7 +282,7 @@ class TransactionControllerTest extends BaseApiTestCase
         self::assertEqualsWithDelta(-1130, $content['totalValue'], 0.01);
 
         $foodDescendantIds = $foodCategory->getDescendantsFlat()->map(
-            fn(Category $c) => $c->getId()
+            static fn (Category $c) => $c->getId(),
         )->toArray();
         self::assertContains($content['list'][0]['category']['id'], $foodDescendantIds);
         self::assertContains($content['list'][29]['category']['id'], $foodDescendantIds);
@@ -305,7 +302,7 @@ class TransactionControllerTest extends BaseApiTestCase
         // Invalid category IDs: non-existent IDs resolve to empty, filter is skipped
         $response = $this->client->request(
             'GET',
-            self::TRANSACTION_LIST_URL."?after={$after->toDateString()}&before={$before->toDateString()}&categories[]=100&categories[]=xsss&categories[]=-1",
+            self::TRANSACTION_LIST_URL . "?after={$after->toDateString()}&before={$before->toDateString()}&categories[]=100&categories[]=xsss&categories[]=-1",
         );
         self::assertResponseStatusCodeSame(200);
         $content = $response->toArray();
@@ -321,7 +318,8 @@ class TransactionControllerTest extends BaseApiTestCase
      */
     public function testWithNestedCategoriesFilter(): void
     {
-        $foodCategory = $this->em->getRepository(Category::class)->findOneBy(['name' => 'Food & Drinks']);
+        $foodCategory = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => 'Food & Drinks']);
+        \assert($foodCategory instanceof Category);
         $after = Carbon::parse('2021-01-01')->startOfDay();
         $before = Carbon::parse('2022-01-31')->endOfDay();
 
@@ -339,7 +337,7 @@ class TransactionControllerTest extends BaseApiTestCase
         self::assertEqualsWithDelta(-9820, $content['totalValue'], 0.01);
 
         $nestedCategoryIds = $foodCategory->getDescendantsFlat()->map(
-            fn(Category $c) => $c->getId()
+            static fn (Category $c) => $c->getId(),
         )->toArray();
         self::assertContains($content['list'][0]['category']['id'], $nestedCategoryIds);
         self::assertContains($content['list'][14]['category']['id'], $nestedCategoryIds);
@@ -436,8 +434,8 @@ class TransactionControllerTest extends BaseApiTestCase
 
         // EUR only
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'        => $after->toDateString(),
-            'before'       => $before->toDateString(),
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
             'currencies[]' => ['EUR'],
         ]));
         self::assertResponseIsSuccessful();
@@ -449,8 +447,8 @@ class TransactionControllerTest extends BaseApiTestCase
 
         // UAH only
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'        => $after->toDateString(),
-            'before'       => $before->toDateString(),
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
             'currencies[]' => ['UAH'],
         ]));
         self::assertResponseIsSuccessful();
@@ -462,8 +460,8 @@ class TransactionControllerTest extends BaseApiTestCase
 
         // Both EUR + UAH → same as unfiltered
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'      => $after->toDateString(),
-            'before'     => $before->toDateString(),
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
             'currencies' => ['EUR', 'UAH'],
         ]));
         self::assertResponseIsSuccessful();
@@ -471,8 +469,8 @@ class TransactionControllerTest extends BaseApiTestCase
 
         // Non-existent currency → empty result
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'        => $after->toDateString(),
-            'before'       => $before->toDateString(),
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
             'currencies[]' => ['GBP'],
         ]));
         self::assertResponseIsSuccessful();
@@ -488,19 +486,19 @@ class TransactionControllerTest extends BaseApiTestCase
     public function testAmountRangeFilter(): void
     {
         // Create a few with known amounts in an isolated date range
-        $groceries = $this->em->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries !== null);
+        $groceries = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert(null !== $groceries);
 
         $date = Carbon::parse('2026-04-10T12:00:00Z');
-        $this->createExpense(amount: 10.0,  account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'tx-amt-10');
-        $this->createExpense(amount: 50.0,  account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'tx-amt-50');
+        $this->createExpense(amount: 10.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'tx-amt-10');
+        $this->createExpense(amount: 50.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'tx-amt-50');
         $this->createExpense(amount: 200.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'tx-amt-200');
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // gte=20, lte=100 → only 50
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'       => '2026-04-01',
-            'before'      => '2026-04-30',
+            'after' => '2026-04-01',
+            'before' => '2026-04-30',
             'amount[gte]' => '20',
             'amount[lte]' => '100',
         ]));
@@ -512,8 +510,8 @@ class TransactionControllerTest extends BaseApiTestCase
 
         // gte only
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'       => '2026-04-01',
-            'before'      => '2026-04-30',
+            'after' => '2026-04-01',
+            'before' => '2026-04-30',
             'amount[gte]' => '100',
         ]));
         self::assertResponseIsSuccessful();
@@ -524,8 +522,8 @@ class TransactionControllerTest extends BaseApiTestCase
 
         // lte only
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'       => '2026-04-01',
-            'before'      => '2026-04-30',
+            'after' => '2026-04-01',
+            'before' => '2026-04-30',
             'amount[lte]' => '15',
         ]));
         self::assertResponseIsSuccessful();
@@ -544,8 +542,8 @@ class TransactionControllerTest extends BaseApiTestCase
     public function testInvalidAmountRangeReturnsError(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'       => '2021-01-01',
-            'before'      => '2021-01-31',
+            'after' => '2021-01-01',
+            'before' => '2021-01-31',
             'amount[gte]' => '500',
             'amount[lte]' => '100',
         ]));
@@ -559,19 +557,19 @@ class TransactionControllerTest extends BaseApiTestCase
      */
     public function testNoteFilter(): void
     {
-        $groceries = $this->em->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries !== null);
+        $groceries = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert(null !== $groceries);
 
         $date = Carbon::parse('2026-05-10T12:00:00Z');
         $this->createExpense(amount: 9.99, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'needle unique note');
         $this->createExpense(amount: 5.00, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'haystack no match');
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // Matching note
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'  => '2026-05-01',
+            'after' => '2026-05-01',
             'before' => '2026-05-31',
-            'note'   => 'needle',
+            'note' => 'needle',
         ]));
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -580,18 +578,18 @@ class TransactionControllerTest extends BaseApiTestCase
 
         // Non-matching note → empty
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'  => '2026-05-01',
+            'after' => '2026-05-01',
             'before' => '2026-05-31',
-            'note'   => 'nothingmatches',
+            'note' => 'nothingmatches',
         ]));
         self::assertResponseIsSuccessful();
         self::assertEquals(0, $response->toArray()['count']);
 
         // Blank note → no filter applied (all records returned)
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
-            'after'  => '2026-05-01',
+            'after' => '2026-05-01',
             'before' => '2026-05-31',
-            'note'   => '',
+            'note' => '',
         ]));
         self::assertResponseIsSuccessful();
         self::assertEquals(2, $response->toArray()['count']);
@@ -606,7 +604,7 @@ class TransactionControllerTest extends BaseApiTestCase
      *
      * @covers \App\Controller\TransactionController::list
      */
-    public function testTransactionListItem_hasCorrectShape(): void
+    public function testTransactionListItemHasCorrectShape(): void
     {
         $after = Carbon::parse('2021-01-01')->startOfDay();
         $before = Carbon::parse('2021-01-31')->endOfDay();
@@ -666,7 +664,8 @@ class TransactionControllerTest extends BaseApiTestCase
         $before = Carbon::parse('2021-01-31')->endOfDay();
 
         // Use Rent — a leaf category that has transactions assigned directly
-        $rentCategory = $this->em->getRepository(Category::class)->findOneBy(['name' => 'Rent']);
+        $rentCategory = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => 'Rent']);
+        \assert($rentCategory instanceof Category);
 
         // Without exclusion
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
@@ -706,7 +705,7 @@ class TransactionControllerTest extends BaseApiTestCase
      *
      * @covers \App\Controller\TransactionController::list
      */
-    public function testCombinedFilters_typeAndAccount(): void
+    public function testCombinedFiltersTypeAndAccount(): void
     {
         $after = Carbon::parse('2021-01-01')->startOfDay();
         $before = Carbon::parse('2021-01-31')->endOfDay();
@@ -752,16 +751,16 @@ class TransactionControllerTest extends BaseApiTestCase
      *
      * @covers \App\Controller\TransactionController::list
      */
-    public function testCombinedFilters_noteAndType(): void
+    public function testCombinedFiltersNoteAndType(): void
     {
-        $groceries = $this->em->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        $salary = $this->em->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_INCOME_SALARY]);
-        assert($groceries !== null && $salary !== null);
+        $groceries = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        $salary = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_INCOME_SALARY]);
+        \assert(null !== $groceries && null !== $salary);
 
         $date = Carbon::parse('2026-06-15T12:00:00Z');
         $this->createExpense(amount: 25.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'combo test expense');
         $this->createIncome(amount: 100.0, account: $this->accountCashEUR, category: $salary, executedAt: $date, note: 'combo test income');
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // Search "combo test" + type=expense → only expense
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
@@ -783,7 +782,7 @@ class TransactionControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\TransactionController::list
      */
-    public function testTransactionList_withoutAuth_returns401(): void
+    public function testTransactionListWithoutAuthReturns401(): void
     {
         $this->client->request('GET', self::TRANSACTION_LIST_URL, ['headers' => ['authorization' => null]]);
         self::assertResponseStatusCodeSame(401);
@@ -796,7 +795,7 @@ class TransactionControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\TransactionController::list
      */
-    public function testTransactionList_noResults_returnsEmptyListWithZeroTotals(): void
+    public function testTransactionListNoResultsReturnsEmptyListWithZeroTotals(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
             'after' => '2099-01-01',
@@ -815,7 +814,7 @@ class TransactionControllerTest extends BaseApiTestCase
      *
      * @covers \App\Controller\TransactionController::list
      */
-    public function testGetCollectionApiPlatform_removedEndpoint_returns404(): void
+    public function testGetCollectionApiPlatformRemovedEndpointReturns404(): void
     {
         $response = $this->client->request('GET', '/api/transactions');
         // Should be 404 since GetCollection was removed
@@ -833,7 +832,7 @@ class TransactionControllerTest extends BaseApiTestCase
     public function testExportCsvWithoutFiltersDoesNotCrash(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::EXPORT_CSV_URL, [
-            'after'  => '2021-01-01',
+            'after' => '2021-01-01',
             'before' => '2021-01-31',
         ]));
 
@@ -849,8 +848,8 @@ class TransactionControllerTest extends BaseApiTestCase
     public function testExportCsvWithCurrenciesFilter(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::EXPORT_CSV_URL, [
-            'after'        => '2021-01-01',
-            'before'       => '2021-01-31',
+            'after' => '2021-01-01',
+            'before' => '2021-01-31',
             'currencies[]' => ['EUR'],
         ]));
 
@@ -864,12 +863,12 @@ class TransactionControllerTest extends BaseApiTestCase
         $currencyIdx = null;
         foreach ($lines as $line) {
             $cols = str_getcsv(trim($line));
-            if ($headers === null) {
+            if (null === $headers) {
                 $headers = $cols;
                 $currencyIdx = array_search('currency', $headers, true);
                 continue;
             }
-            if ($currencyIdx !== false && isset($cols[$currencyIdx])) {
+            if (false !== $currencyIdx && isset($cols[$currencyIdx])) {
                 self::assertSame('EUR', $cols[$currencyIdx]);
             }
         }
@@ -883,8 +882,8 @@ class TransactionControllerTest extends BaseApiTestCase
     public function testExportCsvWithUnknownCurrencyDoesNotCrash(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::EXPORT_CSV_URL, [
-            'after'        => '2021-01-01',
-            'before'       => '2021-01-31',
+            'after' => '2021-01-01',
+            'before' => '2021-01-31',
             'currencies[]' => ['GBP'],
         ]));
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Bank\BankProvider;
@@ -12,6 +14,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Throwable;
 
 /**
  * Diagnoses the Wise integration state:
@@ -25,7 +28,7 @@ class WiseDiagnoseCommand extends Command
 {
     public function __construct(
         private readonly HttpClientInterface $wiseClient,
-        private readonly EntityManagerInterface $em,
+        private readonly EntityManagerInterface $entityManager,
     ) {
         parent::__construct();
     }
@@ -39,8 +42,10 @@ class WiseDiagnoseCommand extends Command
         $io->section('1. API connectivity — GET /v2/profiles');
         try {
             $response = $this->wiseClient->request('GET', '/v2/profiles');
-            $profiles = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        } catch (\Throwable $e) {
+            $decoded = json_decode($response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+            assert(\is_array($decoded));
+            $profiles = $decoded;
+        } catch (Throwable $e) {
             $io->error('Cannot reach Wise API: ' . $e->getMessage());
             $io->warning('Check WISE_API_KEY and WISE_BASE_URL in your .env/.env.production.');
 
@@ -48,94 +53,111 @@ class WiseDiagnoseCommand extends Command
         }
 
         $profileId = null;
-        foreach ($profiles as $profile) {
-            $type = strtolower($profile['type'] ?? '');
-            $id   = $profile['id'] ?? '?';
-            $io->writeln(sprintf('  Profile #%s type=%s', $id, $type));
-            if ($type === 'personal' && $profileId === null) {
-                $profileId = (int) $id;
+        foreach ($profiles as $profileEntry) {
+            assert(\is_array($profileEntry));
+            $rawType = $profileEntry['type'] ?? '';
+            assert(\is_string($rawType));
+            $type = strtolower($rawType);
+            $rawId = $profileEntry['id'] ?? '?';
+            assert(is_scalar($rawId));
+            $io->writeln(\sprintf('  Profile #%s type=%s', (string) $rawId, $type));
+            if ('personal' === $type && null === $profileId) {
+                $profileId = (int) $rawId;
             }
         }
 
-        if ($profileId === null) {
+        if (null === $profileId) {
             $io->error('No personal profile found. Check the API key belongs to the right account.');
 
             return Command::FAILURE;
         }
 
-        $io->success(sprintf('Connected. Personal profile ID: %d', $profileId));
+        $io->success(\sprintf('Connected. Personal profile ID: %d', $profileId));
 
         // ── 2. Balance accounts ───────────────────────────────────────────────
         $io->section('2. Wise balance accounts — GET /v4/profiles/{id}/balances');
         try {
             $response = $this->wiseClient->request('GET', "/v4/profiles/{$profileId}/balances?types=STANDARD");
-            $balances = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        } catch (\Throwable $e) {
+            $decodedBalances = json_decode($response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+            assert(\is_array($decodedBalances));
+            $balances = $decodedBalances;
+        } catch (Throwable $e) {
             $io->warning('Could not fetch balances: ' . $e->getMessage());
             $balances = [];
         }
 
         $wiseBalanceIds = [];
-        foreach ($balances as $balance) {
-            $currency = $balance['totalWorth']['currency'] ?? $balance['amount']['currency'] ?? '?';
-            $amount   = (float) ($balance['totalWorth']['value'] ?? $balance['amount']['value'] ?? 0);
-            $id       = $balance['id'] ?? '?';
-            $io->writeln(sprintf('  Balance #%s %s %.2f', $id, $currency, $amount));
-            $wiseBalanceIds[] = (string) $id;
+        foreach ($balances as $balanceEntry) {
+            assert(\is_array($balanceEntry));
+            $totalWorth = \is_array($balanceEntry['totalWorth'] ?? null) ? $balanceEntry['totalWorth'] : [];
+            $amountData = \is_array($balanceEntry['amount'] ?? null) ? $balanceEntry['amount'] : [];
+            $currency = (string) ($totalWorth['currency'] ?? $amountData['currency'] ?? '?');
+            $rawBalanceValue = $totalWorth['value'] ?? $amountData['value'] ?? 0;
+            assert(is_numeric($rawBalanceValue));
+            $amount = (float) $rawBalanceValue;
+            $rawBalanceId = $balanceEntry['id'] ?? '?';
+            assert(is_scalar($rawBalanceId));
+            $io->writeln(\sprintf('  Balance #%s %s %.2f', (string) $rawBalanceId, $currency, $amount));
+            $wiseBalanceIds[] = (string) $rawBalanceId;
         }
 
         // Check which are linked in DB
         $io->section('3. BankCardAccount records for Wise');
-        $accounts = $this->em->getRepository(BankCardAccount::class)->findAll();
+        $accounts = $this->entityManager->getRepository(BankCardAccount::class)->findAll();
         $linkedIds = [];
         foreach ($accounts as $account) {
             $integration = $account->getBankIntegration();
-            if ($integration === null || $integration->getProvider() !== BankProvider::Wise) {
+            if (null === $integration || BankProvider::Wise !== $integration->getProvider()) {
                 continue;
             }
             $extId = $account->getExternalAccountId();
-            $io->writeln(sprintf('  DB account #%d externalId=%s currency=%s', $account->getId(), $extId, $account->getCurrency()));
+            $io->writeln(\sprintf('  DB account #%d externalId=%s currency=%s', $account->getId(), $extId, $account->getCurrency()));
             $linkedIds[] = $extId;
         }
 
         $unlinked = array_diff($wiseBalanceIds, $linkedIds);
-        if (!empty($unlinked)) {
-            $io->warning(sprintf(
+        if ([] !== $unlinked) {
+            $io->warning(\sprintf(
                 'Wise balances not linked to any BankCardAccount: %s. '
                 . 'Run account sync (fetchAccounts) to import them.',
                 implode(', ', $unlinked),
             ));
-        } elseif (!empty($wiseBalanceIds)) {
+        } elseif ([] !== $wiseBalanceIds) {
             $io->success('All Wise balances are linked to BankCardAccount records.');
         }
 
         // ── 3. Webhook subscriptions ──────────────────────────────────────────
-        $io->section(sprintf('4. Webhook subscriptions — GET /v3/profiles/%d/subscriptions', $profileId));
+        $io->section(\sprintf('4. Webhook subscriptions — GET /v3/profiles/%d/subscriptions', $profileId));
         try {
-            $response      = $this->wiseClient->request('GET', "/v3/profiles/{$profileId}/subscriptions");
-            $subscriptions = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            $response = $this->wiseClient->request('GET', "/v3/profiles/{$profileId}/subscriptions");
+            $decodedSubscriptions = json_decode($response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+            assert(\is_array($decodedSubscriptions));
+            $subscriptions = $decodedSubscriptions;
 
-            if (empty($subscriptions)) {
+            if ([] === $subscriptions) {
                 $io->warning('No webhook subscriptions found for this profile.');
             } else {
-                foreach ($subscriptions as $sub) {
-                    $event   = $sub['trigger_on'] ?? '?';
-                    $url     = $sub['delivery']['url'] ?? '?';
-                    $version = $sub['delivery']['version'] ?? '?';
-                    $subId   = $sub['id'] ?? '?';
-                    $io->writeln(sprintf('  %-30s schema=%-5s id=%s', $event, $version, $subId));
-                    $io->writeln(sprintf('  %s→ %s', str_repeat(' ', 32), $url));
+                foreach ($subscriptions as $subscriptionEntry) {
+                    assert(\is_array($subscriptionEntry));
+                    $delivery = \is_array($subscriptionEntry['delivery'] ?? null) ? $subscriptionEntry['delivery'] : [];
+                    $event = (string) ($subscriptionEntry['trigger_on'] ?? '?');
+                    $url = (string) ($delivery['url'] ?? '?');
+                    $version = (string) ($delivery['version'] ?? '?');
+                    $subId = (string) ($subscriptionEntry['id'] ?? '?');
+                    $io->writeln(\sprintf('  %-30s schema=%-5s id=%s', $event, $version, $subId));
+                    $io->writeln(\sprintf('  %s→ %s', str_repeat(' ', 32), $url));
                 }
             }
 
             $hasUpdate = false;
             $hasCredit = false;
-            foreach ($subscriptions as $sub) {
-                $event = $sub['trigger_on'] ?? '';
-                if ($event === 'balances#update') {
+            foreach ($subscriptions as $subscriptionCheck) {
+                assert(\is_array($subscriptionCheck));
+                $event = $subscriptionCheck['trigger_on'] ?? '';
+                if ('balances#update' === $event) {
                     $hasUpdate = true;
                 }
-                if ($event === 'balances#credit') {
+                if ('balances#credit' === $event) {
                     $hasCredit = true;
                 }
             }
@@ -150,8 +172,8 @@ class WiseDiagnoseCommand extends Command
         } catch (HttpExceptionInterface $e) {
             $status = $e->getResponse()->getStatusCode();
 
-            if ($status === 403) {
-                $io->error(sprintf(
+            if (403 === $status) {
+                $io->error(\sprintf(
                     'GET /v3/profiles/%d/subscriptions → 403 Forbidden. '
                     . 'The current API token lacks "Create webhooks" permission.',
                     $profileId,
@@ -169,15 +191,15 @@ class WiseDiagnoseCommand extends Command
                 $io->listing([
                     'Go to https://wise.com/settings/developer-tools/webhooks (or Settings → Webhooks)',
                     'Click "Add webhook"',
-                    sprintf('URL: https://dasfas.xyz/api/webhooks/wise'),
+                    'URL: https://dasfas.xyz/api/webhooks/wise',
                     'Event: "Account deposit events" (= balances#credit)',
                     'Save — Wise will send a test ping to the URL',
                     'This covers INCOMING money only (not card spending / debits)',
                 ]);
             } else {
-                $io->warning(sprintf('Subscriptions API returned %d: %s', $status, $e->getMessage()));
+                $io->warning(\sprintf('Subscriptions API returned %d: %s', $status, $e->getMessage()));
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $io->warning('Could not check subscriptions: ' . $e->getMessage());
         }
 
@@ -185,7 +207,7 @@ class WiseDiagnoseCommand extends Command
         $io->section('5. Quick test');
         $io->text([
             'Once a subscription is active, run a test:',
-            sprintf('  php bin/console app:wise:test-webhook --balance-id=<ID> --amount=1.00 --currency=EUR'),
+            '  php bin/console app:wise:test-webhook --balance-id=<ID> --amount=1.00 --currency=EUR',
             '',
             'Or make a small real transaction in Wise and watch the logs:',
             '  tail -f var/log/prod.log | grep BankWebhook',

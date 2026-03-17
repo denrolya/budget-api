@@ -1,13 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Bank;
 
 use App\Bank\DTO\BankAccountData;
 use App\Bank\Provider\MonobankProvider;
+use LogicException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use Symfony\Contracts\Cache\ItemInterface as CacheItemInterface;
 use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface as CacheItemInterface;
 use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -26,7 +29,7 @@ class MonobankProviderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->http  = $this->createMock(HttpClientInterface::class);
+        $this->http = $this->createMock(HttpClientInterface::class);
         $this->cache = $this->createMock(CacheInterface::class);
 
         $this->provider = new MonobankProvider(
@@ -47,16 +50,16 @@ class MonobankProviderTest extends TestCase
         $body = json_encode([
             'accounts' => [
                 [
-                    'id'           => 'acc_abc',
-                    'maskedPan'    => ['4111 **** **** 1234'],
+                    'id' => 'acc_abc',
+                    'maskedPan' => ['4111 **** **** 1234'],
                     'currencyCode' => 980,   // UAH
-                    'balance'      => 150000, // 1500.00 UAH
+                    'balance' => 150000, // 1500.00 UAH
                 ],
                 [
-                    'id'           => 'acc_def',
-                    'maskedPan'    => [],
+                    'id' => 'acc_def',
+                    'maskedPan' => [],
                     'currencyCode' => 840,   // USD
-                    'balance'      => 5000,  // 50.00 USD
+                    'balance' => 5000,  // 50.00 USD
                 ],
             ],
         ]);
@@ -91,7 +94,7 @@ class MonobankProviderTest extends TestCase
     public function testFetchAccountsWrapsHttpExceptionAsRuntimeException(): void
     {
         $this->http->method('request')->willThrowException(
-            $this->createHttpException()
+            $this->createHttpException(),
         );
 
         $this->expectException(RuntimeException::class);
@@ -204,10 +207,10 @@ class MonobankProviderTest extends TestCase
             ->with(
                 'POST',
                 '/personal/webhook',
-                self::callback(function (array $options) use ($webhookUrl) {
+                self::callback(static function (array $options) use ($webhookUrl) {
                     return ($options['headers']['X-Token'] ?? '') === 'test_key'
                         && ($options['json']['webHookUrl'] ?? '') === $webhookUrl;
-                })
+                }),
             )
             ->willReturn($this->mockResponse('{}'));
 
@@ -242,16 +245,16 @@ class MonobankProviderTest extends TestCase
         $cacheItem = $this->createMock(CacheItemInterface::class);
         $this->cache
             ->method('get')
-            ->willReturnCallback(fn(string $key, callable $cb) => $cb($cacheItem));
+            ->willReturnCallback(static fn (string $key, callable $cb) => $cb($cacheItem));
     }
 
     private function createHttpException(): HttpExceptionInterface
     {
-        return new class extends \RuntimeException implements HttpExceptionInterface {
+        return new class extends RuntimeException implements HttpExceptionInterface {
             public function getResponse(): ResponseInterface
             {
                 // In tests we never call this; just satisfies the interface.
-                throw new \LogicException('not implemented');
+                throw new LogicException('not implemented');
             }
         };
     }

@@ -53,10 +53,10 @@ class StatisticsControllerTest extends BaseApiTestCase
         self::assertArrayHasKey('income', $content[0]);
 
         self::assertTrue(
-            CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay(CarbonImmutable::now()->startOfMonth())
+            CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay(CarbonImmutable::now()->startOfMonth()),
         );
         self::assertTrue(
-            CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay(CarbonImmutable::now()->endOfMonth())
+            CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay(CarbonImmutable::now()->endOfMonth()),
         );
         self::assertIsNumeric($content[0]['before']);
         self::assertIsNumeric($content[0]['after']);
@@ -80,7 +80,7 @@ class StatisticsControllerTest extends BaseApiTestCase
             $this->buildURL(self::VALUE_BY_PERIOD_URL, [
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -102,7 +102,7 @@ class StatisticsControllerTest extends BaseApiTestCase
             $this->buildURL(self::VALUE_BY_PERIOD_URL, [
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -130,7 +130,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => '1 day',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -156,7 +156,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => '1 day',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -184,7 +184,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => '1 week',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -210,7 +210,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => '1 day',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -239,7 +239,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => '1 month',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -265,7 +265,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => '1 day',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -293,7 +293,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => '3 months',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -304,13 +304,13 @@ class StatisticsControllerTest extends BaseApiTestCase
         self::assertEqualsWithDelta(5300, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
         self::assertTrue(
-            CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($after->addMonths(3)->subDay())
+            CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay($after->addMonths(3)->subDay()),
         );
 
         self::assertEqualsWithDelta(3850, $content[3]['expense'], 0.01);
         self::assertEqualsWithDelta(4300, $content[3]['income'], 0.01);
         self::assertTrue(
-            CarbonImmutable::createFromTimestamp($content[3]['after'])->isSameDay($before->subMonths(3))
+            CarbonImmutable::createFromTimestamp($content[3]['after'])->isSameDay($before->subMonths(3)),
         );
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[3]['before'])->isSameDay($before));
 
@@ -323,7 +323,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => '1 day',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -354,7 +354,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => 'false',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -372,7 +372,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => 'true',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -382,7 +382,7 @@ class StatisticsControllerTest extends BaseApiTestCase
         self::assertEqualsWithDelta(300, $content[0]['income'], 0.01);
         self::assertTrue(CarbonImmutable::createFromTimestamp($content[0]['after'])->isSameDay($after));
         self::assertTrue(
-            CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay(CarbonImmutable::parse('2021-01-07'))
+            CarbonImmutable::createFromTimestamp($content[0]['before'])->isSameDay(CarbonImmutable::parse('2021-01-07')),
         );
 
         // interval='' → same as false (single period)
@@ -392,7 +392,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'interval' => '',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -422,14 +422,14 @@ class StatisticsControllerTest extends BaseApiTestCase
             $this->buildURL(self::VALUE_BY_PERIOD_URL, [
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         self::assertEmpty($response->toArray());
 
         $response = $this->client->request(
             Request::METHOD_GET,
-            $this->buildURL(self::VALUE_BY_PERIOD_URL, ['interval' => 'galaxy far far away'])
+            $this->buildURL(self::VALUE_BY_PERIOD_URL, ['interval' => 'galaxy far far away']),
         );
         self::assertResponseStatusCodeSame(400);
 
@@ -439,7 +439,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-01-01',
                 'interval' => 'galaxy far far away',
-            ])
+            ]),
         );
         self::assertResponseStatusCodeSame(400);
     }
@@ -467,7 +467,7 @@ class StatisticsControllerTest extends BaseApiTestCase
             $this->buildURL(self::CATEGORY_TREE_URL, [
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -511,7 +511,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'type' => 'expense',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -533,7 +533,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => $after->toDateString(),
                 'before' => $before->toDateString(),
                 'type' => 'income',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -574,9 +574,9 @@ class StatisticsControllerTest extends BaseApiTestCase
         $response = $this->client->request(
             Request::METHOD_GET,
             $this->buildURL(self::CATEGORY_TIMELINE_URL, [
-                'after'  => '2021-01-01',
+                'after' => '2021-01-01',
                 'before' => '2021-01-31',
-            ])
+            ]),
         );
 
         self::assertResponseIsSuccessful();
@@ -591,16 +591,16 @@ class StatisticsControllerTest extends BaseApiTestCase
      */
     public function testCategoryTimelineWithCategoryFilterReturnsCategoryData(): void
     {
-        $groceries = $this->em->getRepository(\App\Entity\ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        $groceries = $this->entityManager()->getRepository(\App\Entity\ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
         self::assertNotNull($groceries);
 
         $response = $this->client->request(
             Request::METHOD_GET,
             $this->buildURL(self::CATEGORY_TIMELINE_URL, [
-                'after'      => '2021-01-01',
-                'before'     => '2021-01-31',
+                'after' => '2021-01-01',
+                'before' => '2021-01-31',
                 'categories' => [$groceries->getId()],
-            ])
+            ]),
         );
 
         self::assertResponseIsSuccessful();
@@ -630,10 +630,10 @@ class StatisticsControllerTest extends BaseApiTestCase
         $response = $this->client->request(
             Request::METHOD_GET,
             $this->buildURL(self::VALUE_BY_PERIOD_URL, [
-                'after'       => '2021-01-01',
-                'before'      => '2021-01-31',
-                'categories'  => [999999],
-            ])
+                'after' => '2021-01-01',
+                'before' => '2021-01-31',
+                'categories' => [999999],
+            ]),
         );
 
         self::assertResponseIsSuccessful();
@@ -641,7 +641,7 @@ class StatisticsControllerTest extends BaseApiTestCase
 
         self::assertCount(1, $content);
         self::assertEqualsWithDelta(0.0, $content[0]['expense'], 0.001, 'Non-existent category must yield zero expense, not all transactions.');
-        self::assertEqualsWithDelta(0.0, $content[0]['income'],  0.001, 'Non-existent category must yield zero income, not all transactions.');
+        self::assertEqualsWithDelta(0.0, $content[0]['income'], 0.001, 'Non-existent category must yield zero income, not all transactions.');
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -651,7 +651,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::value
      */
-    public function testValueByPeriod_typeExpense_returnsOnlyExpenseValues(): void
+    public function testValueByPeriodTypeExpenseReturnsOnlyExpenseValues(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -659,7 +659,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-01-31',
                 'type' => 'expense',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -672,7 +672,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::value
      */
-    public function testValueByPeriod_typeIncome_returnsOnlyIncomeValues(): void
+    public function testValueByPeriodTypeIncomeReturnsOnlyIncomeValues(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -680,7 +680,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-01-31',
                 'type' => 'income',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -697,7 +697,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::value
      */
-    public function testValueByPeriod_accountsFilter_restrictsToAccount(): void
+    public function testValueByPeriodAccountsFilterRestrictsToAccount(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -705,7 +705,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-01-31',
                 'accounts' => [$this->accountCashEUR->getId()],
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -723,14 +723,14 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::value
      */
-    public function testValueByPeriod_emptyRange_returnsZeros(): void
+    public function testValueByPeriodEmptyRangeReturnsZeros(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
             $this->buildURL(self::VALUE_BY_PERIOD_URL, [
                 'after' => '2025-06-01',
                 'before' => '2025-06-30',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -749,14 +749,14 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::dailyStats
      */
-    public function testDaily_returnsCorrectShape(): void
+    public function testDailyReturnsCorrectShape(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
             $this->buildURL(self::DAILY_URL, [
                 'after' => '2021-01-01',
                 'before' => '2021-01-31',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -780,7 +780,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::average
      */
-    public function testAvg_returnsCorrectShape(): void
+    public function testAvgReturnsCorrectShape(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -788,7 +788,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-12-31',
                 'interval' => '1 month',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -812,7 +812,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::accountDistribution
      */
-    public function testAccountDistribution_returnsCorrectShape(): void
+    public function testAccountDistributionReturnsCorrectShape(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -820,7 +820,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-01-31',
                 'type' => 'expense',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -842,7 +842,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::dailyStats
      */
-    public function testDaily_withTypeFilter_returnsFilteredData(): void
+    public function testDailyWithTypeFilterReturnsFilteredData(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -850,7 +850,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-01-31',
                 'type' => 'expense',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -862,7 +862,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::dailyStats
      */
-    public function testDaily_withAccountsFilter_restrictsResults(): void
+    public function testDailyWithAccountsFilterRestrictsResults(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -870,7 +870,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-01-31',
                 'accounts' => [$this->accountCashEUR->getId()],
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -882,14 +882,14 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::dailyStats
      */
-    public function testDaily_emptyRange_returnsEmptyData(): void
+    public function testDailyEmptyRangeReturnsEmptyData(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
             $this->buildURL(self::DAILY_URL, [
                 'after' => '2099-01-01',
                 'before' => '2099-12-31',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -905,7 +905,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::average
      */
-    public function testAvg_withTypeFilter_returnsFilteredAverage(): void
+    public function testAvgWithTypeFilterReturnsFilteredAverage(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -914,7 +914,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'before' => '2021-12-31',
                 'interval' => '1 month',
                 'type' => 'expense',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -929,7 +929,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::average
      */
-    public function testAvg_withAccountsFilter_restrictsResults(): void
+    public function testAvgWithAccountsFilterRestrictsResults(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -938,7 +938,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'before' => '2021-12-31',
                 'interval' => '1 month',
                 'accounts' => [$this->accountCashEUR->getId()],
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -954,7 +954,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::accountDistribution
      */
-    public function testAccountDistribution_incomeType_returnsDistribution(): void
+    public function testAccountDistributionIncomeTypeReturnsDistribution(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -962,7 +962,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-01-31',
                 'type' => 'income',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -978,7 +978,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::categoryTree
      */
-    public function testCategoryTree_withoutAuth_returns401(): void
+    public function testCategoryTreeWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::CATEGORY_TREE_URL);
@@ -988,7 +988,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::accountDistribution
      */
-    public function testAccountDistribution_withoutAuth_returns401(): void
+    public function testAccountDistributionWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::ACCOUNT_DISTRIBUTION_URL);
@@ -998,7 +998,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::average
      */
-    public function testAvg_withoutAuth_returns401(): void
+    public function testAvgWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::AVG_URL);
@@ -1008,7 +1008,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::value
      */
-    public function testValueByPeriod_withoutAuth_returns401(): void
+    public function testValueByPeriodWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::VALUE_BY_PERIOD_URL);
@@ -1018,7 +1018,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::dailyStats
      */
-    public function testDaily_withoutAuth_returns401(): void
+    public function testDailyWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::DAILY_URL);
@@ -1034,7 +1034,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::transactionsValueByWeekdays
      */
-    public function testByWeekdays_returnsCorrectShape(): void
+    public function testByWeekdaysReturnsCorrectShape(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -1042,7 +1042,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-12-31',
                 'type' => 'expense',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -1054,7 +1054,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::transactionsValueByWeekdays
      */
-    public function testByWeekdays_withoutAuth_returns401(): void
+    public function testByWeekdaysWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::BY_WEEKDAYS_URL);
@@ -1070,7 +1070,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::topValueCategory
      */
-    public function testTopValueCategory_returnsCorrectShape(): void
+    public function testTopValueCategoryReturnsCorrectShape(): void
     {
         $response = $this->client->request(
             Request::METHOD_GET,
@@ -1078,7 +1078,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 'after' => '2021-01-01',
                 'before' => '2021-12-31',
                 'type' => 'expense',
-            ])
+            ]),
         );
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -1090,7 +1090,7 @@ class StatisticsControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\StatisticsController::topValueCategory
      */
-    public function testTopValueCategory_withoutAuth_returns401(): void
+    public function testTopValueCategoryWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::TOP_VALUE_CATEGORY_URL);
@@ -1108,6 +1108,7 @@ class StatisticsControllerTest extends BaseApiTestCase
                 return $item;
             }
         }
+
         return null;
     }
 }

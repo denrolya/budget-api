@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiProperty;
@@ -8,8 +10,8 @@ use ApiPlatform\Metadata\Post;
 use App\Repository\BankCardAccountRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Component\Serializer\Annotation\Groups;
 use JMS\Serializer\Annotation as Serializer;
+use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: BankCardAccountRepository::class)]
@@ -52,7 +54,7 @@ class BankCardAccount extends Account
     private ?string $externalAccountId = null;
 
     #[ApiProperty(description: 'The bank integration this account is linked to for automatic transaction syncing via webhooks or polling.')]
-    #[ORM\ManyToOne(targetEntity: BankIntegration::class)]
+    #[ORM\ManyToOne(targetEntity: BankIntegration::class, fetch: 'LAZY')]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     #[Groups(['account:collection:read', 'account:write'])]
     #[Serializer\Groups(['account:collection:read'])]

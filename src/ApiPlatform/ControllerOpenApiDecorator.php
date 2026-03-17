@@ -13,7 +13,13 @@ use ApiPlatform\OpenApi\Model\RequestBody;
 use ApiPlatform\OpenApi\Model\Response;
 use ApiPlatform\OpenApi\OpenApi;
 use ArrayObject;
+use OpenApi\Annotations\MediaType as OAMediaType;
 use OpenApi\Annotations\OpenApi as OASpec;
+use OpenApi\Annotations\Operation as OAOperation;
+use OpenApi\Annotations\Parameter as OAParameter;
+use OpenApi\Annotations\RequestBody as OARequestBody;
+use OpenApi\Annotations\Response as OAResponse;
+use OpenApi\Annotations\Schema as OASchema;
 use OpenApi\Generator;
 
 /**
@@ -52,17 +58,16 @@ final class ControllerOpenApiDecorator implements OpenApiFactoryInterface
     {
         $openApi = ($this->decorated)($context);
 
-        /** @var OASpec|null $controllerSpec */
         $controllerSpec = @Generator::scan(self::SCAN_PATHS);
 
-        if (!$controllerSpec instanceof OASpec || !is_array($controllerSpec->paths)) {
+        if (!$controllerSpec instanceof OASpec || Generator::isDefault($controllerSpec->paths)) {
             return $openApi;
         }
 
         $paths = $openApi->getPaths();
 
         foreach ($controllerSpec->paths as $controllerPath) {
-            if (!isset($controllerPath->path) || $controllerPath->path === Generator::UNDEFINED) {
+            if (Generator::isDefault($controllerPath->path)) {
                 continue;
             }
 
@@ -70,10 +75,10 @@ final class ControllerOpenApiDecorator implements OpenApiFactoryInterface
                 ref: null,
                 summary: null,
                 description: null,
-                get: $this->convertOperation($controllerPath->get ?? null),
-                put: $this->convertOperation($controllerPath->put ?? null),
-                post: $this->convertOperation($controllerPath->post ?? null),
-                delete: $this->convertOperation($controllerPath->delete ?? null),
+                get: $this->convertAnnotationOperation($controllerPath->get),
+                put: $this->convertAnnotationOperation($controllerPath->put),
+                post: $this->convertAnnotationOperation($controllerPath->post),
+                delete: $this->convertAnnotationOperation($controllerPath->delete),
                 options: null,
                 head: null,
                 patch: null,
@@ -92,13 +97,13 @@ final class ControllerOpenApiDecorator implements OpenApiFactoryInterface
     {
         $existingTags = $openApi->getTags();
         $existingTagNames = array_map(
-            static fn(mixed $tag): string => is_array($tag) ? (string) ($tag['name'] ?? '') : (string) $tag,
+            static fn (mixed $tag): string => \is_array($tag) ? (string) ($tag['name'] ?? '') : (\is_string($tag) ? $tag : ''),
             $existingTags,
         );
 
         $newTags = $existingTags;
         foreach (self::CONTROLLER_TAGS as $tagDefinition) {
-            if (in_array($tagDefinition['name'], $existingTagNames, strict: true)) {
+            if (\in_array($tagDefinition['name'], $existingTagNames, strict: true)) {
                 continue;
             }
             $newTags[] = $tagDefinition;
@@ -107,72 +112,35 @@ final class ControllerOpenApiDecorator implements OpenApiFactoryInterface
         return $openApi->withTags($newTags);
     }
 
-    private function convertOperation(mixed $operation): ?Operation
+    /**
+     * Converts a zircote/swagger-php Operation annotation to an API Platform Operation model.
+     * The property value may be the actual annotation object or Generator::UNDEFINED.
+     */
+    private function convertAnnotationOperation(OAOperation|string $operationOrUndefined): ?Operation
     {
-        if ($operation === null || $operation === Generator::UNDEFINED) {
+        if (!$operationOrUndefined instanceof OAOperation) {
             return null;
         }
 
-        $parameters = [];
-        foreach ((array) ($operation->parameters ?? []) as $param) {
-            if ($param === Generator::UNDEFINED || !isset($param->name)) {
-                continue;
-            }
+        $parameters = $this->extractParameters($operationOrUndefined);
+        $responsesArray = $this->extractResponses($operationOrUndefined);
 
-            $schema = $this->schemaToArray($param->schema ?? null);
+        $security = $this->extractArrayField($operationOrUndefined->security);
+        $tags = $this->extractArrayField($operationOrUndefined->tags);
 
-            $parameters[] = new Parameter(
-                name: $param->name,
-                in: $param->in ?? 'query',
-                description: (isset($param->description) && $param->description !== Generator::UNDEFINED) ? (string) $param->description : '',
-                required: (isset($param->required) && $param->required !== Generator::UNDEFINED) ? (bool) $param->required : false,
-                deprecated: false,
-                allowEmptyValue: false,
-                schema: $schema,
-            );
-        }
-
-        $responses = new ArrayObject();
-        foreach ((array) ($operation->responses ?? []) as $response) {
-            if ($response === Generator::UNDEFINED || !isset($response->response)) {
-                continue;
-            }
-
-            $content = null;
-            foreach ((array) ($response->content ?? []) as $mediaType) {
-                if ($mediaType === Generator::UNDEFINED) {
-                    continue;
-                }
-                $content = new ArrayObject([
-                    'application/json' => new MediaType(
-                        schema: new ArrayObject($this->schemaToArray($mediaType->schema ?? null) ?? [])
-                    ),
-                ]);
-            }
-
-            $responses[(string) $response->response] = new Response(
-                description: (isset($response->description) && $response->description !== Generator::UNDEFINED) ? (string) $response->description : '',
-                content: $content,
-            );
-        }
-
-        $security = (isset($operation->security) && $operation->security !== Generator::UNDEFINED && is_array($operation->security))
-            ? $operation->security
-            : [];
-
-        $tags = (isset($operation->tags) && $operation->tags !== Generator::UNDEFINED && is_array($operation->tags))
-            ? $operation->tags
-            : [];
+        $requestBody = Generator::isDefault($operationOrUndefined->requestBody)
+            ? null
+            : $this->convertAnnotationRequestBody($operationOrUndefined->requestBody);
 
         return new Operation(
             operationId: null,
             tags: $tags,
-            responses: iterator_to_array($responses),
-            summary: (isset($operation->summary) && $operation->summary !== Generator::UNDEFINED) ? (string) $operation->summary : '',
-            description: (isset($operation->description) && $operation->description !== Generator::UNDEFINED) ? (string) $operation->description : '',
+            responses: $responsesArray,
+            summary: $this->extractStringField($operationOrUndefined->summary),
+            description: $this->extractStringField($operationOrUndefined->description),
             externalDocs: null,
             parameters: $parameters,
-            requestBody: $this->convertRequestBody($operation->requestBody ?? null),
+            requestBody: $requestBody,
             callbacks: null,
             deprecated: false,
             security: $security,
@@ -181,64 +149,241 @@ final class ControllerOpenApiDecorator implements OpenApiFactoryInterface
     }
 
     /**
-     * @return array<string, mixed>|null
+     * @return list<Parameter>
      */
-    private function schemaToArray(mixed $schema): ?array
+    private function extractParameters(OAOperation $operation): array
     {
-        if ($schema === null || $schema === Generator::UNDEFINED) {
+        if (Generator::isDefault($operation->parameters)) {
+            return [];
+        }
+
+        $parameters = [];
+
+        /** @var OAParameter $annotationParameter */
+        foreach ($operation->parameters as $annotationParameter) {
+            if (Generator::isDefault($annotationParameter) || Generator::isDefault($annotationParameter->name)) {
+                continue;
+            }
+
+            $schema = $this->convertAnnotationSchemaToArray(
+                Generator::isDefault($annotationParameter->schema) ? null : $annotationParameter->schema,
+            );
+
+            $parameters[] = new Parameter(
+                name: $annotationParameter->name,
+                in: Generator::isDefault($annotationParameter->in) ? 'query' : $annotationParameter->in,
+                description: $this->extractStringField($annotationParameter->description),
+                required: !Generator::isDefault($annotationParameter->required) && $annotationParameter->required,
+                deprecated: false,
+                allowEmptyValue: false,
+                schema: $schema ?? [],
+            );
+        }
+
+        return $parameters;
+    }
+
+    /**
+     * @return array<string, Response>
+     */
+    private function extractResponses(OAOperation $operation): array
+    {
+        if (Generator::isDefault($operation->responses)) {
+            return [];
+        }
+
+        $responsesArray = [];
+
+        /** @var OAResponse $annotationResponse */
+        foreach ($operation->responses as $annotationResponse) {
+            if (Generator::isDefault($annotationResponse) || Generator::isDefault($annotationResponse->response)) {
+                continue;
+            }
+
+            $content = $this->extractResponseContent($annotationResponse);
+            $responsesArray[(string) $annotationResponse->response] = new Response(
+                description: $this->extractStringField($annotationResponse->description),
+                content: $content,
+            );
+        }
+
+        return $responsesArray;
+    }
+
+    /**
+     * @return ArrayObject<string, MediaType>|null
+     */
+    private function extractResponseContent(OAResponse $annotationResponse): ?ArrayObject
+    {
+        if (Generator::isDefault($annotationResponse->content)) {
             return null;
         }
 
-        $result = [];
+        $lastContent = null;
 
-        foreach (['type', 'format', 'default', 'enum', 'minimum', 'example'] as $field) {
-            if (isset($schema->{$field}) && $schema->{$field} !== Generator::UNDEFINED) {
-                $result[$field] = $schema->{$field};
+        /** @var OAMediaType $mediaType */
+        foreach ($annotationResponse->content as $mediaType) {
+            if (Generator::isDefault($mediaType)) {
+                continue;
             }
+            $schemaArray = $this->resolveMediaTypeSchema($mediaType);
+
+            /** @var ArrayObject<string, mixed> $schemaObject */
+            $schemaObject = new ArrayObject($schemaArray);
+
+            $lastContent = new ArrayObject([
+                'application/json' => new MediaType(schema: $schemaObject),
+            ]);
         }
 
-        if (isset($schema->items) && $schema->items !== Generator::UNDEFINED) {
-            $result['items'] = $this->schemaToArray($schema->items);
+        return $lastContent;
+    }
+
+    /**
+     * Converts a zircote/swagger-php Schema annotation to an associative array
+     * compatible with API Platform's OpenAPI model.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function convertAnnotationSchemaToArray(?OASchema $schema): ?array
+    {
+        if (null === $schema) {
+            return null;
         }
 
-        if (isset($schema->properties) && $schema->properties !== Generator::UNDEFINED && is_array($schema->properties)) {
-            $props = [];
-            foreach ($schema->properties as $prop) {
-                if ($prop === Generator::UNDEFINED || !isset($prop->property)) {
-                    continue;
-                }
-                $props[$prop->property] = $this->schemaToArray($prop) ?? [];
-            }
-            $result['properties'] = $props;
+        $result = $this->extractScalarSchemaFields($schema);
+
+        if (!Generator::isDefault($schema->items)) {
+            $result['items'] = $this->convertAnnotationSchemaToArray($schema->items);
         }
 
-        if (isset($schema->additionalProperties) && $schema->additionalProperties !== Generator::UNDEFINED) {
-            $result['additionalProperties'] = $this->schemaToArray($schema->additionalProperties);
+        if (!Generator::isDefault($schema->properties)) {
+            $result['properties'] = $this->extractSchemaProperties($schema);
+        }
+
+        if (!Generator::isDefault($schema->additionalProperties) && $schema->additionalProperties instanceof OASchema) {
+            $result['additionalProperties'] = $this->convertAnnotationSchemaToArray($schema->additionalProperties);
         }
 
         return $result;
     }
 
-    private function convertRequestBody(mixed $requestBody): ?RequestBody
+    /**
+     * Extracts scalar fields (type, format, default, enum, minimum, example) from a Schema annotation.
+     *
+     * @return array<string, mixed>
+     */
+    private function extractScalarSchemaFields(OASchema $schema): array
     {
-        if ($requestBody === null || $requestBody === Generator::UNDEFINED) {
+        $result = [];
+
+        if (!Generator::isDefault($schema->type)) {
+            $result['type'] = $schema->type;
+        }
+        if (!Generator::isDefault($schema->format)) {
+            $result['format'] = $schema->format;
+        }
+        if (!Generator::isDefault($schema->default)) {
+            $result['default'] = $schema->default;
+        }
+        if (!Generator::isDefault($schema->enum)) {
+            $result['enum'] = $schema->enum;
+        }
+        if (!Generator::isDefault($schema->minimum)) {
+            $result['minimum'] = $schema->minimum;
+        }
+        if (!Generator::isDefault($schema->example)) {
+            $result['example'] = $schema->example;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function extractSchemaProperties(OASchema $schema): array
+    {
+        $properties = [];
+
+        foreach ($schema->properties as $property) {
+            if (Generator::isDefault($property) || Generator::isDefault($property->property)) {
+                continue;
+            }
+            $properties[$property->property] = $this->convertAnnotationSchemaToArray($property) ?? [];
+        }
+
+        return $properties;
+    }
+
+    private function convertAnnotationRequestBody(OARequestBody|string $requestBodyOrUndefined): ?RequestBody
+    {
+        if (!$requestBodyOrUndefined instanceof OARequestBody) {
             return null;
         }
 
+        /** @var ArrayObject<string, MediaType> $content */
         $content = new ArrayObject();
-        foreach ((array) ($requestBody->content ?? []) as $mediaType) {
-            if ($mediaType === Generator::UNDEFINED) {
-                continue;
+
+        if (!Generator::isDefault($requestBodyOrUndefined->content)) {
+            /** @var OAMediaType $mediaType */
+            foreach ($requestBodyOrUndefined->content as $mediaType) {
+                if (Generator::isDefault($mediaType)) {
+                    continue;
+                }
+                $schemaArray = $this->resolveMediaTypeSchema($mediaType);
+
+                /** @var ArrayObject<string, mixed> $schemaObject */
+                $schemaObject = new ArrayObject($schemaArray);
+
+                $content['application/json'] = new MediaType(schema: $schemaObject);
             }
-            $content['application/json'] = new MediaType(
-                schema: new ArrayObject($this->schemaToArray($mediaType->schema ?? null) ?? [])
-            );
         }
 
         return new RequestBody(
-            description: (isset($requestBody->description) && $requestBody->description !== Generator::UNDEFINED) ? (string) $requestBody->description : '',
+            description: $this->extractStringField($requestBodyOrUndefined->description),
             content: $content,
-            required: (isset($requestBody->required) && $requestBody->required !== Generator::UNDEFINED) ? (bool) $requestBody->required : false,
+            required: !Generator::isDefault($requestBodyOrUndefined->required) && $requestBodyOrUndefined->required,
         );
+    }
+
+    /**
+     * Extracts the schema array from an OAMediaType annotation.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveMediaTypeSchema(OAMediaType $mediaType): array
+    {
+        if (Generator::isDefault($mediaType->schema)) {
+            return [];
+        }
+
+        return $this->convertAnnotationSchemaToArray($mediaType->schema) ?? [];
+    }
+
+    /**
+     * Extracts a string field from an annotation property, returning an empty
+     * string when the value is Generator::UNDEFINED.
+     */
+    private function extractStringField(string $value): string
+    {
+        return Generator::isDefault($value) ? '' : $value;
+    }
+
+    /**
+     * Extracts an array field from an annotation property, returning an empty
+     * array when the value is Generator::UNDEFINED.
+     *
+     * @return array<mixed>
+     */
+    private function extractArrayField(mixed $value): array
+    {
+        if (Generator::isDefault($value)) {
+            return [];
+        }
+
+        assert(\is_array($value));
+
+        return $value;
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Attribute;
 
 use Attribute;
@@ -18,5 +20,6 @@ final class MapCarbonDate
     public function __construct(
         public readonly string $format = 'Y-m-d',
         public readonly ?string $default = null,
-    ) {}
+    ) {
+    }
 }

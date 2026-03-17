@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Bank\BankProvider;
@@ -12,6 +14,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Throwable;
+use ValueError;
 
 /**
  * Public webhook receiver.
@@ -41,12 +45,12 @@ class BankWebhookController extends AbstractFOSRestController
                 in: 'path',
                 required: true,
                 description: 'Bank provider slug (e.g. monobank, wise)',
-                schema: new OA\Schema(type: 'string', enum: ['monobank', 'wise'])
+                schema: new OA\Schema(type: 'string', enum: ['monobank', 'wise']),
             ),
         ],
         requestBody: new OA\RequestBody(
             required: true,
-            content: new OA\JsonContent(type: 'object', description: 'Provider-specific webhook payload')
+            content: new OA\JsonContent(type: 'object', description: 'Provider-specific webhook payload'),
         ),
         responses: [
             new OA\Response(
@@ -54,19 +58,20 @@ class BankWebhookController extends AbstractFOSRestController
                 description: 'Transaction created',
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'id', type: 'integer', example: 42),
-                ])
+                ]),
             ),
             new OA\Response(response: 200, description: 'Ping or non-transaction event acknowledged'),
             new OA\Response(response: 400, description: 'Invalid JSON payload'),
             new OA\Response(response: 404, description: 'Unknown bank provider'),
             new OA\Response(response: 500, description: 'Internal error while processing the webhook'),
-        ]
+        ],
     )]
     /**
      * Receives webhook payloads from a bank identified by {provider} slug.
      * Example: POST /api/webhooks/monobank
      *
      * @see \App\Tests\Controller\BankWebhookControllerTest
+     *
      * @tested testUnknownProviderReturns404
      * @tested testInvalidJsonBodyReturns400
      * @tested testMonobankPingReturns200
@@ -79,29 +84,29 @@ class BankWebhookController extends AbstractFOSRestController
     {
         try {
             $bank = BankProvider::from($provider);
-        } catch (\ValueError) {
+        } catch (ValueError) {
             return $this->view(['error' => "Unknown bank provider: {$provider}"], Response::HTTP_NOT_FOUND);
         }
 
         $payload = json_decode($request->getContent(), true);
-        if (!is_array($payload)) {
+        if (!\is_array($payload)) {
             return $this->view(['error' => 'Invalid JSON payload'], Response::HTTP_BAD_REQUEST);
         }
 
         $this->bankLogger->info('[BankWebhook] Received {provider}: event={event_type} amount={amount} {currency}', [
-            'provider'   => $provider,
+            'provider' => $provider,
             'event_type' => $payload['event_type'] ?? $payload['type'] ?? '(none)',
-            'amount'     => $payload['data']['amount'] ?? '?',
-            'currency'   => $payload['data']['currency'] ?? '?',
+            'amount' => $payload['data']['amount'] ?? '?',
+            'currency' => $payload['data']['currency'] ?? '?',
         ]);
 
         try {
             $transaction = $this->webhookService->handle($bank, $payload);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return $this->view(['error' => $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        if ($transaction === null) {
+        if (null === $transaction) {
             // Monobank expects 200 for ping/non-transaction events
             return $this->view([], Response::HTTP_OK);
         }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Traits;
 
 use Doctrine\DBAL\Types\Types;
@@ -10,7 +12,7 @@ trait ValuableEntity
     #[ORM\Column(type: Types::JSON)]
     protected ?array $convertedValues;
 
-    public function getValue(): float|null
+    public function getValue(): ?float
     {
         return $this->getConvertedValue($this->getOwner()->getBaseCurrency());
     }

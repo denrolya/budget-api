@@ -13,6 +13,7 @@ use App\Entity\Category;
 use App\Repository\BudgetRepository;
 use App\Repository\CategoryRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use InvalidArgumentException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
@@ -29,15 +30,15 @@ final class BudgetLineDataPersister implements ProcessorInterface
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): ?BudgetLine
     {
         if (!$data instanceof BudgetLine) {
-            throw new \InvalidArgumentException('Expected BudgetLine entity.');
+            throw new InvalidArgumentException('Expected BudgetLine entity.');
         }
 
         $budgetIdRaw = $uriVariables['budgetId'] ?? 0;
-        assert(is_numeric($budgetIdRaw));
+        \assert(is_numeric($budgetIdRaw));
         $budgetId = (int) $budgetIdRaw;
         $budget = $this->budgetRepository->find($budgetId);
 
-        if ($budget === null) {
+        if (null === $budget) {
             throw new NotFoundHttpException("Budget $budgetId not found.");
         }
 
@@ -57,7 +58,7 @@ final class BudgetLineDataPersister implements ProcessorInterface
     private function handleCreate(BudgetLine $line, \App\Entity\Budget $budget): BudgetLine
     {
         $categoryId = $line->getCategoryId();
-        $category = $categoryId !== null ? $this->categoryRepository->find($categoryId) : null;
+        $category = null !== $categoryId ? $this->categoryRepository->find($categoryId) : null;
 
         if (!$category instanceof Category) {
             throw new UnprocessableEntityHttpException("Category with id $categoryId not found.");
@@ -101,7 +102,7 @@ final class BudgetLineDataPersister implements ProcessorInterface
     private function normalizeNote(BudgetLine $line): void
     {
         $note = $line->getNote();
-        if ($note !== null && trim($note) === '') {
+        if (null !== $note && '' === trim($note)) {
             $line->setNote(null);
         }
     }

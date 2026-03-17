@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\DataFixtures\Dev;
 
 use App\Entity\Account;
@@ -27,49 +30,49 @@ class ExpenseFixtures extends BaseTransactionFixtures
      */
     private const CATEGORY_BUDGETS_EUR = [
         // Food & Drinks
-        'Groceries'        => [30,  100],
-        'Delivery'         => [12,  40],
-        'Restaurant'       => [20,  70],
-        'Fast Food'        => [8,   25],
-        'Coffee'           => [4,   12],
-        'Bar, cafe'        => [10,  35],
-        'Pizza'            => [12,  30],
-        'Sushi'            => [18,  55],
-        'Asian'            => [15,  45],
-        'Alcohol'          => [8,   30],
-        'Pastry'           => [5,   15],
-        'Water'            => [2,   8],
-        'Tea'              => [3,   10],
-        'Goodies'          => [4,   15],
-        'Canteen'          => [6,   20],
-        'Eating Out'       => [15,  60],
+        'Groceries' => [30,  100],
+        'Delivery' => [12,  40],
+        'Restaurant' => [20,  70],
+        'Fast Food' => [8,   25],
+        'Coffee' => [4,   12],
+        'Bar, cafe' => [10,  35],
+        'Pizza' => [12,  30],
+        'Sushi' => [18,  55],
+        'Asian' => [15,  45],
+        'Alcohol' => [8,   30],
+        'Pastry' => [5,   15],
+        'Water' => [2,   8],
+        'Tea' => [3,   10],
+        'Goodies' => [4,   15],
+        'Canteen' => [6,   20],
+        'Eating Out' => [15,  60],
         // Housing
-        'Rent'             => [500, 700],
-        'Utilities'        => [40,  80],
-        'Gas'              => [15,  30],
-        'Electricity'      => [20,  50],
+        'Rent' => [500, 700],
+        'Utilities' => [40,  80],
+        'Gas' => [15,  30],
+        'Electricity' => [20,  50],
         'Water utilities costs' => [10, 25],
-        'Internet'         => [8,   15],
-        'Bath'             => [5,   20],
-        'Laundry'          => [4,   12],
-        'Pet'              => [20,  60],
-        'Furniture'        => [80,  400],
-        'Tools'            => [15,  80],
-        'Construction'     => [100, 600],
-        'Kids'             => [40,  150],
+        'Internet' => [8,   15],
+        'Bath' => [5,   20],
+        'Laundry' => [4,   12],
+        'Pet' => [20,  60],
+        'Furniture' => [80,  400],
+        'Tools' => [15,  80],
+        'Construction' => [100, 600],
+        'Kids' => [40,  150],
         // Transportation
         'Public Transport' => [10,  40],
-        'Taxi'             => [5,   20],
-        'Car'              => [30,  200],
+        'Taxi' => [5,   20],
+        'Car' => [30,  200],
         // Shopping
-        'Clothes'          => [40,  250],
-        'Electronics'      => [80,  800],
-        'Shopping'         => [20,  100],
+        'Clothes' => [40,  250],
+        'Electronics' => [80,  800],
+        'Shopping' => [20,  100],
         // Health
-        'Medicine'         => [10,  60],
-        'Doctor'           => [30,  120],
+        'Medicine' => [10,  60],
+        'Doctor' => [30,  120],
         // Other
-        'Other'            => [5,   80],
+        'Other' => [5,   80],
     ];
 
     /** Multipliers relative to EUR (approximate, good enough for dev data) */
@@ -86,13 +89,13 @@ class ExpenseFixtures extends BaseTransactionFixtures
      */
     public function load(ObjectManager $manager): void
     {
-        $user             = $this->getReference('dev_user', User::class);
+        $user = $this->getReference('dev_user', User::class);
         $allowedCurrencies = $this->params->get('allowed_currencies');
-        $now              = CarbonImmutable::now();
+        $now = CarbonImmutable::now();
 
         $this->disableListeners();
 
-        /** @var ExpenseCategory[] $leafCategories */
+        /** @var ExpenseCategory[] $allCategories */
         $allCategories = $manager->getRepository(ExpenseCategory::class)->findAll();
 
         // Index by name for fast look-up
@@ -131,58 +134,60 @@ class ExpenseFixtures extends BaseTransactionFixtures
 
         // Category weights for random selection (higher = more likely)
         $weightedCategories = [
-            'Groceries'        => 20,
-            'Coffee'           => 12,
-            'Delivery'         => 10,
-            'Restaurant'       => 8,
-            'Fast Food'        => 7,
-            'Taxi'             => 7,
+            'Groceries' => 20,
+            'Coffee' => 12,
+            'Delivery' => 10,
+            'Restaurant' => 8,
+            'Fast Food' => 7,
+            'Taxi' => 7,
             'Public Transport' => 6,
-            'Bar, cafe'        => 5,
-            'Pastry'           => 5,
-            'Alcohol'          => 4,
-            'Pizza'            => 4,
-            'Clothes'          => 4,
-            'Medicine'         => 3,
-            'Other'            => 5,
-            'Sushi'            => 3,
-            'Asian'            => 3,
-            'Car'              => 2,
-            'Doctor'           => 2,
-            'Electronics'      => 2,
-            'Laundry'          => 2,
-            'Pet'              => 2,
-            'Goodies'          => 3,
-            'Tea'              => 3,
-            'Canteen'          => 4,
+            'Bar, cafe' => 5,
+            'Pastry' => 5,
+            'Alcohol' => 4,
+            'Pizza' => 4,
+            'Clothes' => 4,
+            'Medicine' => 3,
+            'Other' => 5,
+            'Sushi' => 3,
+            'Asian' => 3,
+            'Car' => 2,
+            'Doctor' => 2,
+            'Electronics' => 2,
+            'Laundry' => 2,
+            'Pet' => 2,
+            'Goodies' => 3,
+            'Tea' => 3,
+            'Canteen' => 4,
         ];
 
         $weightPool = [];
         foreach ($weightedCategories as $name => $weight) {
             if (isset($catMap[$name])) {
-                for ($i = 0; $i < $weight; $i++) {
+                for ($i = 0; $i < $weight; ++$i) {
                     $weightPool[] = $catMap[$name];
                 }
             }
         }
 
         // Months to generate: current month plus 17 prior months
-        for ($monthOffset = 0; $monthOffset < 18; $monthOffset++) {
+        for ($monthOffset = 0; $monthOffset < 18; ++$monthOffset) {
             $monthStart = $now->subMonths($monthOffset)->startOfMonth();
-            $monthEnd   = $monthOffset === 0 ? $now : $now->subMonths($monthOffset)->endOfMonth();
+            $monthEnd = 0 === $monthOffset ? $now : $now->subMonths($monthOffset)->endOfMonth();
 
             foreach ($accountProfiles as [$refKey, $refClass, $minTx, $maxTx]) {
                 /** @var Account $account */
-                $account  = $this->getReference($refKey, $refClass);
+                $account = $this->getReference($refKey, $refClass);
                 $currency = $account->getCurrency();
-                $rate     = self::CURRENCY_RATE[$currency] ?? 1.0;
+                $rate = self::CURRENCY_RATE[$currency] ?? 1.0;
 
                 // Recurring first
                 foreach ($recurringByAccount[$refKey] ?? [] as [$catName, $amtMin, $amtMax]) {
-                    if (!isset($catMap[$catName])) continue;
+                    if (!isset($catMap[$catName])) {
+                        continue;
+                    }
                     // Pick a random day in the month for this recurring expense
                     $daysInMonth = $monthStart->daysInMonth;
-                    $day = random_int(1, min($daysInMonth, $monthOffset === 0 ? $now->day : $daysInMonth));
+                    $day = random_int(1, min($daysInMonth, 0 === $monthOffset ? $now->day : $daysInMonth));
                     $date = $monthStart->setDay($day);
 
                     $amount = round($amtMin + lcg_value() * ($amtMax - $amtMin), 2);
@@ -192,16 +197,16 @@ class ExpenseFixtures extends BaseTransactionFixtures
 
                 // Random variable expenses
                 $txCount = random_int($minTx, $maxTx);
-                for ($i = 0; $i < $txCount; $i++) {
-                    $cat      = $weightPool[array_rand($weightPool)];
-                    $catName  = $cat->getName();
-                    $range    = self::CATEGORY_BUDGETS_EUR[$catName] ?? [5, 50];
-                    $amtEur   = $range[0] + lcg_value() * ($range[1] - $range[0]);
-                    $amount   = round($amtEur * $rate, $currency === 'BTC' ? 8 : 2);
+                for ($i = 0; $i < $txCount; ++$i) {
+                    $cat = $weightPool[array_rand($weightPool)];
+                    $catName = $cat->getName();
+                    $range = self::CATEGORY_BUDGETS_EUR[$catName] ?? [5, 50];
+                    $amtEur = $range[0] + lcg_value() * ($range[1] - $range[0]);
+                    $amount = round($amtEur * $rate, 'BTC' === $currency ? 8 : 2);
 
                     $daysInMonth = $monthStart->daysInMonth;
-                    $maxDay = $monthOffset === 0 ? $now->day : $daysInMonth;
-                    $date   = $monthStart->setDay(random_int(1, $maxDay));
+                    $maxDay = 0 === $monthOffset ? $now->day : $daysInMonth;
+                    $date = $monthStart->setDay(random_int(1, $maxDay));
 
                     $isDraft = random_int(1, 100) <= 5;
                     $this->createExpense($manager, $account, $cat, $user, $amount, $currency, $allowedCurrencies, $date, $isDraft);
@@ -224,7 +229,7 @@ class ExpenseFixtures extends BaseTransactionFixtures
         CarbonImmutable $date,
         bool $isDraft,
     ): void {
-        if ($category->getName() === 'Transfer' || $category->getName() === 'Debt') {
+        if ('Transfer' === $category->getName() || 'Debt' === $category->getName()) {
             return;
         }
 
@@ -232,7 +237,7 @@ class ExpenseFixtures extends BaseTransactionFixtures
             ->setAccount($account)
             ->setCategory($category)
             ->setOwner($user)
-            ->setAmount((string)$amount)
+            ->setAmount((string) $amount)
             ->setConvertedValues($this->convertAmount($amount, $currency, $allowedCurrencies))
             ->setExecutedAt($date)
             ->setCreatedAt($date)
@@ -247,4 +252,3 @@ class ExpenseFixtures extends BaseTransactionFixtures
         return array_merge(parent::getDependencies(), [AccountFixtures::class]);
     }
 }
-

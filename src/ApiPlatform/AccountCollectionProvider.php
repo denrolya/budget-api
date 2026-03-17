@@ -32,24 +32,24 @@ final readonly class AccountCollectionProvider implements ProviderInterface
     /**
      * @return iterable<Account>|null
      */
-    public function provide(Operation $operation, array $uriVariables = [], array $context = []): iterable|null
+    public function provide(Operation $operation, array $uriVariables = [], array $context = []): ?iterable
     {
         /** @var iterable<Account>|null $accounts */
         $accounts = $this->collectionProvider->provide($operation, $uriVariables, $context);
 
-        if ($accounts === null) {
+        if (null === $accounts) {
             return null;
         }
 
         $accountIdentifiers = [];
         foreach ($accounts as $account) {
             $accountId = $account->getId();
-            if ($accountId !== null) {
+            if (null !== $accountId) {
                 $accountIdentifiers[] = $accountId;
             }
         }
 
-        if ($accountIdentifiers === []) {
+        if ([] === $accountIdentifiers) {
             return $accounts;
         }
 
@@ -57,7 +57,7 @@ final readonly class AccountCollectionProvider implements ProviderInterface
 
         foreach ($accounts as $account) {
             $accountId = $account->getId();
-            if ($accountId !== null) {
+            if (null !== $accountId) {
                 $account->setDraftCount($draftCounts[$accountId] ?? 0);
             }
         }

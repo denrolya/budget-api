@@ -1,12 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests;
 
 use PHPUnit\Runner\AfterTestHook;
 
 class ResourceUsageListener implements AfterTestHook
 {
-
     private bool $enabled;
 
     public function __construct(bool $enabled)
@@ -20,12 +21,12 @@ class ResourceUsageListener implements AfterTestHook
             $memoryUsage = memory_get_usage(true) / 1024 / 1024;
             $peakMemoryUsage = memory_get_peak_usage(true) / 1024 / 1024;
 
-            echo sprintf(
+            echo \sprintf(
                 "\n[INFO] Test '%s' finished. Time: %.2f seconds. Memory usage: %.2f MB (Peak: %.2f MB)\n",
                 $test,
                 $time,
                 $memoryUsage,
-                $peakMemoryUsage
+                $peakMemoryUsage,
             );
         }
     }

@@ -10,6 +10,7 @@ use App\Entity\Budget;
 use App\Entity\BudgetLine;
 use App\Repository\BudgetRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use InvalidArgumentException;
 
 /** @implements ProcessorInterface<mixed, Budget> */
 final class BudgetDataPersister implements ProcessorInterface
@@ -23,7 +24,7 @@ final class BudgetDataPersister implements ProcessorInterface
     public function process(mixed $data, Operation $operation, array $uriVariables = [], array $context = []): Budget
     {
         if (!$data instanceof Budget) {
-            throw new \InvalidArgumentException('Expected Budget entity.');
+            throw new InvalidArgumentException('Expected Budget entity.');
         }
 
         $isCreate = !isset($context['previous_data']);
@@ -42,13 +43,13 @@ final class BudgetDataPersister implements ProcessorInterface
     {
         $copiedFromId = $budget->getCopiedFromId();
 
-        if ($copiedFromId === null) {
+        if (null === $copiedFromId) {
             return;
         }
 
         $sourceBudget = $this->budgetRepository->find($copiedFromId);
 
-        if ($sourceBudget === null) {
+        if (null === $sourceBudget) {
             return;
         }
 

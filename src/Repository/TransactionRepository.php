@@ -1,14 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
-use App\Pagination\Paginator;
 use Carbon\CarbonInterface;
+use DateTimeInterface;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\QueryBuilder;
+use Doctrine\ORM\Tools\Pagination\CountWalker;
+use Doctrine\ORM\Tools\Pagination\Paginator as DoctrinePaginator;
 use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
 
@@ -17,11 +21,12 @@ use InvalidArgumentException;
  *
  * @method Transaction|null find($id, $lockMode = null, $lockVersion = null)
  * @method Transaction|null findOneBy(array $criteria, array $orderBy = null)
- * @method Transaction[]    findAll()
- * @method Transaction[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @method Transaction[] findAll()
+ * @method Transaction[] findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
  */
 class TransactionRepository extends ServiceEntityRepository
 {
+    public const PER_PAGE = 30;
     public const ORDER_FIELD = 'executedAt';
     public const ORDER = 'DESC';
 
@@ -51,7 +56,7 @@ class TransactionRepository extends ServiceEntityRepository
         array $debts = [],
         ?array $currencies = null,
         string $orderField = self::ORDER_FIELD,
-        string $order = self::ORDER
+        string $order = self::ORDER,
     ): array {
         return $this->getBaseQueryBuilder(
             after: $after,
@@ -68,12 +73,15 @@ class TransactionRepository extends ServiceEntityRepository
             debts: $debts,
             currencies: $currencies,
             orderField: $orderField,
-            order: $order
+            order: $order,
         )
             ->getQuery()
             ->getResult();
     }
 
+    /**
+     * @return DoctrinePaginator<Transaction>
+     */
     public function getPaginator(
         ?CarbonInterface $after,
         ?CarbonInterface $before,
@@ -88,13 +96,13 @@ class TransactionRepository extends ServiceEntityRepository
         ?float $amountLte = null,
         ?array $debts = null,
         ?array $currencies = null,
-        int $limit = Paginator::PER_PAGE,
+        int $limit = self::PER_PAGE,
         int $page = 1,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER,
         bool $excludeTransferTransactions = false,
-    ): Paginator {
-        $qb = $this->getBaseQueryBuilder(
+    ): DoctrinePaginator {
+        $queryBuilder = $this->getBaseQueryBuilder(
             after: $after,
             before: $before,
             affectingProfitOnly: $affectingProfitOnly,
@@ -113,7 +121,22 @@ class TransactionRepository extends ServiceEntityRepository
             excludeTransferTransactions: $excludeTransferTransactions,
         );
 
-        return (new Paginator($qb, $limit))->paginate($page);
+        $firstResult = max(0, $page - 1) * $limit;
+        $query = $queryBuilder
+            ->setFirstResult($firstResult)
+            ->setMaxResults($limit)
+            ->getQuery();
+
+        if (0 === \count($queryBuilder->getDQLPart('join'))) {
+            $query->setHint(CountWalker::HINT_DISTINCT, false);
+        }
+
+        $paginator = new DoctrinePaginator($query, true);
+
+        $hasHaving = \count($queryBuilder->getDQLPart('having') ?? []) > 0;
+        $paginator->setUseOutputWalkers($hasHaving);
+
+        return $paginator;
     }
 
     /**
@@ -211,11 +234,11 @@ class TransactionRepository extends ServiceEntityRepository
                 ->getSingleScalarResult() ?? 0);
         };
 
-        if ($type === Transaction::INCOME) {
+        if (Transaction::INCOME === $type) {
             return $sum(Transaction::INCOME);
         }
 
-        if ($type === Transaction::EXPENSE) {
+        if (Transaction::EXPENSE === $type) {
             return -$sum(Transaction::EXPENSE);
         }
 
@@ -225,11 +248,12 @@ class TransactionRepository extends ServiceEntityRepository
 
     /**
      * @param int[] $accountIdentifiers
+     *
      * @return array<int, int> Map of accountId → draft count
      */
     public function countDraftsByAccountIdentifiers(array $accountIdentifiers): array
     {
-        if ($accountIdentifiers === []) {
+        if ([] === $accountIdentifiers) {
             return [];
         }
 
@@ -277,33 +301,33 @@ class TransactionRepository extends ServiceEntityRepository
         $orderField = $this->assertOrderField($orderField);
         $order = $this->assertOrderDirection($order);
 
-        if (!is_string($type) || $type === '') {
+        if (!\is_string($type) || '' === $type) {
             $type = null;
         }
 
-        $qb = $this->createQueryBuilder('t')
+        $queryBuilder = $this->createQueryBuilder('t')
             ->orderBy("t.$orderField", $order)
             ->addOrderBy('t.id', $order);
 
-        $this->applyDraftFilter($qb, $isDraft);
-        $this->applyExecutedAtRange($qb, $after, $before);
-        $this->applyTypeFilter($qb, $type);
-        $this->applyInFilters($qb, $accounts, $categories, $excludedCategories, $debts);
-        $this->applyAffectingProfitFilter($qb, $affectingProfitOnly);
-        $this->applyNoteFilter($qb, $note);
-        $this->applyAmountRangeFilter($qb, $amountGte, $amountLte);
-        $this->applyCurrencyFilter($qb, $currencies);
+        $this->applyDraftFilter($queryBuilder, $isDraft);
+        $this->applyExecutedAtRange($queryBuilder, $after, $before);
+        $this->applyTypeFilter($queryBuilder, $type);
+        $this->applyInFilters($queryBuilder, $accounts, $categories, $excludedCategories, $debts);
+        $this->applyAffectingProfitFilter($queryBuilder, $affectingProfitOnly);
+        $this->applyNoteFilter($queryBuilder, $note);
+        $this->applyAmountRangeFilter($queryBuilder, $amountGte, $amountLte);
+        $this->applyCurrencyFilter($queryBuilder, $currencies);
 
         if ($excludeTransferTransactions) {
-            $qb->andWhere('t.transfer IS NULL');
+            $queryBuilder->andWhere('t.transfer IS NULL');
         }
 
-        return $qb;
+        return $queryBuilder;
     }
 
     private function assertOrderField(string $orderField): string
     {
-        if (!in_array($orderField, self::ALLOWED_ORDER_FIELDS, true)) {
+        if (!\in_array($orderField, self::ALLOWED_ORDER_FIELDS, true)) {
             throw new InvalidArgumentException('Invalid order field');
         }
 
@@ -314,130 +338,130 @@ class TransactionRepository extends ServiceEntityRepository
     {
         $order = strtoupper($order);
 
-        if (!in_array($order, self::ALLOWED_ORDER_DIRECTIONS, true)) {
+        if (!\in_array($order, self::ALLOWED_ORDER_DIRECTIONS, true)) {
             throw new InvalidArgumentException('Invalid order direction');
         }
 
         return $order;
     }
 
-    private function applyDraftFilter(QueryBuilder $qb, ?bool $isDraft): void
+    private function applyDraftFilter(QueryBuilder $queryBuilder, ?bool $isDraft): void
     {
-        if ($isDraft === null) {
+        if (null === $isDraft) {
             return;
         }
 
-        $qb->andWhere('t.isDraft = :isDraft')
+        $queryBuilder->andWhere('t.isDraft = :isDraft')
             ->setParameter('isDraft', $isDraft);
     }
 
-    private function applyTypeFilter(QueryBuilder $qb, ?string $type): void
+    private function applyTypeFilter(QueryBuilder $queryBuilder, ?string $type): void
     {
-        if ($type === null) {
+        if (null === $type) {
             return;
         }
 
-        if (!in_array($type, [Transaction::EXPENSE, Transaction::INCOME], true)) {
+        if (!\in_array($type, [Transaction::EXPENSE, Transaction::INCOME], true)) {
             throw new InvalidArgumentException('Invalid transaction type');
         }
 
-        if ($type === Transaction::EXPENSE) {
-            $qb->andWhere($qb->expr()->isInstanceOf('t', Expense::class));
+        if (Transaction::EXPENSE === $type) {
+            $queryBuilder->andWhere($queryBuilder->expr()->isInstanceOf('t', Expense::class));
 
             return;
         }
 
-        $qb->andWhere($qb->expr()->isInstanceOf('t', Income::class));
+        $queryBuilder->andWhere($queryBuilder->expr()->isInstanceOf('t', Income::class));
     }
 
     private function applyInFilters(
-        QueryBuilder $qb,
+        QueryBuilder $queryBuilder,
         ?array $accounts,
         ?array $categories,
         ?array $excludedCategories,
-        ?array $debts
+        ?array $debts,
     ): void {
         if ($accounts) {
-            $qb->andWhere('t.account IN (:accounts)')
+            $queryBuilder->andWhere('t.account IN (:accounts)')
                 ->setParameter('accounts', $accounts);
         }
 
         if ($categories) {
-            $qb->andWhere('t.category IN (:categories)')
+            $queryBuilder->andWhere('t.category IN (:categories)')
                 ->setParameter('categories', $categories);
         }
 
         if ($excludedCategories) {
-            $qb->andWhere('t.category NOT IN (:excludedCategories)')
+            $queryBuilder->andWhere('t.category NOT IN (:excludedCategories)')
                 ->setParameter('excludedCategories', $excludedCategories);
         }
 
         if ($debts) {
-            $qb->andWhere('t.debt IN (:debts)')
+            $queryBuilder->andWhere('t.debt IN (:debts)')
                 ->setParameter('debts', $debts);
         }
     }
 
-    private function applyAffectingProfitFilter(QueryBuilder $qb, bool $affectingProfitOnly): void
+    private function applyAffectingProfitFilter(QueryBuilder $queryBuilder, bool $affectingProfitOnly): void
     {
         if (!$affectingProfitOnly) {
             return;
         }
 
         // join only when needed
-        $qb->innerJoin('t.category', 'c')
+        $queryBuilder->innerJoin('t.category', 'c')
             ->andWhere('c.isAffectingProfit = :affectingProfitOnly')
             ->setParameter('affectingProfitOnly', true);
     }
 
-    private function applyNoteFilter(QueryBuilder $qb, ?string $note): void
+    private function applyNoteFilter(QueryBuilder $queryBuilder, ?string $note): void
     {
-        if (!is_string($note)) {
+        if (!\is_string($note)) {
             return;
         }
 
         $needle = trim($note);
-        if ($needle === '') {
+        if ('' === $needle) {
             return;
         }
 
         // escape LIKE special chars: \ % _
         $needle = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $needle);
 
-        $qb->andWhere('t.note LIKE :note')
-            ->setParameter('note', '%'.$needle.'%');
+        $queryBuilder->andWhere('t.note LIKE :note')
+            ->setParameter('note', '%' . $needle . '%');
     }
 
-    private function applyAmountRangeFilter(QueryBuilder $qb, ?float $amountGte, ?float $amountLte): void
+    private function applyAmountRangeFilter(QueryBuilder $queryBuilder, ?float $amountGte, ?float $amountLte): void
     {
-        if ($amountGte !== null) {
-            $qb->andWhere('t.amount >= :amountGte')
+        if (null !== $amountGte) {
+            $queryBuilder->andWhere('t.amount >= :amountGte')
                 ->setParameter('amountGte', $amountGte);
         }
 
-        if ($amountLte !== null) {
-            $qb->andWhere('t.amount <= :amountLte')
+        if (null !== $amountLte) {
+            $queryBuilder->andWhere('t.amount <= :amountLte')
                 ->setParameter('amountLte', $amountLte);
         }
     }
 
     private function applyExecutedAtRange(
-        QueryBuilder $qb,
+        QueryBuilder $queryBuilder,
         ?CarbonInterface $after,
-        ?CarbonInterface $before
+        ?CarbonInterface $before,
     ): void {
-        if ($after !== null) {
-            $qb->andWhere('t.executedAt >= :afterStart')
+        if (null !== $after) {
+            $queryBuilder->andWhere('t.executedAt >= :afterStart')
                 ->setParameter('afterStart', $after->copy()->startOfDay());
         }
 
-        if ($before !== null) {
-            $qb->andWhere('t.executedAt < :beforeEndExclusive')
+        if (null !== $before) {
+            $queryBuilder->andWhere('t.executedAt < :beforeEndExclusive')
                 ->setParameter('beforeEndExclusive', $before->copy()->addDay()->startOfDay());
         }
     }
 
-    private function applyCurrencyFilter(QueryBuilder $qb, ?array $currencies): void
+    private function applyCurrencyFilter(QueryBuilder $queryBuilder, ?array $currencies): void
     {
         if (!$currencies) {
             return;
@@ -447,12 +471,12 @@ class TransactionRepository extends ServiceEntityRepository
         array_walk_recursive($currencies, static function (mixed $v) use (&$flat): void { $flat[] = $v; });
 
         $normalized = [];
-        foreach ($flat as $c) {
-            if (!is_string($c)) {
+        foreach ($flat as $currencyValue) {
+            if (!\is_string($currencyValue)) {
                 continue;
             }
-            $code = strtoupper(trim($c));
-            if ($code === '') {
+            $code = strtoupper(trim($currencyValue));
+            if ('' === $code) {
                 continue;
             }
             if (!preg_match('/^[A-Z]{3}$/', $code)) {
@@ -462,11 +486,11 @@ class TransactionRepository extends ServiceEntityRepository
         }
 
         $normalized = array_values(array_unique($normalized));
-        if ($normalized === []) {
+        if ([] === $normalized) {
             return;
         }
 
-        $qb->innerJoin('t.account', 'a')
+        $queryBuilder->innerJoin('t.account', 'a')
             ->andWhere('a.currency IN (:currencies)')
             ->setParameter('currencies', $normalized);
     }
@@ -500,11 +524,11 @@ class TransactionRepository extends ServiceEntityRepository
             $isDraft, $note, $amountGte, $amountLte, $debts, $currencies
         ): array {
             // When a conflicting type filter is already active, nothing will match.
-            if ($type !== null && $type !== $forType) {
+            if (null !== $type && $type !== $forType) {
                 return [];
             }
 
-            $qb = $this->getBaseQueryBuilder(
+            $queryBuilder = $this->getBaseQueryBuilder(
                 after: $after,
                 before: $before,
                 affectingProfitOnly: $affectingProfitOnly,
@@ -522,7 +546,7 @@ class TransactionRepository extends ServiceEntityRepository
 
             // Join account for native currency grouping. Doctrine allows a second join on
             // the same association with a different alias (e.g. applyCurrencyFilter uses 'a').
-            return $qb
+            return $queryBuilder
                 ->leftJoin('t.account', '_acnt')
                 ->select('DATE(t.executedAt) AS day, _acnt.currency AS currency, COUNT(t.id) AS cnt, SUM(t.amount) AS total')
                 ->resetDQLPart('orderBy')
@@ -532,27 +556,29 @@ class TransactionRepository extends ServiceEntityRepository
                 ->getArrayResult();
         };
 
-        $incomeRows  = $buildGrouped(Transaction::INCOME);
+        $incomeRows = $buildGrouped(Transaction::INCOME);
         $expenseRows = $buildGrouped(Transaction::EXPENSE);
 
         $pivoted = [];
 
+        /** @var array{day: string, currency: string, cnt: int|string, total: float|string|null} $row */
         foreach ($incomeRows as $row) {
-            $day = $row['day'];
-            $cur = $row['currency'];
+            $day = (string) $row['day'];
+            $currency = (string) $row['currency'];
             $pivoted[$day] ??= ['day' => $day, 'count' => 0, 'convertedValues' => []];
             $pivoted[$day]['count'] += (int) $row['cnt'];
-            $pivoted[$day]['convertedValues'][$cur] ??= ['income' => 0.0, 'expense' => 0.0];
-            $pivoted[$day]['convertedValues'][$cur]['income'] = (float) $row['total'];
+            $pivoted[$day]['convertedValues'][$currency] ??= ['income' => 0.0, 'expense' => 0.0];
+            $pivoted[$day]['convertedValues'][$currency]['income'] = (float) $row['total'];
         }
 
+        /** @var array{day: string, currency: string, cnt: int|string, total: float|string|null} $row */
         foreach ($expenseRows as $row) {
-            $day = $row['day'];
-            $cur = $row['currency'];
+            $day = (string) $row['day'];
+            $currency = (string) $row['currency'];
             $pivoted[$day] ??= ['day' => $day, 'count' => 0, 'convertedValues' => []];
             $pivoted[$day]['count'] += (int) $row['cnt'];
-            $pivoted[$day]['convertedValues'][$cur] ??= ['income' => 0.0, 'expense' => 0.0];
-            $pivoted[$day]['convertedValues'][$cur]['expense'] = (float) $row['total'];
+            $pivoted[$day]['convertedValues'][$currency] ??= ['income' => 0.0, 'expense' => 0.0];
+            $pivoted[$day]['convertedValues'][$currency]['expense'] = (float) $row['total'];
         }
 
         ksort($pivoted);
@@ -564,15 +590,15 @@ class TransactionRepository extends ServiceEntityRepository
      * Returns the number of distinct calendar months (YYYY-MM) that had at least one
      * transaction per category, for the given date range.
      *
-     * @return array<int, int>  categoryId → active month count
+     * @return array<int, int> categoryId → active month count
      */
-    public function getCategoryActiveMonths(\DateTimeInterface $start, \DateTimeInterface $end): array
+    public function getCategoryActiveMonths(DateTimeInterface $start, DateTimeInterface $end): array
     {
         $rows = $this->createQueryBuilder('t')
             ->innerJoin('t.category', 'c')
             ->select(
                 'IDENTITY(t.category) AS category_id',
-                'DATE(t.executedAt) AS day'
+                'DATE(t.executedAt) AS day',
             )
             ->andWhere('t.executedAt >= :start')
             ->andWhere('t.executedAt <= :end')
@@ -585,15 +611,16 @@ class TransactionRepository extends ServiceEntityRepository
             ->getArrayResult();
 
         $monthsByCat = [];
+        /** @var array{category_id: int|string, day: string} $row */
         foreach ($rows as $row) {
             $catId = (int) $row['category_id'];
-            $month = substr((string) $row['day'], 0, 7); // 'YYYY-MM'
+            $month = substr($row['day'], 0, 7); // 'YYYY-MM'
             $monthsByCat[$catId][$month] = true;
         }
 
         $result = [];
         foreach ($monthsByCat as $catId => $months) {
-            $result[$catId] = count($months);
+            $result[$catId] = \count($months);
         }
 
         return $result;
@@ -607,7 +634,7 @@ class TransactionRepository extends ServiceEntityRepository
      *
      * @return array<array{categoryId: int, convertedValues: array<string, array{income: float, expense: float}>}>
      */
-    public function getActualsByCategoryForPeriod(\DateTimeInterface $start, \DateTimeInterface $end): array
+    public function getActualsByCategoryForPeriod(DateTimeInterface $start, DateTimeInterface $end): array
     {
         $rows = $this->createQueryBuilder('t')
             ->innerJoin('t.category', 'c')
@@ -629,13 +656,15 @@ class TransactionRepository extends ServiceEntityRepository
             ->getArrayResult();
 
         $pivoted = [];
+        /** @var array{category_id: int|string, transaction_type: string, converted_values: array<string, float|int|string>|null} $row */
         foreach ($rows as $row) {
             $catId = (int) $row['category_id'];
-            $type  = $row['transaction_type'];
+            $type = $row['transaction_type'];
             $pivoted[$catId] ??= ['categoryId' => $catId, 'convertedValues' => []];
-            foreach ((array) $row['converted_values'] as $currency => $value) {
-                $pivoted[$catId]['convertedValues'][$currency] ??= ['income' => 0.0, 'expense' => 0.0];
-                $pivoted[$catId]['convertedValues'][$currency][$type] += (float) $value;
+            $convertedValues = $row['converted_values'] ?? [];
+            foreach ($convertedValues as $currencyKey => $value) {
+                $pivoted[$catId]['convertedValues'][$currencyKey] ??= ['income' => 0.0, 'expense' => 0.0];
+                $pivoted[$catId]['convertedValues'][$currencyKey][$type] += (float) $value;
             }
         }
 
@@ -648,9 +677,9 @@ class TransactionRepository extends ServiceEntityRepository
      * using the same DATE() trick as getCategoryActiveMonths.
      *
      * @return array<int, array<string, array<string, array{income: float, expense: float}>>>
-     *         [catId][YYYY-MM][currency] → {income, expense}
+     *                                                                                        [catId][YYYY-MM][currency] → {income, expense}
      */
-    public function getActualsByCategoryByMonth(\DateTimeInterface $start, \DateTimeInterface $end): array
+    public function getActualsByCategoryByMonth(DateTimeInterface $start, DateTimeInterface $end): array
     {
         $rows = $this->createQueryBuilder('t')
             ->innerJoin('t.account', 'a')
@@ -659,8 +688,8 @@ class TransactionRepository extends ServiceEntityRepository
                 'IDENTITY(t.category) AS category_id',
                 'DATE(t.executedAt) AS day',
                 'a.currency AS currency',
-                "SUM(CASE WHEN t INSTANCE OF " . Income::class . " THEN t.amount ELSE 0 END) AS income",
-                "SUM(CASE WHEN t INSTANCE OF " . Expense::class . " THEN t.amount ELSE 0 END) AS expense"
+                'SUM(CASE WHEN t INSTANCE OF ' . Income::class . ' THEN t.amount ELSE 0 END) AS income',
+                'SUM(CASE WHEN t INSTANCE OF ' . Expense::class . ' THEN t.amount ELSE 0 END) AS expense',
             )
             ->andWhere('t.executedAt >= :start')
             ->andWhere('t.executedAt <= :end')
@@ -677,14 +706,15 @@ class TransactionRepository extends ServiceEntityRepository
 
         // Aggregate day-level rows into [catId][YYYY-MM][currency] monthly totals
         $result = [];
+        /** @var array{category_id: int|string, day: string, currency: string, income: float|string, expense: float|string} $row */
         foreach ($rows as $row) {
             $catId = (int) $row['category_id'];
-            $month = substr((string) $row['day'], 0, 7); // 'YYYY-MM'
-            $cur   = $row['currency'];
+            $month = substr($row['day'], 0, 7); // 'YYYY-MM'
+            $currency = $row['currency'];
 
-            $result[$catId][$month][$cur] ??= ['income' => 0.0, 'expense' => 0.0];
-            $result[$catId][$month][$cur]['income']  += (float) $row['income'];
-            $result[$catId][$month][$cur]['expense'] += (float) $row['expense'];
+            $result[$catId][$month][$currency] ??= ['income' => 0.0, 'expense' => 0.0];
+            $result[$catId][$month][$currency]['income'] += (float) $row['income'];
+            $result[$catId][$month][$currency]['expense'] += (float) $row['expense'];
         }
 
         return $result;
@@ -696,7 +726,7 @@ class TransactionRepository extends ServiceEntityRepository
      *
      * @return array<array{categoryId: int, days: array<array{day: string, convertedValues: array<string, array{income: float, expense: float}>}>}>
      */
-    public function getCategoryDailyStatsForPeriod(\DateTimeInterface $start, \DateTimeInterface $end): array
+    public function getCategoryDailyStatsForPeriod(DateTimeInterface $start, DateTimeInterface $end): array
     {
         $rows = $this->createQueryBuilder('t')
             ->innerJoin('t.category', 'c')
@@ -718,15 +748,17 @@ class TransactionRepository extends ServiceEntityRepository
             ->getArrayResult();
 
         $byCat = [];
+        /** @var array{category_id: int|string, day: string, transaction_type: string, converted_values: array<string, float|int|string>|null} $row */
         foreach ($rows as $row) {
             $catId = (int) $row['category_id'];
-            $day   = $row['day'];
-            $type  = $row['transaction_type'];
+            $day = $row['day'];
+            $type = $row['transaction_type'];
             $byCat[$catId] ??= [];
             $byCat[$catId][$day] ??= ['day' => $day, 'convertedValues' => []];
-            foreach ((array) $row['converted_values'] as $currency => $value) {
-                $byCat[$catId][$day]['convertedValues'][$currency] ??= ['income' => 0.0, 'expense' => 0.0];
-                $byCat[$catId][$day]['convertedValues'][$currency][$type] += (float) $value;
+            $convertedValues = $row['converted_values'] ?? [];
+            foreach ($convertedValues as $currencyKey => $value) {
+                $byCat[$catId][$day]['convertedValues'][$currencyKey] ??= ['income' => 0.0, 'expense' => 0.0];
+                $byCat[$catId][$day]['convertedValues'][$currencyKey][$type] += (float) $value;
             }
         }
 

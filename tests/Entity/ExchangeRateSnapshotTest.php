@@ -5,33 +5,33 @@ declare(strict_types=1);
 namespace App\Tests\Entity;
 
 use App\Entity\ExchangeRateSnapshot;
-use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use PHPUnit\Framework\TestCase;
 
 class ExchangeRateSnapshotTest extends TestCase
 {
     private function makeSnapshot(
-        string $usdPerEur = null,
-        string $hufPerEur = null,
-        string $uahPerEur = null,
-        string $eurPerBtc = null,
-        string $eurPerEth = null,
+        ?string $usdPerEur = null,
+        ?string $hufPerEur = null,
+        ?string $uahPerEur = null,
+        ?string $eurPerBtc = null,
+        ?string $eurPerEth = null,
     ): ExchangeRateSnapshot {
         $snapshot = new ExchangeRateSnapshot();
 
-        if ($usdPerEur !== null) {
+        if (null !== $usdPerEur) {
             $snapshot->setUsdPerEur($usdPerEur);
         }
-        if ($hufPerEur !== null) {
+        if (null !== $hufPerEur) {
             $snapshot->setHufPerEur($hufPerEur);
         }
-        if ($uahPerEur !== null) {
+        if (null !== $uahPerEur) {
             $snapshot->setUahPerEur($uahPerEur);
         }
-        if ($eurPerBtc !== null) {
+        if (null !== $eurPerBtc) {
             $snapshot->setEurPerBtc($eurPerBtc);
         }
-        if ($eurPerEth !== null) {
+        if (null !== $eurPerEth) {
             $snapshot->setEurPerEth($eurPerEth);
         }
 
@@ -452,7 +452,7 @@ class ExchangeRateSnapshotTest extends TestCase
     public function testSetAndGetEffectiveAt(): void
     {
         $snapshot = new ExchangeRateSnapshot();
-        $date = new \DateTimeImmutable('2024-01-15 00:00:00');
+        $date = new DateTimeImmutable('2024-01-15 00:00:00');
         $snapshot->setEffectiveAt($date);
 
         self::assertEquals($date, $snapshot->getEffectiveAt());

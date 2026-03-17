@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\DataFixtures\Dev;
 
 use App\Entity\Account;
@@ -7,8 +10,8 @@ use App\Entity\CashAccount;
 use App\Entity\InternetAccount;
 use App\Entity\Transfer;
 use App\Entity\User;
-use App\EventListener\TransactionListener;
 use App\EventListener\DebtConvertedValueListener;
+use App\EventListener\TransactionListener;
 use App\Service\TransferService;
 use Carbon\CarbonImmutable;
 use Doctrine\Persistence\ObjectManager;
@@ -70,7 +73,7 @@ class TransferFixtures extends BaseTransactionFixtures
         $transfers = [];
 
         // Monthly: Monobank UAH → Savings EUR (savings)
-        for ($i = 0; $i < 15; $i++) {
+        for ($i = 0; $i < 15; ++$i) {
             $date = $now->subMonths($i)->setDay(random_int(25, 28))->setTime(19, 0);
             if ($date->gt($now)) {
                 continue;
@@ -89,7 +92,7 @@ class TransferFixtures extends BaseTransactionFixtures
         }
 
         // Monthly: Monobank UAH → Cash UAH (cash withdrawal)
-        for ($i = 0; $i < 12; $i++) {
+        for ($i = 0; $i < 12; ++$i) {
             $date = $now->subMonths($i)->setDay(random_int(1, 5))->setTime(10, 30);
             if ($date->gt($now)) {
                 continue;

@@ -10,6 +10,8 @@ use App\Bank\SyncMethod;
 use App\Entity\BankIntegration;
 use App\Entity\User;
 use App\Tests\BaseApiTestCase;
+use DateTimeImmutable;
+use RuntimeException;
 
 /**
  * API contract tests for BankIntegration sync endpoint.
@@ -29,7 +31,7 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
         parent::setUp();
 
         $this->monobankIntegrationId = $this->createIntegration(BankProvider::Monobank, SyncMethod::Webhook, $this->testUser);
-        $this->wiseIntegrationId    = $this->createIntegration(BankProvider::Wise, SyncMethod::Polling, $this->testUser);
+        $this->wiseIntegrationId = $this->createIntegration(BankProvider::Wise, SyncMethod::Polling, $this->testUser);
     }
 
     // -------------------------------------------------------------------------
@@ -45,8 +47,8 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
             ->setOwner($owner)
             ->setIsActive(true);
 
-        $this->em->persist($integration);
-        $this->em->flush();
+        $this->entityManager()->persist($integration);
+        $this->entityManager()->flush();
 
         return (int) $integration->getId();
     }
@@ -67,7 +69,7 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
     {
         $this->client->request('POST', $this->url($this->wiseIntegrationId), [
             'headers' => ['authorization' => null],
-            'json'    => [],
+            'json' => [],
         ]);
 
         self::assertResponseStatusCodeSame(401);
@@ -90,7 +92,7 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
     {
         $user2 = new User();
         $user2->setUsername('sync_other_user')->setPassword('pw')->setRoles(['ROLE_USER']);
-        $this->em->persist($user2);
+        $this->entityManager()->persist($user2);
 
         $otherId = $this->createIntegration(BankProvider::Wise, SyncMethod::Polling, $user2);
 
@@ -134,7 +136,7 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
     {
         $mock = $this->createMock(BankSyncService::class);
         $mock->method('sync')->willReturn(7);
-        $this->client->getContainer()->set(BankSyncService::class, $mock);
+        $this->container()->set(BankSyncService::class, $mock);
 
         $response = $this->client->request('POST', $this->url($this->wiseIntegrationId), ['json' => []]);
 
@@ -157,12 +159,12 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
             ->method('sync')
             ->with(
                 self::isInstanceOf(BankIntegration::class),
-                self::callback(fn ($d) => $d instanceof \DateTimeImmutable && $d->format('Y-m-d') === '2026-01-01'),
-                self::callback(fn ($d) => $d instanceof \DateTimeImmutable && $d->format('Y-m-d') === '2026-01-31'),
+                self::callback(static fn ($d) => $d instanceof DateTimeImmutable && '2026-01-01' === $d->format('Y-m-d')),
+                self::callback(static fn ($d) => $d instanceof DateTimeImmutable && '2026-01-31' === $d->format('Y-m-d')),
             )
             ->willReturn(3);
 
-        $this->client->getContainer()->set(BankSyncService::class, $mock);
+        $this->container()->set(BankSyncService::class, $mock);
 
         $response = $this->client->request(
             'POST',
@@ -182,8 +184,8 @@ class BankIntegrationSyncActionTest extends BaseApiTestCase
     public function testBankApiErrorReturns502(): void
     {
         $mock = $this->createMock(BankSyncService::class);
-        $mock->method('sync')->willThrowException(new \RuntimeException('Wise API timeout'));
-        $this->client->getContainer()->set(BankSyncService::class, $mock);
+        $mock->method('sync')->willThrowException(new RuntimeException('Wise API timeout'));
+        $this->container()->set(BankSyncService::class, $mock);
 
         $response = $this->client->request('POST', $this->url($this->wiseIntegrationId), ['json' => []]);
 

@@ -1,11 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\ApiPlatform\Action;
 
 use App\Bank\BankSyncService;
 use App\Entity\BankIntegration;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Exception;
+use LogicException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,6 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\AsController;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Throwable;
 
 #[AsController]
 final class BankIntegrationSyncAction extends AbstractController
@@ -25,6 +30,7 @@ final class BankIntegrationSyncAction extends AbstractController
 
     /**
      * @see \App\Tests\ApiPlatform\Action\BankIntegrationSyncActionTest
+     *
      * @tested testUnauthenticatedGets401
      * @tested testUnknownIntegrationReturns404
      * @tested testWrongOwnerReturns403
@@ -53,15 +59,15 @@ final class BankIntegrationSyncAction extends AbstractController
             $to = $request->query->get('to')
                 ? new DateTimeImmutable($request->query->get('to'))
                 : null;
-        } catch (\Exception) {
+        } catch (Exception) {
             return new JsonResponse(['error' => 'Invalid date format for "from" or "to". Expected YYYY-MM-DD.'], Response::HTTP_BAD_REQUEST);
         }
 
         try {
             $created = $this->syncService->sync($integration, $from, $to);
-        } catch (\LogicException $e) {
+        } catch (LogicException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_GATEWAY);
         }
 

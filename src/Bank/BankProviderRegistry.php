@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Bank;
 
 use RuntimeException;
@@ -26,7 +28,7 @@ class BankProviderRegistry
         $key = $bankProvider->value;
 
         if (!isset($this->providers[$key])) {
-            throw new RuntimeException(sprintf('No provider registered for bank "%s".', $key));
+            throw new RuntimeException(\sprintf('No provider registered for bank "%s".', $key));
         }
 
         return $this->providers[$key];

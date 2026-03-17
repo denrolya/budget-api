@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Attribute\MapCarbonDate;
@@ -59,13 +61,14 @@ class StatisticsController extends AbstractFOSRestController
                     new OA\Property(property: 'before', type: 'string', format: 'date-time'),
                     new OA\Property(property: 'expense', type: 'number', format: 'float'),
                     new OA\Property(property: 'income', type: 'number', format: 'float'),
-                ]))
+                ])),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
+     *
      * @tested testValueByPeriodWithoutArguments
      * @tested testValueByPeriodWithBeforeAndAfter
      * @tested testValueByPeriodWithOneDayInterval
@@ -92,7 +95,7 @@ class StatisticsController extends AbstractFOSRestController
         array $accounts,
         array $categories,
     ): View {
-        $expandedCategories = $categories !== []
+        $expandedCategories = [] !== $categories
             ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type)
             : [];
 
@@ -101,9 +104,9 @@ class StatisticsController extends AbstractFOSRestController
                 period: CarbonPeriod::create($after, $interval, $before)->excludeEndDate(),
                 type: $type,
                 // [0] sentinel: categories were requested but expansion found nothing → force zero results
-                categories: $categories !== [] ? ($expandedCategories ?: [0]) : [],
-                accounts: $accounts
-            )
+                categories: [] !== $categories ? ([] !== $expandedCategories ? $expandedCategories : [0]) : [],
+                accounts: $accounts,
+            ),
         );
     }
 
@@ -126,10 +129,11 @@ class StatisticsController extends AbstractFOSRestController
         responses: [
             new OA\Response(response: 200, description: 'Category tree with values'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
+     *
      * @tested testCategoryTreeWithBeforeAndAfter
      * @tested testCategoryTreeWithBeforeAfterAndType
      * @tested testCategoryTree_withoutAuth_returns401
@@ -147,7 +151,7 @@ class StatisticsController extends AbstractFOSRestController
             $statisticsManager->generateCategoryTreeWithValues(
                 transactions: $transactions,
                 type: $type,
-            )
+            ),
         );
     }
 
@@ -172,10 +176,11 @@ class StatisticsController extends AbstractFOSRestController
         responses: [
             new OA\Response(response: 200, description: 'Category timeline data'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
+     *
      * @tested testCategoryTimelineWithoutCategoriesDoesNotCrash
      * @tested testCategoryTimelineWithCategoryFilterReturnsCategoryData
      */
@@ -191,7 +196,7 @@ class StatisticsController extends AbstractFOSRestController
         $transactions = $transactionRepo->getList(
             after: $after,
             before: $before,
-            categories: ($categories !== null && $categories !== []) ? $categoryRepo->getCategoriesWithDescendantsByType($categories) : $categories,
+            categories: (null !== $categories && [] !== $categories) ? $categoryRepo->getCategoriesWithDescendantsByType($categories) : $categories,
             affectingProfitOnly: false,
         );
 
@@ -200,7 +205,7 @@ class StatisticsController extends AbstractFOSRestController
                 new CarbonPeriod($after, $interval, $before),
                 $categories,
                 $transactions,
-            )
+            ),
         );
     }
 
@@ -223,10 +228,11 @@ class StatisticsController extends AbstractFOSRestController
         responses: [
             new OA\Response(response: 200, description: 'Account distribution data'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
+     *
      * @tested testAccountDistribution_returnsCorrectShape
      * @tested testAccountDistribution_incomeType_returnsDistribution
      * @tested testAccountDistribution_withoutAuth_returns401
@@ -240,12 +246,12 @@ class StatisticsController extends AbstractFOSRestController
     ): View {
         $this->disableSoftDeletable();
         /** @var TransactionRepository $repo */
-        $repo = $doctrine->getRepository(($type === 'expense') ? Expense::class : Income::class);
+        $repo = $doctrine->getRepository(('expense' === $type) ? Expense::class : Income::class);
 
         return $this->view(
             $statisticsManager->generateAccountDistributionStatistics(
-                $repo->getList(after: $after, before: $before, type: $type)
-            )
+                $repo->getList(after: $after, before: $before, type: $type),
+            ),
         );
     }
 
@@ -267,10 +273,11 @@ class StatisticsController extends AbstractFOSRestController
         responses: [
             new OA\Response(response: 200, description: 'Weekday distribution'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
+     *
      * @tested testByWeekdays_returnsCorrectShape
      * @tested testByWeekdays_withoutAuth_returns401
      */
@@ -283,8 +290,8 @@ class StatisticsController extends AbstractFOSRestController
     ): View {
         return $this->view(
             $statisticsManager->generateTransactionsValueByCategoriesByWeekdays(
-                $transactionRepo->getList(after: $after, before: $before, type: $type)
-            )
+                $transactionRepo->getList(after: $after, before: $before, type: $type),
+            ),
         );
     }
 
@@ -306,10 +313,11 @@ class StatisticsController extends AbstractFOSRestController
         responses: [
             new OA\Response(response: 200, description: 'Top value categories'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
+     *
      * @tested testTopValueCategory_returnsCorrectShape
      * @tested testTopValueCategory_withoutAuth_returns401
      */
@@ -322,8 +330,8 @@ class StatisticsController extends AbstractFOSRestController
     ): View {
         return $this->view(
             $statisticsManager->generateTopValueCategoryStatistics(
-                $transactionRepo->getList(after: $after, before: $before, type: $type)
-            )
+                $transactionRepo->getList(after: $after, before: $before, type: $type),
+            ),
         );
     }
 
@@ -351,10 +359,11 @@ class StatisticsController extends AbstractFOSRestController
         responses: [
             new OA\Response(response: 200, description: 'Average value data'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
+     *
      * @tested testAvg_returnsCorrectShape
      * @tested testAvg_withTypeFilter_returnsFilteredAverage
      * @tested testAvg_withAccountsFilter_restrictsResults
@@ -371,7 +380,7 @@ class StatisticsController extends AbstractFOSRestController
         array $accounts,
         array $categories,
     ): View {
-        $expandedCategories = $categories !== []
+        $expandedCategories = [] !== $categories
             ? $categoryRepo->getCategoriesWithDescendantsByType($categories, $type)
             : [];
 
@@ -380,12 +389,12 @@ class StatisticsController extends AbstractFOSRestController
             before: $before,
             type: $type,
             // [0] sentinel: categories were requested but expansion found nothing → force zero results
-            categories: $categories !== [] ? ($expandedCategories ?: [0]) : $categories,
+            categories: [] !== $categories ? ([] !== $expandedCategories ? $expandedCategories : [0]) : $categories,
             accounts: $accounts,
         );
 
         return $this->view(
-            $statisticsManager->averageByPeriod($transactions, new CarbonPeriod($after, $interval, $before))
+            $statisticsManager->averageByPeriod($transactions, new CarbonPeriod($after, $interval, $before)),
         );
     }
 
@@ -433,13 +442,14 @@ class StatisticsController extends AbstractFOSRestController
                         new OA\Property(property: 'expense', type: 'integer'),
                         new OA\Property(property: 'income', type: 'integer'),
                     ])),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\StatisticsControllerTest
+     *
      * @tested testDaily_returnsCorrectShape
      * @tested testDaily_withTypeFilter_returnsFilteredData
      * @tested testDaily_withAccountsFilter_restrictsResults
@@ -460,11 +470,11 @@ class StatisticsController extends AbstractFOSRestController
         ?string $note = null,
         bool $affectingProfit = false,
     ): View {
-        $amount    = $request->query->all('amount');
+        $amount = $request->query->all('amount');
         $amountGte = isset($amount['gte']) && is_numeric($amount['gte']) ? (float) $amount['gte'] : null;
         $amountLte = isset($amount['lte']) && is_numeric($amount['lte']) ? (float) $amount['lte'] : null;
 
-        $note = (is_string($note) && trim($note) !== '') ? trim($note) : null;
+        $note = (\is_string($note) && '' !== trim($note)) ? trim($note) : null;
 
         return $this->view([
             'data' => $transactionRepo->countByDay(

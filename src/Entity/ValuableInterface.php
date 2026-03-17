@@ -1,12 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 /**
  * Interface ValuableInterface
  * This interface describes entity which value can be converted using given field
- *
- * @package App\Entity
  */
 interface ValuableInterface
 {

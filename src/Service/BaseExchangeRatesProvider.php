@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use Carbon\CarbonInterface;
@@ -37,7 +39,6 @@ abstract class BaseExchangeRatesProvider
      *
      * This method must be implemented by child classes.
      *
-     * @return array
      * @throws InvalidArgumentException
      */
     abstract public function getLatest(): array;
@@ -45,9 +46,6 @@ abstract class BaseExchangeRatesProvider
     /**
      * Optional: Get historical exchange rates.
      * Child classes can override this if they support fetching historical rates.
-     *
-     * @param CarbonInterface $date
-     * @return array|null
      */
     public function getHistorical(CarbonInterface $date): ?array
     {

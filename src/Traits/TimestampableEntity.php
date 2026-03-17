@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Traits;
 
 use Carbon\CarbonImmutable;
@@ -9,12 +11,12 @@ use Gedmo\Mapping\Annotation as Gedmo;
 
 trait TimestampableEntity
 {
-    #[Gedmo\Timestampable(on: "create")]
-    #[ORM\Column(type: "datetime", nullable: false)]
+    #[Gedmo\Timestampable(on: 'create')]
+    #[ORM\Column(type: 'datetime', nullable: false)]
     protected ?DateTimeInterface $createdAt;
 
-    #[Gedmo\Timestampable(on: "update")]
-    #[ORM\Column(type: "datetime", nullable: false)]
+    #[Gedmo\Timestampable(on: 'update')]
+    #[ORM\Column(type: 'datetime', nullable: false)]
     protected ?DateTimeInterface $updatedAt;
 
     public function getUpdatedAt(): ?CarbonImmutable
@@ -33,7 +35,7 @@ trait TimestampableEntity
     {
         $this->setUpdatedAt(CarbonImmutable::now());
 
-        if ($this->getCreatedAt() === null) {
+        if (null === $this->getCreatedAt()) {
             $this->setCreatedAt(CarbonImmutable::now());
         }
     }

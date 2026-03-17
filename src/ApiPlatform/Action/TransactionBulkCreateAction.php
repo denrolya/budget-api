@@ -1,23 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\ApiPlatform\Action;
 
-use JsonException;
 use App\Entity\Expense;
 use App\Entity\Income;
 use App\Entity\Transaction;
 use App\Service\AssetsManager;
 use Doctrine\ORM\EntityManagerInterface;
+use JsonException;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\AsController;
+use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Serializer\Exception\ExceptionInterface;
 use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\ConstraintViolationInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
-use Symfony\Component\HttpKernel\Attribute\AsController;
-use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
+use Throwable;
 
 #[AsController]
 final readonly class TransactionBulkCreateAction
@@ -32,6 +35,7 @@ final readonly class TransactionBulkCreateAction
 
     /**
      * @see \App\Tests\ApiPlatform\Action\BulkTransactionCreateActionTest
+     *
      * @tested testUnauthorizedUserCannotBulkCreate
      * @tested testBulkCreateSuccessWithMixedTypes
      * @tested testBulkCreateFailsWhenPayloadIsNotArray
@@ -49,12 +53,12 @@ final readonly class TransactionBulkCreateAction
         $raw = $request->getContent();
 
         try {
-            $payload = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+            $payload = json_decode($raw, true, 512, \JSON_THROW_ON_ERROR);
         } catch (JsonException) {
             throw new BadRequestHttpException('Invalid JSON body');
         }
 
-        if (!is_array($payload)) {
+        if (!\is_array($payload)) {
             throw new BadRequestHttpException('Expected JSON array of transactions');
         }
 
@@ -62,13 +66,13 @@ final readonly class TransactionBulkCreateAction
         $errors = [];
 
         foreach ($payload as $index => $item) {
-            if (!is_array($item)) {
+            if (!\is_array($item)) {
                 $errors[$index][] = 'Each item must be an object';
                 continue;
             }
 
             $class = $this->resolveClassFromType($item['type'] ?? null);
-            if ($class === null) {
+            if (null === $class) {
                 $errors[$index][] = 'Invalid or missing "type" (expected "expense" or "income")';
                 continue;
             }
@@ -80,18 +84,18 @@ final readonly class TransactionBulkCreateAction
                 'json',
                 [
                     'groups' => ['transaction:write'],
-                ]
+                ],
             );
 
             $violations = $this->validator->validate($transaction);
 
-            if (count($violations) > 0) {
+            if (\count($violations) > 0) {
                 /** @var ConstraintViolationInterface $violation */
                 foreach ($violations as $violation) {
-                    $errors[$index][] = sprintf(
+                    $errors[$index][] = \sprintf(
                         '%s: %s',
                         $violation->getPropertyPath(),
-                        $violation->getMessage()
+                        $violation->getMessage(),
                     );
                 }
                 continue;
@@ -100,10 +104,10 @@ final readonly class TransactionBulkCreateAction
             // At this point the transaction is valid. Now resolve and apply converted values.
             try {
                 $convertedValues = $this->assetsManager->convert($transaction);
-            } catch (\Throwable $e) {
-                $errors[$index][] = sprintf(
+            } catch (Throwable $e) {
+                $errors[$index][] = \sprintf(
                     'Failed to resolve exchange rates: %s',
-                    $e->getMessage()
+                    $e->getMessage(),
                 );
                 continue;
             }
@@ -120,14 +124,14 @@ final readonly class TransactionBulkCreateAction
                     'detail' => 'Validation or conversion failed for one or more items',
                     'errors' => $errors,
                 ],
-                Response::HTTP_BAD_REQUEST
+                Response::HTTP_BAD_REQUEST,
             );
         }
 
         if (!$transactions) {
             return new JsonResponse(
                 ['detail' => 'No valid items to persist'],
-                Response::HTTP_BAD_REQUEST
+                Response::HTTP_BAD_REQUEST,
             );
         }
 
@@ -136,7 +140,7 @@ final readonly class TransactionBulkCreateAction
         $json = $this->serializer->serialize(
             $transactions,
             'json',
-            ['groups' => ['transaction:collection:read']]
+            ['groups' => ['transaction:collection:read']],
         );
 
         return new JsonResponse($json, Response::HTTP_CREATED, [], true);

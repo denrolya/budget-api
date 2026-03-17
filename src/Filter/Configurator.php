@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Filter;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,7 +22,7 @@ class Configurator
     public function onKernelRequest(): void
     {
         if ($currentUser = $this->security->getUser()) {
-            assert($currentUser instanceof \App\Entity\User);
+            \assert($currentUser instanceof \App\Entity\User);
             $filter = $this->em->getFilters()->enable('ownable');
             $filter->setParameter('currentUserId', $currentUser->getId());
         }

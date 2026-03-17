@@ -66,25 +66,25 @@ class LedgerControllerTest extends BaseApiTestCase
         // Create a transfer through the API so its bookkeeping transactions are persisted
         $this->client->request('POST', '/api/transfers', [
             'json' => [
-                'amount'      => '50.0',
-                'executedAt'  => '2025-06-15T10:00:00Z',
-                'from'        => $this->iri($this->accountCashEUR),
-                'to'          => $this->iri($this->accountCashUAH),
-                'note'        => 'Ledger test transfer',
-                'rate'        => '1',
+                'amount' => '50.0',
+                'executedAt' => '2025-06-15T10:00:00Z',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'Ledger test transfer',
+                'rate' => '1',
             ],
         ]);
         self::assertResponseIsSuccessful();
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'  => '2025-06-01',
+            'after' => '2025-06-01',
             'before' => '2025-06-30',
         ]));
         self::assertResponseIsSuccessful();
 
         $content = $response->toArray();
-        $list    = $content['list'];
+        $list = $content['list'];
 
         // Every item in the list must NOT have a 'transfer' field linking it to a Transfer
         // (those bookkeeping transactions should be absent).
@@ -99,7 +99,7 @@ class LedgerControllerTest extends BaseApiTestCase
         }
 
         // The Transfer we created must appear in the list
-        $transferItems = array_filter($list, static fn(array $item): bool => isset($item['from'], $item['to']));
+        $transferItems = array_filter($list, static fn (array $item): bool => isset($item['from'], $item['to']));
         self::assertNotEmpty($transferItems, 'Transfer must appear in the ledger list.');
 
         // Assert the Transfer is fully serialized — not just {id: N}
@@ -107,18 +107,18 @@ class LedgerControllerTest extends BaseApiTestCase
 
         // from / to must contain full account sub-fields, not just id
         foreach (['from', 'to'] as $side) {
-            self::assertArrayHasKey('id',       $transfer[$side], "$side.id must be present");
-            self::assertArrayHasKey('name',     $transfer[$side], "$side.name must be present (JMS group missing if not)");
+            self::assertArrayHasKey('id', $transfer[$side], "$side.id must be present");
+            self::assertArrayHasKey('name', $transfer[$side], "$side.name must be present (JMS group missing if not)");
             self::assertArrayHasKey('currency', $transfer[$side], "$side.currency must be present");
         }
 
         // amount / rate / fee must be present and numeric (not serialized as opaque strings)
         self::assertArrayHasKey('amount', $transfer, 'amount must be present');
-        self::assertArrayHasKey('rate',   $transfer, 'rate must be present');
-        self::assertArrayHasKey('fee',    $transfer, 'fee must be present');
+        self::assertArrayHasKey('rate', $transfer, 'rate must be present');
+        self::assertArrayHasKey('fee', $transfer, 'fee must be present');
         self::assertIsNumeric($transfer['amount'], 'amount must be numeric, not a plain string');
-        self::assertIsNumeric($transfer['rate'],   'rate must be numeric, not a plain string');
-        self::assertIsNumeric($transfer['fee'],    'fee must be numeric, not a plain string');
+        self::assertIsNumeric($transfer['rate'], 'rate must be numeric, not a plain string');
+        self::assertIsNumeric($transfer['fee'], 'fee must be numeric, not a plain string');
 
         // transactions array must be present and each item must be a full transaction
         self::assertArrayHasKey('transactions', $transfer, 'transactions must be present');
@@ -134,9 +134,9 @@ class LedgerControllerTest extends BaseApiTestCase
     public function testTypeExpenseFilterReturnsOnlyExpenses(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'  => '2021-01-01',
+            'after' => '2021-01-01',
             'before' => '2021-01-31',
-            'type'   => 'expense',
+            'type' => 'expense',
         ]));
         self::assertResponseIsSuccessful();
 
@@ -157,9 +157,9 @@ class LedgerControllerTest extends BaseApiTestCase
     public function testTypeIncomeFilterReturnsOnlyIncomes(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'  => '2021-01-01',
+            'after' => '2021-01-01',
             'before' => '2021-01-31',
-            'type'   => 'income',
+            'type' => 'income',
         ]));
         self::assertResponseIsSuccessful();
 
@@ -182,21 +182,21 @@ class LedgerControllerTest extends BaseApiTestCase
         // Ensure at least one transfer exists in the test range
         $this->client->request('POST', '/api/transfers', [
             'json' => [
-                'amount'     => '10.0',
+                'amount' => '10.0',
                 'executedAt' => '2025-07-01T09:00:00Z',
-                'from'       => $this->iri($this->accountCashEUR),
-                'to'         => $this->iri($this->accountCashUAH),
-                'note'       => 'Type=transfer test',
-                'rate'       => '1',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'Type=transfer test',
+                'rate' => '1',
             ],
         ]);
         self::assertResponseIsSuccessful();
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'  => '2025-07-01',
+            'after' => '2025-07-01',
             'before' => '2025-07-31',
-            'type'   => 'transfer',
+            'type' => 'transfer',
         ]));
         self::assertResponseIsSuccessful();
 
@@ -218,24 +218,24 @@ class LedgerControllerTest extends BaseApiTestCase
      */
     public function testPagination(): void
     {
-        $after  = Carbon::parse('2021-01-01')->startOfDay();
+        $after = Carbon::parse('2021-01-01')->startOfDay();
         $before = Carbon::parse('2021-01-31')->endOfDay();
 
         // Full count
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'  => $after->toDateString(),
+            'after' => $after->toDateString(),
             'before' => $before->toDateString(),
         ]));
         self::assertResponseIsSuccessful();
-        $full    = $response->toArray();
-        $total   = $full['count'];
+        $full = $response->toArray();
+        $total = $full['count'];
 
         // Page 1 with perPage=1 — must return exactly 1 item
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'   => $after->toDateString(),
-            'before'  => $before->toDateString(),
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
             'perPage' => 1,
-            'page'    => 1,
+            'page' => 1,
         ]));
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -244,10 +244,10 @@ class LedgerControllerTest extends BaseApiTestCase
 
         // Page 2
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'   => $after->toDateString(),
-            'before'  => $before->toDateString(),
+            'after' => $after->toDateString(),
+            'before' => $before->toDateString(),
             'perPage' => 1,
-            'page'    => 2,
+            'page' => 2,
         ]));
         self::assertResponseIsSuccessful();
         self::assertCount(1, $response->toArray()['list']);
@@ -261,18 +261,18 @@ class LedgerControllerTest extends BaseApiTestCase
     public function testItemsAreSortedDescendingByExecutedAt(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'   => '2021-01-01',
-            'before'  => '2021-01-31',
+            'after' => '2021-01-01',
+            'before' => '2021-01-31',
             'perPage' => 50,
         ]));
         self::assertResponseIsSuccessful();
 
         $items = $response->toArray()['list'];
-        if (count($items) < 2) {
-            $this->markTestSkipped('Not enough items to verify sort order.');
+        if (\count($items) < 2) {
+            self::markTestSkipped('Not enough items to verify sort order.');
         }
 
-        for ($i = 1; $i < count($items); $i++) {
+        for ($i = 1; $i < \count($items); ++$i) {
             self::assertLessThanOrEqual(
                 strtotime($items[$i - 1]['executedAt']),
                 strtotime($items[$i]['executedAt']),
@@ -291,9 +291,9 @@ class LedgerControllerTest extends BaseApiTestCase
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'           => '2021-01-01',
-            'before'          => '2021-01-31',
-            'account[]'       => [$accountId],
+            'after' => '2021-01-01',
+            'before' => '2021-01-31',
+            'account[]' => [$accountId],
         ]));
         self::assertResponseIsSuccessful();
 
@@ -319,8 +319,8 @@ class LedgerControllerTest extends BaseApiTestCase
      */
     public function testCategoryFilter(): void
     {
-        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries instanceof ExpenseCategory);
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
 
         $this->createExpense(
             amount: 12.34,
@@ -330,12 +330,12 @@ class LedgerControllerTest extends BaseApiTestCase
             note: 'ledger-category-filter-hit',
         );
 
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'      => '2025-08-01',
-            'before'     => '2025-08-31',
-            'type'       => 'expense',
+            'after' => '2025-08-01',
+            'before' => '2025-08-31',
+            'type' => 'expense',
             'category[]' => [$groceries->getId()],
         ]));
         self::assertResponseIsSuccessful();
@@ -360,8 +360,8 @@ class LedgerControllerTest extends BaseApiTestCase
      */
     public function testDebtFilter(): void
     {
-        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries instanceof ExpenseCategory);
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
 
         $debt = (new Debt())
             ->setDebtor('Ledger Debt Filter')
@@ -370,8 +370,8 @@ class LedgerControllerTest extends BaseApiTestCase
             ->setNote('ledger-debt-filter')
             ->setCreatedAt(Carbon::parse('2025-09-01T00:00:00Z'))
             ->setOwner($this->testUser);
-        $this->em->persist($debt);
-        $this->em->flush();
+        $this->entityManager()->persist($debt);
+        $this->entityManager()->flush();
 
         $this->createExpense(
             amount: 15.0,
@@ -390,13 +390,13 @@ class LedgerControllerTest extends BaseApiTestCase
             note: 'ledger-debt-filter-miss',
         );
 
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'   => '2025-09-01',
-            'before'  => '2025-09-30',
-            'type'    => 'expense',
-            'debt[]'  => [$debt->getId()],
+            'after' => '2025-09-01',
+            'before' => '2025-09-30',
+            'type' => 'expense',
+            'debt[]' => [$debt->getId()],
         ]));
         self::assertResponseIsSuccessful();
 
@@ -413,8 +413,8 @@ class LedgerControllerTest extends BaseApiTestCase
      */
     public function testNoteFilterMatchesTransactionsAndTransfers(): void
     {
-        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries instanceof ExpenseCategory);
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
 
         $this->createExpense(
             amount: 9.99,
@@ -426,28 +426,28 @@ class LedgerControllerTest extends BaseApiTestCase
 
         $this->client->request('POST', '/api/transfers', [
             'json' => [
-                'amount'     => '20.0',
+                'amount' => '20.0',
                 'executedAt' => '2025-10-11T10:00:00Z',
-                'from'       => $this->iri($this->accountCashEUR),
-                'to'         => $this->iri($this->accountCashUAH),
-                'note'       => 'needle transfer record',
-                'rate'       => '1',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'needle transfer record',
+                'rate' => '1',
             ],
         ]);
         self::assertResponseIsSuccessful();
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'  => '2025-10-01',
+            'after' => '2025-10-01',
             'before' => '2025-10-31',
-            'note'   => 'needle',
+            'note' => 'needle',
         ]));
         self::assertResponseIsSuccessful();
 
         $items = $response->toArray()['list'];
         self::assertCount(2, $items);
 
-        $notes = array_map(static fn(array $item): ?string => $item['note'] ?? null, $items);
+        $notes = array_map(static fn (array $item): ?string => $item['note'] ?? null, $items);
         self::assertContains('needle tx record', $notes);
         self::assertContains('needle transfer record', $notes);
     }
@@ -459,8 +459,8 @@ class LedgerControllerTest extends BaseApiTestCase
      */
     public function testIsDraftFilter(): void
     {
-        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries instanceof ExpenseCategory);
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
 
         $date = CarbonImmutable::parse('2025-11-15T12:00:00Z');
 
@@ -472,7 +472,7 @@ class LedgerControllerTest extends BaseApiTestCase
             note: 'ledger-draft-hit',
         );
         $draft->setIsDraft(true);
-        $this->em->flush();
+        $this->entityManager()->flush();
 
         $this->createExpense(
             amount: 6.0,
@@ -482,26 +482,26 @@ class LedgerControllerTest extends BaseApiTestCase
             note: 'ledger-draft-miss',
         );
 
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // Also create a transfer in the same period — must NOT appear when isDraft is set
         $this->client->request('POST', '/api/transfers', [
             'json' => [
-                'amount'     => '3.0',
+                'amount' => '3.0',
                 'executedAt' => '2025-11-15T12:00:00Z',
-                'from'       => $this->iri($this->accountCashEUR),
-                'to'         => $this->iri($this->accountCashUAH),
-                'note'       => 'ledger-draft-transfer',
-                'rate'       => '1',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'ledger-draft-transfer',
+                'rate' => '1',
             ],
         ]);
         self::assertResponseIsSuccessful();
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // isDraft=1 → only draft transactions, no transfers
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'   => '2025-11-01',
-            'before'  => '2025-11-30',
+            'after' => '2025-11-01',
+            'before' => '2025-11-30',
             'isDraft' => '1',
         ]));
         self::assertResponseIsSuccessful();
@@ -517,8 +517,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
         // isDraft=0 → only non-draft transactions, no transfers
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'   => '2025-11-01',
-            'before'  => '2025-11-30',
+            'after' => '2025-11-01',
+            'before' => '2025-11-30',
             'isDraft' => '0',
         ]));
         self::assertResponseIsSuccessful();
@@ -541,9 +541,9 @@ class LedgerControllerTest extends BaseApiTestCase
     public function testTotalValueExcludesTransfers(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'  => '2021-01-01',
+            'after' => '2021-01-01',
             'before' => '2021-01-31',
-            'type'   => 'expense',
+            'type' => 'expense',
         ]));
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -560,11 +560,11 @@ class LedgerControllerTest extends BaseApiTestCase
      */
     public function testWithNestedCategoriesFilter(): void
     {
-        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries instanceof ExpenseCategory);
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
 
         $foodCategory = $groceries->getParent();
-        assert($foodCategory !== null, 'Groceries must have a parent (Food & Drinks) in fixtures.');
+        \assert(null !== $foodCategory, 'Groceries must have a parent (Food & Drinks) in fixtures.');
 
         $date = Carbon::parse('2026-01-15T12:00:00Z');
 
@@ -577,14 +577,14 @@ class LedgerControllerTest extends BaseApiTestCase
             note: 'ledger-nested-cat-hit',
         );
 
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // withNested=1 + parent category ID → child transaction must appear
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'                => '2026-01-01',
-            'before'               => '2026-01-31',
-            'type'                 => 'expense',
-            'category[]'           => [$foodCategory->getId()],
+            'after' => '2026-01-01',
+            'before' => '2026-01-31',
+            'type' => 'expense',
+            'category[]' => [$foodCategory->getId()],
             'withNestedCategories' => '1',
         ]));
         self::assertResponseIsSuccessful();
@@ -594,10 +594,10 @@ class LedgerControllerTest extends BaseApiTestCase
 
         // withNested=0 (or absent) + parent category ID → child transaction must NOT appear
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'                => '2026-01-01',
-            'before'               => '2026-01-31',
-            'type'                 => 'expense',
-            'category[]'           => [$foodCategory->getId()],
+            'after' => '2026-01-01',
+            'before' => '2026-01-31',
+            'type' => 'expense',
+            'category[]' => [$foodCategory->getId()],
             'withNestedCategories' => '0',
         ]));
         self::assertResponseIsSuccessful();
@@ -614,8 +614,8 @@ class LedgerControllerTest extends BaseApiTestCase
      */
     public function testCurrenciesFilter(): void
     {
-        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries instanceof ExpenseCategory);
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
 
         $date = Carbon::parse('2026-02-10T12:00:00Z');
 
@@ -637,21 +637,21 @@ class LedgerControllerTest extends BaseApiTestCase
         // Also add a transfer in the same period — it must NOT appear when currencies filter is active
         $this->client->request('POST', '/api/transfers', [
             'json' => [
-                'amount'     => '5.0',
+                'amount' => '5.0',
                 'executedAt' => '2026-02-10T12:00:00Z',
-                'from'       => $this->iri($this->accountCashEUR),
-                'to'         => $this->iri($this->accountCashUAH),
-                'note'       => 'ledger-currencies-transfer',
-                'rate'       => '1',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'ledger-currencies-transfer',
+                'rate' => '1',
             ],
         ]);
         self::assertResponseIsSuccessful();
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // EUR only
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'        => '2026-02-01',
-            'before'       => '2026-02-28',
+            'after' => '2026-02-01',
+            'before' => '2026-02-28',
             'currencies[]' => ['EUR'],
         ]));
         self::assertResponseIsSuccessful();
@@ -669,8 +669,8 @@ class LedgerControllerTest extends BaseApiTestCase
 
         // UAH only
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'        => '2026-02-01',
-            'before'       => '2026-02-28',
+            'after' => '2026-02-01',
+            'before' => '2026-02-28',
             'currencies[]' => ['UAH'],
         ]));
         self::assertResponseIsSuccessful();
@@ -689,43 +689,25 @@ class LedgerControllerTest extends BaseApiTestCase
      */
     public function testAmountRangeFilter(): void
     {
-        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries instanceof ExpenseCategory);
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
 
         $date = Carbon::parse('2026-03-10T12:00:00Z');
 
-        $this->createExpense(amount: 10.0,  account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'amt-10');
-        $this->createExpense(amount: 50.0,  account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'amt-50');
+        $this->createExpense(amount: 10.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'amt-10');
+        $this->createExpense(amount: 50.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'amt-50');
         $this->createExpense(amount: 200.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'amt-200');
-
-        // Also add a transfer — must NOT appear when amount filters are active
-        $this->client->request('POST', '/api/transfers', [
-            'json' => [
-                'amount'     => '30.0',
-                'executedAt' => '2026-03-10T12:00:00Z',
-                'from'       => $this->iri($this->accountCashEUR),
-                'to'         => $this->iri($this->accountCashUAH),
-                'note'       => 'amt-transfer',
-                'rate'       => '1',
-            ],
-        ]);
-        self::assertResponseIsSuccessful();
-        $this->em->clear();
 
         // gte=20, lte=100 → only amt-50
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'        => '2026-03-01',
-            'before'       => '2026-03-31',
-            'type'         => 'expense',
-            'amount[gte]'  => '20',
-            'amount[lte]'  => '100',
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
+            'type' => 'expense',
+            'amount[gte]' => '20',
+            'amount[lte]' => '100',
         ]));
         self::assertResponseIsSuccessful();
         $items = $response->toArray()['list'];
-
-        foreach ($items as $item) {
-            self::assertArrayNotHasKey('from', $item, 'Transfers must be excluded when amount filter is active.');
-        }
 
         $notes = array_column($items, 'note');
         self::assertContains('amt-50', $notes);
@@ -734,9 +716,9 @@ class LedgerControllerTest extends BaseApiTestCase
 
         // gte only
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'       => '2026-03-01',
-            'before'      => '2026-03-31',
-            'type'        => 'expense',
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
+            'type' => 'expense',
             'amount[gte]' => '100',
         ]));
         self::assertResponseIsSuccessful();
@@ -748,9 +730,9 @@ class LedgerControllerTest extends BaseApiTestCase
 
         // lte only
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'       => '2026-03-01',
-            'before'      => '2026-03-31',
-            'type'        => 'expense',
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
+            'type' => 'expense',
             'amount[lte]' => '15',
         ]));
         self::assertResponseIsSuccessful();
@@ -762,6 +744,292 @@ class LedgerControllerTest extends BaseApiTestCase
     }
 
     /**
+     * Amount filter must also apply to transfers — transfers within the range appear,
+     * those outside are excluded.
+     *
+     * @covers \App\Controller\LedgerController::list
+     */
+    public function testAmountRangeFilterAppliesToTransfers(): void
+    {
+        $date = '2026-03-10T12:00:00Z';
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '25.0',
+                'executedAt' => $date,
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'transfer-small',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '150.0',
+                'executedAt' => $date,
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'transfer-large',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '500.0',
+                'executedAt' => $date,
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'transfer-huge',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->entityManager()->clear();
+
+        // type=transfer with gte=100, lte=200 → only transfer-large
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
+            'type' => 'transfer',
+            'amount[gte]' => '100',
+            'amount[lte]' => '200',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        $notes = array_column($items, 'note');
+
+        self::assertContains('transfer-large', $notes);
+        self::assertNotContains('transfer-small', $notes);
+        self::assertNotContains('transfer-huge', $notes);
+    }
+
+    /**
+     * When no type filter is specified, amount filter applies to both transactions and transfers.
+     *
+     * @covers \App\Controller\LedgerController::list
+     */
+    public function testAmountRangeFilterWithoutTypeIncludesMatchingTransfers(): void
+    {
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
+
+        $date = Carbon::parse('2026-03-10T12:00:00Z');
+
+        $this->createExpense(amount: 75.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'exp-75');
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '80.0',
+                'executedAt' => '2026-03-10T12:00:00Z',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'xfer-80',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '5.0',
+                'executedAt' => '2026-03-10T12:00:00Z',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'xfer-5',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->entityManager()->clear();
+
+        // gte=50 → exp-75 and xfer-80 should appear, xfer-5 should not
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
+            'amount[gte]' => '50',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        $notes = array_column($items, 'note');
+
+        self::assertContains('exp-75', $notes);
+        self::assertContains('xfer-80', $notes);
+        self::assertNotContains('xfer-5', $notes);
+    }
+
+    /**
+     * Boundary: amount exactly at gte or lte boundary should be included.
+     *
+     * @covers \App\Controller\LedgerController::list
+     */
+    public function testAmountRangeFilterBoundaryValues(): void
+    {
+        $date = '2026-03-10T12:00:00Z';
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '100.0',
+                'executedAt' => $date,
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'boundary-exact',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->entityManager()->clear();
+
+        // gte=100, lte=100 → must include exact match
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
+            'type' => 'transfer',
+            'amount[gte]' => '100',
+            'amount[lte]' => '100',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        $notes = array_column($items, 'note');
+
+        self::assertContains('boundary-exact', $notes);
+    }
+
+    /**
+     * Transfer amount filter with gte only — no upper bound.
+     *
+     * @covers \App\Controller\LedgerController::list
+     */
+    public function testTransferAmountFilterGteOnly(): void
+    {
+        $date = '2026-03-10T12:00:00Z';
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '10.0',
+                'executedAt' => $date,
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'gte-small',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '999.0',
+                'executedAt' => $date,
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'gte-large',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->entityManager()->clear();
+
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
+            'type' => 'transfer',
+            'amount[gte]' => '500',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        $notes = array_column($items, 'note');
+
+        self::assertContains('gte-large', $notes);
+        self::assertNotContains('gte-small', $notes);
+    }
+
+    /**
+     * Transfer amount filter with lte only — no lower bound.
+     *
+     * @covers \App\Controller\LedgerController::list
+     */
+    public function testTransferAmountFilterLteOnly(): void
+    {
+        $date = '2026-03-10T12:00:00Z';
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '10.0',
+                'executedAt' => $date,
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'lte-small',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '999.0',
+                'executedAt' => $date,
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'lte-large',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->entityManager()->clear();
+
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
+            'type' => 'transfer',
+            'amount[lte]' => '50',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+        $notes = array_column($items, 'note');
+
+        self::assertContains('lte-small', $notes);
+        self::assertNotContains('lte-large', $notes);
+    }
+
+    /**
+     * When amount filter returns no matching transfers, the result should have zero transfers.
+     *
+     * @covers \App\Controller\LedgerController::list
+     */
+    public function testTransferAmountFilterNoMatchReturnsEmpty(): void
+    {
+        $date = '2026-03-10T12:00:00Z';
+
+        $this->client->request('POST', '/api/transfers', [
+            'json' => [
+                'amount' => '50.0',
+                'executedAt' => $date,
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'no-match-xfer',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+        $this->entityManager()->clear();
+
+        // gte=1000 → no transfers should match
+        $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
+            'type' => 'transfer',
+            'amount[gte]' => '1000',
+        ]));
+        self::assertResponseIsSuccessful();
+        $items = $response->toArray()['list'];
+
+        self::assertEmpty($items);
+    }
+
+    /**
      * amount[gte] > amount[lte] must result in an error response (not 2xx).
      * TODO: improve to 400 by mapping InvalidArgumentException to BadRequestHttpException.
      *
@@ -770,8 +1038,8 @@ class LedgerControllerTest extends BaseApiTestCase
     public function testInvalidAmountRangeReturnsError(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'       => '2026-03-01',
-            'before'      => '2026-03-31',
+            'after' => '2026-03-01',
+            'before' => '2026-03-31',
             'amount[gte]' => '500',
             'amount[lte]' => '100',
         ]));
@@ -790,9 +1058,9 @@ class LedgerControllerTest extends BaseApiTestCase
     public function testWithNestedCategoriesNonExistentIdReturnsEmpty(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'                => '2021-01-01',
-            'before'               => '2021-01-31',
-            'category[]'           => [999999],
+            'after' => '2021-01-01',
+            'before' => '2021-01-31',
+            'category[]' => [999999],
             'withNestedCategories' => '1',
         ]));
 
@@ -811,23 +1079,23 @@ class LedgerControllerTest extends BaseApiTestCase
      */
     public function testTotalValueCoversAllPagesNotJustCurrentPage(): void
     {
-        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries instanceof ExpenseCategory);
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
 
         $date = Carbon::parse('2025-11-15T12:00:00Z');
 
         $this->createExpense(amount: 100.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'tv-page-test-a');
         $this->createExpense(amount: 200.0, account: $this->accountCashEUR, category: $groceries, executedAt: $date, note: 'tv-page-test-b');
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // Fetch only the first page (1 item)
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'   => '2025-11-01',
-            'before'  => '2025-11-30',
-            'type'    => 'expense',
-            'note'    => 'tv-page-test',
+            'after' => '2025-11-01',
+            'before' => '2025-11-30',
+            'type' => 'expense',
+            'note' => 'tv-page-test',
             'perPage' => '1',
-            'page'    => '1',
+            'page' => '1',
         ]));
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
@@ -844,16 +1112,16 @@ class LedgerControllerTest extends BaseApiTestCase
      *
      * @covers \App\Controller\LedgerController::list
      */
-    public function testCombinedFilters_accountAndCategoryAndDateRange(): void
+    public function testCombinedFiltersAccountAndCategoryAndDateRange(): void
     {
-        $groceries = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceries instanceof ExpenseCategory);
+        $groceries = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof ExpenseCategory);
 
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'      => '2021-01-01',
-            'before'     => '2021-01-31',
-            'type'       => 'expense',
-            'account[]'  => [$this->accountCashEUR->getId()],
+            'after' => '2021-01-01',
+            'before' => '2021-01-31',
+            'type' => 'expense',
+            'account[]' => [$this->accountCashEUR->getId()],
             'category[]' => [$groceries->getId()],
         ]));
         self::assertResponseIsSuccessful();
@@ -871,10 +1139,10 @@ class LedgerControllerTest extends BaseApiTestCase
      *
      * @covers \App\Controller\LedgerController::list
      */
-    public function testEmptyDateRange_returnsZeroResults(): void
+    public function testEmptyDateRangeReturnsZeroResults(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'  => '2099-01-01',
+            'after' => '2099-01-01',
             'before' => '2099-12-31',
         ]));
         self::assertResponseIsSuccessful();
@@ -894,8 +1162,8 @@ class LedgerControllerTest extends BaseApiTestCase
     public function testNonExistentCategoryIdWithoutExpansionReturnsEmpty(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::LEDGER_URL, [
-            'after'      => '2021-01-01',
-            'before'     => '2021-01-31',
+            'after' => '2021-01-01',
+            'before' => '2021-01-31',
             'category[]' => [999999],
         ]));
 

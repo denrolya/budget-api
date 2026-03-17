@@ -22,13 +22,13 @@ class AccountStatsTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\AccountController::dailyStats
      */
-    public function testDailyStats_returnsCorrectShape(): void
+    public function testDailyStatsReturnsCorrectShape(): void
     {
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
             "/api/v2/accounts/{$accountId}/daily-stats",
-            ['after' => '2021-01-01', 'before' => '2021-01-31']
+            ['after' => '2021-01-01', 'before' => '2021-01-31'],
         ));
         self::assertResponseIsSuccessful();
 
@@ -46,13 +46,13 @@ class AccountStatsTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\AccountController::dailyStats
      */
-    public function testDailyStats_emptyRange_returnsEmptyData(): void
+    public function testDailyStatsEmptyRangeReturnsEmptyData(): void
     {
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
             "/api/v2/accounts/{$accountId}/daily-stats",
-            ['after' => '2025-06-01', 'before' => '2025-06-30']
+            ['after' => '2025-06-01', 'before' => '2025-06-30'],
         ));
         self::assertResponseIsSuccessful();
 
@@ -64,13 +64,13 @@ class AccountStatsTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\AccountController::dailyStats
      */
-    public function testDailyStats_uahAccount_returnsData(): void
+    public function testDailyStatsUahAccountReturnsData(): void
     {
         $accountId = $this->accountCashUAH->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
             "/api/v2/accounts/{$accountId}/daily-stats",
-            ['after' => '2021-01-01', 'before' => '2021-01-31']
+            ['after' => '2021-01-01', 'before' => '2021-01-31'],
         ));
         self::assertResponseIsSuccessful();
 
@@ -87,13 +87,13 @@ class AccountStatsTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\AccountController::balanceHistory
      */
-    public function testBalanceHistory_returnsCorrectShape(): void
+    public function testBalanceHistoryReturnsCorrectShape(): void
     {
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
             "/api/v2/accounts/{$accountId}/balance-history",
-            ['after' => '2021-01-01', 'before' => '2021-06-30', 'interval' => 'P1M']
+            ['after' => '2021-01-01', 'before' => '2021-06-30', 'interval' => 'P1M'],
         ));
         self::assertResponseIsSuccessful();
 
@@ -112,13 +112,13 @@ class AccountStatsTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\AccountController::balanceHistory
      */
-    public function testBalanceHistory_weeklyInterval(): void
+    public function testBalanceHistoryWeeklyInterval(): void
     {
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
             "/api/v2/accounts/{$accountId}/balance-history",
-            ['after' => '2021-01-01', 'before' => '2021-01-31', 'interval' => 'P1W']
+            ['after' => '2021-01-01', 'before' => '2021-01-31', 'interval' => 'P1W'],
         ));
         self::assertResponseIsSuccessful();
 
@@ -126,19 +126,19 @@ class AccountStatsTest extends BaseApiTestCase
         self::assertArrayHasKey('data', $content);
         self::assertNotEmpty($content['data']);
         // Weekly intervals over 1 month should produce ~4-5 data points
-        self::assertGreaterThanOrEqual(4, count($content['data']));
+        self::assertGreaterThanOrEqual(4, \count($content['data']));
     }
 
     /**
      * @covers \App\Controller\AccountController::balanceHistory
      */
-    public function testBalanceHistory_emptyRange_returnsEmptyData(): void
+    public function testBalanceHistoryEmptyRangeReturnsEmptyData(): void
     {
         $accountId = $this->accountCashEUR->getId();
 
         $response = $this->client->request('GET', $this->buildURL(
             "/api/v2/accounts/{$accountId}/balance-history",
-            ['after' => '2025-06-01', 'before' => '2025-06-30', 'interval' => 'P1M']
+            ['after' => '2025-06-01', 'before' => '2025-06-30', 'interval' => 'P1M'],
         ));
         self::assertResponseIsSuccessful();
 
@@ -153,7 +153,7 @@ class AccountStatsTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\AccountController::dailyStats
      */
-    public function testDailyStats_withoutAuth_returns401(): void
+    public function testDailyStatsWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', '/api/v2/accounts/1/daily-stats');
@@ -163,7 +163,7 @@ class AccountStatsTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\AccountController::balanceHistory
      */
-    public function testBalanceHistory_withoutAuth_returns401(): void
+    public function testBalanceHistoryWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', '/api/v2/accounts/1/balance-history');

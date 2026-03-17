@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Service;
 
 use App\Entity\Account;
@@ -8,19 +10,19 @@ use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Entity\Transfer;
 use App\Entity\User;
+use App\Repository\ExpenseCategoryRepository;
+use App\Repository\IncomeCategoryRepository;
 use App\Service\AssetsManager;
 use App\Service\TransferService;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\Persistence\ObjectRepository;
 use PHPUnit\Framework\TestCase;
 
 class TransferServiceTest extends TestCase
 {
     public function testCreateTransactionsWithoutFeeCreatesExpenseAndIncome(): void
     {
-        $service = $this->createServiceWithCategories($this->createMock(EntityManagerInterface::class));
+        $service = $this->createServiceWithCategories();
 
         $transfer = $this->createTransfer(
             amount: 100,
@@ -48,7 +50,7 @@ class TransferServiceTest extends TestCase
 
     public function testCreateTransactionsWithFeeUsesFromAccountWhenFeeAccountMissing(): void
     {
-        $service = $this->createServiceWithCategories($this->createMock(EntityManagerInterface::class));
+        $service = $this->createServiceWithCategories();
 
         $transfer = $this->createTransfer(
             amount: 100,
@@ -75,9 +77,9 @@ class TransferServiceTest extends TestCase
         $assetsManager = $this->createMock(AssetsManager::class);
         $assetsManager
             ->method('convert')
-            ->willReturnCallback(static fn($transaction) => ['EUR' => $transaction->getAmount()]);
+            ->willReturnCallback(static fn ($transaction) => ['EUR' => $transaction->getAmount()]);
 
-        $service = $this->createServiceWithCategories($this->createMock(EntityManagerInterface::class), $assetsManager);
+        $service = $this->createServiceWithCategories($assetsManager);
 
         $sourceAccount = $this->createAccount('Source EUR', 'EUR');
         $targetAccount = $this->createAccount('Target UAH', 'UAH');
@@ -131,7 +133,7 @@ class TransferServiceTest extends TestCase
 
     public function testUpdateTransactionsRemovesFeeTransactionWhenFeeBecomesZero(): void
     {
-        $service = $this->createServiceWithCategories($this->createMock(EntityManagerInterface::class));
+        $service = $this->createServiceWithCategories();
 
         $transfer = $this->createTransfer(
             amount: 100,
@@ -153,7 +155,7 @@ class TransferServiceTest extends TestCase
 
     public function testUpdateTransactionsAddsFeeTransactionWhenFeeAddedLater(): void
     {
-        $service = $this->createServiceWithCategories($this->createMock(EntityManagerInterface::class));
+        $service = $this->createServiceWithCategories();
 
         $feeAccount = $this->createAccount('Fee Account', 'EUR');
 
@@ -181,95 +183,60 @@ class TransferServiceTest extends TestCase
 
     public function testCreateTransactionsCachesCategoryLookupsAcrossCalls(): void
     {
-        $expenseTransferCategory = $this->createExpenseCategory(Category::CATEGORY_TRANSFER);
-        $feeExpenseCategory = $this->createExpenseCategory(Category::CATEGORY_TRANSFER_FEE);
-        $incomeTransferCategory = $this->createIncomeCategory(Category::CATEGORY_TRANSFER);
-
-        $expenseRepo = $this->createMock(ObjectRepository::class);
-        $expenseRepo
+        $expenseCategoryRepository = $this->createMock(ExpenseCategoryRepository::class);
+        $expenseCategoryRepository
+            ->expects(self::exactly(2))
             ->method('findOneBy')
-            ->willReturnCallback(static function (array $criteria) use ($expenseTransferCategory, $feeExpenseCategory) {
-                if (($criteria['name'] ?? null) === Category::CATEGORY_TRANSFER) {
-                    return $expenseTransferCategory;
-                }
-
-                if (($criteria['name'] ?? null) === Category::CATEGORY_TRANSFER_FEE) {
-                    return $feeExpenseCategory;
-                }
-
-                return null;
+            ->willReturnCallback(function (array $criteria) {
+                return match ($criteria['name'] ?? null) {
+                    Category::CATEGORY_TRANSFER => $this->createExpenseCategory(Category::CATEGORY_TRANSFER),
+                    Category::CATEGORY_TRANSFER_FEE => $this->createExpenseCategory(Category::CATEGORY_TRANSFER_FEE),
+                    default => null,
+                };
             });
 
-        $incomeRepo = $this->createMock(ObjectRepository::class);
-        $incomeRepo->method('findOneBy')->willReturn($incomeTransferCategory);
-
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em
-            ->expects(self::exactly(3))
-            ->method('getRepository')
-            ->willReturnCallback(static function (string $entityClass) use ($expenseRepo, $incomeRepo) {
-                if ($entityClass === ExpenseCategory::class) {
-                    return $expenseRepo;
-                }
-
-                if ($entityClass === IncomeCategory::class) {
-                    return $incomeRepo;
-                }
-
-                throw new \InvalidArgumentException('Unexpected repository request: '.$entityClass);
-            });
+        $incomeCategoryRepository = $this->createMock(IncomeCategoryRepository::class);
+        $incomeCategoryRepository
+            ->expects(self::once())
+            ->method('findOneBy')
+            ->willReturn($this->createIncomeCategory(Category::CATEGORY_TRANSFER));
 
         $assetsManager = $this->createMock(AssetsManager::class);
         $assetsManager->expects(self::exactly(4))->method('convert')->willReturn(['EUR' => 1.0]);
 
-        $service = new TransferService($em, $assetsManager);
+        $service = new TransferService($expenseCategoryRepository, $incomeCategoryRepository, $assetsManager);
 
         $service->createTransactions($this->createTransfer(amount: 10, rate: 1, fee: 0));
         $service->createTransactions($this->createTransfer(amount: 20, rate: 1, fee: 0));
     }
 
     private function createServiceWithCategories(
-        EntityManagerInterface $em,
         ?AssetsManager $assetsManager = null,
     ): TransferService {
         $expenseTransferCategory = $this->createExpenseCategory(Category::CATEGORY_TRANSFER);
         $feeExpenseCategory = $this->createExpenseCategory(Category::CATEGORY_TRANSFER_FEE);
         $incomeTransferCategory = $this->createIncomeCategory(Category::CATEGORY_TRANSFER);
 
-        $expenseRepo = $this->createMock(ObjectRepository::class);
-        $expenseRepo
+        $expenseCategoryRepository = $this->createMock(ExpenseCategoryRepository::class);
+        $expenseCategoryRepository
             ->method('findOneBy')
             ->willReturnCallback(static function (array $criteria) use ($expenseTransferCategory, $feeExpenseCategory) {
-                if (($criteria['name'] ?? null) === Category::CATEGORY_TRANSFER) {
-                    return $expenseTransferCategory;
-                }
-
-                if (($criteria['name'] ?? null) === Category::CATEGORY_TRANSFER_FEE) {
-                    return $feeExpenseCategory;
-                }
-
-                return null;
-            });
-
-        $incomeRepo = $this->createMock(ObjectRepository::class);
-        $incomeRepo->method('findOneBy')->willReturn($incomeTransferCategory);
-
-        $em
-            ->method('getRepository')
-            ->willReturnCallback(static function (string $entityClass) use ($expenseRepo, $incomeRepo) {
-                return match ($entityClass) {
-                    ExpenseCategory::class => $expenseRepo,
-                    IncomeCategory::class => $incomeRepo,
-                    default => throw new \InvalidArgumentException('Unexpected repository request: '.$entityClass),
+                return match ($criteria['name'] ?? null) {
+                    Category::CATEGORY_TRANSFER => $expenseTransferCategory,
+                    Category::CATEGORY_TRANSFER_FEE => $feeExpenseCategory,
+                    default => null,
                 };
             });
 
-        if ($assetsManager === null) {
+        $incomeCategoryRepository = $this->createMock(IncomeCategoryRepository::class);
+        $incomeCategoryRepository->method('findOneBy')->willReturn($incomeTransferCategory);
+
+        if (null === $assetsManager) {
             $assetsManager = $this->createMock(AssetsManager::class);
             $assetsManager->method('convert')->willReturn(['EUR' => 1.0]);
         }
 
-        return new TransferService($em, $assetsManager);
+        return new TransferService($expenseCategoryRepository, $incomeCategoryRepository, $assetsManager);
     }
 
     private function createTransfer(

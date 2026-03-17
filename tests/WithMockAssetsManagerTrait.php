@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests;
 
-use PHPUnit\Framework\MockObject\MockObject;
 use App\Service\AssetsManager;
+use PHPUnit\Framework\MockObject\MockObject;
+use RuntimeException;
 
 trait WithMockAssetsManagerTrait
 {
@@ -26,13 +29,13 @@ trait WithMockAssetsManagerTrait
             ->getMock();
 
         $mock->method('convert')
-            ->willReturnCallback(function ($entity) {
+            ->willReturnCallback(static function ($entity) {
                 /** @phpstan-ignore-next-line */
-                $amount = (float)$entity->{'get'.ucfirst($entity->getValuableField())}();
+                $amount = (float) $entity->{'get' . ucfirst($entity->getValuableField())}();
                 $fromCurrency = strtoupper($entity->getCurrency());
 
                 if (!isset(self::EXCHANGE_RATES[$fromCurrency])) {
-                    throw new \RuntimeException("Unsupported test currency: {$fromCurrency}");
+                    throw new RuntimeException("Unsupported test currency: {$fromCurrency}");
                 }
 
                 $result = [];

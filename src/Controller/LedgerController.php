@@ -8,7 +8,6 @@ use App\Attribute\MapCarbonDate;
 use App\Entity\Transaction;
 use App\Entity\Transfer;
 use App\Entity\User;
-use App\Pagination\Paginator;
 use App\Repository\CategoryRepository;
 use App\Repository\TransactionRepository;
 use App\Repository\TransferRepository;
@@ -16,6 +15,7 @@ use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
+use InvalidArgumentException;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
@@ -43,7 +43,7 @@ final class LedgerController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'currencies', description: 'Filter by account currency codes', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'amount[gte]', description: 'Amount >= value (numeric)', nullable: true, allowBlank: true)]
     #[Rest\QueryParam(name: 'amount[lte]', description: 'Amount <= value (numeric)', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'perPage', requirements: '^(20|50|100|[1-9][0-9]*)$', default: Paginator::PER_PAGE)]
+    #[Rest\QueryParam(name: 'perPage', requirements: '^(20|50|100|[1-9][0-9]*)$', default: TransactionRepository::PER_PAGE)]
     #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1)]
     #[Rest\View(serializerGroups: ['transaction:collection:read', 'transfer:collection:read'])]
     #[Route('', name: 'collection_read', methods: ['GET'])]
@@ -77,14 +77,13 @@ final class LedgerController extends AbstractFOSRestController
                     new OA\Property(property: 'list', type: 'array', items: new OA\Items(type: 'object')),
                     new OA\Property(property: 'count', type: 'integer', example: 142),
                     new OA\Property(property: 'totalValue', type: 'number', format: 'float', example: -3421.50),
-                ])
+                ]),
             ),
             new OA\Response(response: 400, description: 'Invalid amount range (gte > lte)'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
-     * TODO: Check if wee need type transfer at all.
      * Unified ledger endpoint: returns non-transfer transactions merged with transfers,
      * sorted by executedAt DESC, paginated.
      *
@@ -93,6 +92,7 @@ final class LedgerController extends AbstractFOSRestController
      * type absent          → all (non-transfer transactions + transfers)
      *
      * @see \App\Tests\Controller\LedgerControllerTest
+     *
      * @tested testUnauthenticatedRequestIsRejected
      * @tested testAuthenticatedUserCanAccessLedger
      * @tested testTransferTransactionsAreExcludedAndTransfersIncluded
@@ -110,6 +110,12 @@ final class LedgerController extends AbstractFOSRestController
      * @tested testWithNestedCategoriesFilter
      * @tested testCurrenciesFilter
      * @tested testAmountRangeFilter
+     * @tested testAmountRangeFilterAppliesToTransfers
+     * @tested testAmountRangeFilterWithoutTypeIncludesMatchingTransfers
+     * @tested testAmountRangeFilterBoundaryValues
+     * @tested testTransferAmountFilterGteOnly
+     * @tested testTransferAmountFilterLteOnly
+     * @tested testTransferAmountFilterNoMatchReturnsEmpty
      * @tested testInvalidAmountRangeReturnsError
      * @tested testWithNestedCategoriesNonExistentIdReturnsEmpty
      * @tested testTotalValueCoversAllPagesNotJustCurrentPage
@@ -129,70 +135,69 @@ final class LedgerController extends AbstractFOSRestController
         ?string $isDraft = null,
         ?string $withNestedCategories = null,
         ?array $currencies = null,
-        int $perPage = Paginator::PER_PAGE,
+        int $perPage = TransactionRepository::PER_PAGE,
         int $page = 1,
     ): View {
-        $note = (is_string($note) && trim($note) !== '') ? trim($note) : null;
+        $note = (\is_string($note) && '' !== trim($note)) ? trim($note) : null;
         $isDraftBool = match ($isDraft) {
-            '1'     => true,
-            '0'     => false,
+            '1' => true,
+            '0' => false,
             default => null,
         };
 
-        $amount    = $request->query->all('amount');
+        $amount = $request->query->all('amount');
         $amountGte = isset($amount['gte']) && is_numeric($amount['gte']) ? (float) $amount['gte'] : null;
         $amountLte = isset($amount['lte']) && is_numeric($amount['lte']) ? (float) $amount['lte'] : null;
 
-        if ($amountGte !== null && $amountLte !== null && $amountGte > $amountLte) {
-            throw new \InvalidArgumentException('amount[gte] cannot be greater than amount[lte]');
+        if (null !== $amountGte && null !== $amountLte && $amountGte > $amountLte) {
+            throw new InvalidArgumentException('amount[gte] cannot be greater than amount[lte]');
         }
 
         // ── Normalize account/category/debt to int arrays ──────────────────
-        $accountIds  = $this->toIntArray($account);
+        $accountIds = $this->toIntArray($account);
         $categoryIds = $this->toIntArray($category);
-        $debtIds     = $this->toIntArray($debt);
+        $debtIds = $this->toIntArray($debt);
 
-        $hadCategoryFilter = $categoryIds !== [];
+        $hadCategoryFilter = [] !== $categoryIds;
 
         // ── Expand categories to include descendants when requested ─────────
-        if ($withNestedCategories === '1' && $categoryIds !== []) {
-            $txType = ($type === 'transfer') ? null : $type;
+        if ('1' === $withNestedCategories && [] !== $categoryIds) {
+            $txType = ('transfer' === $type) ? null : $type;
             $expanded = $this->categoryRepository->getCategoriesWithDescendantsByType($categoryIds, $txType);
-            $categoryIds = array_map(static fn($c) => $c->getId(), $expanded);
+            $categoryIds = array_map(static fn ($c) => $c->getId(), $expanded);
         }
 
-        $includeTransactions = ($type === null || $type === Transaction::EXPENSE || $type === Transaction::INCOME);
-        // Transfers have no isDraft/currency/amount fields — exclude them when those filters are active
-        $includeTransfers    = ($type === null || $type === 'transfer')
-            && $isDraftBool === null
-            && $amountGte === null
-            && $amountLte === null
-            && empty($currencies)
-            && empty($debtIds);
+        $includeTransactions = (null === $type || Transaction::EXPENSE === $type || Transaction::INCOME === $type);
+        // Transfers have no isDraft/currency fields — exclude them when those filters are active
+        $includeTransfers = (null === $type || 'transfer' === $type)
+            && null === $isDraftBool
+            && (null === $currencies || [] === $currencies)
+            && [] === $debtIds;
 
         // ── Fetch data ──────────────────────────────────────────────────────
         $transactions = $includeTransactions ? $this->transactionRepository->getListForLedger(
             after: $after,
             before: $before,
-            type: $type === 'transfer' ? null : $type,
-            accounts: $accountIds ?: null,
+            type: 'transfer' === $type ? null : $type,
+            accounts: [] !== $accountIds ? $accountIds : null,
             // [0] is an impossible sentinel: categories were requested but expansion found nothing,
             // so the query must return zero results rather than removing the filter entirely.
-            categories: $categoryIds !== [] ? $categoryIds : ($hadCategoryFilter ? [0] : null),
-            debts: $debtIds ?: null,
+            categories: [] !== $categoryIds ? $categoryIds : ($hadCategoryFilter ? [0] : null),
+            debts: [] !== $debtIds ? $debtIds : null,
             note: $note,
             isDraft: $isDraftBool,
             amountGte: $amountGte,
             amountLte: $amountLte,
-            currencies: $currencies ?: null,
+            currencies: [] !== $currencies ? $currencies : null,
         ) : [];
 
-        // TODO: amount filters
         $transfers = $includeTransfers ? $this->transferRepository->getListForLedger(
             after: $after,
             before: $before,
-            accounts: $accountIds ?: null,
+            accounts: [] !== $accountIds ? $accountIds : null,
             note: $note,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
         ) : [];
 
         // ── Merge + sort descending by executedAt ───────────────────────────
@@ -218,33 +223,33 @@ final class LedgerController extends AbstractFOSRestController
         });
 
         // ── Paginate ────────────────────────────────────────────────────────
-        $total  = count($merged);
+        $total = \count($merged);
         $offset = ($page - 1) * $perPage;
-        $page_items = array_slice($merged, $offset, $perPage);
+        $page_items = \array_slice($merged, $offset, $perPage);
 
         // ── Total value (transactions only, net) ────────────────────────────
         /** @var User|null $user */
-        $user         = $this->getUser();
+        $user = $this->getUser();
         $baseCurrency = $user?->getBaseCurrency() ?? 'EUR';
-        $totalValue   = $includeTransactions ? $this->transactionRepository->sumConverted(
+        $totalValue = $includeTransactions ? $this->transactionRepository->sumConverted(
             baseCurrency: $baseCurrency,
             after: $after,
             before: $before,
-            type: $type === 'transfer' ? null : $type,
-            accounts: $accountIds ?: null,
-            categories: $categoryIds !== [] ? $categoryIds : ($hadCategoryFilter ? [0] : null),
-            debts: $debtIds ?: null,
+            type: 'transfer' === $type ? null : $type,
+            accounts: [] !== $accountIds ? $accountIds : null,
+            categories: [] !== $categoryIds ? $categoryIds : ($hadCategoryFilter ? [0] : null),
+            debts: [] !== $debtIds ? $debtIds : null,
             note: $note,
             isDraft: $isDraftBool,
             amountGte: $amountGte,
             amountLte: $amountLte,
-            currencies: $currencies ?: null,
+            currencies: [] !== $currencies ? $currencies : null,
             excludeTransferTransactions: true,
         ) : 0.0;
 
         return $this->view([
-            'list'       => $page_items,
-            'count'      => $total,
+            'list' => $page_items,
+            'count' => $total,
             'totalValue' => round($totalValue, 2),
         ]);
     }
@@ -252,23 +257,25 @@ final class LedgerController extends AbstractFOSRestController
     /**
      * Coerce a nullable array from query params to a list of positive integers.
      *
-     * @param mixed $raw
      * @return array<int>
      */
     private function toIntArray(mixed $raw): array
     {
         $flatValues = [];
 
-        if (is_array($raw)) {
+        if (\is_array($raw)) {
             array_walk_recursive($raw, static function (mixed $value) use (&$flatValues): void {
                 $flatValues[] = $value;
             });
-        } elseif ($raw !== null) {
+        } elseif (null !== $raw) {
             $flatValues[] = $raw;
         }
 
         $result = [];
         foreach ($flatValues as $v) {
+            if (!is_numeric($v)) {
+                continue;
+            }
             $int = (int) $v;
             if ($int > 0) {
                 $result[$int] = $int;

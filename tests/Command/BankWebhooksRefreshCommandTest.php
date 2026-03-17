@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Command;
 
 use App\Bank\BankProvider;
@@ -8,6 +10,8 @@ use App\Command\BankWebhooksRefreshCommand;
 use App\Entity\BankIntegration;
 use App\Repository\BankIntegrationRepository;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
+use RuntimeException;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -21,7 +25,7 @@ class BankWebhooksRefreshCommandTest extends TestCase
         $integration = new BankIntegration();
         $integration->setProvider($provider)->setIsActive($active);
 
-        $ref = new \ReflectionClass($integration);
+        $ref = new ReflectionClass($integration);
         $idProp = $ref->getProperty('id');
         $idProp->setAccessible(true);
         $idProp->setValue($integration, $id);
@@ -56,7 +60,7 @@ class BankWebhooksRefreshCommandTest extends TestCase
         $service = $this->createMock(BankWebhookRegistrationService::class);
         $service
             ->method('supports')
-            ->willReturnCallback(static fn(BankIntegration $integration) => $integration->getProvider() === BankProvider::Monobank);
+            ->willReturnCallback(static fn (BankIntegration $integration) => BankProvider::Monobank === $integration->getProvider());
 
         $command = new BankWebhooksRefreshCommand($repo, $service);
         $tester = new CommandTester($command);
@@ -77,7 +81,7 @@ class BankWebhooksRefreshCommandTest extends TestCase
 
         $service = $this->createMock(BankWebhookRegistrationService::class);
         $service->method('supports')->willReturn(true);
-        $service->method('register')->willThrowException(new \RuntimeException('provider down'));
+        $service->method('register')->willThrowException(new RuntimeException('provider down'));
 
         $command = new BankWebhooksRefreshCommand($repo, $service);
         $tester = new CommandTester($command);

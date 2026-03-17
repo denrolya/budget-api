@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests;
 
 use App\Service\FixerService;
@@ -15,9 +17,9 @@ trait WithMockFixerTrait
         'BTC' => 0.0001,
     ];
 
-    protected $mockFixerService;
+    protected \PHPUnit\Framework\MockObject\MockObject|null $mockFixerService = null;
 
-    protected function createFixerServiceMock(callable $callback = null): \PHPUnit\Framework\MockObject\MockObject
+    protected function createFixerServiceMock(?callable $callback = null): \PHPUnit\Framework\MockObject\MockObject
     {
         $mockFixerService = $this->getMockBuilder(FixerService::class)
             ->disableOriginalConstructor()
@@ -27,7 +29,7 @@ trait WithMockFixerTrait
         $defaultCallback = static function (
             float $amount,
             string $fromCurrency,
-            ?CarbonInterface $executionDate = null
+            ?CarbonInterface $executionDate = null,
         ) {
             $convertedValues = [];
             foreach (self::EXCHANGE_RATES as $currency => $rate) {

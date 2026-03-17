@@ -31,7 +31,7 @@ class CategoryCrudTest extends BaseApiTestCase
     //  LIST — response shape
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testListCategories_returnsCorrectShape(): void
+    public function testListCategoriesReturnsCorrectShape(): void
     {
         $response = $this->client->request('GET', self::CATEGORY_URL);
         self::assertResponseIsSuccessful();
@@ -49,7 +49,7 @@ class CategoryCrudTest extends BaseApiTestCase
         self::assertArrayHasKey('isAffectingProfit', $category);
     }
 
-    public function testListCategories_containsExpenseAndIncomeTypes(): void
+    public function testListCategoriesContainsExpenseAndIncomeTypes(): void
     {
         $response = $this->client->request('GET', self::CATEGORY_URL);
         self::assertResponseIsSuccessful();
@@ -60,7 +60,7 @@ class CategoryCrudTest extends BaseApiTestCase
         self::assertContains('income', $types, 'List must include income categories.');
     }
 
-    public function testListCategories_parentAndRootPresent(): void
+    public function testListCategoriesParentAndRootPresent(): void
     {
         $response = $this->client->request('GET', self::CATEGORY_URL);
         self::assertResponseIsSuccessful();
@@ -70,7 +70,7 @@ class CategoryCrudTest extends BaseApiTestCase
         // Find a subcategory (Groceries has parent = Food & Drinks)
         $groceries = null;
         foreach ($items as $item) {
-            if ($item['name'] === 'Groceries') {
+            if ('Groceries' === $item['name']) {
                 $groceries = $item;
                 break;
             }
@@ -86,7 +86,7 @@ class CategoryCrudTest extends BaseApiTestCase
     //  CREATE — expense category
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testCreateExpenseCategory_returnsCreatedCategory(): void
+    public function testCreateExpenseCategoryReturnsCreatedCategory(): void
     {
         $response = $this->client->request('POST', self::EXPENSE_CATEGORY_URL, [
             'json' => [
@@ -101,14 +101,14 @@ class CategoryCrudTest extends BaseApiTestCase
         self::assertEquals('Entertainment', $content['name']);
 
         // Verify in DB
-        $category = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Entertainment']);
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Entertainment']);
         self::assertNotNull($category);
         self::assertEquals('expense', $category->getType());
     }
 
-    public function testCreateExpenseCategory_withParent_createsSubcategory(): void
+    public function testCreateExpenseCategoryWithParentCreatesSubcategory(): void
     {
-        $foodCategory = $this->em->getRepository(Category::class)->findOneBy(['name' => 'Food & Drinks']);
+        $foodCategory = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => 'Food & Drinks']);
         self::assertNotNull($foodCategory);
 
         $this->client->request('POST', self::EXPENSE_CATEGORY_URL, [
@@ -120,17 +120,19 @@ class CategoryCrudTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $category = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Snacks']);
-        self::assertNotNull($category);
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Snacks']);
+        \assert($category instanceof ExpenseCategory);
         self::assertTrue($category->hasParent());
-        self::assertEquals($foodCategory->getId(), $category->getParent()->getId());
+        $parent = $category->getParent();
+        \assert(null !== $parent);
+        self::assertEquals($foodCategory->getId(), $parent->getId());
     }
 
     // ──────────────────────────────────────────────────────────────────────
     //  CREATE — income category
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testCreateIncomeCategory_returnsCreatedCategory(): void
+    public function testCreateIncomeCategoryReturnsCreatedCategory(): void
     {
         $response = $this->client->request('POST', self::INCOME_CATEGORY_URL, [
             'json' => [
@@ -143,7 +145,7 @@ class CategoryCrudTest extends BaseApiTestCase
         $content = $response->toArray();
         self::assertEquals('Freelance', $content['name']);
 
-        $category = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => 'Freelance']);
+        $category = $this->entityManager()->getRepository(IncomeCategory::class)->findOneBy(['name' => 'Freelance']);
         self::assertNotNull($category);
         self::assertEquals('income', $category->getType());
     }
@@ -152,9 +154,9 @@ class CategoryCrudTest extends BaseApiTestCase
     //  UPDATE
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testUpdateCategory_changeName(): void
+    public function testUpdateCategoryChangeName(): void
     {
-        $category = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Rent']);
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Rent']);
         self::assertNotNull($category);
 
         $this->client->request('PUT', self::CATEGORY_URL . '/' . $category->getId(), [
@@ -165,13 +167,13 @@ class CategoryCrudTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($category);
+        $this->entityManager()->refresh($category);
         self::assertEquals('Housing', $category->getName());
     }
 
-    public function testUpdateCategory_toggleIsAffectingProfit(): void
+    public function testUpdateCategoryToggleIsAffectingProfit(): void
     {
-        $category = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Rent']);
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Rent']);
         self::assertNotNull($category);
         self::assertTrue($category->getIsAffectingProfit());
 
@@ -183,7 +185,7 @@ class CategoryCrudTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($category);
+        $this->entityManager()->refresh($category);
         self::assertFalse($category->getIsAffectingProfit());
     }
 
@@ -191,7 +193,7 @@ class CategoryCrudTest extends BaseApiTestCase
     //  DELETE
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testDeleteCategory_withoutTransactions_returns204(): void
+    public function testDeleteCategoryWithoutTransactionsReturns204(): void
     {
         // Create a fresh category with no transactions
         $this->client->request('POST', self::EXPENSE_CATEGORY_URL, [
@@ -202,15 +204,15 @@ class CategoryCrudTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $category = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'ToBeDeleted']);
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'ToBeDeleted']);
         self::assertNotNull($category);
         $categoryId = $category->getId();
 
         $this->client->request('DELETE', self::CATEGORY_URL . '/' . $categoryId);
         self::assertResponseStatusCodeSame(204);
 
-        $this->em->clear();
-        $deleted = $this->em->getRepository(Category::class)->find($categoryId);
+        $this->entityManager()->clear();
+        $deleted = $this->entityManager()->getRepository(Category::class)->find($categoryId);
         self::assertNull($deleted, 'Category must be deleted.');
     }
 
@@ -218,12 +220,7 @@ class CategoryCrudTest extends BaseApiTestCase
     //  VALIDATION
     // ──────────────────────────────────────────────────────────────────────
 
-    /**
-     * BUG-FOUND: Category entity has no @Assert\NotBlank on $name.
-     * Empty name is currently accepted (201). This test documents the current
-     * behavior — when validation is added, change to assertResponseStatusCodeSame(422).
-     */
-    public function testCreateExpenseCategory_emptyName_acceptedButShouldBeRejected(): void
+    public function testCreateExpenseCategoryEmptyNameReturns422(): void
     {
         $this->client->request('POST', self::EXPENSE_CATEGORY_URL, [
             'json' => [
@@ -231,8 +228,7 @@ class CategoryCrudTest extends BaseApiTestCase
                 'isAffectingProfit' => true,
             ],
         ]);
-        // BUG-FOUND: Returns 201 instead of 422. Missing @Assert\NotBlank on Category::$name.
-        self::assertResponseStatusCodeSame(201);
+        self::assertResponseStatusCodeSame(422);
     }
 
     /**
@@ -240,7 +236,7 @@ class CategoryCrudTest extends BaseApiTestCase
      * which surfaces as a 500 error, not a 422 validation error. A UniqueEntity
      * constraint should be added to prevent this.
      */
-    public function testCreateExpenseCategory_duplicateNameAndType_returns500(): void
+    public function testCreateExpenseCategoryDuplicateNameAndTypeReturns500(): void
     {
         // 'Rent' already exists as expense category in fixtures
         $this->client->request('POST', self::EXPENSE_CATEGORY_URL, [
@@ -258,7 +254,7 @@ class CategoryCrudTest extends BaseApiTestCase
     //  SECURITY
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testListCategories_withoutAuth_returns401(): void
+    public function testListCategoriesWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::CATEGORY_URL);
@@ -269,7 +265,7 @@ class CategoryCrudTest extends BaseApiTestCase
     //  EDGE CASES
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testListCategories_isAffectingProfitDefaults(): void
+    public function testListCategoriesIsAffectingProfitDefaults(): void
     {
         $response = $this->client->request('GET', self::CATEGORY_URL);
         self::assertResponseIsSuccessful();
@@ -279,7 +275,7 @@ class CategoryCrudTest extends BaseApiTestCase
         // Transfer category has isAffectingProfit = false
         $transferCategory = null;
         foreach ($items as $item) {
-            if ($item['name'] === 'Transfer' && $item['type'] === 'expense') {
+            if ('Transfer' === $item['name'] && 'expense' === $item['type']) {
                 $transferCategory = $item;
                 break;
             }
@@ -290,7 +286,7 @@ class CategoryCrudTest extends BaseApiTestCase
         // Food & Drinks has isAffectingProfit = true
         $foodCategory = null;
         foreach ($items as $item) {
-            if ($item['name'] === 'Food & Drinks') {
+            if ('Food & Drinks' === $item['name']) {
                 $foodCategory = $item;
                 break;
             }
@@ -299,7 +295,7 @@ class CategoryCrudTest extends BaseApiTestCase
         self::assertTrue($foodCategory['isAffectingProfit'], 'Food & Drinks must affect profit.');
     }
 
-    public function testCreateExpenseCategory_isAffectingProfitDefaultsToTrue(): void
+    public function testCreateExpenseCategoryIsAffectingProfitDefaultsToTrue(): void
     {
         $this->client->request('POST', self::EXPENSE_CATEGORY_URL, [
             'json' => [
@@ -308,7 +304,7 @@ class CategoryCrudTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $category = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'NewCategoryDefaultProfit']);
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'NewCategoryDefaultProfit']);
         self::assertNotNull($category);
         self::assertTrue($category->getIsAffectingProfit(), 'Default isAffectingProfit must be true.');
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\ApiPlatform;
 
 use ApiPlatform\Doctrine\Orm\Filter\AbstractFilter;
@@ -18,20 +20,17 @@ final class DiscriminatorFilter extends AbstractFilter
     private array $types;
 
     public function __construct(
-        ManagerRegistry        $managerRegistry,
-        ?LoggerInterface       $logger = null,
+        ManagerRegistry $managerRegistry,
+        ?LoggerInterface $logger = null,
         ?NameConverterInterface $nameConverter = null,
-        ?array                 $properties = null,
-        array                  $types = []
+        ?array $properties = null,
+        array $types = [],
     ) {
         parent::__construct($managerRegistry, $logger, $nameConverter, $properties);
 
         $this->types = $types;
     }
 
-    /**
-     * @inheritDoc
-     */
     public function getDescription(string $resourceClass): array
     {
         return [
@@ -52,26 +51,23 @@ final class DiscriminatorFilter extends AbstractFilter
         ];
     }
 
-    /**
-     * @inheritDoc
-     */
     protected function filterProperty(
-        string                      $property,
+        string $property,
         $value,
-        QueryBuilder                $queryBuilder,
+        QueryBuilder $queryBuilder,
         QueryNameGeneratorInterface $queryNameGenerator,
-        string                      $resourceClass,
-        ?Operation                  $operation = null,
-        array                       $context = []
+        string $resourceClass,
+        ?Operation $operation = null,
+        array $context = [],
     ): void {
-        if ($property !== self::PROPERTY_NAME) {
+        if (self::PROPERTY_NAME !== $property) {
             return;
         }
 
         $em = $queryBuilder->getEntityManager();
         $alias = $queryBuilder->getRootAliases()[0];
 
-        if ($value !== null && $value !== '') {
+        if (null !== $value && '' !== $value) {
             $queryBuilder->andWhere("$alias INSTANCE OF :type")
                 ->setParameter('type', $em->getClassMetadata($this->types[$value]));
         }

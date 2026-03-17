@@ -33,7 +33,7 @@ class BankIntegrationCrudTest extends BaseApiTestCase
     {
         $this->client->request('POST', self::BASE, [
             'headers' => ['authorization' => null],
-            'json'    => ['provider' => 'monobank', 'syncMethod' => 'webhook'],
+            'json' => ['provider' => 'monobank', 'syncMethod' => 'webhook'],
         ]);
 
         self::assertResponseStatusCodeSame(401);
@@ -55,11 +55,13 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         self::assertSame('monobank', $content['provider']);
 
         // Verify persistence and owner from DB.
-        $this->em->clear();
-        $integration = $this->em->getRepository(BankIntegration::class)->find($content['id']);
-        self::assertNotNull($integration);
+        $this->entityManager()->clear();
+        $integration = $this->entityManager()->getRepository(BankIntegration::class)->find($content['id']);
+        \assert($integration instanceof BankIntegration);
         self::assertTrue($integration->isActive());
-        self::assertSame($this->testUser->getId(), $integration->getOwner()->getId());
+        $owner = $integration->getOwner();
+        \assert(null !== $owner);
+        self::assertSame($this->testUser->getId(), $owner->getId());
     }
 
     /**
@@ -112,8 +114,11 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         // All returned items must belong to the authenticated user.
         foreach ($content as $item) {
             self::assertArrayHasKey('id', $item);
-            $integration = $this->em->getRepository(BankIntegration::class)->find($item['id']);
-            self::assertSame($this->testUser->getId(), $integration->getOwner()->getId());
+            $integration = $this->entityManager()->getRepository(BankIntegration::class)->find($item['id']);
+            \assert($integration instanceof BankIntegration);
+            $owner = $integration->getOwner();
+            \assert(null !== $owner);
+            self::assertSame($this->testUser->getId(), $owner->getId());
         }
     }
 
@@ -149,7 +154,7 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         // Create an integration directly in the DB for a different (anonymous) user.
         $user2 = new \App\Entity\User();
         $user2->setUsername('crud_other_user')->setPassword('pw')->setRoles(['ROLE_USER']);
-        $this->em->persist($user2);
+        $this->entityManager()->persist($user2);
 
         $integration = new BankIntegration();
         $integration
@@ -157,8 +162,8 @@ class BankIntegrationCrudTest extends BaseApiTestCase
             ->setSyncMethod(SyncMethod::Webhook)
             ->setOwner($user2)
             ->setIsActive(true);
-        $this->em->persist($integration);
-        $this->em->flush();
+        $this->entityManager()->persist($integration);
+        $this->entityManager()->flush();
 
         $this->client->request('GET', self::BASE . '/' . $integration->getId());
         self::assertResponseStatusCodeSame(403);
@@ -198,8 +203,8 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(204);
 
         // Must be gone from DB.
-        $this->em->clear();
-        self::assertNull($this->em->getRepository(BankIntegration::class)->find($id));
+        $this->entityManager()->clear();
+        self::assertNull($this->entityManager()->getRepository(BankIntegration::class)->find($id));
     }
 
     /**
@@ -209,7 +214,7 @@ class BankIntegrationCrudTest extends BaseApiTestCase
     {
         $user2 = new \App\Entity\User();
         $user2->setUsername('crud_delete_other')->setPassword('pw')->setRoles(['ROLE_USER']);
-        $this->em->persist($user2);
+        $this->entityManager()->persist($user2);
 
         $integration = new BankIntegration();
         $integration
@@ -217,8 +222,8 @@ class BankIntegrationCrudTest extends BaseApiTestCase
             ->setSyncMethod(SyncMethod::Webhook)
             ->setOwner($user2)
             ->setIsActive(true);
-        $this->em->persist($integration);
-        $this->em->flush();
+        $this->entityManager()->persist($integration);
+        $this->entityManager()->flush();
 
         $this->client->request('DELETE', self::BASE . '/' . $integration->getId());
         self::assertResponseStatusCodeSame(403);

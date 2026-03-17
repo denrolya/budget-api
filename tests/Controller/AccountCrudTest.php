@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Entity\Account;
-use App\Entity\BankCardAccount;
 use App\Entity\BankIntegration;
-use App\Entity\CashAccount;
-use App\Entity\InternetAccount;
 use App\Tests\BaseApiTestCase;
 
 /**
@@ -33,7 +30,7 @@ class AccountCrudTest extends BaseApiTestCase
     //  LIST
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testListAccounts_happyPath_returnsAllFieldsExpectedByFrontend(): void
+    public function testListAccountsHappyPathReturnsAllFieldsExpectedByFrontend(): void
     {
         $response = $this->client->request('GET', self::ACCOUNT_URL);
         self::assertResponseIsSuccessful();
@@ -41,7 +38,7 @@ class AccountCrudTest extends BaseApiTestCase
         $content = $response->toArray();
         // With Accept: application/json the response is a plain array (not hydra envelope)
         self::assertIsArray($content);
-        self::assertGreaterThanOrEqual(2, count($content), 'Fixtures create at least 2 accounts.');
+        self::assertGreaterThanOrEqual(2, \count($content), 'Fixtures create at least 2 accounts.');
 
         $account = $content[0];
         // Every field the frontend AccountRawData reads must be present
@@ -66,14 +63,14 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertIsInt($account['draftCount']);
     }
 
-    public function testListAccounts_bankAccountExposesSubtypeFields(): void
+    public function testListAccountsBankAccountExposesSubtypeFields(): void
     {
         $response = $this->client->request('GET', self::ACCOUNT_URL);
         self::assertResponseIsSuccessful();
 
         $bankAccount = null;
         foreach ($response->toArray() as $item) {
-            if ($item['type'] === 'bank') {
+            if ('bank' === $item['type']) {
                 $bankAccount = $item;
                 break;
             }
@@ -90,7 +87,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertSame('UA123456789012345678901234567', $bankAccount['iban']);
     }
 
-    public function testListAccounts_includesArchivedAccounts(): void
+    public function testListAccountsIncludesArchivedAccounts(): void
     {
         // Archive the EUR Cash account
         $this->client->request('PUT', self::ACCOUNT_URL . '/' . $this->accountCashEUR->getId(), [
@@ -112,7 +109,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
     }
 
-    public function testListAccounts_draftCountIsEnrichedByProvider(): void
+    public function testListAccountsDraftCountIsEnrichedByProvider(): void
     {
         $response = $this->client->request('GET', self::ACCOUNT_URL);
         self::assertResponseIsSuccessful();
@@ -128,7 +125,7 @@ class AccountCrudTest extends BaseApiTestCase
     //  CREATE — happy paths per subtype
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testCreateBasicAccount_happyPath_returns201WithCorrectShape(): void
+    public function testCreateBasicAccountHappyPathReturns201WithCorrectShape(): void
     {
         $response = $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -150,7 +147,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertIsInt($content['id']);
     }
 
-    public function testCreateBankAccount_happyPath_returnsBankSpecificFields(): void
+    public function testCreateBankAccountHappyPathReturnsBankSpecificFields(): void
     {
         $response = $this->client->request('POST', self::ACCOUNT_BANK_URL, [
             'json' => [
@@ -172,7 +169,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertEqualsWithDelta(1000.0, (float) $content['balance'], 0.000001);
     }
 
-    public function testCreateCashAccount_happyPath_returns201(): void
+    public function testCreateCashAccountHappyPathReturns201(): void
     {
         $response = $this->client->request('POST', self::ACCOUNT_CASH_URL, [
             'json' => [
@@ -190,7 +187,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertSame('UAH', $content['currency']);
     }
 
-    public function testCreateInternetAccount_happyPath_returns201(): void
+    public function testCreateInternetAccountHappyPathReturns201(): void
     {
         $response = $this->client->request('POST', self::ACCOUNT_INTERNET_URL, [
             'json' => [
@@ -207,7 +204,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertSame('Test PayPal', $content['name']);
     }
 
-    public function testCreateAccount_integerBalance_storedCorrectly(): void
+    public function testCreateAccountIntegerBalanceStoredCorrectly(): void
     {
         $response = $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -224,7 +221,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertEqualsWithDelta(123.0, (float) $content['balance'], 0.000001);
     }
 
-    public function testCreateAccount_floatBalance_storedCorrectly(): void
+    public function testCreateAccountFloatBalanceStoredCorrectly(): void
     {
         $response = $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -241,7 +238,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertEqualsWithDelta(123.45, (float) $content['balance'], 0.000001);
     }
 
-    public function testCreateAccount_zeroBalance_succeeds(): void
+    public function testCreateAccountZeroBalanceSucceeds(): void
     {
         $response = $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -261,7 +258,7 @@ class AccountCrudTest extends BaseApiTestCase
     //  CREATE — validation errors
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testCreateAccount_missingName_returns422(): void
+    public function testCreateAccountMissingNameReturns422(): void
     {
         $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -274,7 +271,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function testCreateAccount_emptyName_returns422(): void
+    public function testCreateAccountEmptyNameReturns422(): void
     {
         $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -288,7 +285,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function testCreateAccount_missingCurrency_returns422(): void
+    public function testCreateAccountMissingCurrencyReturns422(): void
     {
         $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -301,7 +298,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function testCreateAccount_invalidCurrency_returns422(): void
+    public function testCreateAccountInvalidCurrencyReturns422(): void
     {
         $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -319,7 +316,7 @@ class AccountCrudTest extends BaseApiTestCase
      * Balance has a default of 0.0 in the entity, so omitting it is valid.
      * The account should be created with balance=0.
      */
-    public function testCreateAccount_missingBalance_defaultsToZero(): void
+    public function testCreateAccountMissingBalanceDefaultsToZero(): void
     {
         $response = $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -333,7 +330,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertEqualsWithDelta(0.0, (float) $response->toArray()['balance'], 0.000001);
     }
 
-    public function testCreateAccount_nonNumericBalance_returns422(): void
+    public function testCreateAccountNonNumericBalanceReturns422(): void
     {
         $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -351,7 +348,7 @@ class AccountCrudTest extends BaseApiTestCase
     //  UPDATE
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testUpdateAccount_changeName_succeeds(): void
+    public function testUpdateAccountChangeNameSucceeds(): void
     {
         $identifier = $this->accountCashEUR->getId();
 
@@ -369,7 +366,7 @@ class AccountCrudTest extends BaseApiTestCase
         ]);
     }
 
-    public function testUpdateAccount_changeBalance_succeeds(): void
+    public function testUpdateAccountChangeBalanceSucceeds(): void
     {
         $identifier = $this->accountCashEUR->getId();
 
@@ -387,7 +384,7 @@ class AccountCrudTest extends BaseApiTestCase
         ]);
     }
 
-    public function testUpdateAccount_archiveAndUnarchive_succeeds(): void
+    public function testUpdateAccountArchiveAndUnarchiveSucceeds(): void
     {
         $identifier = $this->accountCashEUR->getId();
 
@@ -398,8 +395,9 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
 
         // Verify in DB directly (JMS serializer omits null values, so API response may not include archivedAt)
-        $this->em->clear();
-        $account = $this->em->getRepository(Account::class)->find($identifier);
+        $this->entityManager()->clear();
+        $account = $this->entityManager()->getRepository(Account::class)->find($identifier);
+        \assert($account instanceof Account);
         self::assertNotNull($account->getArchivedAt(), 'Account must be archived in database.');
 
         // Unarchive
@@ -409,12 +407,13 @@ class AccountCrudTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->clear();
-        $account = $this->em->getRepository(Account::class)->find($identifier);
+        $this->entityManager()->clear();
+        $account = $this->entityManager()->getRepository(Account::class)->find($identifier);
+        \assert($account instanceof Account);
         self::assertNull($account->getArchivedAt(), 'Account must be unarchived in database.');
     }
 
-    public function testUpdateAccount_toggleIsDisplayedOnSidebar_succeeds(): void
+    public function testUpdateAccountToggleIsDisplayedOnSidebarSucceeds(): void
     {
         $identifier = $this->accountCashEUR->getId();
 
@@ -431,7 +430,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertFalse($response->toArray()['isDisplayedOnSidebar']);
     }
 
-    public function testUpdateAccount_changeCurrency_succeeds(): void
+    public function testUpdateAccountChangeCurrencySucceeds(): void
     {
         // Create a fresh account to test currency change without affecting fixtures
         $response = $this->client->request('POST', self::ACCOUNT_URL, [
@@ -456,13 +455,13 @@ class AccountCrudTest extends BaseApiTestCase
     //  SECURITY
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testListAccounts_withoutAuth_returns401(): void
+    public function testListAccountsWithoutAuthReturns401(): void
     {
         $this->client->request('GET', self::ACCOUNT_URL, ['headers' => ['authorization' => null]]);
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testCreateAccount_withoutAuth_returns401(): void
+    public function testCreateAccountWithoutAuthReturns401(): void
     {
         $this->client->request('POST', self::ACCOUNT_URL, [
             'headers' => ['authorization' => null],
@@ -476,7 +475,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testUpdateAccount_withoutAuth_returns401(): void
+    public function testUpdateAccountWithoutAuthReturns401(): void
     {
         $this->client->request('PUT', self::ACCOUNT_URL . '/' . $this->accountCashEUR->getId(), [
             'headers' => ['authorization' => null],
@@ -489,7 +488,7 @@ class AccountCrudTest extends BaseApiTestCase
     //  EDGE CASES
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testCreateAccount_allSupportedCurrencies_succeed(): void
+    public function testCreateAccountAllSupportedCurrenciesSucceed(): void
     {
         $currencies = ['EUR', 'USD', 'UAH', 'HUF', 'BTC', 'ETH'];
 
@@ -507,7 +506,7 @@ class AccountCrudTest extends BaseApiTestCase
         }
     }
 
-    public function testCreateAccount_negativeBalance_isAccepted(): void
+    public function testCreateAccountNegativeBalanceIsAccepted(): void
     {
         // Negative balance is valid (e.g. credit account)
         $response = $this->client->request('POST', self::ACCOUNT_URL, [
@@ -523,7 +522,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertEqualsWithDelta(-500.25, (float) $response->toArray()['balance'], 0.000001);
     }
 
-    public function testCreateAccount_veryLargeBalance_storedCorrectly(): void
+    public function testCreateAccountVeryLargeBalanceStoredCorrectly(): void
     {
         $response = $this->client->request('POST', self::ACCOUNT_URL, [
             'json' => [
@@ -539,7 +538,7 @@ class AccountCrudTest extends BaseApiTestCase
         self::assertEqualsWithDelta(9999999999.12345678, (float) $content['balance'], 0.01);
     }
 
-    public function testUpdateAccount_nonExistentId_returns404(): void
+    public function testUpdateAccountNonExistentIdReturns404(): void
     {
         $this->client->request('PUT', self::ACCOUNT_URL . '/999999', [
             'json' => ['name' => 'Ghost'],
@@ -551,7 +550,7 @@ class AccountCrudTest extends BaseApiTestCase
      * Verify the removed Get single-item endpoint returns 405 (or 404).
      * The frontend never uses GET /api/accounts/{id} directly.
      */
-    public function testGetSingleAccount_removedEndpoint_returnsNotAllowed(): void
+    public function testGetSingleAccountRemovedEndpointReturnsNotAllowed(): void
     {
         $response = $this->client->request('GET', self::ACCOUNT_URL . '/' . $this->accountCashEUR->getId());
         $statusCode = $response->getStatusCode();
@@ -563,17 +562,17 @@ class AccountCrudTest extends BaseApiTestCase
     /**
      * Verify the removed v2 item endpoint is gone.
      */
-    public function testGetSingleAccountV2_removedEndpoint_returnsNotFound(): void
+    public function testGetSingleAccountV2RemovedEndpointReturnsNotFound(): void
     {
         $this->client->request('GET', '/api/v2/accounts/' . $this->accountCashEUR->getId());
         self::assertResponseStatusCodeSame(404);
     }
 
-    public function testCreateBankAccount_withBankIntegrationIri_linksCorrectly(): void
+    public function testCreateBankAccountWithBankIntegrationIriLinksCorrectly(): void
     {
         // Check if a bank integration fixture exists
-        $bankIntegration = $this->em->getRepository(BankIntegration::class)->findOneBy([]);
-        if ($bankIntegration === null) {
+        $bankIntegration = $this->entityManager()->getRepository(BankIntegration::class)->findOneBy([]);
+        if (null === $bankIntegration) {
             self::markTestSkipped('No BankIntegration fixture available.');
         }
 

@@ -14,6 +14,8 @@ use App\Entity\Transaction;
 use App\Service\AssetsManager;
 use App\Tests\BaseApiTestCase;
 use DateTimeImmutable;
+use ReflectionClass;
+use RuntimeException;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -38,9 +40,9 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      */
     private function createExchangeRateSnapshot(string $date): void
     {
-        $effectiveAt = new DateTimeImmutable($date.' 00:00:00');
+        $effectiveAt = new DateTimeImmutable($date . ' 00:00:00');
 
-        $repo = $this->em->getRepository(ExchangeRateSnapshot::class);
+        $repo = $this->entityManager()->getRepository(ExchangeRateSnapshot::class);
         $existing = $repo->findOneBy(['effectiveAt' => $effectiveAt]);
         if ($existing instanceof ExchangeRateSnapshot) {
             return;
@@ -54,8 +56,8 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $snapshot->setHufPerEur('400');   // 1 EUR = 400 HUF
         $snapshot->setUahPerEur('40');    // 1 EUR = 40 UAH
 
-        $this->em->persist($snapshot);
-        $this->em->flush();
+        $this->entityManager()->persist($snapshot);
+        $this->entityManager()->flush();
     }
 
     protected function setUp(): void
@@ -65,11 +67,11 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         // All happy-path tests use 2026-02-22 as executedAt
         $this->createExchangeRateSnapshot('2026-02-22');
 
-        $expenseCategory = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Groceries']);
-        assert($expenseCategory instanceof ExpenseCategory);
+        $expenseCategory = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => 'Groceries']);
+        \assert($expenseCategory instanceof ExpenseCategory);
         $this->testExpenseCategory = $expenseCategory;
-        $incomeCategory = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => 'Compensation']);
-        assert($incomeCategory instanceof IncomeCategory);
+        $incomeCategory = $this->entityManager()->getRepository(IncomeCategory::class)->findOneBy(['name' => 'Compensation']);
+        \assert($incomeCategory instanceof IncomeCategory);
         $this->testIncomeCategory = $incomeCategory;
     }
 
@@ -148,7 +150,7 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         self::assertSame('expense', $content[0]['type']);
         self::assertSame('income', $content[1]['type']);
 
-        $transactionRepository = $this->em->getRepository(Transaction::class);
+        $transactionRepository = $this->entityManager()->getRepository(Transaction::class);
 
         /** @var Transaction|null $savedExpense */
         $savedExpense = $transactionRepository->findOneBy(['note' => 'bulk-test-expense-1']);
@@ -253,7 +255,7 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         self::assertArrayHasKey('errors', $content);
         self::assertArrayHasKey('1', $content['errors']);
 
-        $transactionRepository = $this->em->getRepository(Transaction::class);
+        $transactionRepository = $this->entityManager()->getRepository(Transaction::class);
 
         $okTransaction = $transactionRepository->findOneBy(['note' => 'bulk-ok-should-not-persist-on-error']);
         $badTransaction = $transactionRepository->findOneBy(['note' => 'bulk-invalid-amount']);
@@ -335,7 +337,7 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         self::assertIsArray($firstItemErrors);
         self::assertNotEmpty($firstItemErrors);
 
-        $firstMessage = (string)$firstItemErrors[0];
+        $firstMessage = (string) $firstItemErrors[0];
         self::assertStringContainsStringIgnoringCase('type', $firstMessage);
     }
 
@@ -388,7 +390,7 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
         self::assertResponseIsSuccessful();
 
-        $transactionRepository = $this->em->getRepository(Transaction::class);
+        $transactionRepository = $this->entityManager()->getRepository(Transaction::class);
 
         /** @var Expense|null $expense */
         $expense = $transactionRepository->findOneBy(['note' => $expenseNote]);
@@ -458,23 +460,23 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
 
         self::assertResponseIsSuccessful();
 
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         /** @var Account|null $accountAfter */
-        $accountAfter = $this->em->getRepository(Account::class)->find($accountId);
+        $accountAfter = $this->entityManager()->getRepository(Account::class)->find($accountId);
         self::assertNotNull($accountAfter, 'Account must exist after bulk creation.');
         $balanceAfter = $accountAfter->getBalance();
 
         self::assertEqualsWithDelta($balanceBefore + 400.0, $balanceAfter, 0.01);
 
-        $transactionRepository = $this->em->getRepository(Transaction::class);
+        $transactionRepository = $this->entityManager()->getRepository(Transaction::class);
 
         /** @var Transaction|null $income */
         $income = $transactionRepository->findOneBy(['note' => $incomeNote]);
         self::assertNotNull($income);
 
         // Check internal convertedValues on the persisted entity
-        $reflection = new \ReflectionClass($income);
+        $reflection = new ReflectionClass($income);
         $property = $reflection->getProperty('convertedValues');
         $property->setAccessible(true);
         $convertedValues = $property->getValue($income);
@@ -497,16 +499,16 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
      * @throws DecodingExceptionInterface
      * @throws ClientExceptionInterface
      */
-    public function testBulkCreateFailsWhenConversionFails_nothingPersisted(): void
+    public function testBulkCreateFailsWhenConversionFailsNothingPersisted(): void
     {
         // Reload client to get a fresh container where AssetsManager is not yet initialized
         $this->reloadClientWithServices();
 
         $mockAssetsManager = $this->createMock(AssetsManager::class);
         $mockAssetsManager->method('convert')->willThrowException(
-            new \RuntimeException('No exchange rate snapshot found for date 1980-01-01')
+            new RuntimeException('No exchange rate snapshot found for date 1980-01-01'),
         );
-        $this->client->getContainer()->set(AssetsManager::class, $mockAssetsManager);
+        $this->container()->set(AssetsManager::class, $mockAssetsManager);
 
         $note = 'bulk-no-rates-should-fail';
 
@@ -542,7 +544,7 @@ class BulkTransactionCreateActionTest extends BaseApiTestCase
         $message = (string) $firstErrors[0];
         self::assertStringContainsString('Failed to resolve exchange rates', $message);
 
-        $transactionRepository = $this->em->getRepository(Transaction::class);
+        $transactionRepository = $this->entityManager()->getRepository(Transaction::class);
         $transaction = $transactionRepository->findOneBy(['note' => $note]);
         self::assertNull($transaction);
     }

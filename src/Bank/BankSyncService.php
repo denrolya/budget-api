@@ -1,9 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Bank;
 
 use App\Bank\DTO\DraftTransactionData;
-use App\Bank\SyncMethod;
 use App\Entity\BankCardAccount;
 use App\Entity\BankIntegration;
 use App\Entity\Category;
@@ -16,8 +17,12 @@ use App\Repository\BankIntegrationRepository;
 use App\Service\TransactionCategorizationService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Error;
+use InvalidArgumentException;
+use LogicException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Throwable;
 
 /**
  * Orchestrates polling-based bank sync for all active integrations.
@@ -44,15 +49,15 @@ class BankSyncService
     /**
      * Sync a single integration by ID. Convenience wrapper for the console command.
      *
-     * @throws \InvalidArgumentException if not found
-     * @throws \LogicException if provider does not support polling
+     * @throws InvalidArgumentException if not found
+     * @throws LogicException if provider does not support polling
      */
     public function syncById(int $id, ?DateTimeImmutable $from = null, ?DateTimeImmutable $to = null): int
     {
         $integration = $this->integrationRepo->find($id);
 
         if (!$integration) {
-            throw new \InvalidArgumentException("BankIntegration #{$id} not found.");
+            throw new InvalidArgumentException("BankIntegration #{$id} not found.");
         }
 
         return $this->sync($integration, $from, $to);
@@ -65,7 +70,7 @@ class BankSyncService
      *   - its provider implements PollingCapableInterface
      *   - syncMethod is null (auto) OR syncMethod === SyncMethod::Polling
      *
-     * @return array<int, int>  map of integration ID → new draft count
+     * @return array<int, int> map of integration ID → new draft count
      */
     public function syncAll(?DateTimeImmutable $from = null, ?DateTimeImmutable $to = null): array
     {
@@ -80,13 +85,13 @@ class BankSyncService
             }
 
             $syncMethod = $integration->getSyncMethod();
-            if ($syncMethod !== null && $syncMethod !== SyncMethod::Polling) {
+            if (null !== $syncMethod && SyncMethod::Polling !== $syncMethod) {
                 continue;
             }
 
             try {
                 $results[$integration->getId()] = $this->sync($integration, $from, $to);
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $this->logger->error('[BankSync] syncAll failed for integration #{id}: {msg}', [
                     'id' => $integration->getId(),
                     'msg' => $e->getMessage(),
@@ -106,7 +111,7 @@ class BankSyncService
     public function syncAccount(BankCardAccount $account, DateTimeImmutable $from, DateTimeImmutable $to): void
     {
         $integration = $account->getBankIntegration();
-        if ($integration === null) {
+        if (null === $integration) {
             return;
         }
 
@@ -121,13 +126,15 @@ class BankSyncService
         }
 
         $this->categorizationService->resetIndex();
-        $this->categorizationService->buildAllIndexes((int) $integration->getOwner()->getId());
+        $owner = $integration->getOwner();
+        \assert(null !== $owner);
+        $this->categorizationService->buildAllIndexes((int) $owner->getId());
 
         try {
             $items = $provider->fetchTransactions($integration->getCredentials(), $externalId, $from, $to);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->warning('[BankSync] post-webhook enrichment failed for account #{id}: {msg}', [
-                'id'  => $account->getId(),
+                'id' => $account->getId(),
                 'msg' => $e->getMessage(),
             ]);
 
@@ -153,9 +160,7 @@ class BankSyncService
         $provider = $this->registry->get($integration->getProvider());
 
         if (!$provider instanceof PollingCapableInterface) {
-            throw new \LogicException(
-                sprintf('Provider "%s" does not support polling.', $integration->getProvider()->value)
-            );
+            throw new LogicException(\sprintf('Provider "%s" does not support polling.', $integration->getProvider()->value));
         }
 
         $from ??= $integration->getLastSyncedAt() ?? new DateTimeImmutable('-30 days');
@@ -166,7 +171,7 @@ class BankSyncService
             'bankIntegration' => $integration,
         ]);
 
-        if (empty($accounts)) {
+        if ([] === $accounts) {
             $this->logger->info('[BankSync] No linked accounts for integration #{id}', ['id' => $integration->getId()]);
 
             return 0;
@@ -174,7 +179,9 @@ class BankSyncService
 
         // Build categorisation index once per sync run (both income and expense, single DB query).
         $this->categorizationService->resetIndex();
-        $this->categorizationService->buildAllIndexes((int) $integration->getOwner()->getId());
+        $owner = $integration->getOwner();
+        \assert(null !== $owner);
+        $this->categorizationService->buildAllIndexes((int) $owner->getId());
 
         $created = 0;
 
@@ -191,7 +198,7 @@ class BankSyncService
                     $from,
                     $to,
                 );
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $ctx = $this->buildAccountLogContext($integration, $account);
                 $this->logger->error(
                     '[BankSync] fetchTransactions failed for account #{account_id} (external={external_account_id}, name="{account_name}", currency={currency}, bank="{bank}", provider={provider}, integration={integration_id}): {msg}',
@@ -265,7 +272,7 @@ class BankSyncService
 
     private function isDuplicate(BankCardAccount $account, DraftTransactionData $data): bool
     {
-        return $this->findDuplicate($account, $data) !== null;
+        return null !== $this->findDuplicate($account, $data);
     }
 
     private function findDuplicate(BankCardAccount $account, DraftTransactionData $data): ?Transaction
@@ -292,26 +299,26 @@ class BankSyncService
      */
     private function enrichExistingDraft(BankCardAccount $account, DraftTransactionData $data): void
     {
-        if (trim($data->note) === '') {
+        if ('' === trim($data->note)) {
             return;
         }
 
         $existing = $this->findDuplicate($account, $data);
-        if ($existing === null) {
+        if (null === $existing) {
             return;
         }
 
         try {
             $existingNote = trim($existing->getNote() ?? '');
-        } catch (\Error) {
+        } catch (Error) {
             $existingNote = '';
         }
 
-        if ($existingNote !== '' && !in_array($existingNote, self::GENERIC_NOTES, true)) {
+        if ('' !== $existingNote && !\in_array($existingNote, self::GENERIC_NOTES, true)) {
             return;
         }
 
-        $isIncome       = $data->amount > 0;
+        $isIncome = $data->amount > 0;
         $categorization = $this->categorizationService->suggest($data->note, $isIncome);
 
         $existing->setNote($categorization->note);
@@ -322,7 +329,7 @@ class BankSyncService
             $category = $this->em->getRepository(ExpenseCategory::class)->find($categorization->categoryId);
         }
 
-        if ($category !== null) {
+        if (null !== $category) {
             $existing->setCategory($category);
         }
     }
@@ -330,7 +337,7 @@ class BankSyncService
     private function buildDraftTransaction(BankCardAccount $account, DraftTransactionData $data): Transaction
     {
         $isIncome = $data->amount > 0;
-        $owner    = $account->getOwner();
+        $owner = $account->getOwner();
 
         $categorization = $this->categorizationService->suggest($data->note, $isIncome);
 
@@ -343,6 +350,9 @@ class BankSyncService
                 ?? $this->em->getRepository(ExpenseCategory::class)->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
             $transaction = new Expense(true);
         }
+
+        \assert(null !== $category);
+        \assert(null !== $owner);
 
         $transaction
             ->setAccount($account)

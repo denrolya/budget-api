@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Repository\CategoryRepository;
 use App\Repository\TransactionRepository;
 use Carbon\CarbonInterface;
+use DateTimeInterface;
 use League\Csv\Writer;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -36,7 +39,7 @@ final readonly class CSVExporter
         $accountFilter = $this->normalizeIdsOrEntities($accountFilter);
         $excludedCategories = $this->normalizeIdsOrEntities($excludedCategories);
 
-        if ($withNestedCategories && $categoryFilter !== []) {
+        if ($withNestedCategories && [] !== $categoryFilter) {
             $categoryFilter = $this->categories->getCategoriesWithDescendantsByType($categoryFilter, $type);
         }
 
@@ -55,7 +58,7 @@ final readonly class CSVExporter
             $amountLte,
             $debts
         ) {
-            $out = fopen('php://output', 'wb');
+            $out = fopen('php://output', 'w');
 
             // Optional: helps Excel recognize UTF-8
             fwrite($out, "\xEF\xBB\xBF");
@@ -96,27 +99,27 @@ final readonly class CSVExporter
                 debts: $debts ?? [],
                 currencies: $currencies,
                 orderField: TransactionRepository::ORDER_FIELD,
-                order: TransactionRepository::ORDER
+                order: TransactionRepository::ORDER,
             );
 
-            foreach ($items as $tx) {
-                $account = $tx->getAccount();
-                $category = $tx->getCategory();
+            foreach ($items as $transaction) {
+                $account = $transaction->getAccount();
+                $category = $transaction->getCategory();
 
                 $csv->insertOne([
-                    $tx->getId(),
-                    $tx->getExecutedAt()?->format(\DateTimeInterface::ATOM),
-                    $tx->getType(),
-                    (string)$tx->getAmount(),
-                    $tx->getCurrency(),
+                    $transaction->getId(),
+                    $transaction->getExecutedAt()?->format(DateTimeInterface::ATOM),
+                    $transaction->getType(),
+                    (string) $transaction->getAmount(),
+                    $transaction->getCurrency(),
                     $account->getId(),
                     $account->getName(),
                     $category->getId(),
                     $category->getName(),
-                    $tx->getNote(),
-                    (int)$tx->getIsDraft(),
-                    $tx->getCreatedAt()?->format(\DateTimeInterface::ATOM),
-                    $tx->getUpdatedAt()?->format(\DateTimeInterface::ATOM),
+                    $transaction->getNote(),
+                    (int) $transaction->getIsDraft(),
+                    $transaction->getCreatedAt()?->format(DateTimeInterface::ATOM),
+                    $transaction->getUpdatedAt()?->format(DateTimeInterface::ATOM),
                 ]);
             }
 
@@ -126,22 +129,23 @@ final readonly class CSVExporter
 
     /**
      * Allows both ids and entities as filter values.
+     *
      * @return array<int|object>
      */
     private function normalizeIdsOrEntities(?array $values): array
     {
-        if ($values === null || $values === []) {
+        if (null === $values || [] === $values) {
             return [];
         }
 
         $out = [];
         foreach ($values as $v) {
             if (is_numeric($v)) {
-                $out[] = (int)$v;
+                $out[] = (int) $v;
                 continue;
             }
 
-            if (is_object($v) && method_exists($v, 'getId')) {
+            if (\is_object($v) && method_exists($v, 'getId')) {
                 $out[] = $v;
             }
         }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Service;
 
 use App\Entity\Account;
@@ -9,15 +11,16 @@ use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Repository\CategoryRepository;
 use App\Repository\ExpenseCategoryRepository;
+use App\Repository\IncomeCategoryRepository;
 use App\Repository\TransactionRepository;
 use App\Service\AssetsManager;
 use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterval;
 use Carbon\CarbonPeriod;
-use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use ReflectionClass;
 
 class StatisticsManagerTest extends TestCase
 {
@@ -201,7 +204,7 @@ class StatisticsManagerTest extends TestCase
         self::assertCount(7, $result);
         self::assertSame('Monday', $result[0]['name']);
 
-        $nonEmptyDays = array_filter($result, static fn(array $day) => ($day['values']['Food'] ?? 0) > 0);
+        $nonEmptyDays = array_filter($result, static fn (array $day) => ($day['values']['Food'] ?? 0) > 0);
         self::assertNotEmpty($nonEmptyDays);
     }
 
@@ -300,7 +303,7 @@ class StatisticsManagerTest extends TestCase
         self::assertArrayHasKey('Food', $result[6]['values']);
 
         // Monday through Saturday must have no Food value
-        foreach (array_slice($result, 0, 6) as $day) {
+        foreach (\array_slice($result, 0, 6) as $day) {
             self::assertArrayNotHasKey('Food', $day['values'], "{$day['name']} must have no Food value.");
         }
     }
@@ -321,7 +324,7 @@ class StatisticsManagerTest extends TestCase
 
         $result = $statisticsManager->averageByPeriod(
             $transactions,
-            CarbonPeriod::create('2024-01-01', CarbonInterval::day(), '2024-01-03')
+            CarbonPeriod::create('2024-01-01', CarbonInterval::day(), '2024-01-03'),
         );
 
         self::assertCount(2, $result);
@@ -331,27 +334,22 @@ class StatisticsManagerTest extends TestCase
 
     private function createStatisticsManager(
         AssetsManager $assetsManager,
-        TransactionRepository $transactionRepo,
-        ?CategoryRepository $categoryRepo = null,
-        ?ExpenseCategoryRepository $expenseCategoryRepo = null,
+        TransactionRepository $transactionRepository,
+        ?CategoryRepository $categoryRepository = null,
+        ?ExpenseCategoryRepository $expenseCategoryRepository = null,
+        ?IncomeCategoryRepository $incomeCategoryRepository = null,
     ): StatisticsManager {
-        $categoryRepo ??= $this->createMock(CategoryRepository::class);
-        $expenseCategoryRepo ??= $this->createMock(ExpenseCategoryRepository::class);
+        $categoryRepository ??= $this->createMock(CategoryRepository::class);
+        $expenseCategoryRepository ??= $this->createMock(ExpenseCategoryRepository::class);
+        $incomeCategoryRepository ??= $this->createMock(IncomeCategoryRepository::class);
 
-        /** @var MockObject&EntityManagerInterface $em */
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em
-            ->method('getRepository')
-            ->willReturnCallback(static function (string $entityClass) use ($transactionRepo, $categoryRepo, $expenseCategoryRepo) {
-                return match ($entityClass) {
-                    Transaction::class => $transactionRepo,
-                    Category::class => $categoryRepo,
-                    ExpenseCategory::class => $expenseCategoryRepo,
-                    default => throw new \InvalidArgumentException('Unexpected repository request: '.$entityClass),
-                };
-            });
-
-        return new StatisticsManager($assetsManager, $em);
+        return new StatisticsManager(
+            $assetsManager,
+            $transactionRepository,
+            $categoryRepository,
+            $expenseCategoryRepository,
+            $incomeCategoryRepository,
+        );
     }
 
     private function createAssetsManagerMock(): AssetsManager
@@ -363,8 +361,8 @@ class StatisticsManagerTest extends TestCase
             ->willReturnCallback(static function (array $transactions): float {
                 return array_reduce(
                     $transactions,
-                    static fn(float $sum, Transaction $tx): float => $sum + $tx->getValue(),
-                    0.0
+                    static fn (float $sum, Transaction $transaction): float => $sum + $transaction->getValue(),
+                    0.0,
                 );
             });
 
@@ -413,22 +411,22 @@ class StatisticsManagerTest extends TestCase
         Category $category,
         Account $account,
     ): Transaction {
-        /** @var MockObject&Transaction $tx */
-        $tx = $this->createMock(Transaction::class);
-        $tx->method('getType')->willReturn($type);
-        $tx->method('getExecutedAt')->willReturn(CarbonImmutable::parse($executedAt));
-        $tx->method('getCategory')->willReturn($category);
-        $tx->method('getAccount')->willReturn($account);
-        $tx->method('getValue')->willReturn($value);
+        /** @var MockObject&Transaction $transaction */
+        $transaction = $this->createMock(Transaction::class);
+        $transaction->method('getType')->willReturn($type);
+        $transaction->method('getExecutedAt')->willReturn(CarbonImmutable::parse($executedAt));
+        $transaction->method('getCategory')->willReturn($category);
+        $transaction->method('getAccount')->willReturn($account);
+        $transaction->method('getValue')->willReturn($value);
 
-        return $tx;
+        return $transaction;
     }
 
     private function setEntityId(object $entity, int $id): void
     {
-        $class = new \ReflectionClass($entity);
+        $class = new ReflectionClass($entity);
 
-        while (!$class->hasProperty('id') && $class->getParentClass() !== false) {
+        while (!$class->hasProperty('id') && false !== $class->getParentClass()) {
             $class = $class->getParentClass();
         }
 

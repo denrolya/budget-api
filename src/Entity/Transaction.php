@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
@@ -12,9 +14,9 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Post;
 use ApiPlatform\Metadata\Put;
+use App\ApiPlatform\Action\TransactionBulkCreateAction;
 use App\ApiPlatform\CategoryDeepSearchFilter;
 use App\ApiPlatform\DiscriminatorFilter;
-use App\ApiPlatform\Action\TransactionBulkCreateAction;
 use App\Repository\TransactionRepository;
 use App\Traits\ExecutableEntity;
 use App\Traits\OwnableValuableEntity;
@@ -31,9 +33,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: TransactionRepository::class)]
 #[ORM\Table(name: 'transaction')]
 #[ORM\Index(columns: ['executed_at'], name: 'transaction_executed_at_idx')]
-#[ORM\InheritanceType("SINGLE_TABLE")]
-#[ORM\DiscriminatorColumn(name: "type", type: "string")]
-#[ORM\DiscriminatorMap(["expense" => Expense::class, "income" => Income::class])]
+#[ORM\InheritanceType('SINGLE_TABLE')]
+#[ORM\DiscriminatorColumn(name: 'type', type: 'string')]
+#[ORM\DiscriminatorMap(['expense' => Expense::class, 'income' => Income::class])]
 #[ApiResource(
     description: 'An income or expense transaction. Uses single-table inheritance with a `type` discriminator (expense/income). Amounts are in the account\'s native currency; convertedValues holds the amount in the user\'s base currency.',
     operations: [
@@ -99,7 +101,9 @@ use Symfony\Component\Validator\Constraints as Assert;
 ])]
 abstract class Transaction implements OwnableInterface
 {
-    use TimestampableEntity, OwnableValuableEntity, ExecutableEntity;
+    use ExecutableEntity;
+    use OwnableValuableEntity;
+    use TimestampableEntity;
 
     public const INCOME = 'income';
     public const REVENUE = 'revenue';
@@ -113,8 +117,8 @@ abstract class Transaction implements OwnableInterface
     protected ?int $id = null;
 
     #[Assert\NotBlank]
-    #[ORM\ManyToOne(targetEntity: Account::class, inversedBy: "transactions")]
-    #[ORM\JoinColumn(name: "account_id", referencedColumnName: "id", nullable: false)]
+    #[ORM\ManyToOne(targetEntity: Account::class, fetch: 'LAZY', inversedBy: 'transactions')]
+    #[ORM\JoinColumn(name: 'account_id', referencedColumnName: 'id', nullable: false)]
     #[Groups([
         'transaction:collection:read',
         'transaction:item:read',
@@ -127,7 +131,7 @@ abstract class Transaction implements OwnableInterface
 
     #[Assert\NotBlank]
     #[Assert\Type('numeric')]
-    #[Assert\GreaterThan(value: "0")]
+    #[Assert\GreaterThan(value: '0')]
     #[ORM\Column(type: Types::DECIMAL, precision: 18, scale: 8)]
     #[Groups([
         'transaction:collection:read',
@@ -185,13 +189,13 @@ abstract class Transaction implements OwnableInterface
     ])]
     protected ?DateTimeInterface $executedAt;
 
-    #[Gedmo\Timestampable(on: "create")]
+    #[Gedmo\Timestampable(on: 'create')]
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
     protected ?DateTimeInterface $createdAt;
 
     #[Assert\NotBlank]
-    #[ORM\ManyToOne(targetEntity: Category::class, cascade: ["persist"], inversedBy: "transactions")]
-    #[ORM\JoinColumn(name: "category_id", referencedColumnName: "id", nullable: false)]
+    #[ORM\ManyToOne(targetEntity: Category::class, cascade: ['persist'], fetch: 'LAZY', inversedBy: 'transactions')]
+    #[ORM\JoinColumn(name: 'category_id', referencedColumnName: 'id', nullable: false)]
     #[Groups([
         'transaction:collection:read',
         'transaction:item:read',
@@ -212,12 +216,12 @@ abstract class Transaction implements OwnableInterface
     #[Serializer\Groups(['transaction:collection:read'])]
     private bool $isDraft;
 
-    #[ORM\ManyToOne(targetEntity: Debt::class, cascade: ["persist"], inversedBy: "transactions")]
+    #[ORM\ManyToOne(targetEntity: Debt::class, cascade: ['persist'], fetch: 'LAZY', inversedBy: 'transactions')]
     #[Groups(['transaction:write'])]
     private ?Debt $debt = null;
 
     #[Serializer\Groups(['transaction:collection:read'])]
-    #[ORM\ManyToOne(targetEntity: Transfer::class, cascade: ["remove"], inversedBy: "transactions")]
+    #[ORM\ManyToOne(targetEntity: Transfer::class, cascade: ['remove'], fetch: 'LAZY', inversedBy: 'transactions')]
     private ?Transfer $transfer = null;
 
     #[Groups(['transaction:collection:read', 'transaction:item:read', 'debt:collection:read', 'transfer:collection:read'])]
@@ -230,7 +234,7 @@ abstract class Transaction implements OwnableInterface
 
     public function __toString(): string
     {
-        return (string)$this->id;
+        return (string) $this->id;
     }
 
     public function getId(): ?int
@@ -262,12 +266,12 @@ abstract class Transaction implements OwnableInterface
 
     public function getAmount(): float
     {
-        return (float)$this->amount;
+        return (float) $this->amount;
     }
 
     public function setAmount(string|float|int $amount): self
     {
-        $this->amount = (string)$amount;
+        $this->amount = (string) $amount;
 
         return $this;
     }
@@ -286,17 +290,17 @@ abstract class Transaction implements OwnableInterface
 
     public function isExpense(): bool
     {
-        return $this->getType() === self::EXPENSE;
+        return self::EXPENSE === $this->getType();
     }
 
     public function isIncome(): bool
     {
-        return $this->getType() === self::INCOME;
+        return self::INCOME === $this->getType();
     }
 
     public function isDebt(): bool
     {
-        return $this->getCategory()->getName() === Category::CATEGORY_DEBT;
+        return Category::CATEGORY_DEBT === $this->getCategory()->getName();
     }
 
     public function getCategory(): Category
@@ -336,13 +340,13 @@ abstract class Transaction implements OwnableInterface
 
     public function setDebt(?Debt $debt): self
     {
-        if ($this->debt !== null && $this->debt !== $debt) {
+        if (null !== $this->debt && $this->debt !== $debt) {
             $this->debt->removeTransaction($this);
         }
 
         $this->debt = $debt;
 
-        if ($debt !== null) {
+        if (null !== $debt) {
             $debt->addTransaction($this);
         }
 

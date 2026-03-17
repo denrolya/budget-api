@@ -5,13 +5,14 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Attribute\MapCarbonDate;
-use App\Pagination\Paginator;
+use App\Repository\TransactionRepository;
 use App\Service\AssetsManager;
 use App\Service\CSVExporter;
 use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
+use InvalidArgumentException;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -34,7 +35,7 @@ final class TransactionController extends AbstractFOSRestController
     #[Rest\QueryParam(name: 'withNestedCategories', requirements: '^(0|1|true|false)$', default: true, description: 'Include nested categories', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'isDraft', requirements: '^(0|1|true|false)$', default: null, description: 'true=only draft, false=only non-draft, null=all', nullable: true, allowBlank: false)]
     #[Rest\QueryParam(name: 'note', description: 'Search substring in note', nullable: true, allowBlank: true)]
-    #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: Paginator::PER_PAGE)]
+    #[Rest\QueryParam(name: 'perPage', requirements: '^[1-9][0-9]*$', default: TransactionRepository::PER_PAGE)]
     #[Rest\QueryParam(name: 'page', requirements: '^[1-9][0-9]*$', default: 1)]
     #[Rest\View(serializerGroups: ['transaction:collection:read'])]
     #[Route('', name: 'collection_read', methods: ['GET'])]
@@ -69,14 +70,15 @@ final class TransactionController extends AbstractFOSRestController
                     new OA\Property(property: 'list', type: 'array', items: new OA\Items(type: 'object')),
                     new OA\Property(property: 'count', type: 'integer'),
                     new OA\Property(property: 'totalValue', type: 'number', format: 'float'),
-                ])
+                ]),
             ),
             new OA\Response(response: 400, description: 'Invalid amount range'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\TransactionControllerTest
+     *
      * @tested testAuthorizedUserCanAccessListOfTransactions
      * @tested testTransactionsListPagination
      * @tested testBeforeAfterFilters
@@ -111,18 +113,18 @@ final class TransactionController extends AbstractFOSRestController
         bool $withNestedCategories = true,
         ?bool $isDraft = null,
         ?string $note = null,
-        int $perPage = Paginator::PER_PAGE,
+        int $perPage = TransactionRepository::PER_PAGE,
         int $page = 1,
     ): View {
-        $amount    = $request->query->all('amount');
+        $amount = $request->query->all('amount');
         $amountGte = isset($amount['gte']) && is_numeric($amount['gte']) ? (float) $amount['gte'] : null;
         $amountLte = isset($amount['lte']) && is_numeric($amount['lte']) ? (float) $amount['lte'] : null;
 
-        if ($amountGte !== null && $amountLte !== null && $amountGte > $amountLte) {
-            throw new \InvalidArgumentException('amount[gte] cannot be greater than amount[lte]');
+        if (null !== $amountGte && null !== $amountLte && $amountGte > $amountLte) {
+            throw new InvalidArgumentException('amount[gte] cannot be greater than amount[lte]');
         }
 
-        $note = (is_string($note) && trim($note) !== '') ? trim($note) : null;
+        $note = (\is_string($note) && '' !== trim($note)) ? trim($note) : null;
 
         return $this->view(
             $assetsManager->generateTransactionPaginationData(
@@ -141,7 +143,7 @@ final class TransactionController extends AbstractFOSRestController
                 currencies: $currencies,
                 perPage: $perPage,
                 page: $page,
-            )
+            ),
         );
     }
 
@@ -187,14 +189,15 @@ final class TransactionController extends AbstractFOSRestController
                 headers: [
                     new OA\Header(header: 'Content-Type', schema: new OA\Schema(type: 'string', example: 'text/csv; charset=UTF-8')),
                     new OA\Header(header: 'Content-Disposition', schema: new OA\Schema(type: 'string', example: 'attachment; filename="transactions_20240101_20240131.csv"')),
-                ]
+                ],
             ),
             new OA\Response(response: 400, description: 'Invalid amount range'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\TransactionControllerTest
+     *
      * @tested testExportCsvWithoutFiltersDoesNotCrash
      * @tested testExportCsvWithCurrenciesFilter
      * @tested testExportCsvWithUnknownCurrencyDoesNotCrash
@@ -214,15 +217,15 @@ final class TransactionController extends AbstractFOSRestController
         ?bool $isDraft = null,
         ?string $note = null,
     ): Response {
-        $amount    = $request->query->all('amount');
+        $amount = $request->query->all('amount');
         $amountGte = isset($amount['gte']) && is_numeric($amount['gte']) ? (float) $amount['gte'] : null;
         $amountLte = isset($amount['lte']) && is_numeric($amount['lte']) ? (float) $amount['lte'] : null;
 
-        if ($amountGte !== null && $amountLte !== null && $amountGte > $amountLte) {
-            throw new \InvalidArgumentException('amount[gte] cannot be greater than amount[lte]');
+        if (null !== $amountGte && null !== $amountLte && $amountGte > $amountLte) {
+            throw new InvalidArgumentException('amount[gte] cannot be greater than amount[lte]');
         }
 
-        $note     = (is_string($note) && trim($note) !== '') ? trim($note) : null;
+        $note = (\is_string($note) && '' !== trim($note)) ? trim($note) : null;
         $response = $exporter->stream(
             after: $after,
             before: $before,
@@ -240,12 +243,11 @@ final class TransactionController extends AbstractFOSRestController
             debts: $debts,
         );
 
-        $filename = sprintf('transactions_%s_%s.csv', $after->format('Ymd'), $before->format('Ymd'));
+        $filename = \sprintf('transactions_%s_%s.csv', $after->format('Ymd'), $before->format('Ymd'));
         $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
-        $response->headers->set('Content-Disposition', sprintf('attachment; filename="%s"', $filename));
+        $response->headers->set('Content-Disposition', \sprintf('attachment; filename="%s"', $filename));
         $response->headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
 
         return $response;
     }
-
 }

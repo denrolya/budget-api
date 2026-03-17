@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiProperty;
@@ -15,11 +17,12 @@ use App\ApiPlatform\Action\BankIntegrationSyncAction;
 use App\Bank\BankProvider;
 use App\Bank\SyncMethod;
 use App\Repository\BankIntegrationRepository;
+use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
-use Symfony\Component\Security\Core\User\UserInterface;
 use JMS\Serializer\Annotation as Serializer;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: BankIntegrationRepository::class)]
@@ -112,7 +115,7 @@ class BankIntegration implements OwnableInterface
     private ?int $id = null;
 
     #[Gedmo\Blameable(on: 'create')]
-    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\ManyToOne(targetEntity: User::class, fetch: 'LAZY')]
     #[ORM\JoinColumn(name: 'owner_id', nullable: false, onDelete: 'CASCADE')]
     private ?User $owner = null;
 
@@ -139,7 +142,7 @@ class BankIntegration implements OwnableInterface
 
     /**
      * Preferred sync method. Only meaningful when the provider supports both webhook and polling.
-        * Null = auto (single-mode providers ignore this).
+     * Null = auto (single-mode providers ignore this).
      */
     #[ApiProperty(description: 'Preferred sync method (webhook or polling). Null means auto-detect based on provider capabilities.')]
     #[ORM\Column(type: Types::STRING, length: 20, nullable: true, enumType: SyncMethod::class)]
@@ -153,16 +156,16 @@ class BankIntegration implements OwnableInterface
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true)]
     #[Groups(['bank_integration:read', 'account:collection:read'])]
     #[Serializer\Groups(['bank_integration:read', 'account:collection:read'])]
-    private ?\DateTimeImmutable $lastSyncedAt = null;
+    private ?DateTimeImmutable $lastSyncedAt = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: false)]
     #[Groups(['bank_integration:read'])]
-    private \DateTimeImmutable $createdAt;
+    private DateTimeImmutable $createdAt;
 
     #[ORM\PrePersist]
     public function initCreatedAt(): void
     {
-        $this->createdAt = new \DateTimeImmutable();
+        $this->createdAt = new DateTimeImmutable();
     }
 
     public function getId(): ?int
@@ -245,14 +248,14 @@ class BankIntegration implements OwnableInterface
         return $this;
     }
 
-    public function getLastSyncedAt(): ?\DateTimeImmutable
+    public function getLastSyncedAt(): ?DateTimeImmutable
     {
         return $this->lastSyncedAt;
     }
 
     public function markSyncedNow(): self
     {
-        $this->lastSyncedAt = new \DateTimeImmutable();
+        $this->lastSyncedAt = new DateTimeImmutable();
 
         return $this;
     }
@@ -261,16 +264,16 @@ class BankIntegration implements OwnableInterface
      * Advance lastSyncedAt to the given timestamp if it is later than the current value.
      * Used by webhooks to keep the sync window up-to-date without overwriting a more recent timestamp.
      */
-    public function advanceLastSyncedAt(\DateTimeImmutable $timestamp): self
+    public function advanceLastSyncedAt(DateTimeImmutable $timestamp): self
     {
-        if ($this->lastSyncedAt === null || $timestamp > $this->lastSyncedAt) {
+        if (null === $this->lastSyncedAt || $timestamp > $this->lastSyncedAt) {
             $this->lastSyncedAt = $timestamp;
         }
 
         return $this;
     }
 
-    public function getCreatedAt(): \DateTimeImmutable
+    public function getCreatedAt(): DateTimeImmutable
     {
         return $this->createdAt;
     }

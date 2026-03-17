@@ -6,9 +6,11 @@ namespace App\Tests\Service;
 
 use App\Service\FixerService;
 use Carbon\CarbonImmutable;
+use JsonException;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Cache\InvalidArgumentException;
+use ReflectionProperty;
 use RuntimeException;
 use Symfony\Component\Security\Core\Security;
 use Symfony\Contracts\Cache\CacheInterface;
@@ -47,7 +49,7 @@ class FixerServiceTest extends TestCase
         $service->method('getHistorical')->willReturn($rates);
 
         // allowedCurrencies lives on the parent; set it via reflection so convert() can iterate
-        $property = new \ReflectionProperty(\App\Service\BaseExchangeRatesProvider::class, 'allowedCurrencies');
+        $property = new ReflectionProperty(\App\Service\BaseExchangeRatesProvider::class, 'allowedCurrencies');
         $property->setAccessible(true);
         $property->setValue($service, array_keys($rates));
 
@@ -58,17 +60,16 @@ class FixerServiceTest extends TestCase
      * Returns a fully constructed FixerService suitable for testing getLatest /
      * getHistorical / fetchRates (the real HTTP + cache wiring).
      *
-     * @return FixerService
      * @throws InvalidArgumentException
      */
     private function makeServiceWithDependencies(
         HttpClientInterface $httpClient,
         CacheInterface $cache,
-        Security $security = null,
+        ?Security $security = null,
         array $allowedCurrencies = self::ALLOWED_CURRENCIES,
         string $baseCurrency = self::BASE_CURRENCY,
     ): FixerService {
-        if ($security === null) {
+        if (null === $security) {
             $security = $this->createStub(Security::class);
         }
 
@@ -89,8 +90,9 @@ class FixerServiceTest extends TestCase
         $cache->method('get')->willReturnCallback(
             function (string $key, callable $callback) {
                 $item = $this->createStub(ItemInterface::class);
+
                 return $callback($item);
-            }
+            },
         );
 
         return $cache;
@@ -139,7 +141,7 @@ class FixerServiceTest extends TestCase
         $sameDayLastMonth = $today->subMonth();
 
         if ($sameDayLastMonth->month === $today->month) {
-            $this->markTestSkipped('subMonth() did not produce a prior month on this date.');
+            self::markTestSkipped('subMonth() did not produce a prior month on this date.');
         }
 
         $service = $this->makeServiceStub();
@@ -212,7 +214,7 @@ class FixerServiceTest extends TestCase
         self::assertArrayHasKey('USD', $result);
         self::assertArrayHasKey('HUF', $result);
         self::assertArrayHasKey('UAH', $result);
-        self::assertCount(count(self::RATES), $result);
+        self::assertCount(\count(self::RATES), $result);
     }
 
     public function testConvertFromEurToUsdGivesCorrectRate(): void
@@ -396,7 +398,7 @@ class FixerServiceTest extends TestCase
             ->onlyMethods(['convertTo', 'getLatest'])
             ->getMock();
 
-        $securityProperty = new \ReflectionProperty(FixerService::class, 'security');
+        $securityProperty = new ReflectionProperty(FixerService::class, 'security');
         $securityProperty->setAccessible(true);
         $securityProperty->setValue($service, $security);
 
@@ -431,6 +433,7 @@ class FixerServiceTest extends TestCase
             ->with("fixer.$today", self::anything())
             ->willReturnCallback(function (string $key, callable $callback) {
                 $item = $this->createStub(ItemInterface::class);
+
                 return $callback($item);
             });
 
@@ -480,6 +483,7 @@ class FixerServiceTest extends TestCase
             ->with('fixer.2024-06-15', self::anything())
             ->willReturnCallback(function (string $key, callable $callback) {
                 $item = $this->createStub(ItemInterface::class);
+
                 return $callback($item);
             });
 
@@ -534,7 +538,7 @@ class FixerServiceTest extends TestCase
 
         $service = $this->makeServiceWithDependencies($httpClient, $this->makeCacheThatExecutesCallback());
 
-        $this->expectException(\JsonException::class);
+        $this->expectException(JsonException::class);
 
         $service->getLatest();
     }
@@ -550,12 +554,12 @@ class FixerServiceTest extends TestCase
             ->with(
                 'GET',
                 '/latest',
-                self::callback(function (array $options) {
+                self::callback(static function (array $options) {
                     return isset($options['query']['access_key'])
-                        && $options['query']['access_key'] === 'test-api-key'
-                        && $options['query']['base'] === self::BASE_CURRENCY
+                        && 'test-api-key' === $options['query']['access_key']
+                        && self::BASE_CURRENCY === $options['query']['base']
                         && str_contains($options['query']['symbols'], 'EUR');
-                })
+                }),
             )
             ->willReturn($response);
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Bank;
 
 use App\Bank\DTO\DraftTransactionData;
@@ -12,7 +14,11 @@ use App\Entity\IncomeCategory;
 use App\Entity\Transaction;
 use App\Entity\User;
 use App\Service\TransactionCategorizationService;
+use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use Error;
+use LogicException;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -47,32 +53,32 @@ class BankWebhookService
         $provider = $this->registry->get($bank);
 
         if (!$provider instanceof WebhookCapableInterface) {
-            throw new \LogicException(sprintf('Provider "%s" does not support webhooks.', $bank->value));
+            throw new LogicException(\sprintf('Provider "%s" does not support webhooks.', $bank->value));
         }
 
         $eventType = (string) ($payload['event_type'] ?? 'unknown');
 
         $this->logger->debug('[BankWebhook] Raw payload from {bank}: event={event} payload={payload}', [
-            'bank'    => $bank->value,
-            'event'   => $eventType,
-            'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'bank' => $bank->value,
+            'event' => $eventType,
+            'payload' => json_encode($payload, \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES),
         ]);
 
         $data = $provider->parseWebhookPayload($payload);
 
-        if ($data === null) {
+        if (null === $data) {
             $this->logger->info('[BankWebhook] Payload yielded no transaction (event={event}, bank={bank}) — see Wise logs above for reason.', [
                 'event' => $eventType,
-                'bank'  => $bank->value,
+                'bank' => $bank->value,
             ]);
 
             return null;
         }
 
         $this->logger->info('[BankWebhook] Parsed: external_account={ext} amount={amt} currency={cur} note="{note}"', [
-            'ext'  => $data->externalAccountId,
-            'amt'  => $data->amount,
-            'cur'  => $data->currency ?? 'n/a',
+            'ext' => $data->externalAccountId,
+            'amt' => $data->amount,
+            'cur' => $data->currency ?? 'n/a',
             'note' => $data->note,
         ]);
 
@@ -80,7 +86,7 @@ class BankWebhookService
             'externalAccountId' => $data->externalAccountId,
         ]);
 
-        if ($account === null) {
+        if (null === $account) {
             $this->logger->warning('[BankWebhook] No BankCardAccount found for externalAccountId={id} — is this balance linked in the app?', [
                 'id' => $data->externalAccountId,
             ]);
@@ -91,27 +97,27 @@ class BankWebhookService
         if ($this->isDuplicate($account, $data)) {
             // Try enrichment: if incoming note has real data and existing draft is empty/generic, update it.
             $enriched = $this->enrichExistingDraft($account, $data);
-            if ($enriched !== null) {
+            if (null !== $enriched) {
                 $this->logger->info('[BankWebhook] Draft #{tx_id} enriched: note="{note}" category="{cat}"', [
                     'tx_id' => $enriched->getId(),
-                    'note'  => $enriched->getNote(),
-                    'cat'   => $enriched->getCategory()?->getName() ?? 'none',
+                    'note' => $enriched->getNote(),
+                    'cat' => $enriched->getCategory()->getName(),
                 ]);
 
                 return $enriched;
             }
 
             $this->logger->info('[BankWebhook] Duplicate skipped: account=#{id} amount={amt} at {ts}', [
-                'id'  => $account->getId(),
+                'id' => $account->getId(),
                 'amt' => abs($data->amount),
-                'ts'  => $data->executedAt->format('Y-m-d H:i'),
+                'ts' => $data->executedAt->format('Y-m-d H:i'),
             ]);
 
             return null;
         }
 
         $owner = $account->getOwner();
-        assert($owner instanceof User);
+        \assert($owner instanceof User);
         $this->categorizationService->resetIndex();
         $this->categorizationService->buildAllIndexes($owner->getId());
 
@@ -121,14 +127,14 @@ class BankWebhookService
         $this->em->flush();
 
         $this->logger->info('[BankWebhook] Transaction #{tx_id} created: {type} {amount} {currency} account=#{account_id} | raw_note="{raw_note}" saved_note="{saved_note}" category="{category}"', [
-            'tx_id'      => $transaction->getId(),
-            'type'       => $data->amount >= 0 ? 'credit' : 'debit',
-            'amount'     => abs($data->amount),
-            'currency'   => $data->currency ?? 'n/a',
+            'tx_id' => $transaction->getId(),
+            'type' => $data->amount >= 0 ? 'credit' : 'debit',
+            'amount' => abs($data->amount),
+            'currency' => $data->currency ?? 'n/a',
             'account_id' => $account->getId(),
-            'raw_note'   => $data->note,
+            'raw_note' => $data->note,
             'saved_note' => $transaction->getNote(),
-            'category'   => $transaction->getCategory()?->getName() ?? 'none',
+            'category' => $transaction->getCategory()->getName(),
         ]);
 
         // Immediately enrich the draft with Activities API data (merchant name, exchange rate, etc.).
@@ -141,7 +147,7 @@ class BankWebhookService
 
         $this->logger->info('[BankWebhook] Post-webhook enrichment done: note="{note}" category="{cat}"', [
             'note' => $transaction->getNote() ?? '',
-            'cat'  => $transaction->getCategory()?->getName() ?? 'none',
+            'cat' => $transaction->getCategory()->getName(),
         ]);
 
         return $transaction;
@@ -149,7 +155,7 @@ class BankWebhookService
 
     private function isDuplicate(BankCardAccount $account, DraftTransactionData $data): bool
     {
-        return $this->findDuplicate($account, $data) !== null;
+        return null !== $this->findDuplicate($account, $data);
     }
 
     /**
@@ -202,33 +208,33 @@ class BankWebhookService
     private function enrichExistingDraft(BankCardAccount $account, DraftTransactionData $data): ?Transaction
     {
         // No enrichment possible if incoming note is empty
-        if (trim($data->note) === '') {
+        if ('' === trim($data->note)) {
             return null;
         }
 
         $existing = $this->findDuplicate($account, $data);
-        if ($existing === null) {
+        if (null === $existing) {
             return null;
         }
 
         try {
             $existingNote = trim($existing->getNote() ?? '');
-        } catch (\Error) {
+        } catch (Error) {
             $existingNote = ''; // uninitialized property
         }
 
         // Only enrich if existing note is empty or a generic label
-        if ($existingNote !== '' && !in_array($existingNote, self::GENERIC_NOTES, true)) {
+        if ('' !== $existingNote && !\in_array($existingNote, self::GENERIC_NOTES, true)) {
             return null;
         }
 
         // Re-categorize with the richer note
         $owner = $account->getOwner();
-        assert($owner instanceof User);
+        \assert($owner instanceof User);
         $this->categorizationService->resetIndex();
         $this->categorizationService->buildAllIndexes($owner->getId());
 
-        $isIncome       = $data->amount > 0;
+        $isIncome = $data->amount > 0;
         $categorization = $this->categorizationService->suggest($data->note, $isIncome);
 
         $existing->setNote($categorization->note);
@@ -240,7 +246,7 @@ class BankWebhookService
             $category = $this->em->getRepository(ExpenseCategory::class)->find($categorization->categoryId);
         }
 
-        if ($category !== null) {
+        if (null !== $category) {
             $existing->setCategory($category);
         }
 
@@ -252,16 +258,16 @@ class BankWebhookService
     /**
      * Advance the integration's lastSyncedAt so manual sync skips already-webhhooked transactions.
      */
-    private function advanceLastSyncedAt(BankCardAccount $account, \DateTimeInterface $executedAt): void
+    private function advanceLastSyncedAt(BankCardAccount $account, DateTimeInterface $executedAt): void
     {
         $integration = $account->getBankIntegration();
-        if ($integration === null) {
+        if (null === $integration) {
             return;
         }
 
-        $timestamp = $executedAt instanceof \DateTimeImmutable
+        $timestamp = $executedAt instanceof DateTimeImmutable
             ? $executedAt
-            : \DateTimeImmutable::createFromInterface($executedAt);
+            : DateTimeImmutable::createFromInterface($executedAt);
 
         $integration->advanceLastSyncedAt($timestamp);
     }
@@ -269,7 +275,7 @@ class BankWebhookService
     private function buildDraftTransaction(BankCardAccount $account, DraftTransactionData $data): Transaction
     {
         $isIncome = $data->amount > 0;
-        $owner    = $account->getOwner();
+        $owner = $account->getOwner();
 
         // Index is built lazily inside suggest() on the first call per request.
         $categorization = $this->categorizationService->suggest($data->note, $isIncome);
@@ -283,6 +289,9 @@ class BankWebhookService
                 ?? $this->em->getRepository(ExpenseCategory::class)->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
             $transaction = new Expense(true);
         }
+
+        \assert(null !== $category);
+        \assert(null !== $owner);
 
         $transaction
             ->setAccount($account)

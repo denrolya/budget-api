@@ -7,6 +7,7 @@ namespace App\Tests\Controller;
 use App\Bank\BankWebhookService;
 use App\Entity\Expense;
 use App\Tests\BaseApiTestCase;
+use RuntimeException;
 
 /**
  * Tests for BankWebhookController — the public endpoint that banks POST events to.
@@ -47,7 +48,7 @@ class BankWebhookControllerTest extends BaseApiTestCase
     public function testInvalidJsonBodyReturns400(): void
     {
         $this->client->request('POST', self::WEBHOOK_BASE . '/monobank', [
-            'body'    => 'not valid json {{{',
+            'body' => 'not valid json {{{',
             'headers' => ['Content-Type' => 'application/json'],
         ]);
 
@@ -68,7 +69,7 @@ class BankWebhookControllerTest extends BaseApiTestCase
     {
         $mock = $this->createMock(BankWebhookService::class);
         $mock->method('handle')->willReturn(null);
-        $this->client->getContainer()->set(BankWebhookService::class, $mock);
+        $this->container()->set(BankWebhookService::class, $mock);
 
         $response = $this->client->request('POST', self::WEBHOOK_BASE . '/monobank', [
             'json' => ['type' => 'PingConfirmation'],
@@ -95,12 +96,12 @@ class BankWebhookControllerTest extends BaseApiTestCase
     public function testStatementItemCreatesTransactionAndReturns201(): void
     {
         // Use any existing Expense from fixtures as the "created" transaction.
-        $expense = $this->em->getRepository(Expense::class)->findOneBy([]);
+        $expense = $this->entityManager()->getRepository(Expense::class)->findOneBy([]);
         self::assertNotNull($expense, 'TransactionFixtures must provide at least one Expense');
 
         $mock = $this->createMock(BankWebhookService::class);
         $mock->method('handle')->willReturn($expense);
-        $this->client->getContainer()->set(BankWebhookService::class, $mock);
+        $this->container()->set(BankWebhookService::class, $mock);
 
         $response = $this->client->request('POST', self::WEBHOOK_BASE . '/monobank', [
             'json' => [
@@ -108,10 +109,10 @@ class BankWebhookControllerTest extends BaseApiTestCase
                 'data' => [
                     'account' => 'test_external_id',
                     'statementItem' => [
-                        'time'         => 1740000000,
-                        'amount'       => -5000,
+                        'time' => 1740000000,
+                        'amount' => -5000,
                         'currencyCode' => 980,
-                        'description'  => 'Coffee',
+                        'description' => 'Coffee',
                     ],
                 ],
             ],
@@ -133,7 +134,7 @@ class BankWebhookControllerTest extends BaseApiTestCase
     {
         $mock = $this->createMock(BankWebhookService::class);
         $mock->method('handle')->willReturn(null);
-        $this->client->getContainer()->set(BankWebhookService::class, $mock);
+        $this->container()->set(BankWebhookService::class, $mock);
 
         $response = $this->client->request('POST', self::WEBHOOK_BASE . '/monobank', [
             'json' => [
@@ -152,10 +153,10 @@ class BankWebhookControllerTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\BankWebhookController::receive
      */
-    public function testEmptyBody_returns400(): void
+    public function testEmptyBodyReturns400(): void
     {
         $this->client->request('POST', self::WEBHOOK_BASE . '/monobank', [
-            'body'    => '',
+            'body' => '',
             'headers' => ['Content-Type' => 'application/json'],
         ]);
 
@@ -172,8 +173,8 @@ class BankWebhookControllerTest extends BaseApiTestCase
     public function testUnhandledServiceExceptionReturns500(): void
     {
         $mock = $this->createMock(BankWebhookService::class);
-        $mock->method('handle')->willThrowException(new \RuntimeException('DB unavailable'));
-        $this->client->getContainer()->set(BankWebhookService::class, $mock);
+        $mock->method('handle')->willThrowException(new RuntimeException('DB unavailable'));
+        $this->container()->set(BankWebhookService::class, $mock);
 
         $this->client->request('POST', self::WEBHOOK_BASE . '/monobank', [
             'json' => ['type' => 'StatementItem', 'data' => []],

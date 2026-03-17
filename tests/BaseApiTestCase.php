@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests;
 
 use ApiPlatform\Api\IriConverterInterface;
@@ -20,7 +22,8 @@ use Lexik\Bundle\JWTAuthenticationBundle\Services\JWTTokenManagerInterface;
 
 class BaseApiTestCase extends ApiTestCase
 {
-    use WithMockFixerTrait, WithMockAssetsManagerTrait;
+    use WithMockAssetsManagerTrait;
+    use WithMockFixerTrait;
 
     protected const EXPENSE_URL = '/api/transactions/expense';
     protected const INCOME_URL = '/api/transactions/income';
@@ -37,7 +40,7 @@ class BaseApiTestCase extends ApiTestCase
 
     protected Client $client;
 
-    protected ?EntityManagerInterface $em;
+    private ?EntityManagerInterface $entityManager = null;
 
     protected Account $accountCashEUR;
 
@@ -51,25 +54,33 @@ class BaseApiTestCase extends ApiTestCase
     {
         $this->reloadClientWithServices();
 
-        $user = $this->em->getRepository(User::class)->findOneBy(['username' => self::TEST_USERNAME]);
-        assert($user instanceof User);
+        $entityManager = $this->entityManager();
+        $user = $entityManager->getRepository(User::class)->findOneBy(['username' => self::TEST_USERNAME]);
+        \assert($user instanceof User);
         $this->testUser = $user;
-        $account = $this->em->getRepository(Account::class)->findOneBy(['name' => 'EUR Cash', 'owner' => $this->testUser]);
-        assert($account instanceof Account);
+        $account = $entityManager->getRepository(Account::class)->findOneBy(['name' => 'EUR Cash', 'owner' => $this->testUser]);
+        \assert($account instanceof Account);
         $this->accountCashEUR = $account;
-        $account = $this->em->getRepository(Account::class)->findOneBy(['name' => 'UAH Card', 'owner' => $this->testUser]);
-        assert($account instanceof Account);
+        $account = $entityManager->getRepository(Account::class)->findOneBy(['name' => 'UAH Card', 'owner' => $this->testUser]);
+        \assert($account instanceof Account);
         $this->accountCashUAH = $account;
     }
 
     protected function tearDown(): void
     {
         parent::tearDown();
-        $this->em?->clear();
-        $this->em = null;
+        $this->entityManager?->clear();
+        $this->entityManager = null;
         self::ensureKernelShutdown();
         gc_enable();
         gc_collect_cycles();
+    }
+
+    protected function entityManager(): EntityManagerInterface
+    {
+        \assert(null !== $this->entityManager, 'EntityManager is not initialized. Call reloadClientWithServices() first.');
+
+        return $this->entityManager;
     }
 
     protected function createClientWithCredentials($token = null): Client
@@ -78,7 +89,7 @@ class BaseApiTestCase extends ApiTestCase
 
         return static::createClient([], [
             'headers' => [
-                'authorization' => 'Bearer '.$token,
+                'authorization' => 'Bearer ' . $token,
                 'accept' => 'application/json',
                 'content-type' => 'application/json',
             ],
@@ -112,11 +123,22 @@ class BaseApiTestCase extends ApiTestCase
         return self::getContainer()->get(IriConverterInterface::class)->getIriFromResource($entity);
     }
 
+    /**
+     * Returns the test container, asserting it is not null.
+     */
+    protected function container(): \Symfony\Component\DependencyInjection\ContainerInterface
+    {
+        $container = $this->client->getContainer();
+        \assert(null !== $container);
+
+        return $container;
+    }
+
     protected function buildURL(string $path, array $queryParams): string
     {
         $url = $path;
-        if ($queryParams !== []) {
-            $url .= '?'.http_build_query($queryParams);
+        if ([] !== $queryParams) {
+            $url .= '?' . http_build_query($queryParams);
         }
 
         return $url;
@@ -128,8 +150,11 @@ class BaseApiTestCase extends ApiTestCase
 
         $this->client = $this->createClientWithCredentials();
         $container = $this->client->getContainer();
+        \assert(null !== $container);
 
-        $this->em = $container->get('doctrine')->getManager();
+        $objectManager = $container->get('doctrine')->getManager();
+        \assert($objectManager instanceof EntityManagerInterface);
+        $this->entityManager = $objectManager;
 
         $this->mockFixerService = $this->createFixerServiceMock();
         $container->set(FixerService::class, $this->mockFixerService);
@@ -145,26 +170,31 @@ class BaseApiTestCase extends ApiTestCase
         Account $account,
         ExpenseCategory $category,
         CarbonInterface $executedAt,
-        string $note = null,
+        ?string $note = null,
         array $compensations = [],
-        Debt $debt = null,
+        ?Debt $debt = null,
     ): Expense {
+        $entityManager = $this->entityManager();
         $expense = new Expense();
+        $owner = $account->getOwner();
+        \assert(null !== $owner);
         $expense
             ->setAmount($amount)
             ->setExecutedAt($executedAt)
             ->setCategory($category)
             ->setAccount($account)
             ->setNote($note)
-            ->setOwner($account->getOwner());
+            ->setOwner($owner);
 
         if ($debt) {
             $expense->setDebt($debt);
         }
 
         foreach ($compensations as $compensation) {
-            $compensationCategory = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => 'Compensation']);
-            assert($compensationCategory instanceof IncomeCategory);
+            $compensationCategory = $entityManager->getRepository(IncomeCategory::class)->findOneBy(['name' => 'Compensation']);
+            \assert($compensationCategory instanceof IncomeCategory);
+            $compensationOwner = $account->getOwner();
+            \assert(null !== $compensationOwner);
             $income = new Income();
             $income
                 ->setAmount($compensation['amount'])
@@ -172,13 +202,13 @@ class BaseApiTestCase extends ApiTestCase
                 ->setCategory($compensationCategory)
                 ->setAccount($compensation['account'])
                 ->setNote($compensation['note'])
-                ->setOwner($account->getOwner());
+                ->setOwner($compensationOwner);
 
             $expense->addCompensation($income);
         }
 
-        $this->em->persist($expense);
-        $this->em->flush();
+        $entityManager->persist($expense);
+        $entityManager->flush();
 
         return $expense;
     }
@@ -188,26 +218,28 @@ class BaseApiTestCase extends ApiTestCase
         Account $account,
         IncomeCategory $category,
         CarbonInterface $executedAt,
-        string $note = null,
-        Debt $debt = null,
+        ?string $note = null,
+        ?Debt $debt = null,
     ): Income {
+        $entityManager = $this->entityManager();
         $income = new Income();
+        $owner = $account->getOwner();
+        \assert(null !== $owner);
         $income
             ->setAccount($account)
             ->setAmount($amount)
             ->setExecutedAt($executedAt)
             ->setCategory($category)
-            ->setOwner($account->getOwner())
+            ->setOwner($owner)
             ->setNote($note);
 
         if ($debt) {
             $income->setDebt($debt);
         }
 
-        $this->em->persist($income);
-        $this->em->flush();
+        $entityManager->persist($income);
+        $entityManager->flush();
 
         return $income;
     }
-
 }

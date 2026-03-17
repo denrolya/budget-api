@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -125,6 +126,7 @@ class Budget implements OwnableInterface
     public function setName(?string $name): self
     {
         $this->name = $name;
+
         return $this;
     }
 
@@ -136,6 +138,7 @@ class Budget implements OwnableInterface
     public function setPeriodType(string $periodType): self
     {
         $this->periodType = $periodType;
+
         return $this;
     }
 
@@ -147,6 +150,7 @@ class Budget implements OwnableInterface
     public function setStartDate(DateTimeInterface $startDate): self
     {
         $this->startDate = DateTimeImmutable::createFromInterface($startDate);
+
         return $this;
     }
 
@@ -158,6 +162,7 @@ class Budget implements OwnableInterface
     public function setEndDate(DateTimeInterface $endDate): self
     {
         $this->endDate = DateTimeImmutable::createFromInterface($endDate);
+
         return $this;
     }
 
@@ -173,12 +178,14 @@ class Budget implements OwnableInterface
             $this->lines->add($line);
             $line->setBudget($this);
         }
+
         return $this;
     }
 
     public function removeLine(BudgetLine $line): self
     {
         $this->lines->removeElement($line);
+
         return $this;
     }
 
@@ -190,6 +197,7 @@ class Budget implements OwnableInterface
     public function setCopiedFromId(?int $copiedFromId): self
     {
         $this->copiedFromId = $copiedFromId;
+
         return $this;
     }
 }

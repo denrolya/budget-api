@@ -1,0 +1,1406 @@
+parameters:
+	ignoreErrors:
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\CategoryDeepSearchFilter\\:\\:__construct\\(\\) has parameter \\$properties with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/ApiPlatform/CategoryDeepSearchFilter.php
+
+		-
+			message: "#^Parameter \\#1 \\$callback of function array_map expects \\(callable\\(mixed\\)\\: mixed\\)\\|null, 'intval' given\\.$#"
+			count: 1
+			path: src/ApiPlatform/CategoryDeepSearchFilter.php
+
+		-
+			message: "#^Return type \\(array\\<string, array\\<string, mixed\\>\\>\\) of method App\\\\ApiPlatform\\\\CategoryDeepSearchFilter\\:\\:getDescription\\(\\) should be covariant with return type \\(array\\<string, array\\{property\\?\\: string, type\\?\\: string, required\\?\\: bool, description\\?\\: string, strategy\\?\\: string, is_collection\\?\\: bool, swagger\\?\\: array\\<string, mixed\\>, openapi\\?\\: ApiPlatform\\\\OpenApi\\\\Model\\\\Parameter\\|array\\<string, mixed\\>, \\.\\.\\.\\}\\>\\) of method ApiPlatform\\\\Metadata\\\\FilterInterface\\:\\:getDescription\\(\\)$#"
+			count: 3
+			path: src/ApiPlatform/CategoryDeepSearchFilter.php
+
+		-
+			message: "#^Argument of an invalid type array\\<OpenApi\\\\Annotations\\\\Attachable\\|OpenApi\\\\Annotations\\\\JsonContent\\|OpenApi\\\\Annotations\\\\MediaType\\|OpenApi\\\\Annotations\\\\XmlContent\\>\\|OpenApi\\\\Annotations\\\\Attachable\\|OpenApi\\\\Annotations\\\\JsonContent\\|OpenApi\\\\Annotations\\\\MediaType\\|OpenApi\\\\Annotations\\\\XmlContent supplied for foreach, only iterables are supported\\.$#"
+			count: 1
+			path: src/ApiPlatform/ControllerOpenApiDecorator.php
+
+		-
+			message: "#^Argument of an invalid type array\\<OpenApi\\\\Annotations\\\\MediaType\\|OpenApi\\\\Attributes\\\\JsonContent\\|OpenApi\\\\Attributes\\\\XmlContent\\>\\|OpenApi\\\\Annotations\\\\Attachable\\|OpenApi\\\\Annotations\\\\MediaType\\|OpenApi\\\\Attributes\\\\JsonContent\\|OpenApi\\\\Attributes\\\\XmlContent supplied for foreach, only iterables are supported\\.$#"
+			count: 1
+			path: src/ApiPlatform/ControllerOpenApiDecorator.php
+
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\ControllerOpenApiDecorator\\:\\:__invoke\\(\\) has parameter \\$context with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/ApiPlatform/ControllerOpenApiDecorator.php
+
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\DiscriminatorFilter\\:\\:__construct\\(\\) has parameter \\$properties with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/ApiPlatform/DiscriminatorFilter.php
+
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\DiscriminatorFilter\\:\\:__construct\\(\\) has parameter \\$types with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/ApiPlatform/DiscriminatorFilter.php
+
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\DiscriminatorFilter\\:\\:filterProperty\\(\\) has parameter \\$value with no type specified\\.$#"
+			count: 1
+			path: src/ApiPlatform/DiscriminatorFilter.php
+
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\DiscriminatorFilter\\:\\:getDescription\\(\\) should return array\\<string, array\\{property\\?\\: string, type\\?\\: string, required\\?\\: bool, description\\?\\: string, strategy\\?\\: string, is_collection\\?\\: bool, swagger\\?\\: array\\<string, mixed\\>, openapi\\?\\: ApiPlatform\\\\OpenApi\\\\Model\\\\Parameter\\|array\\<string, mixed\\>, \\.\\.\\.\\}\\> but returns array\\{type\\: array\\{property\\: null, type\\: 'string', required\\: false, schema\\: array\\{type\\: 'string', enum\\: array\\<int, \\(int\\|string\\)\\>\\}, openapi\\: array\\{name\\: 'type', description\\: 'Filter by type', type\\: 'string'\\}\\}\\}\\.$#"
+			count: 1
+			path: src/ApiPlatform/DiscriminatorFilter.php
+
+		-
+			message: "#^Parameter \\#3 \\$properties of method ApiPlatform\\\\Doctrine\\\\Orm\\\\Filter\\\\AbstractFilter\\:\\:__construct\\(\\) expects array\\|null, Symfony\\\\Component\\\\Serializer\\\\NameConverter\\\\NameConverterInterface\\|null given\\.$#"
+			count: 1
+			path: src/ApiPlatform/DiscriminatorFilter.php
+
+		-
+			message: "#^Parameter \\#4 \\$nameConverter of method ApiPlatform\\\\Doctrine\\\\Orm\\\\Filter\\\\AbstractFilter\\:\\:__construct\\(\\) expects Symfony\\\\Component\\\\Serializer\\\\NameConverter\\\\NameConverterInterface\\|null, array\\|null given\\.$#"
+			count: 1
+			path: src/ApiPlatform/DiscriminatorFilter.php
+
+		-
+			message: "#^Property App\\\\ApiPlatform\\\\DiscriminatorFilter\\:\\:\\$types type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/ApiPlatform/DiscriminatorFilter.php
+
+		-
+			message: "#^Unable to resolve the template type T in call to method Doctrine\\\\ORM\\\\EntityManagerInterface\\:\\:getClassMetadata\\(\\)$#"
+			count: 1
+			path: src/ApiPlatform/DiscriminatorFilter.php
+
+		-
+			message: "#^Parameter \\#1 \\$operations of class ApiPlatform\\\\Metadata\\\\Operations constructor expects array\\<int\\|string, ApiPlatform\\\\Metadata\\\\Operation\\>, array\\<mixed\\> given\\.$#"
+			count: 1
+			path: src/ApiPlatform/StiSubclassMetadataFactory.php
+
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\TransferAccountsFilter\\:\\:filterProperty\\(\\) has parameter \\$value with no type specified\\.$#"
+			count: 1
+			path: src/ApiPlatform/TransferAccountsFilter.php
+
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\TransferAccountsFilter\\:\\:getDescription\\(\\) should return array\\<string, array\\{property\\?\\: string, type\\?\\: string, required\\?\\: bool, description\\?\\: string, strategy\\?\\: string, is_collection\\?\\: bool, swagger\\?\\: array\\<string, mixed\\>, openapi\\?\\: ApiPlatform\\\\OpenApi\\\\Model\\\\Parameter\\|array\\<string, mixed\\>, \\.\\.\\.\\}\\> but returns array\\{accounts\\[\\]\\: array\\{property\\: null, type\\: 'array', required\\: false, schema\\: array\\{type\\: 'array', items\\: array\\{type\\: 'int'\\}\\}, openapi\\: array\\{name\\: 'accounts', description\\: 'Filter by account…', type\\: 'array'\\}\\}\\}\\.$#"
+			count: 1
+			path: src/ApiPlatform/TransferAccountsFilter.php
+
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\WithDeletedFilter\\:\\:filterProperty\\(\\) has parameter \\$value with no type specified\\.$#"
+			count: 1
+			path: src/ApiPlatform/WithDeletedFilter.php
+
+		-
+			message: "#^Method App\\\\ApiPlatform\\\\WithDeletedFilter\\:\\:getDescription\\(\\) should return array\\<string, array\\{property\\?\\: string, type\\?\\: string, required\\?\\: bool, description\\?\\: string, strategy\\?\\: string, is_collection\\?\\: bool, swagger\\?\\: array\\<string, mixed\\>, openapi\\?\\: ApiPlatform\\\\OpenApi\\\\Model\\\\Parameter\\|array\\<string, mixed\\>, \\.\\.\\.\\}\\> but returns array\\{withDeleted\\: array\\{property\\: null, type\\: 'boolean', required\\: false, openapi\\: array\\{description\\: 'This filter toggles…'\\}\\}\\}\\.$#"
+			count: 1
+			path: src/ApiPlatform/WithDeletedFilter.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\BankProviderInterface\\:\\:fetchAccounts\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/BankProviderInterface.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\BankProviderInterface\\:\\:fetchExchangeRates\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/BankProviderInterface.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\BankProviderRegistry\\:\\:__construct\\(\\) has parameter \\$providers with no value type specified in iterable type iterable\\.$#"
+			count: 1
+			path: src/Bank/BankProviderRegistry.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\BankProviderRegistry\\:\\:all\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/BankProviderRegistry.php
+
+		-
+			message: "#^Call to an undefined method Symfony\\\\Component\\\\Security\\\\Core\\\\User\\\\UserInterface\\:\\:getId\\(\\)\\.$#"
+			count: 2
+			path: src/Bank/BankSyncService.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\BankSyncService\\:\\:buildAccountLogContext\\(\\) should return array\\<string, bool\\|float\\|int\\|string\\> but returns array\\<string, int\\|string\\|null\\>\\.$#"
+			count: 1
+			path: src/Bank/BankSyncService.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\BankSyncService\\:\\:syncAll\\(\\) should return array\\<int, int\\> but returns array\\<int\\|string, int\\>\\.$#"
+			count: 1
+			path: src/Bank/BankSyncService.php
+
+		-
+			message: "#^Call to an undefined method DateTimeInterface\\:\\:modify\\(\\)\\.$#"
+			count: 2
+			path: src/Bank/BankWebhookService.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\BankWebhookService\\:\\:handle\\(\\) has parameter \\$payload with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/BankWebhookService.php
+
+		-
+			message: "#^Parameter \\#1 \\$ownerId of method App\\\\Service\\\\TransactionCategorizationService\\:\\:buildAllIndexes\\(\\) expects int, int\\|null given\\.$#"
+			count: 2
+			path: src/Bank/BankWebhookService.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\PollingCapableInterface\\:\\:fetchTransactions\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/PollingCapableInterface.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\MonobankProvider\\:\\:__construct\\(\\) has parameter \\$allowedCurrencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/MonobankProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\MonobankProvider\\:\\:fetchAccounts\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/MonobankProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\MonobankProvider\\:\\:fetchExchangeRates\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/MonobankProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\MonobankProvider\\:\\:parseWebhookPayload\\(\\) has parameter \\$payload with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/MonobankProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\MonobankProvider\\:\\:registerWebhook\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/MonobankProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:__construct\\(\\) has parameter \\$allowedCurrencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:buildCardTransactionNote\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:buildNoteFromFlatData\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:fetchAccounts\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:fetchExchangeRates\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:fetchRates\\(\\) has parameter \\$queryParams with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:fetchTransactions\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:firstHeader\\(\\) has parameter \\$headers with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:getRates\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:parseCardTransactionPayload\\(\\) has parameter \\$payload with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:parseFlatPayload\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:parseV3CreditPayload\\(\\) has parameter \\$data with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:parseV3CreditPayload\\(\\) has parameter \\$payload with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:parseWebhookPayload\\(\\) has parameter \\$payload with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:registerWebhook\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:requestJson\\(\\) has parameter \\$options with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\Provider\\\\WiseProvider\\:\\:resolveEventsToRegister\\(\\) has parameter \\$subscriptions with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/Provider/WiseProvider.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\WebhookCapableInterface\\:\\:parseWebhookPayload\\(\\) has parameter \\$payload with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/WebhookCapableInterface.php
+
+		-
+			message: "#^Method App\\\\Bank\\\\WebhookCapableInterface\\:\\:registerWebhook\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Bank/WebhookCapableInterface.php
+
+		-
+			message: "#^Method App\\\\Command\\\\WiseTestWebhookCommand\\:\\:buildCreditV3Payload\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Command/WiseTestWebhookCommand.php
+
+		-
+			message: "#^Method App\\\\Command\\\\WiseTestWebhookCommand\\:\\:buildFlatPayload\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Command/WiseTestWebhookCommand.php
+
+		-
+			message: "#^Parameter \\#1 \\$messages of method Symfony\\\\Component\\\\Console\\\\Style\\\\SymfonyStyle\\:\\:writeln\\(\\) expects iterable\\<string\\>\\|string, string\\|false given\\.$#"
+			count: 1
+			path: src/Command/WiseTestWebhookCommand.php
+
+		-
+			message: "#^Parameter \\#1 \\$num of function round expects float\\|int, float\\|null given\\.$#"
+			count: 1
+			path: src/Controller/AccountController.php
+
+		-
+			message: "#^Parameter \\#1 \\$user of method Lexik\\\\Bundle\\\\JWTAuthenticationBundle\\\\Services\\\\JWTTokenManagerInterface\\:\\:create\\(\\) expects Symfony\\\\Component\\\\Security\\\\Core\\\\User\\\\UserInterface, Symfony\\\\Component\\\\Security\\\\Core\\\\User\\\\UserInterface\\|null given\\.$#"
+			count: 1
+			path: src/Controller/AuthController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\LedgerController\\:\\:list\\(\\) has parameter \\$account with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/LedgerController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\LedgerController\\:\\:list\\(\\) has parameter \\$category with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/LedgerController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\LedgerController\\:\\:list\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/LedgerController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\LedgerController\\:\\:list\\(\\) has parameter \\$debt with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/LedgerController.php
+
+		-
+			message: "#^Only numeric types are allowed in \\-, int\\|null given on the left side\\.$#"
+			count: 1
+			path: src/Controller/LedgerController.php
+
+		-
+			message: "#^Only numeric types are allowed in \\-, int\\|null given on the right side\\.$#"
+			count: 1
+			path: src/Controller/LedgerController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\StatisticsController\\:\\:average\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/StatisticsController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\StatisticsController\\:\\:average\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/StatisticsController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\StatisticsController\\:\\:categoryTimeline\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/StatisticsController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\StatisticsController\\:\\:dailyStats\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/StatisticsController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\StatisticsController\\:\\:dailyStats\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/StatisticsController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\StatisticsController\\:\\:dailyStats\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/StatisticsController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\StatisticsController\\:\\:dailyStats\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/StatisticsController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\StatisticsController\\:\\:value\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/StatisticsController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\StatisticsController\\:\\:value\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/StatisticsController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:exportCsv\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:exportCsv\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:exportCsv\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:exportCsv\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:exportCsv\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:list\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:list\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:list\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:list\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Method App\\\\Controller\\\\TransactionController\\:\\:list\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Controller/TransactionController.php
+
+		-
+			message: "#^Call to an undefined method App\\\\Entity\\\\Account\\:\\:setBankName\\(\\)\\.$#"
+			count: 6
+			path: src/DataFixtures/Dev/AccountFixtures.php
+
+		-
+			message: "#^Method App\\\\DataFixtures\\\\Dev\\\\BaseTransactionFixtures\\:\\:convertAmount\\(\\) has parameter \\$allowedCurrencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/DataFixtures/Dev/BaseTransactionFixtures.php
+
+		-
+			message: "#^Method App\\\\DataFixtures\\\\Dev\\\\BaseTransactionFixtures\\:\\:convertAmount\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/DataFixtures/Dev/BaseTransactionFixtures.php
+
+		-
+			message: "#^Method App\\\\DataFixtures\\\\Dev\\\\ExpenseCategoryFixtures\\:\\:createCategories\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/DataFixtures/Dev/ExpenseCategoryFixtures.php
+
+		-
+			message: "#^Method App\\\\DataFixtures\\\\Dev\\\\ExpenseFixtures\\:\\:createExpense\\(\\) has parameter \\$allowedCurrencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/DataFixtures/Dev/ExpenseFixtures.php
+
+		-
+			message: "#^Method App\\\\DataFixtures\\\\Dev\\\\ExpenseFixtures\\:\\:createExpense\\(\\) has parameter \\$user with no type specified\\.$#"
+			count: 1
+			path: src/DataFixtures/Dev/ExpenseFixtures.php
+
+		-
+			message: "#^Method App\\\\DataFixtures\\\\Dev\\\\IncomeFixtures\\:\\:makeIncome\\(\\) has parameter \\$allowedCurrencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/DataFixtures/Dev/IncomeFixtures.php
+
+		-
+			message: "#^Method App\\\\DataFixtures\\\\Dev\\\\IncomeFixtures\\:\\:makeIncome\\(\\) should return App\\\\Entity\\\\Income but returns App\\\\Entity\\\\Transaction\\.$#"
+			count: 1
+			path: src/DataFixtures/Dev/IncomeFixtures.php
+
+		-
+			message: "#^Parameter \\#1 \\$account of method App\\\\Entity\\\\Transaction\\:\\:setAccount\\(\\) expects App\\\\Entity\\\\Account, object given\\.$#"
+			count: 1
+			path: src/DataFixtures/Dev/IncomeFixtures.php
+
+		-
+			message: "#^Call to an undefined method Doctrine\\\\Persistence\\\\ObjectManager\\:\\:getConnection\\(\\)\\.$#"
+			count: 1
+			path: src/DataFixtures/Test/CategoryFixtures.php
+
+		-
+			message: "#^Method App\\\\DataFixtures\\\\Test\\\\TransactionFixtures\\:\\:eurCV\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/DataFixtures/Test/TransactionFixtures.php
+
+		-
+			message: "#^Method App\\\\DataFixtures\\\\Test\\\\TransactionFixtures\\:\\:uahCV\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/DataFixtures/Test/TransactionFixtures.php
+
+		-
+			message: "#^Class App\\\\DataPersister\\\\DebtDataPersister implements generic interface ApiPlatform\\\\State\\\\ProcessorInterface but does not specify its types\\: T1, T2$#"
+			count: 1
+			path: src/DataPersister/DebtDataPersister.php
+
+		-
+			message: "#^Class App\\\\DataPersister\\\\TransferDataPersister implements generic interface ApiPlatform\\\\State\\\\ProcessorInterface but does not specify its types\\: T1, T2$#"
+			count: 1
+			path: src/DataPersister/TransferDataPersister.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Account\\:\\:getCurrency\\(\\) should return string but returns string\\|null\\.$#"
+			count: 1
+			path: src/Entity/Account.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Account\\:\\:getTransactions\\(\\) return type with generic interface Doctrine\\\\Common\\\\Collections\\\\Collection does not specify its types\\: TKey, T$#"
+			count: 1
+			path: src/Entity/Account.php
+
+		-
+			message: "#^Parameter \\#1 \\$time of class Carbon\\\\CarbonImmutable constructor expects DateTimeInterface\\|string\\|null, int given\\.$#"
+			count: 1
+			path: src/Entity/Account.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\Account\\:\\:\\$transactions with generic interface Doctrine\\\\Common\\\\Collections\\\\Collection does not specify its types\\: TKey, T$#"
+			count: 1
+			path: src/Entity/Account.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\BankIntegration\\:\\:getCredentials\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/BankIntegration.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\BankIntegration\\:\\:setCredentials\\(\\) has parameter \\$credentials with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/BankIntegration.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\BankIntegration\\:\\:\\$credentials type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/BankIntegration.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\BankIntegration\\:\\:\\$owner \\(App\\\\Entity\\\\User\\|null\\) does not accept Symfony\\\\Component\\\\Security\\\\Core\\\\User\\\\UserInterface\\.$#"
+			count: 1
+			path: src/Entity/BankIntegration.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Category\\:\\:getDescendantsFlat\\(\\) return type with generic interface Doctrine\\\\Common\\\\Collections\\\\Collection does not specify its types\\: TKey, T$#"
+			count: 1
+			path: src/Entity/Category.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Category\\:\\:getTransactions\\(\\) return type with generic interface Doctrine\\\\Common\\\\Collections\\\\Collection does not specify its types\\: TKey, T$#"
+			count: 1
+			path: src/Entity/Category.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Debt\\:\\:getConvertedValues\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Debt\\:\\:getConvertedValues\\(\\) should return array but returns array\\|null\\.$#"
+			count: 1
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Debt\\:\\:getCurrency\\(\\) should return string but returns string\\|null\\.$#"
+			count: 1
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Debt\\:\\:getExpenses\\(\\) return type with generic interface Doctrine\\\\Common\\\\Collections\\\\Collection does not specify its types\\: TKey, T$#"
+			count: 1
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Debt\\:\\:getIncomes\\(\\) return type with generic interface Doctrine\\\\Common\\\\Collections\\\\Collection does not specify its types\\: TKey, T$#"
+			count: 1
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Debt\\:\\:getTransactions\\(\\) return type with generic interface Doctrine\\\\Common\\\\Collections\\\\Collection does not specify its types\\: TKey, T$#"
+			count: 1
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Debt\\:\\:setConvertedValues\\(\\) has parameter \\$convertedValues with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Parameter \\#1 \\$p of method Doctrine\\\\Common\\\\Collections\\\\Collection\\<\\(int\\|string\\),mixed\\>\\:\\:filter\\(\\) expects Closure\\(mixed, int\\|string\\)\\: bool, Closure\\(App\\\\Entity\\\\Transaction\\)\\: bool given\\.$#"
+			count: 2
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\Debt\\:\\:\\$convertedValues type has no value type specified in iterable type array\\.$#"
+			count: 2
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\Debt\\:\\:\\$transactions with generic interface Doctrine\\\\Common\\\\Collections\\\\Collection does not specify its types\\: TKey, T$#"
+			count: 1
+			path: src/Entity/Debt.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\ExchangeRateSnapshot\\:\\:getAvailableCurrencies\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/ExchangeRateSnapshot.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Transaction\\:\\:getConvertedValues\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/Transaction.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Transaction\\:\\:getConvertedValues\\(\\) should return array but returns array\\|null\\.$#"
+			count: 1
+			path: src/Entity/Transaction.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Transaction\\:\\:getRootCategory\\(\\) should return App\\\\Entity\\\\Category but returns App\\\\Entity\\\\Category\\|null\\.$#"
+			count: 1
+			path: src/Entity/Transaction.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Transaction\\:\\:setConvertedValues\\(\\) has parameter \\$convertedValues with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/Transaction.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\Transaction\\:\\:\\$convertedValues type has no value type specified in iterable type array\\.$#"
+			count: 2
+			path: src/Entity/Transaction.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Transfer\\:\\:getFeeExpense\\(\\) should return App\\\\Entity\\\\Expense\\|null but returns mixed\\.$#"
+			count: 1
+			path: src/Entity/Transfer.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Transfer\\:\\:getFromExpense\\(\\) should return App\\\\Entity\\\\Expense\\|null but returns mixed\\.$#"
+			count: 1
+			path: src/Entity/Transfer.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\Transfer\\:\\:getToIncome\\(\\) should return App\\\\Entity\\\\Income\\|null but returns mixed\\.$#"
+			count: 1
+			path: src/Entity/Transfer.php
+
+		-
+			message: "#^Parameter \\#1 \\$p of method Doctrine\\\\Common\\\\Collections\\\\Collection\\<\\(int\\|string\\),mixed\\>\\:\\:filter\\(\\) expects Closure\\(mixed, int\\|string\\)\\: bool, Closure\\(App\\\\Entity\\\\Transaction\\)\\: bool given\\.$#"
+			count: 3
+			path: src/Entity/Transfer.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\Transfer\\:\\:\\$transactions with generic interface Doctrine\\\\Common\\\\Collections\\\\Collection does not specify its types\\: TKey, T$#"
+			count: 1
+			path: src/Entity/Transfer.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\User\\:\\:getDashboardStatistics\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/User.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\User\\:\\:setDashboardStatistics\\(\\) has parameter \\$dashboardStatistics with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/User.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\User\\:\\:setRoles\\(\\) has parameter \\$roles with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/User.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\User\\:\\:\\$dashboardStatistics type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/User.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\User\\:\\:\\$roles type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/User.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\UserSettings\\:\\:getDashboardStatistics\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/UserSettings.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\UserSettings\\:\\:setDashboardStatistics\\(\\) has parameter \\$dashboardStatistics with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/UserSettings.php
+
+		-
+			message: "#^Property App\\\\Entity\\\\UserSettings\\:\\:\\$dashboardStatistics type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/UserSettings.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\ValuableInterface\\:\\:getConvertedValues\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/ValuableInterface.php
+
+		-
+			message: "#^Method App\\\\Entity\\\\ValuableInterface\\:\\:setConvertedValues\\(\\) has parameter \\$convertedValues with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Entity/ValuableInterface.php
+
+		-
+			message: "#^Method App\\\\EventListener\\\\DebtConvertedValueListener\\:\\:handleEvent\\(\\) has parameter \\$args with generic class Doctrine\\\\Persistence\\\\Event\\\\LifecycleEventArgs but does not specify its types\\: TObjectManager$#"
+			count: 1
+			path: src/EventListener/DebtConvertedValueListener.php
+
+		-
+			message: "#^Method App\\\\EventListener\\\\DebtConvertedValueListener\\:\\:prePersist\\(\\) has parameter \\$args with generic class Doctrine\\\\Persistence\\\\Event\\\\LifecycleEventArgs but does not specify its types\\: TObjectManager$#"
+			count: 1
+			path: src/EventListener/DebtConvertedValueListener.php
+
+		-
+			message: "#^Method App\\\\EventListener\\\\DebtConvertedValueListener\\:\\:preUpdate\\(\\) has parameter \\$args with generic class Doctrine\\\\Persistence\\\\Event\\\\LifecycleEventArgs but does not specify its types\\: TObjectManager$#"
+			count: 1
+			path: src/EventListener/DebtConvertedValueListener.php
+
+		-
+			message: "#^Method App\\\\OpenApi\\\\JwtDecorator\\:\\:__invoke\\(\\) has parameter \\$context with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/OpenApi/JwtDecorator.php
+
+		-
+			message: "#^Class App\\\\Repository\\\\AccountRepository extends generic class Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\ServiceEntityRepository but does not specify its types\\: TEntityClass$#"
+			count: 1
+			path: src/Repository/AccountRepository.php
+
+		-
+			message: "#^Constant App\\\\Repository\\\\AccountRepository\\:\\:ALIAS is unused\\.$#"
+			count: 1
+			path: src/Repository/AccountRepository.php
+
+		-
+			message: "#^Class App\\\\Repository\\\\BankCardAccountRepository extends generic class Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\ServiceEntityRepository but does not specify its types\\: TEntityClass$#"
+			count: 1
+			path: src/Repository/BankCardAccountRepository.php
+
+		-
+			message: "#^Constant App\\\\Repository\\\\BankCardAccountRepository\\:\\:ALIAS is unused\\.$#"
+			count: 1
+			path: src/Repository/BankCardAccountRepository.php
+
+		-
+			message: "#^Class App\\\\Repository\\\\CashAccountRepository extends generic class Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\ServiceEntityRepository but does not specify its types\\: TEntityClass$#"
+			count: 1
+			path: src/Repository/CashAccountRepository.php
+
+		-
+			message: "#^Constant App\\\\Repository\\\\CashAccountRepository\\:\\:ALIAS is unused\\.$#"
+			count: 1
+			path: src/Repository/CashAccountRepository.php
+
+		-
+			message: "#^Class App\\\\Repository\\\\CategoryRepository extends generic class Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\ServiceEntityRepository but does not specify its types\\: TEntityClass$#"
+			count: 1
+			path: src/Repository/CategoryRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\CategoryRepository\\:\\:buildDescendantMap\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/CategoryRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\CategoryRepository\\:\\:collectDescendantIds\\(\\) has parameter \\$childrenOf with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/CategoryRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\CategoryRepository\\:\\:collectDescendantIds\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/CategoryRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\CategoryRepository\\:\\:findRootCategories\\(\\) has parameter \\$orderBy with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/CategoryRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\CategoryRepository\\:\\:findRootCategories\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/CategoryRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\CategoryRepository\\:\\:getCategoriesWithDescendantsByType\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/CategoryRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\CategoryRepository\\:\\:getCategoriesWithDescendantsByType\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/CategoryRepository.php
+
+		-
+			message: "#^Parameter \\#2 \\$entityClass of method Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\LazyServiceEntityRepository\\<object\\>\\:\\:__construct\\(\\) expects class\\-string\\<T of object\\>, string given\\.$#"
+			count: 1
+			path: src/Repository/CategoryRepository.php
+
+		-
+			message: "#^Class App\\\\Repository\\\\DebtRepository extends generic class Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\ServiceEntityRepository but does not specify its types\\: TEntityClass$#"
+			count: 1
+			path: src/Repository/DebtRepository.php
+
+		-
+			message: "#^Class App\\\\Repository\\\\InternetAccountRepository extends generic class Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\ServiceEntityRepository but does not specify its types\\: TEntityClass$#"
+			count: 1
+			path: src/Repository/InternetAccountRepository.php
+
+		-
+			message: "#^Constant App\\\\Repository\\\\InternetAccountRepository\\:\\:ALIAS is unused\\.$#"
+			count: 1
+			path: src/Repository/InternetAccountRepository.php
+
+		-
+			message: "#^Casting to int something that's already int\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Casting to string something that's already string\\.$#"
+			count: 4
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Class App\\\\Repository\\\\TransactionRepository extends generic class Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\ServiceEntityRepository but does not specify its types\\: TEntityClass$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:applyCurrencyFilter\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:applyInFilters\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:applyInFilters\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:applyInFilters\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:applyInFilters\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:countByDay\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:countByDay\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:countByDay\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:countByDay\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:countByDay\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getActualsByCategoryForPeriod\\(\\) should return array\\<array\\{categoryId\\: int, convertedValues\\: array\\<string, array\\{income\\: float, expense\\: float\\}\\>\\}\\> but returns array\\<int, array\\{categoryId\\: int, convertedValues\\: array\\<string, non\\-empty\\-array\\<string, float\\>\\>\\}\\>\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getBaseQueryBuilder\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getBaseQueryBuilder\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getBaseQueryBuilder\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getBaseQueryBuilder\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getBaseQueryBuilder\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getCategoryDailyStatsForPeriod\\(\\) should return array\\<array\\{categoryId\\: int, days\\: array\\<array\\{day\\: string, convertedValues\\: array\\<string, array\\{income\\: float, expense\\: float\\}\\>\\}\\>\\}\\> but returns array\\<int\\<0, max\\>, array\\{categoryId\\: int, days\\: non\\-empty\\-array\\<int, array\\{day\\: string, convertedValues\\: array\\<string, non\\-empty\\-array\\<string, float\\>\\>\\}\\>\\}\\>\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getList\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getList\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getList\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getList\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getList\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getListForLedger\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getListForLedger\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getListForLedger\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getListForLedger\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getPaginator\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getPaginator\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getPaginator\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getPaginator\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getPaginator\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:getPaginator\\(\\) should return Doctrine\\\\ORM\\\\Tools\\\\Pagination\\\\Paginator\\<App\\\\Entity\\\\Transaction\\> but returns Doctrine\\\\ORM\\\\Tools\\\\Pagination\\\\Paginator\\<mixed\\>\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:sumConverted\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:sumConverted\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:sumConverted\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:sumConverted\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransactionRepository\\:\\:sumConverted\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Parameter \\#1 \\$value of function count expects array\\|Countable, mixed given\\.$#"
+			count: 2
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Parameter \\#2 \\$entityClass of method Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\LazyServiceEntityRepository\\<object\\>\\:\\:__construct\\(\\) expects class\\-string\\<T of object\\>, string given\\.$#"
+			count: 1
+			path: src/Repository/TransactionRepository.php
+
+		-
+			message: "#^Class App\\\\Repository\\\\TransferRepository extends generic class Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\ServiceEntityRepository but does not specify its types\\: TEntityClass$#"
+			count: 1
+			path: src/Repository/TransferRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransferRepository\\:\\:applyAccountsFilter\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransferRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransferRepository\\:\\:getBaseQueryBuilder\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransferRepository.php
+
+		-
+			message: "#^Method App\\\\Repository\\\\TransferRepository\\:\\:getListForLedger\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Repository/TransferRepository.php
+
+		-
+			message: "#^Class App\\\\Repository\\\\UserRepository extends generic class Doctrine\\\\Bundle\\\\DoctrineBundle\\\\Repository\\\\ServiceEntityRepository but does not specify its types\\: TEntityClass$#"
+			count: 1
+			path: src/Repository/UserRepository.php
+
+		-
+			message: "#^Method App\\\\Request\\\\ValueResolver\\\\CarbonDateValueResolver\\:\\:resolve\\(\\) return type has no value type specified in iterable type iterable\\.$#"
+			count: 1
+			path: src/Request/ValueResolver/CarbonDateValueResolver.php
+
+		-
+			message: "#^Binary operation \"\\-\" between float\\|int\\|string and float\\|int\\|string results in an error\\.$#"
+			count: 1
+			path: src/Request/ValueResolver/CarbonIntervalValueResolver.php
+
+		-
+			message: "#^Method App\\\\Request\\\\ValueResolver\\\\CarbonIntervalValueResolver\\:\\:resolve\\(\\) return type has no value type specified in iterable type iterable\\.$#"
+			count: 1
+			path: src/Request/ValueResolver/CarbonIntervalValueResolver.php
+
+		-
+			message: "#^Parameter \\#1 \\$duration of class DateInterval constructor expects string, mixed given\\.$#"
+			count: 1
+			path: src/Request/ValueResolver/CarbonIntervalValueResolver.php
+
+		-
+			message: "#^Parameter \\#1 \\$haystack of function str_starts_with expects string, mixed given\\.$#"
+			count: 1
+			path: src/Request/ValueResolver/CarbonIntervalValueResolver.php
+
+		-
+			message: "#^Parameter \\#1 \\$time of static method Carbon\\\\CarbonInterval\\:\\:createFromDateString\\(\\) expects string, mixed given\\.$#"
+			count: 1
+			path: src/Request/ValueResolver/CarbonIntervalValueResolver.php
+
+		-
+			message: "#^Method App\\\\Serializer\\\\PlainIdItemNormalizer\\:\\:__construct\\(\\) has parameter \\$defaultContext with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Serializer/PlainIdItemNormalizer.php
+
+		-
+			message: "#^Method App\\\\Serializer\\\\PlainIdItemNormalizer\\:\\:denormalizeRelation\\(\\) has parameter \\$context with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Serializer/PlainIdItemNormalizer.php
+
+		-
+			message: "#^Parameter \\#1 \\$entityName of method Doctrine\\\\ORM\\\\EntityManagerInterface\\:\\:getReference\\(\\) expects class\\-string\\<object\\>, string given\\.$#"
+			count: 1
+			path: src/Serializer/PlainIdItemNormalizer.php
+
+		-
+			message: "#^Unable to resolve the template type T in call to method Doctrine\\\\ORM\\\\EntityManagerInterface\\:\\:getReference\\(\\)$#"
+			count: 1
+			path: src/Serializer/PlainIdItemNormalizer.php
+
+		-
+			message: "#^Method App\\\\Service\\\\AssetsManager\\:\\:convert\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/AssetsManager.php
+
+		-
+			message: "#^Method App\\\\Service\\\\AssetsManager\\:\\:generateTransactionPaginationData\\(\\) has parameter \\$accounts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/AssetsManager.php
+
+		-
+			message: "#^Method App\\\\Service\\\\AssetsManager\\:\\:generateTransactionPaginationData\\(\\) has parameter \\$categories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/AssetsManager.php
+
+		-
+			message: "#^Method App\\\\Service\\\\AssetsManager\\:\\:generateTransactionPaginationData\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/AssetsManager.php
+
+		-
+			message: "#^Method App\\\\Service\\\\AssetsManager\\:\\:generateTransactionPaginationData\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/AssetsManager.php
+
+		-
+			message: "#^Method App\\\\Service\\\\AssetsManager\\:\\:generateTransactionPaginationData\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/AssetsManager.php
+
+		-
+			message: "#^Method App\\\\Service\\\\AssetsManager\\:\\:generateTransactionPaginationData\\(\\) return type has no value type specified in iterable type Traversable\\.$#"
+			count: 1
+			path: src/Service/AssetsManager.php
+
+		-
+			message: "#^Method App\\\\Service\\\\AssetsManager\\:\\:sumTransactions\\(\\) has parameter \\$transactions with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/AssetsManager.php
+
+		-
+			message: "#^Method App\\\\Service\\\\BaseExchangeRatesProvider\\:\\:__construct\\(\\) has parameter \\$allowedCurrencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/BaseExchangeRatesProvider.php
+
+		-
+			message: "#^Method App\\\\Service\\\\BaseExchangeRatesProvider\\:\\:getHistorical\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/BaseExchangeRatesProvider.php
+
+		-
+			message: "#^Method App\\\\Service\\\\BaseExchangeRatesProvider\\:\\:getLatest\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/BaseExchangeRatesProvider.php
+
+		-
+			message: "#^Property App\\\\Service\\\\BaseExchangeRatesProvider\\:\\:\\$allowedCurrencies type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/BaseExchangeRatesProvider.php
+
+		-
+			message: "#^Method App\\\\Service\\\\CSVExporter\\:\\:normalizeIdsOrEntities\\(\\) has parameter \\$values with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/CSVExporter.php
+
+		-
+			message: "#^Method App\\\\Service\\\\CSVExporter\\:\\:stream\\(\\) has parameter \\$accountFilter with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/CSVExporter.php
+
+		-
+			message: "#^Method App\\\\Service\\\\CSVExporter\\:\\:stream\\(\\) has parameter \\$categoryFilter with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/CSVExporter.php
+
+		-
+			message: "#^Method App\\\\Service\\\\CSVExporter\\:\\:stream\\(\\) has parameter \\$currencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/CSVExporter.php
+
+		-
+			message: "#^Method App\\\\Service\\\\CSVExporter\\:\\:stream\\(\\) has parameter \\$debts with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/CSVExporter.php
+
+		-
+			message: "#^Method App\\\\Service\\\\CSVExporter\\:\\:stream\\(\\) has parameter \\$excludedCategories with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/CSVExporter.php
+
+		-
+			message: "#^Parameter \\#1 \\$stream of function fclose expects resource, resource\\|false given\\.$#"
+			count: 1
+			path: src/Service/CSVExporter.php
+
+		-
+			message: "#^Parameter \\#1 \\$stream of function fwrite expects resource, resource\\|false given\\.$#"
+			count: 1
+			path: src/Service/CSVExporter.php
+
+		-
+			message: "#^Parameter \\#1 \\$stream of static method League\\\\Csv\\\\AbstractCsv\\:\\:createFromStream\\(\\) expects resource, resource\\|false given\\.$#"
+			count: 1
+			path: src/Service/CSVExporter.php
+
+		-
+			message: "#^Method App\\\\Service\\\\FixerService\\:\\:__construct\\(\\) has parameter \\$allowedCurrencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/FixerService.php
+
+		-
+			message: "#^Method App\\\\Service\\\\FixerService\\:\\:convert\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/FixerService.php
+
+		-
+			message: "#^Method App\\\\Service\\\\FixerService\\:\\:fetchRates\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/FixerService.php
+
+		-
+			message: "#^Method App\\\\Service\\\\FixerService\\:\\:getHistorical\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/FixerService.php
+
+		-
+			message: "#^Method App\\\\Service\\\\FixerService\\:\\:getLatest\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/FixerService.php
+
+		-
+			message: "#^Method App\\\\Service\\\\FixerService\\:\\:getRates\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/FixerService.php
+
+		-
+			message: "#^Method App\\\\Service\\\\FixerService\\:\\:getRates\\(\\) should return array but returns array\\|null\\.$#"
+			count: 1
+			path: src/Service/FixerService.php
+
+		-
+			message: "#^Parameter \\#3 \\$toCurrency of method App\\\\Service\\\\FixerService\\:\\:convertTo\\(\\) expects string, string\\|null given\\.$#"
+			count: 1
+			path: src/Service/FixerService.php
+
+		-
+			message: "#^Method App\\\\Service\\\\RateProviderInterface\\:\\:getHistorical\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/RateProviderInterface.php
+
+		-
+			message: "#^Method App\\\\Service\\\\RateProviderInterface\\:\\:getLatest\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/RateProviderInterface.php
+
+		-
+			message: "#^Method App\\\\Service\\\\RateProviderInterface\\:\\:getRates\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/RateProviderInterface.php
+
+		-
+			message: "#^Method App\\\\Service\\\\TransactionCategorizationService\\:\\:inPlaceholders\\(\\) has parameter \\$items with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: src/Service/TransactionCategorizationService.php
+
+		-
+			message: "#^Method App\\\\Service\\\\TransactionCategorizationService\\:\\:resolveIndex\\(\\) should return array\\<string, array\\{categoryId\\: int, displayNote\\: string, sortedTokens\\: string\\}\\> but returns array\\<string, array\\{categoryId\\: int\\|null, displayNote\\: string, sortedTokens\\: string\\}\\>\\.$#"
+			count: 1
+			path: src/Service/TransactionCategorizationService.php
+
+		-
+			message: "#^Property App\\\\Service\\\\TransactionCategorizationService\\:\\:\\$ownerId is never read, only written\\.$#"
+			count: 1
+			path: src/Service/TransactionCategorizationService.php
+
+		-
+			message: "#^Only numeric types are allowed in \\+, float\\|null given on the left side\\.$#"
+			count: 1
+			path: tests/ApiPlatform/Action/BulkTransactionCreateActionTest.php
+
+		-
+			message: "#^Call to an undefined method Symfony\\\\Component\\\\Security\\\\Core\\\\User\\\\UserInterface\\:\\:getId\\(\\)\\.$#"
+			count: 2
+			path: tests/ApiPlatform/BankIntegrationCrudTest.php
+
+		-
+			message: "#^Parameter \\#1 \\$key of static method PHPUnit\\\\Framework\\\\Assert\\:\\:assertArrayHasKey\\(\\) expects int\\|string, int\\|null given\\.$#"
+			count: 1
+			path: tests/Bank/BankSyncServiceTest.php
+
+		-
+			message: "#^Parameter \\#1 \\$key of static method PHPUnit\\\\Framework\\\\Assert\\:\\:assertArrayNotHasKey\\(\\) expects int\\|string, int\\|null given\\.$#"
+			count: 2
+			path: tests/Bank/BankSyncServiceTest.php
+
+		-
+			message: "#^Offset 'EUR' does not exist on array\\<string, float\\>\\|null\\.$#"
+			count: 1
+			path: tests/Bank/MonobankProviderTest.php
+
+		-
+			message: "#^Offset 'USD' does not exist on array\\<string, float\\>\\|null\\.$#"
+			count: 1
+			path: tests/Bank/MonobankProviderTest.php
+
+		-
+			message: "#^Parameter \\#1 \\$body of method App\\\\Tests\\\\Bank\\\\MonobankProviderTest\\:\\:mockResponse\\(\\) expects string, string\\|false given\\.$#"
+			count: 6
+			path: tests/Bank/MonobankProviderTest.php
+
+		-
+			message: "#^Parameter \\#2 \\$array of static method PHPUnit\\\\Framework\\\\Assert\\:\\:assertArrayNotHasKey\\(\\) expects array\\|ArrayAccess, array\\<string, float\\>\\|null given\\.$#"
+			count: 1
+			path: tests/Bank/MonobankProviderTest.php
+
+		-
+			message: "#^Invalid type null to throw\\.$#"
+			count: 1
+			path: tests/Bank/WiseProviderTest.php
+
+		-
+			message: "#^Parameter \\#1 \\$body of method App\\\\Tests\\\\Bank\\\\WiseProviderTest\\:\\:mockResponse\\(\\) expects string, string\\|false given\\.$#"
+			count: 29
+			path: tests/Bank/WiseProviderTest.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\BaseApiTestCase\\:\\:buildURL\\(\\) has parameter \\$queryParams with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/BaseApiTestCase.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\BaseApiTestCase\\:\\:createClientWithCredentials\\(\\) has parameter \\$token with no type specified\\.$#"
+			count: 1
+			path: tests/BaseApiTestCase.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\BaseApiTestCase\\:\\:createExpense\\(\\) has parameter \\$compensations with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/BaseApiTestCase.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\BaseApiTestCase\\:\\:getToken\\(\\) has parameter \\$username with no type specified\\.$#"
+			count: 1
+			path: tests/BaseApiTestCase.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\BaseApiTestCase\\:\\:iri\\(\\) should return string but returns string\\|null\\.$#"
+			count: 1
+			path: tests/BaseApiTestCase.php
+
+		-
+			message: "#^Parameter \\#1 \\$user of method Lexik\\\\Bundle\\\\JWTAuthenticationBundle\\\\Services\\\\JWTManager\\:\\:create\\(\\) expects Symfony\\\\Component\\\\Security\\\\Core\\\\User\\\\UserInterface, App\\\\Entity\\\\User\\|null given\\.$#"
+			count: 1
+			path: tests/BaseApiTestCase.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\Controller\\\\StatisticsControllerTest\\:\\:findByName\\(\\) has parameter \\$items with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/Controller/StatisticsControllerTest.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\Controller\\\\StatisticsControllerTest\\:\\:findByName\\(\\) return type has no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/Controller/StatisticsControllerTest.php
+
+		-
+			message: "#^Parameter \\#1 \\$func of method Doctrine\\\\Common\\\\Collections\\\\Collection\\<\\(int\\|string\\),mixed\\>\\:\\:map\\(\\) expects Closure\\(mixed\\)\\: \\(int\\|null\\), Closure\\(App\\\\Entity\\\\Category\\)\\: \\(int\\|null\\) given\\.$#"
+			count: 2
+			path: tests/Controller/TransactionControllerTest.php
+
+		-
+			message: "#^Parameter \\$category of method App\\\\Tests\\\\BaseApiTestCase\\:\\:createExpense\\(\\) expects App\\\\Entity\\\\ExpenseCategory, App\\\\Entity\\\\Category given\\.$#"
+			count: 6
+			path: tests/Controller/TransactionControllerTest.php
+
+		-
+			message: "#^Parameter \\$category of method App\\\\Tests\\\\BaseApiTestCase\\:\\:createIncome\\(\\) expects App\\\\Entity\\\\IncomeCategory, App\\\\Entity\\\\Category given\\.$#"
+			count: 1
+			path: tests/Controller/TransactionControllerTest.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\Service\\\\FixerServiceTest\\:\\:makeServiceStub\\(\\) has parameter \\$rates with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/Service/FixerServiceTest.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\Service\\\\FixerServiceTest\\:\\:makeServiceWithDependencies\\(\\) has parameter \\$allowedCurrencies with no value type specified in iterable type array\\.$#"
+			count: 1
+			path: tests/Service/FixerServiceTest.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\Service\\\\StatisticsManagerTest\\:\\:createCategory\\(\\) should return App\\\\Entity\\\\ExpenseCategory but returns App\\\\Entity\\\\Category\\.$#"
+			count: 1
+			path: tests/Service/StatisticsManagerTest.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\Service\\\\StatisticsManagerTest\\:\\:createIncomeCategory\\(\\) should return App\\\\Entity\\\\IncomeCategory but returns App\\\\Entity\\\\Category\\.$#"
+			count: 1
+			path: tests/Service/StatisticsManagerTest.php
+
+		-
+			message: "#^Parameter \\#1 \\$ownerId of method App\\\\Service\\\\TransactionCategorizationService\\:\\:buildIndex\\(\\) expects int, int\\|null given\\.$#"
+			count: 5
+			path: tests/Service/TransactionCategorizationServiceTest.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\Service\\\\TransferServiceTest\\:\\:createExpenseCategory\\(\\) should return App\\\\Entity\\\\ExpenseCategory but returns App\\\\Entity\\\\Category\\.$#"
+			count: 1
+			path: tests/Service/TransferServiceTest.php
+
+		-
+			message: "#^Method App\\\\Tests\\\\Service\\\\TransferServiceTest\\:\\:createIncomeCategory\\(\\) should return App\\\\Entity\\\\IncomeCategory but returns App\\\\Entity\\\\Category\\.$#"
+			count: 1
+			path: tests/Service/TransferServiceTest.php

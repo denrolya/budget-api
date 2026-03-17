@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Bank\Provider;
 
 use App\Bank\BankProvider;
@@ -70,19 +72,28 @@ class MonobankProvider implements BankProviderInterface, WebhookCapableInterface
             $response = $this->monobankClient->request('GET', '/personal/client-info', [
                 'headers' => ['X-Token' => $this->monobankApiKey],
             ]);
-            $data = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            $decoded = json_decode($response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
         } catch (HttpExceptionInterface $e) {
             throw new RuntimeException('Monobank fetchAccounts failed: ' . $e->getMessage(), 0, $e);
         }
 
+        assert(\is_array($decoded));
         $result = [];
-        foreach ($data['accounts'] ?? [] as $account) {
-            $currency = self::CURRENCY_MAP[$account['currencyCode']] ?? (string) $account['currencyCode'];
-            $balance = ($account['balance'] ?? 0) / 100;
+        $accounts = \is_array($decoded['accounts'] ?? null) ? $decoded['accounts'] : [];
+        foreach ($accounts as $accountEntry) {
+            assert(\is_array($accountEntry));
+            $rawCurrencyCode = $accountEntry['currencyCode'] ?? 980;
+            assert(is_int($rawCurrencyCode) || is_string($rawCurrencyCode));
+            $currency = self::CURRENCY_MAP[$rawCurrencyCode] ?? (string) $rawCurrencyCode;
+            $rawBalance = $accountEntry['balance'] ?? 0;
+            assert(is_numeric($rawBalance));
+            $balance = ((int) $rawBalance) / 100;
+            $maskedPans = \is_array($accountEntry['maskedPan'] ?? null) ? $accountEntry['maskedPan'] : [];
+            $firstPan = isset($maskedPans[0]) && \is_string($maskedPans[0]) ? $maskedPans[0] : 'Monobank';
 
             $result[] = new BankAccountData(
-                externalId: $account['id'],
-                name: sprintf('%s %s', $account['maskedPan'][0] ?? 'Monobank', $currency),
+                externalId: (string) ($accountEntry['id'] ?? ''),
+                name: \sprintf('%s %s', $firstPan, $currency),
                 currency: $currency,
                 balance: $balance,
             );
@@ -134,12 +145,12 @@ class MonobankProvider implements BankProviderInterface, WebhookCapableInterface
         $externalAccountId = $data['account'] ?? null;
         $item = $data['statementItem'] ?? [];
 
-        if (!$externalAccountId || empty($item)) {
+        if (!$externalAccountId || [] === $item) {
             return null;
         }
 
         $amountMinor = (int) ($item['amount'] ?? 0);
-        if ($amountMinor === 0) {
+        if (0 === $amountMinor) {
             return null;
         }
 
@@ -156,7 +167,7 @@ class MonobankProvider implements BankProviderInterface, WebhookCapableInterface
             externalAccountId: $externalAccountId,
             amount: $amount,
             executedAt: $executedAt,
-            note: $description ?: 'Monobank transaction',
+            note: '' !== $description ? $description : 'Monobank transaction',
             currency: $currency,
         );
     }
@@ -185,6 +196,7 @@ class MonobankProvider implements BankProviderInterface, WebhookCapableInterface
      * Returns currency rates relative to baseCurrency. Cached 24 h.
      *
      * @return array<string, float>
+     *
      * @throws InvalidArgumentException
      */
     public function getLatest(): array
@@ -212,36 +224,36 @@ class MonobankProvider implements BankProviderInterface, WebhookCapableInterface
     {
         try {
             $response = $this->monobankClient->request('GET', '/bank/currency');
-            $data = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            $decoded = json_decode($response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
         } catch (HttpExceptionInterface $e) {
             throw new RuntimeException('Monobank currency API error: ' . $e->getMessage(), 0, $e);
         }
 
+        assert(\is_array($decoded));
         $currencyToUahRates = [];
 
-        foreach ($data as $rateInfo) {
-            $currencyA = self::CURRENCY_MAP[$rateInfo['currencyCodeA']] ?? null;
-            $currencyB = self::CURRENCY_MAP[$rateInfo['currencyCodeB']] ?? null;
+        foreach ($decoded as $rateInfo) {
+            assert(\is_array($rateInfo));
+            $currencyA = self::CURRENCY_MAP[$rateInfo['currencyCodeA'] ?? 0] ?? null;
+            $currencyB = self::CURRENCY_MAP[$rateInfo['currencyCodeB'] ?? 0] ?? null;
 
             // We want X → UAH rates
-            if ($currencyB !== 'UAH' || $currencyA === null) {
+            if ('UAH' !== $currencyB || null === $currencyA) {
                 continue;
             }
 
-            if (!in_array($currencyA, $this->allowedCurrencies, true)) {
+            if (!\in_array($currencyA, $this->allowedCurrencies, true)) {
                 continue;
             }
 
-            $rate = $rateInfo['rateCross'] ?? (($rateInfo['rateBuy'] + $rateInfo['rateSell']) / 2);
+            $rate = $rateInfo['rateCross'] ?? (((float) $rateInfo['rateBuy'] + (float) $rateInfo['rateSell']) / 2);
             $currencyToUahRates[$currencyA] = $rate;
         }
 
         $currencyToUahRates['UAH'] = 1.0;
 
         if (!isset($currencyToUahRates[$this->baseCurrency])) {
-            throw new RuntimeException(
-                sprintf('Monobank: base currency "%s" to UAH rate not available.', $this->baseCurrency)
-            );
+            throw new RuntimeException(\sprintf('Monobank: base currency "%s" to UAH rate not available.', $this->baseCurrency));
         }
 
         $baseToUah = $currencyToUahRates[$this->baseCurrency];
@@ -252,6 +264,6 @@ class MonobankProvider implements BankProviderInterface, WebhookCapableInterface
         }
         $rates[$this->baseCurrency] = 1.0;
 
-        return array_filter($rates, fn($k) => in_array($k, $this->allowedCurrencies, true), ARRAY_FILTER_USE_KEY);
+        return array_filter($rates, fn ($k) => \in_array($k, $this->allowedCurrencies, true), \ARRAY_FILTER_USE_KEY);
     }
 }

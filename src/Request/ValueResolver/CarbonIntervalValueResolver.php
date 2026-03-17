@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Request\ValueResolver;
 
 use App\Attribute\MapCarbonInterval;
@@ -21,7 +23,7 @@ final class CarbonIntervalValueResolver implements ValueResolverInterface
         // wins over RequestAttributeValueResolver for MapCarbonInterval params.
         /** @var MapCarbonInterval|null $attr */
         $attr = $argument->getAttributesOfType(MapCarbonInterval::class)[0] ?? null;
-        if ($attr === null) {
+        if (null === $attr) {
             return [];
         }
 
@@ -36,22 +38,22 @@ final class CarbonIntervalValueResolver implements ValueResolverInterface
         // Read from query string first; fall back to request attributes where
         // FOSRest may have stored its QueryParam default (e.g. default: false).
         $value = $request->query->get($name);
-        if ($value === null) {
+        if (null === $value) {
             $value = $request->attributes->get($name);
         }
 
         // Require before/after to be present (set earlier by CarbonDateValueResolver)
         $before = $request->attributes->get('before');
-        $after  = $request->attributes->get('after');
+        $after = $request->attributes->get('after');
 
         if (!$before instanceof CarbonImmutable || !$after instanceof CarbonImmutable) {
             throw new BadRequestException(self::INVALID_INTERVAL_MESSAGE);
         }
 
         // Param was genuinely absent with no default → null for nullable, skip for non-nullable.
-        if ($value === null) {
+        if (null === $value) {
             // Still respect the attribute's own default (for non-FOSRest usage).
-            if ($attr->default !== null) {
+            if (null !== $attr->default) {
                 $value = $attr->default;
             } elseif ($argument->isNullable()) {
                 yield null;
@@ -64,7 +66,7 @@ final class CarbonIntervalValueResolver implements ValueResolverInterface
 
         $interval = $this->createInterval($value, $before, $after);
 
-        if ($interval === null) {
+        if (null === $interval) {
             // A non-null value was provided but could not be parsed → always 400.
             throw new BadRequestException(self::INVALID_INTERVAL_MESSAGE);
         }
@@ -78,12 +80,12 @@ final class CarbonIntervalValueResolver implements ValueResolverInterface
         CarbonImmutable $after,
     ): ?CarbonInterval {
         // false / 0 / empty string → one period spanning the entire date range
-        if ($value === 'false' || $value === false || $value === '0' || $value === 0 || $value === '') {
+        if ('false' === $value || false === $value || '0' === $value || 0 === $value || '' === $value) {
             return CarbonInterval::seconds(abs($before->diffInSeconds($after)) + 1);
         }
 
         // true / 1 → millisecond-precision auto-partitioning
-        if ($value === 'true' || $value === true || $value === '1' || $value === 1) {
+        if ('true' === $value || true === $value || '1' === $value || 1 === $value) {
             $milliseconds = ($before->timestamp - $after->timestamp) / .06;
 
             return CarbonInterval::milliseconds((int) $milliseconds);
@@ -96,8 +98,9 @@ final class CarbonIntervalValueResolver implements ValueResolverInterface
 
         // Natural language (e.g. "1 month", "7 days").
         // createFromDateString returns a zero-duration interval for unparseable strings, not false.
+        /** @var CarbonInterval|false $interval Carbon docs say this can return false for unparseable input */
         $interval = CarbonInterval::createFromDateString($value);
-        if (!$interval || (int) $interval->totalSeconds === 0) {
+        if (false === $interval || 0 === (int) $interval->totalSeconds) {
             return null; // → caller throws 400
         }
 

@@ -13,6 +13,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Throwable;
 
 #[AsCommand(
     name: 'app:fix:restore-expense-gross-values',
@@ -54,17 +55,18 @@ class RestoreExpenseGrossValuesCommand extends Command
 
         $expensesWithCompensations = array_filter(
             $expenses,
-            static fn(Expense $expense) => $expense->hasCompensations(),
+            static fn (Expense $expense) => $expense->hasCompensations(),
         );
 
-        $totalCount = count($expensesWithCompensations);
+        $totalCount = \count($expensesWithCompensations);
 
-        if ($totalCount === 0) {
+        if (0 === $totalCount) {
             $io->success('No expenses with compensations found. Nothing to do.');
+
             return Command::SUCCESS;
         }
 
-        $io->info(sprintf('Found %d expense(s) with compensations to restore.', $totalCount));
+        $io->info(\sprintf('Found %d expense(s) with compensations to restore.', $totalCount));
         $io->progressStart($totalCount);
 
         $processedCount = 0;
@@ -73,17 +75,17 @@ class RestoreExpenseGrossValuesCommand extends Command
         $index = 0;
 
         foreach ($expensesWithCompensations as $expense) {
-            $index++;
+            ++$index;
 
-            if ($expense->getCurrency() === 'ETH') {
+            if ('ETH' === $expense->getCurrency()) {
                 $io->progressAdvance();
-                $io->writeln(sprintf(
+                $io->writeln(\sprintf(
                     '  [%d/%d] SKIP expense #%d — ETH not supported by exchange rate service.',
                     $index,
                     $totalCount,
                     $expense->getId(),
                 ));
-                $skippedCount++;
+                ++$skippedCount;
                 continue;
             }
 
@@ -92,7 +94,7 @@ class RestoreExpenseGrossValuesCommand extends Command
                 $grossValues = $this->assetsManager->convert($expense);
 
                 $compensationCount = $expense->getCompensations()->count();
-                $io->writeln(sprintf(
+                $io->writeln(\sprintf(
                     '  [%d/%d] expense #%d | %s %s | %d compensation(s) | EUR: %.2f → %.2f',
                     $index,
                     $totalCount,
@@ -107,22 +109,22 @@ class RestoreExpenseGrossValuesCommand extends Command
                 if (!$isDryRun) {
                     $expense->setConvertedValues($grossValues);
 
-                    if ($index % self::BATCH_FLUSH_SIZE === 0) {
+                    if (0 === $index % self::BATCH_FLUSH_SIZE) {
                         $this->entityManager->flush();
-                        $io->writeln(sprintf('  Flushed batch at index %d.', $index));
+                        $io->writeln(\sprintf('  Flushed batch at index %d.', $index));
                     }
                 }
 
-                $processedCount++;
-            } catch (\Throwable $throwable) {
-                $io->writeln(sprintf(
+                ++$processedCount;
+            } catch (Throwable $throwable) {
+                $io->writeln(\sprintf(
                     '  [%d/%d] ERROR expense #%d — %s',
                     $index,
                     $totalCount,
                     $expense->getId(),
                     $throwable->getMessage(),
                 ));
-                $errorCount++;
+                ++$errorCount;
             }
 
             $io->progressAdvance();
@@ -146,14 +148,15 @@ class RestoreExpenseGrossValuesCommand extends Command
         );
 
         if ($errorCount > 0) {
-            $io->warning(sprintf('%d expense(s) failed to recalculate. Check the output above.', $errorCount));
+            $io->warning(\sprintf('%d expense(s) failed to recalculate. Check the output above.', $errorCount));
+
             return Command::FAILURE;
         }
 
         if ($isDryRun) {
             $io->note('Dry run complete. Run without --dry-run to apply changes.');
         } else {
-            $io->success(sprintf('Restored gross values for %d expense(s).', $processedCount));
+            $io->success(\sprintf('Restored gross values for %d expense(s).', $processedCount));
         }
 
         return Command::SUCCESS;

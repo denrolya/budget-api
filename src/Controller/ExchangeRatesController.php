@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Attribute\MapCarbonDate;
@@ -13,6 +15,7 @@ use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
 use OpenApi\Attributes as OA;
 use Psr\Cache\InvalidArgumentException;
+use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -41,15 +44,14 @@ class ExchangeRatesController extends AbstractFOSRestController
                     new OA\Property(property: 'after', type: 'string', format: 'date', example: '2024-01-01'),
                     new OA\Property(property: 'before', type: 'string', format: 'date', example: '2024-01-31'),
                     new OA\Property(property: 'snapshots', type: 'array', items: new OA\Items(type: 'object')),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
-     * TODO: remove and use API Platform?
-     *
      * @see \App\Tests\Controller\ExchangeRatesTest
+     *
      * @tested testSnapshots_returnsCorrectShape
      * @tested testSnapshots_swappedDates_autoCorrects
      * @tested testSnapshots_singleDate_beforeDefaultsToAfter
@@ -70,7 +72,7 @@ class ExchangeRatesController extends AbstractFOSRestController
 
         return $this->view(
             ['after' => $after->toDateString(), 'before' => $before->toDateString(), 'snapshots' => $snapshots],
-            Response::HTTP_OK
+            Response::HTTP_OK,
         );
     }
 
@@ -92,17 +94,18 @@ class ExchangeRatesController extends AbstractFOSRestController
                 description: 'Exchange rates keyed by currency code',
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'rates', type: 'object', additionalProperties: new OA\AdditionalProperties(type: 'number')),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
             new OA\Response(response: 500, description: 'Exchange rate provider error'),
-        ]
+        ],
     )]
     /**
      * Returns exchange rates for a given date.
      * Now routes through ExchangeRateSnapshotResolver: checks DB first, calls Fixer only if no snapshot exists.
      *
      * @see \App\Tests\Controller\ExchangeRatesTest
+     *
      * @tested testFixer_returnsRatesShape
      * @tested testFixerBaseUrl_alsoWorks
      * @tested testFixer_withoutAuth_returns401
@@ -113,10 +116,10 @@ class ExchangeRatesController extends AbstractFOSRestController
     ): View {
         try {
             $rates = $snapshotResolver->getRatesForDate($date);
-        } catch (\RuntimeException) {
+        } catch (RuntimeException) {
             return $this->view(
                 ['error' => 'An error occurred while fetching the exchange rates. Please try again later.'],
-                Response::HTTP_INTERNAL_SERVER_ERROR
+                Response::HTTP_INTERNAL_SERVER_ERROR,
             );
         }
 
@@ -136,14 +139,15 @@ class ExchangeRatesController extends AbstractFOSRestController
                 description: 'Monobank rates',
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'rates', type: 'array', items: new OA\Items(type: 'object')),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
             new OA\Response(response: 500, description: 'Monobank API error'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\ExchangeRatesTest
+     *
      * @tested testMonobankRates_returnsCorrectShape
      * @tested testMonobankRates_providerError_returns500
      * @tested testMonobankRates_withoutAuth_returns401
@@ -155,7 +159,7 @@ class ExchangeRatesController extends AbstractFOSRestController
         } catch (InvalidArgumentException) {
             return $this->view(
                 ['error' => 'An error occurred while fetching the exchange rates. Please try again later.'],
-                Response::HTTP_INTERNAL_SERVER_ERROR
+                Response::HTTP_INTERNAL_SERVER_ERROR,
             );
         }
 
@@ -179,14 +183,15 @@ class ExchangeRatesController extends AbstractFOSRestController
                 description: 'Wise rates',
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'rates', type: 'object', additionalProperties: new OA\AdditionalProperties(type: 'number')),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
             new OA\Response(response: 500, description: 'Wise API error'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\ExchangeRatesTest
+     *
      * @tested testWiseRates_returnsCorrectShape
      * @tested testWiseRates_withDateParam_returnsRates
      * @tested testWiseRates_providerError_returns500
@@ -201,7 +206,7 @@ class ExchangeRatesController extends AbstractFOSRestController
         } catch (InvalidArgumentException) {
             return $this->view(
                 ['error' => 'An error occurred while fetching the exchange rates. Please try again later.'],
-                Response::HTTP_INTERNAL_SERVER_ERROR
+                Response::HTTP_INTERNAL_SERVER_ERROR,
             );
         }
 

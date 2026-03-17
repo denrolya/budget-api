@@ -9,10 +9,12 @@ use App\Repository\ExchangeRateSnapshotRepository;
 use App\Service\ExchangeRateSnapshotResolver;
 use App\Service\FixerService;
 use Carbon\CarbonImmutable;
+use DateTimeImmutable;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 class ExchangeRateSnapshotResolverTest extends TestCase
 {
@@ -38,7 +40,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
 
     // --- getClosestOrFetch ---
 
-    public function testGetClosestOrFetch_withExistingSnapshot_returnsItWithoutCallingFixer(): void
+    public function testGetClosestOrFetchWithExistingSnapshotReturnsItWithoutCallingFixer(): void
     {
         $date = CarbonImmutable::parse('2026-03-10');
         $snapshot = $this->createSnapshotStub($date);
@@ -56,7 +58,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         self::assertSame($snapshot, $result);
     }
 
-    public function testGetClosestOrFetch_todayNoSnapshot_fetchesFromFixerAndPersists(): void
+    public function testGetClosestOrFetchTodayNoSnapshotFetchesFromFixerAndPersists(): void
     {
         $today = CarbonImmutable::today();
 
@@ -73,13 +75,15 @@ class ExchangeRateSnapshotResolverTest extends TestCase
 
         $result = $this->resolver->getClosestOrFetch($today);
 
-        self::assertEquals($today->toDateString(), $result->getEffectiveAt()->format('Y-m-d'));
+        $effectiveAt = $result->getEffectiveAt();
+        \assert(null !== $effectiveAt);
+        self::assertEquals($today->toDateString(), $effectiveAt->format('Y-m-d'));
         self::assertEquals('1.1', $result->getUsdPerEur());
         self::assertEquals('380', $result->getHufPerEur());
         self::assertEquals('40', $result->getUahPerEur());
     }
 
-    public function testGetClosestOrFetch_pastDateNoSnapshot_fetchesHistoricalAndPersists(): void
+    public function testGetClosestOrFetchPastDateNoSnapshotFetchesHistoricalAndPersists(): void
     {
         $pastDate = CarbonImmutable::parse('2026-02-15');
 
@@ -97,16 +101,18 @@ class ExchangeRateSnapshotResolverTest extends TestCase
 
         $result = $this->resolver->getClosestOrFetch($pastDate);
 
-        self::assertEquals('2026-02-15', $result->getEffectiveAt()->format('Y-m-d'));
+        $effectiveAt = $result->getEffectiveAt();
+        \assert(null !== $effectiveAt);
+        self::assertEquals('2026-02-15', $effectiveAt->format('Y-m-d'));
     }
 
-    public function testGetClosestOrFetch_futureDate_throwsException(): void
+    public function testGetClosestOrFetchFutureDateThrowsException(): void
     {
         $futureDate = CarbonImmutable::now()->addMonth();
 
         $this->snapshotRepository->method('findClosestSnapshot')->willReturn(null);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('future date');
 
         $this->resolver->getClosestOrFetch($futureDate);
@@ -114,7 +120,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
 
     // --- getRatesForDate ---
 
-    public function testGetRatesForDate_withExactSnapshot_returnsRatesWithoutCallingFixer(): void
+    public function testGetRatesForDateWithExactSnapshotReturnsRatesWithoutCallingFixer(): void
     {
         $date = CarbonImmutable::parse('2026-03-10');
         $snapshot = $this->createSnapshotStub($date);
@@ -136,7 +142,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         self::assertArrayHasKey('UAH', $rates);
     }
 
-    public function testGetRatesForDate_noExactSnapshot_fetchesAndPersists(): void
+    public function testGetRatesForDateNoExactSnapshotFetchesAndPersists(): void
     {
         $date = CarbonImmutable::parse('2026-03-10');
 
@@ -156,7 +162,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         self::assertSame(1.1, $rates['USD']);
     }
 
-    public function testGetRatesForDate_futureWithClosestSnapshot_usesClosest(): void
+    public function testGetRatesForDateFutureWithClosestSnapshotUsesClosest(): void
     {
         $futureDate = CarbonImmutable::now()->addMonth();
         $todaySnapshot = $this->createSnapshotStub(CarbonImmutable::today());
@@ -173,8 +179,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
     }
 
     // --- fetchAndPersistSnapshot race condition ---
-
-    public function testGetClosestOrFetch_raceCondition_readsExistingOnSecondAttempt(): void
+    public function testGetClosestOrFetchRaceConditionReadsExistingOnSecondAttempt(): void
     {
         $today = CarbonImmutable::today();
         $existingSnapshot = $this->createSnapshotStub($today);
@@ -196,8 +201,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
     }
 
     // --- fetchAndPersistSnapshot: empty / null rates from Fixer ---
-
-    public function testGetClosestOrFetch_fixerReturnsEmptyArray_throwsRuntimeException(): void
+    public function testGetClosestOrFetchFixerReturnsEmptyArrayThrowsRuntimeException(): void
     {
         $pastDate = CarbonImmutable::parse('2026-01-10');
 
@@ -205,13 +209,13 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         $this->snapshotRepository->method('findOneBy')->willReturn(null);
         $this->fixerService->method('getHistorical')->willReturn([]);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/No rates returned from Fixer/');
 
         $this->resolver->getClosestOrFetch($pastDate);
     }
 
-    public function testGetClosestOrFetch_fixerReturnsNull_throwsRuntimeException(): void
+    public function testGetClosestOrFetchFixerReturnsNullThrowsRuntimeException(): void
     {
         $pastDate = CarbonImmutable::parse('2026-01-10');
 
@@ -219,13 +223,13 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         $this->snapshotRepository->method('findOneBy')->willReturn(null);
         $this->fixerService->method('getHistorical')->willReturn(null);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/No rates returned from Fixer/');
 
         $this->resolver->getClosestOrFetch($pastDate);
     }
 
-    public function testGetClosestOrFetch_fixerThrowsException_wrapsInRuntimeException(): void
+    public function testGetClosestOrFetchFixerThrowsExceptionWrapsInRuntimeException(): void
     {
         $pastDate = CarbonImmutable::parse('2026-01-10');
 
@@ -233,9 +237,9 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         $this->snapshotRepository->method('findOneBy')->willReturn(null);
         $this->fixerService
             ->method('getHistorical')
-            ->willThrowException(new \RuntimeException('API key invalid'));
+            ->willThrowException(new RuntimeException('API key invalid'));
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/Failed to fetch rates for/');
 
         $this->resolver->getClosestOrFetch($pastDate);
@@ -243,7 +247,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
 
     // --- fetchAndPersistSnapshot: UniqueConstraintViolationException (race condition) ---
 
-    public function testGetClosestOrFetch_uniqueConstraintViolation_returnsExistingSnapshot(): void
+    public function testGetClosestOrFetchUniqueConstraintViolationReturnsExistingSnapshot(): void
     {
         $today = CarbonImmutable::today();
         $raceSnapshot = $this->createSnapshotStub($today);
@@ -265,7 +269,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         self::assertSame($raceSnapshot, $result);
     }
 
-    public function testGetClosestOrFetch_uniqueConstraintViolationAndSnapshotGone_throwsRuntimeException(): void
+    public function testGetClosestOrFetchUniqueConstraintViolationAndSnapshotGoneThrowsRuntimeException(): void
     {
         $today = CarbonImmutable::today();
 
@@ -278,7 +282,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
             ->method('flush')
             ->willThrowException($this->buildUniqueConstraintViolationException());
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/Race condition/');
 
         $this->resolver->getClosestOrFetch($today);
@@ -286,7 +290,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
 
     // --- applyRatesToSnapshot: BTC/ETH are stored as EUR-per-unit (inverse of Fixer value) ---
 
-    public function testGetClosestOrFetch_btcRateStoredAsEurPerBtcInverse(): void
+    public function testGetClosestOrFetchBtcRateStoredAsEurPerBtcInverse(): void
     {
         $pastDate = CarbonImmutable::parse('2026-01-10');
         $btcPerEurFromFixer = 0.000025; // Fixer gives BTC rate relative to EUR base
@@ -305,7 +309,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         self::assertEqualsWithDelta($expectedEurPerBtc, $snapshot->getEurPerBtcFloat(), 1.0);
     }
 
-    public function testGetClosestOrFetch_ethRateStoredAsEurPerEthInverse(): void
+    public function testGetClosestOrFetchEthRateStoredAsEurPerEthInverse(): void
     {
         $pastDate = CarbonImmutable::parse('2026-01-10');
         $ethPerEurFromFixer = 0.0005; // 1 EUR = 0.0005 ETH → 1 ETH = 2000 EUR
@@ -324,7 +328,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         self::assertEqualsWithDelta($expectedEurPerEth, $snapshot->getEurPerEthFloat(), 0.01);
     }
 
-    public function testGetClosestOrFetch_partialRates_unsetFieldsRemainNull(): void
+    public function testGetClosestOrFetchPartialRatesUnsetFieldsRemainNull(): void
     {
         $pastDate = CarbonImmutable::parse('2026-01-10');
 
@@ -347,7 +351,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
 
     // --- snapshotToRatesArray: null fields are excluded from result ---
 
-    public function testGetRatesForDate_nullFieldsNotIncludedInRatesArray(): void
+    public function testGetRatesForDateNullFieldsNotIncludedInRatesArray(): void
     {
         $date = CarbonImmutable::parse('2026-03-10');
         $snapshot = new ExchangeRateSnapshot();
@@ -369,14 +373,14 @@ class ExchangeRateSnapshotResolverTest extends TestCase
 
     // --- getRatesForDate: future with no snapshot at all throws ---
 
-    public function testGetRatesForDate_futureWithNoSnapshotAtAll_throwsRuntimeException(): void
+    public function testGetRatesForDateFutureWithNoSnapshotAtAllThrowsRuntimeException(): void
     {
         $futureDate = CarbonImmutable::now()->addMonth();
 
         $this->snapshotRepository->method('findExactSnapshot')->willReturn(null);
         $this->snapshotRepository->method('findClosestSnapshot')->willReturn(null);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/future date/');
 
         $this->resolver->getRatesForDate($futureDate);
@@ -384,7 +388,7 @@ class ExchangeRateSnapshotResolverTest extends TestCase
 
     // --- resolveSnapshotsForDates ---
 
-    public function testResolveSnapshotsForDates_emptyInput_returnsEmptyArray(): void
+    public function testResolveSnapshotsForDatesEmptyInputReturnsEmptyArray(): void
     {
         $result = $this->resolver->resolveSnapshotsForDates([]);
 
@@ -392,10 +396,10 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         $this->snapshotRepository->expects(self::never())->method('findClosestSnapshot');
     }
 
-    public function testResolveSnapshotsForDates_sameCalendarDayTwice_queriedOnlyOnce(): void
+    public function testResolveSnapshotsForDatesSameCalendarDayTwiceQueriedOnlyOnce(): void
     {
-        $dateA = new \DateTimeImmutable('2026-03-10 08:00:00');
-        $dateB = new \DateTimeImmutable('2026-03-10 20:00:00');
+        $dateA = new DateTimeImmutable('2026-03-10 08:00:00');
+        $dateB = new DateTimeImmutable('2026-03-10 20:00:00');
         $snapshot = $this->createSnapshotStub(CarbonImmutable::parse('2026-03-10'));
 
         $this->snapshotRepository
@@ -410,11 +414,11 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         self::assertSame($snapshot, $result['2026-03-10']);
     }
 
-    public function testResolveSnapshotsForDates_multipleDatesAllInDb_returnsAll(): void
+    public function testResolveSnapshotsForDatesMultipleDatesAllInDbReturnsAll(): void
     {
         $dates = [
-            new \DateTimeImmutable('2026-03-10'),
-            new \DateTimeImmutable('2026-03-11'),
+            new DateTimeImmutable('2026-03-10'),
+            new DateTimeImmutable('2026-03-11'),
         ];
         $snapshot1 = $this->createSnapshotStub(CarbonImmutable::parse('2026-03-10'));
         $snapshot2 = $this->createSnapshotStub(CarbonImmutable::parse('2026-03-11'));
@@ -430,11 +434,11 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         self::assertSame($snapshot2, $result['2026-03-11']);
     }
 
-    public function testResolveSnapshotsForDates_oneMissingDate_fetchesFromFixer(): void
+    public function testResolveSnapshotsForDatesOneMissingDateFetchesFromFixer(): void
     {
         $dates = [
-            new \DateTimeImmutable('2026-03-10'),
-            new \DateTimeImmutable('2026-03-11'),
+            new DateTimeImmutable('2026-03-10'),
+            new DateTimeImmutable('2026-03-11'),
         ];
         $snapshot1 = $this->createSnapshotStub(CarbonImmutable::parse('2026-03-10'));
 
@@ -458,21 +462,21 @@ class ExchangeRateSnapshotResolverTest extends TestCase
         self::assertInstanceOf(ExchangeRateSnapshot::class, $result['2026-03-11']);
     }
 
-    public function testResolveSnapshotsForDates_futureDateWithNoSnapshot_throwsRuntimeException(): void
+    public function testResolveSnapshotsForDatesFutureDateWithNoSnapshotThrowsRuntimeException(): void
     {
         $futureDate = CarbonImmutable::now()->addDays(5);
 
         $this->snapshotRepository->method('findClosestSnapshot')->willReturn(null);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/future date/');
 
         $this->resolver->resolveSnapshotsForDates([$futureDate]);
     }
 
-    public function testResolveSnapshotsForDates_keysAreNormalisedToStartOfDay(): void
+    public function testResolveSnapshotsForDatesKeysAreNormalisedToStartOfDay(): void
     {
-        $dateWithTime = new \DateTimeImmutable('2026-03-10 15:30:45');
+        $dateWithTime = new DateTimeImmutable('2026-03-10 15:30:45');
         $snapshot = $this->createSnapshotStub(CarbonImmutable::parse('2026-03-10'));
 
         $this->snapshotRepository->method('findClosestSnapshot')->willReturn($snapshot);

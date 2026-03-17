@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use FOS\RestBundle\Controller\AbstractFOSRestController;
@@ -12,7 +14,7 @@ use Symfony\Component\Routing\Annotation\Route;
 #[OA\Tag(name: 'Auth')]
 class AuthController extends AbstractFOSRestController
 {
-    #[Route('/token/refresh', name: 'token_refresh', methods:['get'] )]
+    #[Route('/token/refresh', name: 'token_refresh', methods: ['get'])]
     #[OA\Get(
         path: '/api/v2/auth/token/refresh',
         summary: 'Refresh JWT token',
@@ -25,13 +27,14 @@ class AuthController extends AbstractFOSRestController
                 description: 'New JWT token',
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'token', type: 'string', example: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9...'),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\AuthenticationTest
+     *
      * @tested testRefreshToken_returnsNewToken
      * @tested testRefreshToken_withoutAuth_returns401
      */

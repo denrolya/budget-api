@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\DataFixtures\Test;
 
 use App\Entity\BankCardAccount;
@@ -8,8 +11,8 @@ use App\Entity\ExpenseCategory;
 use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\User;
-use App\EventListener\TransactionListener;
 use App\EventListener\DebtConvertedValueListener;
+use App\EventListener\TransactionListener;
 use Carbon\CarbonImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
@@ -19,8 +22,9 @@ class TransactionFixtures extends Fixture implements DependentFixtureInterface
 {
     public function __construct(
         private TransactionListener $transactionListener,
-        private DebtConvertedValueListener $valuableEntityListener
-    ) {}
+        private DebtConvertedValueListener $valuableEntityListener,
+    ) {
+    }
 
     public function load(ObjectManager $manager): void
     {
@@ -38,13 +42,13 @@ class TransactionFixtures extends Fixture implements DependentFixtureInterface
         $bonus = $this->getReference('cat_inc_bonus', IncomeCategory::class);
 
         // Helper closures
-        $exp = function(string $date, $cat, float $eur, $account = null) use ($manager, $user, $eurAccount): void {
+        $exp = function (string $date, $cat, float $eur, $account = null) use ($manager, $user, $eurAccount): void {
             $account = $account ?? $eurAccount;
-            $isEur = $account->getCurrency() === 'EUR';
+            $isEur = 'EUR' === $account->getCurrency();
             $amount = $isEur ? $eur : round($eur * 26, 2); // UAH amount
             $e = new Expense();
             $e->setAccount($account)->setCategory($cat)->setOwner($user)
-                ->setAmount((string)$amount)
+                ->setAmount((string) $amount)
                 ->setConvertedValues($isEur ? $this->eurCV($eur) : $this->uahCV($amount))
                 ->setExecutedAt(CarbonImmutable::parse($date . ' 00:00:00'))
                 ->setCreatedAt(CarbonImmutable::parse($date . ' 00:00:00'))
@@ -52,10 +56,10 @@ class TransactionFixtures extends Fixture implements DependentFixtureInterface
                 ->setIsDraft(false);
             $manager->persist($e);
         };
-        $inc = function(string $date, $cat, float $eur) use ($manager, $user, $eurAccount): void {
+        $inc = function (string $date, $cat, float $eur) use ($manager, $user, $eurAccount): void {
             $i = new Income();
             $i->setAccount($eurAccount)->setCategory($cat)->setOwner($user)
-                ->setAmount((string)$eur)
+                ->setAmount((string) $eur)
                 ->setConvertedValues($this->eurCV($eur))
                 ->setExecutedAt(CarbonImmutable::parse($date . ' 00:00:00'))
                 ->setCreatedAt(CarbonImmutable::parse($date . ' 00:00:00'))
@@ -139,46 +143,56 @@ class TransactionFixtures extends Fixture implements DependentFixtureInterface
 
         // April-December 2021 - simple transactions
         // April
-        $exp('2021-04-01', $groceries, 200); $inc('2021-04-01', $salary, 1000);
-        $exp('2021-04-15', $eatingOut, 150); $inc('2021-04-15', $bonus, 500);
+        $exp('2021-04-01', $groceries, 200);
+        $inc('2021-04-01', $salary, 1000);
+        $exp('2021-04-15', $eatingOut, 150);
+        $inc('2021-04-15', $bonus, 500);
         $exp('2021-04-30', $rent, 300);
 
         // May
         $exp('2021-05-01', $groceries, 300);
         $inc('2021-05-15', $salary, 800);
-        $exp('2021-05-31', $eatingOut, 200); $exp('2021-05-31', $rent, 250);
+        $exp('2021-05-31', $eatingOut, 200);
+        $exp('2021-05-31', $rent, 250);
 
         // June
-        $exp('2021-06-01', $groceries, 400); $inc('2021-06-01', $salary, 1200);
+        $exp('2021-06-01', $groceries, 400);
+        $inc('2021-06-01', $salary, 1200);
         $exp('2021-06-30', $eatingOut, 200);
 
         // July
-        $exp('2021-07-01', $groceries, 350); $inc('2021-07-01', $salary, 1500);
+        $exp('2021-07-01', $groceries, 350);
+        $inc('2021-07-01', $salary, 1500);
         $exp('2021-07-15', $eatingOut, 200);
         $exp('2021-07-31', $rent, 300);
 
         // August
         $exp('2021-08-01', $groceries, 400);
         $inc('2021-08-15', $salary, 1000);
-        $exp('2021-08-31', $eatingOut, 300); $exp('2021-08-31', $rent, 200);
+        $exp('2021-08-31', $eatingOut, 300);
+        $exp('2021-08-31', $rent, 200);
 
         // September
-        $exp('2021-09-01', $groceries, 500); $inc('2021-09-01', $salary, 2000);
+        $exp('2021-09-01', $groceries, 500);
+        $inc('2021-09-01', $salary, 2000);
         $exp('2021-09-30', $eatingOut, 250);
 
         // October
-        $exp('2021-10-01', $groceries, 450); $inc('2021-10-01', $salary, 1800);
+        $exp('2021-10-01', $groceries, 450);
+        $inc('2021-10-01', $salary, 1800);
         $exp('2021-10-15', $eatingOut, 300);
         $exp('2021-10-31', $rent, 350);
 
         // November
-        $exp('2021-11-01', $groceries, 500); $inc('2021-11-01', $salary, 2000);
+        $exp('2021-11-01', $groceries, 500);
+        $inc('2021-11-01', $salary, 2000);
         $exp('2021-11-15', $eatingOut, 350);
         $exp('2021-11-30', $rent, 400);
 
         // December
         $exp('2021-12-01', $groceries, 600);
-        $exp('2021-12-15', $eatingOut, 400); $inc('2021-12-15', $bonus, 500);
+        $exp('2021-12-15', $eatingOut, 400);
+        $inc('2021-12-15', $bonus, 500);
         $exp('2021-12-31', $rent, 500);
 
         $manager->flush();
@@ -201,6 +215,7 @@ class TransactionFixtures extends Fixture implements DependentFixtureInterface
     private function uahCV(float $uah): array
     {
         $eur = round($uah / 26, 2);
+
         return [
             'EUR' => $eur,
             'USD' => round($eur * 1.12, 2),

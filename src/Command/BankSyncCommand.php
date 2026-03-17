@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Bank\BankSyncService;
@@ -9,6 +11,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Throwable;
 
 /**
  * Cron-schedulable command for polling-based bank sync.
@@ -35,14 +38,17 @@ class BankSyncCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $integrationId = $input->getOption('integration');
+        $rawIntegrationId = $input->getOption('integration');
+        assert(null === $rawIntegrationId || is_numeric($rawIntegrationId));
 
-        if ($integrationId !== null) {
+        if (null !== $rawIntegrationId) {
+            $integrationId = (int) $rawIntegrationId;
             try {
-                $created = $this->syncService->syncById((int) $integrationId);
-                $io->success(sprintf('Integration #%s: %d new draft(s) created.', $integrationId, $created));
-            } catch (\Throwable $e) {
+                $created = $this->syncService->syncById($integrationId);
+                $io->success(\sprintf('Integration #%d: %d new draft(s) created.', $integrationId, $created));
+            } catch (Throwable $e) {
                 $io->error($e->getMessage());
+
                 return Command::FAILURE;
             }
 
@@ -52,13 +58,13 @@ class BankSyncCommand extends Command
         $results = $this->syncService->syncAll();
         $total = array_sum($results);
 
-        if (empty($results)) {
+        if ([] === $results) {
             $io->info('No active polling integrations found.');
         } else {
             foreach ($results as $id => $count) {
-                $io->writeln(sprintf('  Integration #%d: %d new draft(s)', $id, $count));
+                $io->writeln(\sprintf('  Integration #%d: %d new draft(s)', $id, $count));
             }
-            $io->success(sprintf('Sync complete. Total new drafts: %d', $total));
+            $io->success(\sprintf('Sync complete. Total new drafts: %d', $total));
         }
 
         return Command::SUCCESS;

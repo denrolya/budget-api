@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Bank;
 
 use App\Bank\BankProvider;
@@ -8,6 +10,7 @@ use App\Bank\BankProviderRegistry;
 use App\Bank\BankWebhookRegistrationService;
 use App\Bank\Provider\MonobankProvider;
 use App\Entity\BankIntegration;
+use LogicException;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -50,11 +53,19 @@ class BankWebhookRegistrationServiceTest extends TestCase
                 return BankProvider::Wise;
             }
 
+            /**
+             * @param array<mixed> $credentials
+             * @return array<\App\Bank\DTO\BankAccountData>
+             */
             public function fetchAccounts(array $credentials): array
             {
                 return [];
             }
 
+            /**
+             * @param array<mixed> $credentials
+             * @return array<string, float>|null
+             */
             public function fetchExchangeRates(array $credentials): ?array
             {
                 return null;
@@ -110,7 +121,7 @@ class BankWebhookRegistrationServiceTest extends TestCase
 
         $request = Request::create('http://localhost/api/bank-integrations/1/register-webhook');
 
-        $this->expectException(\LogicException::class);
+        $this->expectException(LogicException::class);
         $this->expectExceptionMessageMatches('/localhost/i');
 
         $service->register($this->integration(BankProvider::Monobank), $request);
@@ -127,7 +138,7 @@ class BankWebhookRegistrationServiceTest extends TestCase
             '',
         );
 
-        $this->expectException(\LogicException::class);
+        $this->expectException(LogicException::class);
         $this->expectExceptionMessageMatches('/WEBHOOK_BASE_URL/i');
 
         $service->register($this->integration(BankProvider::Monobank));

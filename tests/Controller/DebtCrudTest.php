@@ -28,7 +28,7 @@ class DebtCrudTest extends BaseApiTestCase
     //  LIST (v2) — response shape
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testListDebts_returnsCorrectShape(): void
+    public function testListDebtsReturnsCorrectShape(): void
     {
         $response = $this->client->request('GET', self::DEBT_V2_LIST_URL);
         self::assertResponseIsSuccessful();
@@ -48,7 +48,7 @@ class DebtCrudTest extends BaseApiTestCase
         self::assertArrayHasKey('convertedValues', $debt);
     }
 
-    public function testListDebts_fixtureValues(): void
+    public function testListDebtsFixtureValues(): void
     {
         $response = $this->client->request('GET', self::DEBT_V2_LIST_URL);
         self::assertResponseIsSuccessful();
@@ -56,7 +56,7 @@ class DebtCrudTest extends BaseApiTestCase
         $items = $response->toArray();
         $fixtureDebt = null;
         foreach ($items as $item) {
-            if ($item['debtor'] === 'Test Debtor') {
+            if ('Test Debtor' === $item['debtor']) {
                 $fixtureDebt = $item;
                 break;
             }
@@ -70,7 +70,7 @@ class DebtCrudTest extends BaseApiTestCase
     //  LIST — withClosed parameter
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testListDebts_withClosedFalse_excludesClosedDebts(): void
+    public function testListDebtsWithClosedFalseExcludesClosedDebts(): void
     {
         // Create and close a debt
         $createResponse = $this->client->request('POST', self::DEBT_API_URL, [
@@ -93,11 +93,11 @@ class DebtCrudTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         $items = $response->toArray();
 
-        $closedDebtIds = array_filter($items, fn(array $item) => $item['debtor'] === 'Closed Debtor');
+        $closedDebtIds = array_filter($items, static fn (array $item) => 'Closed Debtor' === $item['debtor']);
         self::assertEmpty($closedDebtIds, 'Closed debt must not appear without withClosed=true.');
     }
 
-    public function testListDebts_withClosedTrue_includesClosedDebts(): void
+    public function testListDebtsWithClosedTrueIncludesClosedDebts(): void
     {
         // Create and close a debt
         $createResponse = $this->client->request('POST', self::DEBT_API_URL, [
@@ -121,7 +121,7 @@ class DebtCrudTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         $items = $response->toArray();
 
-        $closedDebts = array_filter($items, fn(array $item) => $item['debtor'] === 'Closed Debtor For Include');
+        $closedDebts = array_filter($items, static fn (array $item) => 'Closed Debtor For Include' === $item['debtor']);
         self::assertNotEmpty($closedDebts, 'Closed debt must appear with withClosed=true.');
 
         // Closed debt must have closedAt set
@@ -134,7 +134,7 @@ class DebtCrudTest extends BaseApiTestCase
     //  CREATE
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testCreateDebt_returnsCreatedDebt(): void
+    public function testCreateDebtReturnsCreatedDebt(): void
     {
         $response = $this->client->request('POST', self::DEBT_API_URL, [
             'json' => [
@@ -153,12 +153,12 @@ class DebtCrudTest extends BaseApiTestCase
         self::assertEquals(100.0, (float) $content['balance']);
 
         // Verify in DB
-        $debt = $this->em->getRepository(Debt::class)->find($content['id']);
+        $debt = $this->entityManager()->getRepository(Debt::class)->find($content['id']);
         self::assertNotNull($debt);
         self::assertEquals('John Doe', $debt->getDebtor());
     }
 
-    public function testCreateDebt_withZeroBalance(): void
+    public function testCreateDebtWithZeroBalance(): void
     {
         $response = $this->client->request('POST', self::DEBT_API_URL, [
             'json' => [
@@ -178,9 +178,9 @@ class DebtCrudTest extends BaseApiTestCase
     //  UPDATE
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testUpdateDebt_changesDebtorAndNote(): void
+    public function testUpdateDebtChangesDebtorAndNote(): void
     {
-        $debt = $this->em->getRepository(Debt::class)->findOneBy(['debtor' => 'Test Debtor']);
+        $debt = $this->entityManager()->getRepository(Debt::class)->findOneBy(['debtor' => 'Test Debtor']);
         self::assertNotNull($debt);
 
         $this->client->request('PUT', self::DEBT_API_URL . '/' . $debt->getId(), [
@@ -193,7 +193,7 @@ class DebtCrudTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
         self::assertEquals('Updated Debtor', $debt->getDebtor());
         self::assertEquals('Updated note', $debt->getNote());
     }
@@ -202,7 +202,7 @@ class DebtCrudTest extends BaseApiTestCase
     //  DELETE (soft delete)
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testDeleteDebt_softDeletes_setsClosedAt(): void
+    public function testDeleteDebtSoftDeletesSetsClosedAt(): void
     {
         $createResponse = $this->client->request('POST', self::DEBT_API_URL, [
             'json' => [
@@ -220,8 +220,8 @@ class DebtCrudTest extends BaseApiTestCase
 
         // Debt still exists in DB but is soft deleted (closedAt set).
         // Use DQL directly to bypass Gedmo soft-deletable filter.
-        $this->em->getFilters()->disable('softdeleteable');
-        $debt = $this->em->getRepository(Debt::class)->find($debtId);
+        $this->entityManager()->getFilters()->disable('softdeleteable');
+        $debt = $this->entityManager()->getRepository(Debt::class)->find($debtId);
         self::assertNotNull($debt, 'Soft-deleted debt must still exist in DB.');
         self::assertNotNull($debt->getClosedAt(), 'closedAt must be set after soft delete.');
     }
@@ -230,7 +230,7 @@ class DebtCrudTest extends BaseApiTestCase
     //  VALIDATION
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testCreateDebt_missingDebtor_returns422(): void
+    public function testCreateDebtMissingDebtorReturns422(): void
     {
         $this->client->request('POST', self::DEBT_API_URL, [
             'json' => [
@@ -241,7 +241,7 @@ class DebtCrudTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(422);
     }
 
-    public function testCreateDebt_missingCurrency_returns422(): void
+    public function testCreateDebtMissingCurrencyReturns422(): void
     {
         $this->client->request('POST', self::DEBT_API_URL, [
             'json' => [
@@ -256,14 +256,14 @@ class DebtCrudTest extends BaseApiTestCase
     //  SECURITY
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testListDebts_withoutAuth_returns401(): void
+    public function testListDebtsWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::DEBT_V2_LIST_URL);
         self::assertResponseStatusCodeSame(401);
     }
 
-    public function testCreateDebt_withoutAuth_returns401(): void
+    public function testCreateDebtWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('POST', self::DEBT_API_URL, [
@@ -280,7 +280,7 @@ class DebtCrudTest extends BaseApiTestCase
     //  EDGE CASES
     // ──────────────────────────────────────────────────────────────────────
 
-    public function testListDebts_convertedValuesPresent(): void
+    public function testListDebtsConvertedValuesPresent(): void
     {
         $response = $this->client->request('GET', self::DEBT_V2_LIST_URL);
         self::assertResponseIsSuccessful();
@@ -288,7 +288,7 @@ class DebtCrudTest extends BaseApiTestCase
         $items = $response->toArray();
         $fixtureDebt = null;
         foreach ($items as $item) {
-            if ($item['debtor'] === 'Test Debtor') {
+            if ('Test Debtor' === $item['debtor']) {
                 $fixtureDebt = $item;
                 break;
             }
@@ -298,7 +298,7 @@ class DebtCrudTest extends BaseApiTestCase
         self::assertIsArray($fixtureDebt['convertedValues']);
     }
 
-    public function testApiPlatformDebtList_alsoWorks(): void
+    public function testApiPlatformDebtListAlsoWorks(): void
     {
         // Both /api/v2/debts and /api/debts should work
         $response = $this->client->request('GET', self::DEBT_API_URL);

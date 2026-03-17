@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DataPersister;
 
 use ApiPlatform\Metadata\Operation;
@@ -12,7 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 final class DebtDataPersister implements ProcessorInterface
 {
     public function __construct(
-        private EntityManagerInterface $em
+        private EntityManagerInterface $em,
     ) {
     }
 
@@ -25,9 +27,11 @@ final class DebtDataPersister implements ProcessorInterface
         if (isset($context['previous_data'])) {
             $originalData = $this->em->getUnitOfWork()->getOriginalEntityData($data);
 
-            if ((float)$originalData['balance'] !== $data->getBalance()) {
+            $originalBalance = $originalData['balance'] ?? null;
+            assert(null === $originalBalance || is_numeric($originalBalance));
+            if ((float) $originalBalance !== $data->getBalance()) {
                 $data->setNote(
-                    $data->getNote() . "\n[" . Carbon::now()->format(CarbonInterface::DEFAULT_TO_STRING_FORMAT) . "][Balance update]: Old balance: " . $originalData['balance']
+                    $data->getNote() . "\n[" . Carbon::now()->format(CarbonInterface::DEFAULT_TO_STRING_FORMAT) . '][Balance update]: Old balance: ' . $originalBalance,
                 );
             }
         }

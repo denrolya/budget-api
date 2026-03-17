@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
@@ -20,19 +22,15 @@ use Symfony\Component\Validator\Constraints as Assert;
 )]
 class Income extends Transaction
 {
-    #[ORM\ManyToOne(targetEntity: Expense::class, fetch: "EAGER", inversedBy: "compensations")]
+    #[ORM\ManyToOne(targetEntity: Expense::class, fetch: 'EAGER', inversedBy: 'compensations')]
     #[Groups(['transaction:collection:read'])]
     #[Serializer\Groups(['transaction:collection:read'])]
     private ?Expense $originalExpense = null;
 
-    #[Assert\IsTrue(message: "Invalid category provided")]
+    #[Assert\IsTrue(message: 'Invalid category provided')]
     public function isExpenseCategory(): bool
     {
-        if (!$this->category) {
-            return false;
-        }
-
-        return get_class($this->category) === IncomeCategory::class;
+        return $this->category instanceof IncomeCategory;
     }
 
     #[Groups(['transaction:collection:read', 'debt:collection:read', 'transfer:collection:read'])]

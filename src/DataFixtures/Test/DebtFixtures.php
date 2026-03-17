@@ -1,4 +1,7 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\DataFixtures\Test;
 
 use App\Entity\CashAccount;
@@ -6,8 +9,8 @@ use App\Entity\Debt;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\User;
-use App\EventListener\TransactionListener;
 use App\EventListener\DebtConvertedValueListener;
+use App\EventListener\TransactionListener;
 use Carbon\CarbonImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
@@ -17,8 +20,9 @@ class DebtFixtures extends Fixture implements DependentFixtureInterface
 {
     public function __construct(
         private TransactionListener $transactionListener,
-        private DebtConvertedValueListener $valuableEntityListener
-    ) {}
+        private DebtConvertedValueListener $valuableEntityListener,
+    ) {
+    }
 
     public function load(ObjectManager $manager): void
     {

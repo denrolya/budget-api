@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Bank\Provider;
 
 use App\Bank\BankProvider;
@@ -11,6 +13,7 @@ use App\Bank\WebhookCapableInterface;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use DateTimeImmutable;
+use Exception;
 use JsonException;
 use Psr\Cache\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
@@ -21,6 +24,7 @@ use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\TransportExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
+use Throwable;
 
 /**
  * Wise personal account integration.
@@ -42,10 +46,10 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
 class WiseProvider implements BankProviderInterface, WebhookCapableInterface, PollingCapableInterface
 {
     private const CACHE_TTL = 86400; // 24 hours
-    private const WEBHOOK_TRIGGER_UPDATE    = 'balances#update';              // any balance change (credit or debit)
-    private const WEBHOOK_TRIGGER_CREDIT    = 'balances#credit';              // money credited to balance
-    private const WEBHOOK_TRIGGER_CARD_TX   = 'cards#transaction-state-change'; // card tx with merchant data
-    private const WEBHOOK_DELIVERY_VERSION      = '3.0.0';
+    private const WEBHOOK_TRIGGER_UPDATE = 'balances#update';              // any balance change (credit or debit)
+    private const WEBHOOK_TRIGGER_CREDIT = 'balances#credit';              // money credited to balance
+    private const WEBHOOK_TRIGGER_CARD_TX = 'cards#transaction-state-change'; // card tx with merchant data
+    private const WEBHOOK_DELIVERY_VERSION = '3.0.0';
 
     public function __construct(
         private readonly HttpClientInterface $wiseClient,  // wise_client scoped client (Bearer auth pre-configured)
@@ -68,7 +72,8 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
     /**
      * @return BankAccountData[]
-     * @throws \Exception
+     *
+     * @throws Exception
      */
     public function fetchAccounts(array $credentials): array
     {
@@ -77,19 +82,27 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         $balances = $this->requestJson('GET', "/v4/profiles/{$profileId}/balances?types=STANDARD", 'fetchAccounts');
 
         $result = [];
-        foreach ($balances as $balance) {
-            $currency = $balance['totalWorth']['currency'] ?? $balance['amount']['currency'] ?? null;
-            $amount = (float) ($balance['totalWorth']['value'] ?? $balance['amount']['value'] ?? 0);
+        foreach ($balances as $balanceEntry) {
+            assert(\is_array($balanceEntry));
+            $totalWorth = \is_array($balanceEntry['totalWorth'] ?? null) ? $balanceEntry['totalWorth'] : [];
+            $amountData = \is_array($balanceEntry['amount'] ?? null) ? $balanceEntry['amount'] : [];
+            $currency = $totalWorth['currency'] ?? $amountData['currency'] ?? null;
+            $rawValue = $totalWorth['value'] ?? $amountData['value'] ?? 0;
+            assert(is_numeric($rawValue));
+            $amountValue = (float) $rawValue;
 
-            if ($currency === null) {
+            if (null === $currency) {
                 continue;
             }
 
+            assert(is_scalar($balanceEntry['id'] ?? ''));
+            assert(\is_string($currency));
+
             $result[] = new BankAccountData(
-                externalId: (string) $balance['id'],
-                name: sprintf('Wise %s', $currency),
+                externalId: (string) $balanceEntry['id'],
+                name: \sprintf('Wise %s', $currency),
                 currency: $currency,
-                balance: $amount,
+                balance: $amountValue,
             );
         }
 
@@ -100,6 +113,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
      * Returns latest rates relative to $baseCurrency. Cached 24 h.
      *
      * @return array<string, float>
+     *
      * @throws InvalidArgumentException
      */
     public function fetchExchangeRates(array $credentials): ?array
@@ -126,10 +140,10 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         DateTimeImmutable $from,
         DateTimeImmutable $to,
     ): array {
-        $profileId      = $this->getPersonalProfileId();
+        $profileId = $this->getPersonalProfileId();
         $balanceCurrency = $this->getBalanceCurrency($profileId, $externalAccountId);
 
-        if ($balanceCurrency === null) {
+        if (null === $balanceCurrency) {
             $this->logger->warning('[Wise] fetchTransactions: cannot resolve currency for balance {bid}', [
                 'bid' => $externalAccountId,
             ]);
@@ -138,16 +152,16 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         }
 
         $results = [];
-        $cursor  = null;
+        $cursor = null;
 
         do {
             $query = [
-                'since'  => $from->format('c'),
-                'until'  => $to->format('c'),
+                'since' => $from->format('c'),
+                'until' => $to->format('c'),
                 'status' => 'COMPLETED',
-                'size'   => 100,
+                'size' => 100,
             ];
-            if ($cursor !== null) {
+            if (null !== $cursor) {
                 $query['nextCursor'] = $cursor;
             }
 
@@ -159,17 +173,18 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
                 throw new RuntimeException("Wise fetchTransactions failed: {$e->getMessage()}", 0, $e);
             }
 
-            $activities = $page['activities'] ?? [];
-            $cursor     = $page['cursor'] ?? null;
+            $activities = \is_array($page['activities'] ?? null) ? $page['activities'] : [];
+            $cursor = isset($page['cursor']) && \is_string($page['cursor']) ? $page['cursor'] : null;
 
             foreach ($activities as $activity) {
+                assert(\is_array($activity));
                 $parsed = $this->parseActivityAmount($activity);
-                if ($parsed === null || $parsed['currency'] !== $balanceCurrency) {
+                if (null === $parsed || $parsed['currency'] !== $balanceCurrency) {
                     continue;
                 }
 
                 $createdOn = $activity['createdOn'] ?? null;
-                if ($createdOn === null) {
+                if (null === $createdOn) {
                     continue;
                 }
 
@@ -179,30 +194,32 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
                     strtoupper((string) ($activity['type'] ?? '')),
                 );
 
-                $title       = strip_tags(trim((string) ($activity['title'] ?? '')));
+                $title = strip_tags(trim((string) ($activity['title'] ?? '')));
                 $description = trim((string) ($activity['description'] ?? ''));
-                $note        = $title !== '' ? $title : ($description !== '' ? $description : '');
+                $note = '' !== $title ? $title : ('' !== $description ? $description : '');
 
                 $this->logger->info('[Wise] activity: type={type} amount={amt} {cur} note="{note}" date={date}', [
                     'type' => $activity['type'] ?? '?',
-                    'amt'  => $signedValue,
-                    'cur'  => $parsed['currency'],
+                    'amt' => $signedValue,
+                    'cur' => $parsed['currency'],
                     'note' => $note,
                     'date' => $createdOn,
                 ]);
 
+                assert(\is_string($createdOn));
+
                 $results[] = new DraftTransactionData(
                     externalAccountId: $externalAccountId,
                     amount: $signedValue,
-                    executedAt: new DateTimeImmutable((string) $createdOn),
+                    executedAt: new DateTimeImmutable($createdOn),
                     note: $note,
                     currency: $parsed['currency'],
                 );
             }
-        } while ($cursor !== null && !empty($activities));
+        } while (null !== $cursor && [] !== $activities);
 
         $this->logger->info('[Wise] fetchTransactions: {n} activities for balance {bid} ({cur})', [
-            'n'   => count($results),
+            'n' => \count($results),
             'bid' => $externalAccountId,
             'cur' => $balanceCurrency,
         ]);
@@ -218,25 +235,25 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
      */
     private function parseActivityAmount(mixed $activity): ?array
     {
-        if (!is_array($activity)) {
+        if (!\is_array($activity)) {
             return null;
         }
 
-        $primary  = $activity['primaryAmount'] ?? null;
-        $stripped = is_string($primary) ? strip_tags($primary) : '';
+        $primary = $activity['primaryAmount'] ?? null;
+        $stripped = \is_string($primary) ? strip_tags($primary) : '';
 
-        if ($stripped !== '' && preg_match('/([+-]?[\d,\.]+)\s+([A-Z]{3})/i', $stripped, $m)) {
+        if ('' !== $stripped && preg_match('/([+-]?[\d,\.]+)\s+([A-Z]{3})/i', $stripped, $m)) {
             return [
-                'value'    => (float) str_replace(',', '', $m[1]),
+                'value' => (float) str_replace(',', '', $m[1]),
                 'currency' => strtoupper($m[2]),
                 'stripped' => $stripped,
             ];
         }
 
         // Fallback for potential future object format
-        if (is_array($primary) && isset($primary['currency'], $primary['value'])) {
+        if (\is_array($primary) && isset($primary['currency'], $primary['value'])) {
             return [
-                'value'    => (float) $primary['value'],
+                'value' => (float) $primary['value'],
                 'currency' => (string) $primary['currency'],
                 'stripped' => '',
             ];
@@ -254,7 +271,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
     private function resolveActivitySignedAmount(float $value, string $primaryStripped, string $activityType): float
     {
         $hasExplicitSign = (bool) preg_match('/^[+-]/', ltrim($primaryStripped));
-        if (!$hasExplicitSign && in_array($activityType, ['CARD_PAYMENT', 'TRANSFER'], true)) {
+        if (!$hasExplicitSign && \in_array($activityType, ['CARD_PAYMENT', 'TRANSFER'], true)) {
             return -abs($value);
         }
 
@@ -276,9 +293,14 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
             return null;
         }
 
-        foreach ($balances as $balance) {
-            if ((string) ($balance['id'] ?? '') === $balanceId) {
-                return $balance['totalWorth']['currency'] ?? $balance['amount']['currency'] ?? null;
+        foreach ($balances as $balanceEntry) {
+            assert(\is_array($balanceEntry));
+            if ((string) ($balanceEntry['id'] ?? '') === $balanceId) {
+                $totalWorth = \is_array($balanceEntry['totalWorth'] ?? null) ? $balanceEntry['totalWorth'] : [];
+                $amountData = \is_array($balanceEntry['amount'] ?? null) ? $balanceEntry['amount'] : [];
+
+                return isset($totalWorth['currency']) ? (string) $totalWorth['currency']
+                    : (isset($amountData['currency']) ? (string) $amountData['currency'] : null);
             }
         }
 
@@ -291,28 +313,28 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
     public function parseWebhookPayload(array $payload): ?DraftTransactionData
     {
-        $eventType     = (string) ($payload['event_type'] ?? '');
+        $eventType = (string) ($payload['event_type'] ?? '');
         $schemaVersion = (string) ($payload['schema_version'] ?? 'unknown');
 
         $this->logger->info('[Wise] Webhook received: event={event} schema={schema}', [
-            'event'  => $eventType,
+            'event' => $eventType,
             'schema' => $schemaVersion,
         ]);
 
         // cards#transaction-state-change (v2.1.0) carries merchant name and balance_id.
         // This is the primary source for card purchase transactions.
-        if ($eventType === self::WEBHOOK_TRIGGER_CARD_TX) {
+        if (self::WEBHOOK_TRIGGER_CARD_TX === $eventType) {
             return $this->parseCardTransactionPayload($payload['data'] ?? [], $payload);
         }
 
-        if ($eventType !== self::WEBHOOK_TRIGGER_CREDIT && $eventType !== self::WEBHOOK_TRIGGER_UPDATE) {
+        if (self::WEBHOOK_TRIGGER_CREDIT !== $eventType && self::WEBHOOK_TRIGGER_UPDATE !== $eventType) {
             $this->logger->info('[Wise] Unrecognised event type, skipping.', ['event' => $eventType]);
 
             return null;
         }
 
         $data = $payload['data'] ?? [];
-        if (!is_array($data)) {
+        if (!\is_array($data)) {
             $this->logger->warning('[Wise] Payload data is not an array.', ['event' => $eventType]);
 
             return null;
@@ -320,7 +342,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
         // balances#credit v3.0.0 uses a completely different action/resource structure.
         // Detect it by the presence of data.action (not present in v2.0.0 or balances#update).
-        if ($eventType === self::WEBHOOK_TRIGGER_CREDIT && isset($data['action']) && is_array($data['action'])) {
+        if (self::WEBHOOK_TRIGGER_CREDIT === $eventType && isset($data['action']) && \is_array($data['action'])) {
             return $this->parseV3CreditPayload($data, $payload);
         }
 
@@ -341,19 +363,24 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
     {
         $action = $data['action'];
         $resource = $data['resource'] ?? [];
-        if (!is_array($resource)) {
+        if (!\is_array($resource)) {
             $resource = [];
         }
 
         $balanceId = $action['account_id'] ?? null;
-        $settledAmount = $resource['settled_amount'] ?? [];
-        $amount = isset($settledAmount['value']) ? (float) $settledAmount['value'] : null;
-        $currency = isset($settledAmount['currency']) ? (string) $settledAmount['currency'] : null;
+        $settledAmount = \is_array($resource['settled_amount'] ?? null) ? $resource['settled_amount'] : [];
+        $rawSettledValue = $settledAmount['value'] ?? null;
+        $amount = (null !== $rawSettledValue && is_numeric($rawSettledValue)) ? (float) $rawSettledValue : null;
+        $rawCurrency = $settledAmount['currency'] ?? null;
+        $currency = (null !== $rawCurrency && \is_string($rawCurrency)) ? $rawCurrency : null;
         $occurredAt = $payload['sent_at'] ?? null;
 
-        if ($balanceId === null || $amount === null || $currency === null || $occurredAt === null) {
+        if (null === $balanceId || null === $amount || null === $currency || null === $occurredAt) {
             return null;
         }
+
+        assert(is_scalar($balanceId));
+        assert(\is_string($occurredAt));
 
         $reference = trim((string) ($resource['reference'] ?? ''));
         $note = $this->usableReference($reference) ? $reference : 'Transfer received';
@@ -361,7 +388,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         return new DraftTransactionData(
             externalAccountId: (string) $balanceId,
             amount: abs($amount), // always positive; it's a credit event
-            executedAt: new DateTimeImmutable((string) $occurredAt),
+            executedAt: new DateTimeImmutable($occurredAt),
             note: $note,
             currency: $currency,
         );
@@ -380,65 +407,72 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
      */
     private function parseCardTransactionPayload(mixed $data, array $payload): ?DraftTransactionData
     {
-        if (!is_array($data)) {
+        if (!\is_array($data)) {
             $this->logger->warning('[Wise] cards#tx: data is not an array.');
 
             return null;
         }
 
-        $state  = strtoupper((string) ($data['transaction_state'] ?? ''));
+        $state = strtoupper((string) ($data['transaction_state'] ?? ''));
         $txType = strtolower((string) ($data['transaction_type'] ?? ''));
 
         $this->logger->info('[Wise] cards#tx: state={state} type={type}', [
             'state' => $state,
-            'type'  => $txType,
+            'type' => $txType,
         ]);
 
-        if ($state !== 'COMPLETED') {
+        if ('COMPLETED' !== $state) {
             return null;
         }
 
-        $debits  = is_array($data['debits'] ?? null)  ? $data['debits']  : [];
-        $credits = is_array($data['credits'] ?? null) ? $data['credits'] : [];
-        $isDebit = !empty($debits);
+        $debits = \is_array($data['debits'] ?? null) ? $data['debits'] : [];
+        $credits = \is_array($data['credits'] ?? null) ? $data['credits'] : [];
+        $isDebit = [] !== $debits;
         $entries = $isDebit ? $debits : $credits;
 
-        if (empty($entries)) {
+        if ([] === $entries) {
             $this->logger->warning('[Wise] cards#tx: no debits/credits — v2.0.0 payload, cannot match account.');
 
             return null;
         }
 
-        $firstEntry  = $entries[0];
-        $balanceId   = $firstEntry['balance_id'] ?? null;
-        $amountKey   = $isDebit ? 'debited_amount' : 'credited_amount';
-        $rawAmount   = isset($firstEntry[$amountKey]) ? (float) $firstEntry[$amountKey] : null;
-        $occurredAt  = $firstEntry['creation_time'] ?? $payload['sent_at'] ?? null;
+        $firstEntry = $entries[0];
+        assert(\is_array($firstEntry));
+        $balanceId = $firstEntry['balance_id'] ?? null;
+        $amountKey = $isDebit ? 'debited_amount' : 'credited_amount';
+        $rawEntryAmount = $firstEntry[$amountKey] ?? null;
+        $rawAmount = (null !== $rawEntryAmount && is_numeric($rawEntryAmount)) ? (float) $rawEntryAmount : null;
+        $occurredAt = $firstEntry['creation_time'] ?? $payload['sent_at'] ?? null;
 
-        if ($balanceId === null || $rawAmount === null || $occurredAt === null) {
+        if (null === $balanceId || null === $rawAmount || null === $occurredAt) {
             $this->logger->warning('[Wise] cards#tx: missing required field(s), skipping.');
 
             return null;
         }
 
-        $txAmount     = $data['transaction_amount'] ?? [];
-        $txCurrency   = isset($txAmount['currency']) ? (string) $txAmount['currency'] : null;
-        $txValue      = isset($txAmount['value']) ? abs((float) $txAmount['value']) : null;
+        $txAmount = \is_array($data['transaction_amount'] ?? null) ? $data['transaction_amount'] : [];
+        $rawTxCurrency = $txAmount['currency'] ?? null;
+        $txCurrency = (null !== $rawTxCurrency && \is_string($rawTxCurrency)) ? $rawTxCurrency : null;
+        $rawTxValue = $txAmount['value'] ?? null;
+        $txValue = (null !== $rawTxValue && is_numeric($rawTxValue)) ? abs((float) $rawTxValue) : null;
         $signedAmount = $isDebit ? -abs($rawAmount) : abs($rawAmount);
 
         $rate = $firstEntry['rate'] ?? null;
         $note = $this->buildCardTransactionNote($data, $rawAmount, $txValue, $txCurrency, $rate);
 
         $this->logger->info('[Wise] cards#tx: parsed → balance_id={bid} amount={amt} note="{note}"', [
-            'bid'  => $balanceId,
-            'amt'  => $signedAmount,
+            'bid' => $balanceId,
+            'amt' => $signedAmount,
             'note' => $note,
         ]);
+
+        assert(is_scalar($balanceId));
+        assert(\is_string($occurredAt));
 
         return new DraftTransactionData(
             externalAccountId: (string) $balanceId,
             amount: $signedAmount,
-            executedAt: new DateTimeImmutable((string) $occurredAt),
+            executedAt: new DateTimeImmutable($occurredAt),
             note: $note,
             currency: $txCurrency,
         );
@@ -452,31 +486,32 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
      */
     private function buildCardTransactionNote(array $data, float $rawAmount, ?float $txValue, ?string $txCurrency, mixed $rate): string
     {
-        $merchant     = $data['merchant'] ?? [];
-        $merchantName = is_array($merchant) ? trim((string) ($merchant['name'] ?? '')) : '';
-        $location     = is_array($merchant) ? ($merchant['location'] ?? []) : [];
-        $city         = is_array($location) ? trim((string) ($location['city'] ?? '')) : '';
-        $country      = is_array($location) ? trim((string) ($location['country'] ?? '')) : '';
+        $merchant = $data['merchant'] ?? [];
+        $merchantName = \is_array($merchant) ? trim((string) ($merchant['name'] ?? '')) : '';
+        $location = \is_array($merchant) ? ($merchant['location'] ?? []) : [];
+        $city = \is_array($location) ? trim((string) ($location['city'] ?? '')) : '';
+        $country = \is_array($location) ? trim((string) ($location['country'] ?? '')) : '';
 
         $noteParts = [];
 
-        if ($merchantName !== '') {
+        if ('' !== $merchantName) {
             $noteParts[] = $merchantName;
         }
 
-        if ($city !== '' && ($merchantName === '' || !str_contains(strtolower($merchantName), strtolower($city)))) {
+        if ('' !== $city && ('' === $merchantName || !str_contains(strtolower($merchantName), strtolower($city)))) {
             $noteParts[] = $city;
-        } elseif ($merchantName === '' && $country !== '') {
+        } elseif ('' === $merchantName && '' !== $country) {
             $noteParts[] = $country;
         }
 
-        if ($rate !== null && $rate != 1.0 && $txValue !== null && $txCurrency !== null) {
-            $noteParts[] = sprintf(
+        $numericRate = is_numeric($rate) ? (float) $rate : null;
+        if (null !== $numericRate && 1.0 != $numericRate && null !== $txValue && null !== $txCurrency) {
+            $noteParts[] = \sprintf(
                 '%s %s → %s @ %s',
                 number_format($txValue, 2, '.', ''),
                 $txCurrency,
                 number_format(abs($rawAmount), 2, '.', ''),
-                round((float) $rate, 4),
+                round($numericRate, 4),
             );
         }
 
@@ -496,7 +531,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         $channel = strtoupper(trim((string) ($data['channel_name'] ?? '')));
 
         $resource = $data['resource'] ?? [];
-        if (!is_array($resource)) {
+        if (!\is_array($resource)) {
             $resource = [];
         }
 
@@ -505,12 +540,12 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         $currency = isset($data['currency']) ? (string) $data['currency'] : null;
         $occurredAt = $data['occurred_at'] ?? null;
 
-        if ($balanceId === null || $amount === null || $currency === null || $occurredAt === null) {
+        if (null === $balanceId || null === $amount || null === $currency || null === $occurredAt) {
             $this->logger->warning('[Wise] balances#update: missing required field(s) — balance_id={bid} amount={amt} currency={cur} occurred_at={ts}', [
                 'bid' => $balanceId ?? 'null',
                 'amt' => $amount ?? 'null',
                 'cur' => $currency ?? 'null',
-                'ts'  => $occurredAt ?? 'null',
+                'ts' => $occurredAt ?? 'null',
             ]);
 
             return null;
@@ -518,26 +553,29 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
         $transactionType = strtolower((string) ($data['transaction_type'] ?? 'credit'));
         $signedAmount = $amount;
-        if ($transactionType === 'debit') {
+        if ('debit' === $transactionType) {
             $signedAmount = -abs($amount);
-        } elseif ($transactionType === 'credit') {
+        } elseif ('credit' === $transactionType) {
             $signedAmount = abs($amount);
         }
 
         $note = $this->buildNoteFromFlatData($data);
 
         $this->logger->info('[Wise] balances#update parsed: channel={channel} balance_id={bid} amount={amt} {currency} note="{note}"', [
-            'channel' => $channel ?: 'n/a',
-            'bid'     => $balanceId,
-            'amt'     => $signedAmount,
+            'channel' => '' !== $channel ? $channel : 'n/a',
+            'bid' => $balanceId,
+            'amt' => $signedAmount,
             'currency' => $currency,
-            'note'    => $note,
+            'note' => $note,
         ]);
+
+        assert(is_scalar($balanceId));
+        assert(\is_string($occurredAt));
 
         return new DraftTransactionData(
             externalAccountId: (string) $balanceId,
             amount: $signedAmount,
-            executedAt: new DateTimeImmutable((string) $occurredAt),
+            executedAt: new DateTimeImmutable($occurredAt),
             note: $note,
             currency: $currency,
         );
@@ -549,8 +587,10 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
         try {
             $response = $this->wiseClient->request('GET', "/v3/profiles/{$profileId}/subscriptions");
-            $subscriptions = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        } catch (HttpExceptionInterface | TransportExceptionInterface | JsonException $e) {
+            $decoded = json_decode($response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+            assert(\is_array($decoded));
+            $subscriptions = $decoded;
+        } catch (HttpExceptionInterface|TransportExceptionInterface|JsonException $e) {
             if ($e instanceof HttpExceptionInterface) {
                 throw new RuntimeException($this->formatWiseHttpError('registerWebhook(list)', $e), 0, $e);
             }
@@ -575,22 +615,22 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
             try {
                 $this->wiseClient->request('POST', "/v3/profiles/{$profileId}/subscriptions", [
                     'json' => [
-                        'name'       => sprintf('Budget Wise %s', $event),
+                        'name' => \sprintf('Budget Wise %s', $event),
                         'trigger_on' => $event,
-                        'delivery'   => [
+                        'delivery' => [
                             'version' => $requiredVersions[$event],
-                            'url'     => $webhookUrl,
+                            'url' => $webhookUrl,
                         ],
                     ],
                 ])->getContent();
-            } catch (HttpExceptionInterface | TransportExceptionInterface $e) {
+            } catch (HttpExceptionInterface|TransportExceptionInterface $e) {
                 if ($e instanceof HttpExceptionInterface) {
                     $message = $this->formatWiseHttpError('registerWebhook(create)', $e);
                     // 403 = token lacks permission for this event type (e.g. app-level-only events
                     // on a personal token). Log and continue — don't block other registrations.
-                    if ($e->getResponse()->getStatusCode() === 403) {
+                    if (403 === $e->getResponse()->getStatusCode()) {
                         $this->logger->warning('[Wise] {msg} — skipping, register manually in Wise UI if needed.', [
-                            'msg'   => $message,
+                            'msg' => $message,
                             'event' => $event,
                         ]);
                         continue;
@@ -607,25 +647,23 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
      * Deletes existing subscriptions whose schema version no longer matches (best-effort).
      *
      * @param array<string, string> $requiredVersions event → required schema version
+     *
      * @return string[] events that still need a new subscription created
      */
-    private function resolveEventsToRegister(mixed $subscriptions, string $webhookUrl, array $requiredVersions, int $profileId): array
+    private function resolveEventsToRegister(array $subscriptions, string $webhookUrl, array $requiredVersions, int $profileId): array
     {
         $eventsToRegister = array_keys($requiredVersions);
 
-        if (!is_array($subscriptions)) {
-            return $eventsToRegister;
-        }
-
         foreach ($subscriptions as $subscription) {
-            $event    = $subscription['trigger_on'] ?? null;
-            $delivery = $subscription['delivery'] ?? [];
-            if (!is_string($event) || !is_array($delivery) || ($delivery['url'] ?? null) !== $webhookUrl) {
+            assert(\is_array($subscription));
+            $event = $subscription['trigger_on'] ?? null;
+            $delivery = \is_array($subscription['delivery'] ?? null) ? $subscription['delivery'] : [];
+            if (!\is_string($event) || ($delivery['url'] ?? null) !== $webhookUrl) {
                 continue;
             }
 
             // Only manage events we own.
-            if (!array_key_exists($event, $requiredVersions)) {
+            if (!\array_key_exists($event, $requiredVersions)) {
                 continue;
             }
 
@@ -633,10 +671,10 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
             if ($existingVersion !== $requiredVersions[$event]) {
                 // Wrong schema version — delete so we can recreate with the correct version.
                 $subId = $subscription['id'] ?? null;
-                if ($subId !== null) {
+                if (null !== $subId) {
                     try {
                         $this->wiseClient->request('DELETE', "/v3/profiles/{$profileId}/subscriptions/{$subId}")->getContent();
-                    } catch (\Throwable) {
+                    } catch (Throwable) {
                         // Best-effort; if delete fails we still try to create the new one below.
                     }
                 }
@@ -644,7 +682,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
             }
 
             // Correct version already exists — no need to register this event.
-            $eventsToRegister = array_values(array_filter($eventsToRegister, fn(string $e) => $e !== $event));
+            $eventsToRegister = array_values(array_filter($eventsToRegister, static fn (string $e) => $e !== $event));
         }
 
         return $eventsToRegister;
@@ -656,6 +694,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
     /**
      * @return array<string, float>
+     *
      * @throws InvalidArgumentException
      */
     private function getLatest(): array
@@ -671,6 +710,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
     /**
      * @return array<string, float>
+     *
      * @throws InvalidArgumentException
      */
     public function getHistorical(CarbonInterface $date): array
@@ -709,17 +749,19 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         try {
             $response = $this->wiseClient->request('GET', '/v1/rates', ['query' => $queryParams]);
             $body = $response->getContent();
-            $rates = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+            $decoded = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
+            assert(\is_array($decoded));
         } catch (HttpExceptionInterface $e) {
             throw new RuntimeException('Wise rates API error: ' . $e->getMessage(), 0, $e);
-        } catch (\JsonException $e) {
+        } catch (JsonException $e) {
             throw new RuntimeException('Wise rates API returned non-JSON response (network block?): ' . $e->getMessage(), 0, $e);
         }
 
         $formatted = [$this->baseCurrency => 1.0];
-        foreach ($rates as $rate) {
-            if (in_array($rate['target'], $this->allowedCurrencies, true)) {
-                $formatted[$rate['target']] = (float) $rate['rate'];
+        foreach ($decoded as $rateEntry) {
+            assert(\is_array($rateEntry));
+            if (\in_array($rateEntry['target'] ?? '', $this->allowedCurrencies, true)) {
+                $formatted[(string) $rateEntry['target']] = (float) $rateEntry['rate'];
             }
         }
 
@@ -734,8 +776,9 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
     {
         try {
             $response = $this->wiseClient->request('GET', '/v2/profiles');
-            $profiles = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
-        } catch (HttpExceptionInterface | TransportExceptionInterface | JsonException $e) {
+            $decoded = json_decode($response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+            assert(\is_array($decoded));
+        } catch (HttpExceptionInterface|TransportExceptionInterface|JsonException $e) {
             if ($e instanceof HttpExceptionInterface) {
                 throw new RuntimeException($this->formatWiseHttpError('fetchProfiles', $e), 0, $e);
             }
@@ -743,16 +786,23 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         }
 
         $fallback = null;
-        foreach ($profiles as $profile) {
-            if (strcasecmp($profile['type'] ?? '', 'personal') === 0) {
-                return (int) $profile['id'];
+        foreach ($decoded as $profileEntry) {
+            assert(\is_array($profileEntry));
+            $profileType = (string) ($profileEntry['type'] ?? '');
+            if (0 === strcasecmp($profileType, 'personal')) {
+                assert(is_numeric($profileEntry['id']));
+                return (int) $profileEntry['id'];
             }
-            if ($fallback === null && !empty($profile['id'])) {
-                $fallback = (int) $profile['id'];
+            if (null === $fallback && isset($profileEntry['id'])) {
+                assert(is_numeric($profileEntry['id']));
+                $profileIdValue = (int) $profileEntry['id'];
+                if (0 !== $profileIdValue) {
+                    $fallback = $profileIdValue;
+                }
             }
         }
 
-        if ($fallback !== null) {
+        if (null !== $fallback) {
             return $fallback;
         }
 
@@ -769,16 +819,16 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
      */
     private function buildNoteFromFlatData(array $data): string
     {
-        $description  = trim((string) ($data['description'] ?? ''));
-        $reference    = trim((string) ($data['transfer_reference'] ?? ''));
-        $merchant     = $data['merchant'] ?? [];
-        $merchantName = is_array($merchant) ? trim((string) ($merchant['name'] ?? '')) : '';
+        $description = trim((string) ($data['description'] ?? ''));
+        $reference = trim((string) ($data['transfer_reference'] ?? ''));
+        $merchant = $data['merchant'] ?? [];
+        $merchantName = \is_array($merchant) ? trim((string) ($merchant['name'] ?? '')) : '';
 
-        if ($merchantName !== '') {
+        if ('' !== $merchantName) {
             return $merchantName;
         }
 
-        if ($description !== '') {
+        if ('' !== $description) {
             return $description;
         }
 
@@ -795,7 +845,7 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
      */
     private function usableReference(string $reference): bool
     {
-        if ($reference === '') {
+        if ('' === $reference) {
             return false;
         }
 
@@ -812,13 +862,19 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         return true;
     }
 
-    /** @throws RuntimeException on API errors */
-    private function requestJson(string $method, string $url, string $operation, array $options = []): mixed
+    /**
+     * @return array<mixed>
+     *
+     * @throws RuntimeException on API errors
+     */
+    private function requestJson(string $method, string $url, string $operation, array $options = []): array
     {
         try {
             $response = $this->wiseClient->request($method, $url, $options);
+            $decoded = json_decode($response->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+            assert(\is_array($decoded));
 
-            return json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
+            return $decoded;
         } catch (HttpExceptionInterface $e) {
             throw new RuntimeException($this->formatWiseHttpError($operation, $e), 0, $e);
         }
@@ -835,18 +891,18 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
 
             try {
                 $headers = $response->getHeaders(false);
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 $headers = [];
             }
-        } catch (\Throwable) {
+        } catch (Throwable) {
             $status = null;
             $headers = [];
         }
 
-        $approvalResult = strtoupper((string) ($this->firstHeader($headers, 'x-2fa-approval-result') ?? ''));
+        $approvalResult = strtoupper($this->firstHeader($headers, 'x-2fa-approval-result') ?? '');
 
-        if ($status === 403 && $approvalResult === 'REJECTED') {
-            return sprintf(
+        if (403 === $status && 'REJECTED' === $approvalResult) {
+            return \sprintf(
                 'Wise %s failed: 403 Forbidden (SCA required). '
                 . 'Wise no longer supports API signing for personal accounts — '
                 . 'statement polling is unavailable. '
@@ -858,21 +914,21 @@ class WiseProvider implements BankProviderInterface, WebhookCapableInterface, Po
         $body = '';
         try {
             $body = $e->getResponse()->getContent(false);
-        } catch (\Throwable) {
+        } catch (Throwable) {
         }
 
-        return sprintf('Wise %s failed: %s%s', $operation, $e->getMessage(), $body !== '' ? ' | ' . $body : '');
+        return \sprintf('Wise %s failed: %s%s', $operation, $e->getMessage(), '' !== $body ? ' | ' . $body : '');
     }
 
     private function firstHeader(array $headers, string $name): ?string
     {
         foreach ($headers as $key => $value) {
-            if (strcasecmp((string) $key, $name) === 0) {
-                if (is_array($value) && !empty($value)) {
+            if (0 === strcasecmp((string) $key, $name)) {
+                if (\is_array($value) && [] !== $value) {
                     return (string) $value[0];
                 }
 
-                return is_string($value) ? $value : null;
+                return \is_string($value) ? $value : null;
             }
         }
 

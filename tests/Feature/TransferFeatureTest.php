@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Feature;
 
 use App\Entity\Expense;
@@ -11,8 +13,8 @@ class TransferFeatureTest extends BaseApiTestCase
 {
     public function testCreateTransferCreatesTransactions(): void
     {
-        $eurBalanceBefore = $this->accountCashEUR->getBalance();
-        $uahBalanceBefore = $this->accountCashUAH->getBalance();
+        $eurBalanceBefore = (float) $this->accountCashEUR->getBalance();
+        $uahBalanceBefore = (float) $this->accountCashUAH->getBalance();
         $response = $this->client->request('POST', '/api/transfers', [
             'json' => [
                 'amount' => '100.0',
@@ -26,22 +28,24 @@ class TransferFeatureTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($content['id']);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($content['id']);
         self::assertNotNull($transfer);
-        self::assertNotNull($transfer->getFromExpense());
-        self::assertEquals(100.0, $transfer->getFromExpense()->getAmount());
-        self::assertEquals($this->accountCashEUR->getId(), $transfer->getFromExpense()->getAccount()->getId());
-        self::assertEquals($eurBalanceBefore - 100, $transfer->getFromExpense()->getAccount()->getBalance());
-        self::assertNotNull($transfer->getToIncome());
-        self::assertEquals(200.0, $transfer->getToIncome()->getAmount());
-        self::assertEquals($this->accountCashUAH->getId(), $transfer->getToIncome()->getAccount()->getId());
-        self::assertEquals($uahBalanceBefore + 200, $transfer->getToIncome()->getAccount()->getBalance());
+        $fromExpense = $transfer->getFromExpense();
+        \assert($fromExpense instanceof Expense);
+        self::assertEquals(100.0, $fromExpense->getAmount());
+        self::assertEquals($this->accountCashEUR->getId(), $fromExpense->getAccount()->getId());
+        self::assertEquals($eurBalanceBefore - 100, (float) $fromExpense->getAccount()->getBalance());
+        $toIncome = $transfer->getToIncome();
+        \assert($toIncome instanceof Income);
+        self::assertEquals(200.0, $toIncome->getAmount());
+        self::assertEquals($this->accountCashUAH->getId(), $toIncome->getAccount()->getId());
+        self::assertEquals($uahBalanceBefore + 200, (float) $toIncome->getAccount()->getBalance());
     }
 
     public function testDeleteTransferExpenseDoesNotDeletesRelatedTransferAndUpdatesAccountBalances(): void
     {
-        $eurBalanceBefore = $this->accountCashEUR->getBalance();
-        $uahBalanceBefore = $this->accountCashUAH->getBalance();
+        $eurBalanceBefore = (float) $this->accountCashEUR->getBalance();
+        $uahBalanceBefore = (float) $this->accountCashUAH->getBalance();
         $response = $this->client->request('POST', '/api/transfers', [
             'json' => [
                 'amount' => '100.0',
@@ -55,36 +59,40 @@ class TransferFeatureTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($content['id']);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($content['id']);
         self::assertNotNull($transfer);
         $transferId = $transfer->getId();
-        $expenseId = $transfer->getFromExpense()->getId();
-        $incomeId = $transfer->getToIncome()->getId();
-        self::assertEquals($eurBalanceBefore - 100, $this->accountCashEUR->getBalance());
-        self::assertEquals($uahBalanceBefore + 100, $this->accountCashUAH->getBalance());
-        self::assertEquals($this->accountCashEUR->getId(), $transfer->getFromExpense()->getAccount()->getId());
+        $fromExpense = $transfer->getFromExpense();
+        \assert($fromExpense instanceof Expense);
+        $expenseId = $fromExpense->getId();
+        $toIncome = $transfer->getToIncome();
+        \assert($toIncome instanceof Income);
+        $incomeId = $toIncome->getId();
+        self::assertEquals($eurBalanceBefore - 100, (float) $this->accountCashEUR->getBalance());
+        self::assertEquals($uahBalanceBefore + 100, (float) $this->accountCashUAH->getBalance());
+        self::assertEquals($this->accountCashEUR->getId(), $fromExpense->getAccount()->getId());
 
-        $this->em->remove($transfer->getFromExpense());
-        $this->em->flush();
-        $reloadedEurAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashEUR->getId());
-        $reloadedUahAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashUAH->getId());
+        $this->entityManager()->remove($fromExpense);
+        $this->entityManager()->flush();
+        $reloadedEurAccount = $this->entityManager()->getRepository(\App\Entity\Account::class)->find($this->accountCashEUR->getId());
+        $reloadedUahAccount = $this->entityManager()->getRepository(\App\Entity\Account::class)->find($this->accountCashUAH->getId());
         self::assertNotNull($reloadedEurAccount);
         self::assertNotNull($reloadedUahAccount);
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
-        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
-        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($transferId);
+        $fromExpenseReloaded = $this->entityManager()->getRepository(Expense::class)->find($expenseId);
+        $toIncomeReloaded = $this->entityManager()->getRepository(Income::class)->find($incomeId);
         self::assertNull($transfer);
-        self::assertNull($fromExpense);
-        self::assertNull($toIncome);
-        self::assertEquals($eurBalanceBefore, $this->accountCashEUR->getBalance());
-        self::assertEquals($uahBalanceBefore, $this->accountCashUAH->getBalance());
+        self::assertNull($fromExpenseReloaded);
+        self::assertNull($toIncomeReloaded);
+        self::assertEquals($eurBalanceBefore, (float) $this->accountCashEUR->getBalance());
+        self::assertEquals($uahBalanceBefore, (float) $this->accountCashUAH->getBalance());
     }
 
     public function testDeleteTransferIncomesDoesNotDeletesRelatedTransferAndUpdatesAccountBalances(): void
     {
-        $eurBalanceBefore = $this->accountCashEUR->getBalance();
-        $uahBalanceBefore = $this->accountCashUAH->getBalance();
+        $eurBalanceBefore = (float) $this->accountCashEUR->getBalance();
+        $uahBalanceBefore = (float) $this->accountCashUAH->getBalance();
         $response = $this->client->request('POST', '/api/transfers', [
             'json' => [
                 'amount' => '100.0',
@@ -98,34 +106,38 @@ class TransferFeatureTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($content['id']);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($content['id']);
         self::assertNotNull($transfer);
         $transferId = $transfer->getId();
-        $expenseId = $transfer->getFromExpense()->getId();
-        $incomeId = $transfer->getToIncome()->getId();
-        self::assertEquals($eurBalanceBefore - 100, $this->accountCashEUR->getBalance());
-        self::assertEquals($uahBalanceBefore + 100, $this->accountCashUAH->getBalance());
-        self::assertEquals($this->accountCashEUR->getId(), $transfer->getFromExpense()->getAccount()->getId());
+        $fromExpense = $transfer->getFromExpense();
+        \assert($fromExpense instanceof Expense);
+        $expenseId = $fromExpense->getId();
+        $toIncome = $transfer->getToIncome();
+        \assert($toIncome instanceof Income);
+        $incomeId = $toIncome->getId();
+        self::assertEquals($eurBalanceBefore - 100, (float) $this->accountCashEUR->getBalance());
+        self::assertEquals($uahBalanceBefore + 100, (float) $this->accountCashUAH->getBalance());
+        self::assertEquals($this->accountCashEUR->getId(), $fromExpense->getAccount()->getId());
 
-        $this->em->remove($transfer->getToIncome());
-        $this->em->flush();
-        $this->em->refresh($this->accountCashEUR);
-        $this->em->refresh($this->accountCashUAH);
+        $this->entityManager()->remove($toIncome);
+        $this->entityManager()->flush();
+        $this->entityManager()->refresh($this->accountCashEUR);
+        $this->entityManager()->refresh($this->accountCashUAH);
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
-        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
-        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($transferId);
+        $fromExpenseReloaded = $this->entityManager()->getRepository(Expense::class)->find($expenseId);
+        $toIncomeReloaded = $this->entityManager()->getRepository(Income::class)->find($incomeId);
         self::assertNull($transfer);
-        self::assertNull($fromExpense);
-        self::assertNull($toIncome);
-        self::assertEquals($eurBalanceBefore, $this->accountCashEUR->getBalance());
-        self::assertEquals($uahBalanceBefore, $this->accountCashUAH->getBalance());
+        self::assertNull($fromExpenseReloaded);
+        self::assertNull($toIncomeReloaded);
+        self::assertEquals($eurBalanceBefore, (float) $this->accountCashEUR->getBalance());
+        self::assertEquals($uahBalanceBefore, (float) $this->accountCashUAH->getBalance());
     }
 
     public function testDeleteTransferDeletesTransactionsAndUpdatesAccountBalances(): void
     {
-        $eurBalanceBefore = $this->accountCashEUR->getBalance();
-        $uahBalanceBefore = $this->accountCashUAH->getBalance();
+        $eurBalanceBefore = (float) $this->accountCashEUR->getBalance();
+        $uahBalanceBefore = (float) $this->accountCashUAH->getBalance();
         $response = $this->client->request('POST', '/api/transfers', [
             'json' => [
                 'amount' => '100.0',
@@ -139,34 +151,38 @@ class TransferFeatureTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($content['id']);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($content['id']);
         self::assertNotNull($transfer);
         $transferId = $transfer->getId();
-        $expenseId = $transfer->getFromExpense()->getId();
-        $incomeId = $transfer->getToIncome()->getId();
-        self::assertEquals($eurBalanceBefore - 100, $this->accountCashEUR->getBalance());
-        self::assertEquals($uahBalanceBefore + 100, $this->accountCashUAH->getBalance());
-        self::assertEquals($this->accountCashEUR->getId(), $transfer->getFromExpense()->getAccount()->getId());
+        $fromExpense = $transfer->getFromExpense();
+        \assert($fromExpense instanceof Expense);
+        $expenseId = $fromExpense->getId();
+        $toIncome = $transfer->getToIncome();
+        \assert($toIncome instanceof Income);
+        $incomeId = $toIncome->getId();
+        self::assertEquals($eurBalanceBefore - 100, (float) $this->accountCashEUR->getBalance());
+        self::assertEquals($uahBalanceBefore + 100, (float) $this->accountCashUAH->getBalance());
+        self::assertEquals($this->accountCashEUR->getId(), $fromExpense->getAccount()->getId());
 
-        $this->em->remove($transfer);
-        $this->em->flush();
-        $this->em->refresh($this->accountCashEUR);
-        $this->em->refresh($this->accountCashUAH);
+        $this->entityManager()->remove($transfer);
+        $this->entityManager()->flush();
+        $this->entityManager()->refresh($this->accountCashEUR);
+        $this->entityManager()->refresh($this->accountCashUAH);
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
-        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
-        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($transferId);
+        $fromExpenseReloaded = $this->entityManager()->getRepository(Expense::class)->find($expenseId);
+        $toIncomeReloaded = $this->entityManager()->getRepository(Income::class)->find($incomeId);
         self::assertNull($transfer);
-        self::assertNull($fromExpense);
-        self::assertNull($toIncome);
-        self::assertEquals($eurBalanceBefore, $this->accountCashEUR->getBalance());
-        self::assertEquals($uahBalanceBefore, $this->accountCashUAH->getBalance());
+        self::assertNull($fromExpenseReloaded);
+        self::assertNull($toIncomeReloaded);
+        self::assertEquals($eurBalanceBefore, (float) $this->accountCashEUR->getBalance());
+        self::assertEquals($uahBalanceBefore, (float) $this->accountCashUAH->getBalance());
     }
 
     public function testCreateTransferWithFee(): void
     {
-        $eurBalanceBefore = $this->accountCashEUR->getBalance();
-        $uahBalanceBefore = $this->accountCashUAH->getBalance();
+        $eurBalanceBefore = (float) $this->accountCashEUR->getBalance();
+        $uahBalanceBefore = (float) $this->accountCashUAH->getBalance();
         $response = $this->client->request('POST', '/api/transfers', [
             'json' => [
                 'amount' => '100.0',
@@ -182,25 +198,31 @@ class TransferFeatureTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($content['id']);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($content['id']);
         self::assertNotNull($transfer);
-        self::assertNotNull($transfer->getFromExpense());
-        self::assertEquals(100.0, $transfer->getFromExpense()->getAmount());
-        self::assertEquals($this->accountCashEUR->getId(), $transfer->getFromExpense()->getAccount()->getId());
-        self::assertEquals($eurBalanceBefore - 110, $transfer->getFromExpense()->getAccount()->getBalance());
-        self::assertNotNull($transfer->getToIncome());
-        self::assertEquals(100.0, $transfer->getToIncome()->getAmount());
-        self::assertEquals($this->accountCashUAH->getId(), $transfer->getToIncome()->getAccount()->getId());
-        self::assertEquals($uahBalanceBefore + 100, $transfer->getToIncome()->getAccount()->getBalance());
+        $fromExpense = $transfer->getFromExpense();
+        \assert($fromExpense instanceof Expense);
+        self::assertEquals(100.0, $fromExpense->getAmount());
+        self::assertEquals($this->accountCashEUR->getId(), $fromExpense->getAccount()->getId());
+        self::assertEquals($eurBalanceBefore - 110, (float) $fromExpense->getAccount()->getBalance());
+        $toIncome = $transfer->getToIncome();
+        \assert($toIncome instanceof Income);
+        self::assertEquals(100.0, $toIncome->getAmount());
+        self::assertEquals($this->accountCashUAH->getId(), $toIncome->getAccount()->getId());
+        self::assertEquals($uahBalanceBefore + 100, (float) $toIncome->getAccount()->getBalance());
         self::assertEquals(10, $transfer->getFee());
-        self::assertEquals($this->accountCashEUR->getId(), $transfer->getFeeAccount()->getId());
-        self::assertEquals('Transfer Fee', $transfer->getFeeExpense()->getCategory()->getName());
+        $feeAccount = $transfer->getFeeAccount();
+        \assert(null !== $feeAccount);
+        self::assertEquals($this->accountCashEUR->getId(), $feeAccount->getId());
+        $feeExpense = $transfer->getFeeExpense();
+        \assert($feeExpense instanceof Expense);
+        self::assertEquals('Transfer Fee', $feeExpense->getCategory()->getName());
     }
 
     public function testDeleteTransferFee(): void
     {
-        $eurBalanceBefore = $this->accountCashEUR->getBalance();
-        $uahBalanceBefore = $this->accountCashUAH->getBalance();
+        $eurBalanceBefore = (float) $this->accountCashEUR->getBalance();
+        $uahBalanceBefore = (float) $this->accountCashUAH->getBalance();
         $response = $this->client->request('POST', '/api/transfers', [
             'json' => [
                 'amount' => '100.0',
@@ -216,25 +238,31 @@ class TransferFeatureTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($content['id']);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($content['id']);
         self::assertNotNull($transfer);
 
-        $expenseId = $transfer->getFromExpense()->getId();
-        $incomeId = $transfer->getToIncome()->getId();
-        $feeId = $transfer->getFeeExpense()->getId();
+        $fromExpense = $transfer->getFromExpense();
+        \assert($fromExpense instanceof Expense);
+        $expenseId = $fromExpense->getId();
+        $toIncome = $transfer->getToIncome();
+        \assert($toIncome instanceof Income);
+        $incomeId = $toIncome->getId();
+        $feeExpense = $transfer->getFeeExpense();
+        \assert($feeExpense instanceof Expense);
+        $feeId = $feeExpense->getId();
 
-        self::assertEquals($eurBalanceBefore - 110, $this->accountCashEUR->getBalance());
-        self::assertEquals($uahBalanceBefore + 100, $this->accountCashUAH->getBalance());
-        self::assertEquals($this->accountCashEUR->getId(), $transfer->getFromExpense()->getAccount()->getId());
+        self::assertEquals($eurBalanceBefore - 110, (float) $this->accountCashEUR->getBalance());
+        self::assertEquals($uahBalanceBefore + 100, (float) $this->accountCashUAH->getBalance());
+        self::assertEquals($this->accountCashEUR->getId(), $fromExpense->getAccount()->getId());
 
-        $this->em->remove($transfer->getFeeExpense());
-        $this->em->flush();
-        $this->em->refresh($this->accountCashEUR);
-        $this->em->refresh($this->accountCashUAH);
+        $this->entityManager()->remove($feeExpense);
+        $this->entityManager()->flush();
+        $this->entityManager()->refresh($this->accountCashEUR);
+        $this->entityManager()->refresh($this->accountCashUAH);
 
-        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
-        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
-        $feeExpense = $this->em->getRepository(Expense::class)->find($feeId);
+        $fromExpense = $this->entityManager()->getRepository(Expense::class)->find($expenseId);
+        $toIncome = $this->entityManager()->getRepository(Income::class)->find($incomeId);
+        $feeExpense = $this->entityManager()->getRepository(Expense::class)->find($feeId);
 
         self::assertNull($fromExpense);
         self::assertNull($toIncome);
@@ -243,8 +271,8 @@ class TransferFeatureTest extends BaseApiTestCase
 
     public function testDeleteTransferDeletesTransactionsAndUpdatesBalances(): void
     {
-        $cashEurBalanceBefore = $this->accountCashEUR->getBalance();
-        $cashUahBalanceBefore = $this->accountCashUAH->getBalance();
+        $cashEurBalanceBefore = (float) $this->accountCashEUR->getBalance();
+        $cashUahBalanceBefore = (float) $this->accountCashUAH->getBalance();
 
         $response = $this->client->request('POST', '/api/transfers', [
             'json' => [
@@ -261,33 +289,39 @@ class TransferFeatureTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         $content = $response->toArray();
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($content['id']);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($content['id']);
         self::assertNotNull($transfer);
 
         $transferId = $transfer->getId();
-        $expenseId = $transfer->getFromExpense()->getId();
-        $incomeId = $transfer->getToIncome()->getId();
-        $feeId = $transfer->getFeeExpense()->getId();
+        $fromExpense = $transfer->getFromExpense();
+        \assert($fromExpense instanceof Expense);
+        $expenseId = $fromExpense->getId();
+        $toIncome = $transfer->getToIncome();
+        \assert($toIncome instanceof Income);
+        $incomeId = $toIncome->getId();
+        $feeExpense = $transfer->getFeeExpense();
+        \assert($feeExpense instanceof Expense);
+        $feeId = $feeExpense->getId();
 
-        self::assertEquals($cashEurBalanceBefore - 10 - 1, $this->accountCashEUR->getBalance());
-        self::assertEquals($cashUahBalanceBefore + (10 * 40), $this->accountCashUAH->getBalance());
-        self::assertEquals($this->accountCashEUR->getId(), $transfer->getFromExpense()->getAccount()->getId());
+        self::assertEquals($cashEurBalanceBefore - 10 - 1, (float) $this->accountCashEUR->getBalance());
+        self::assertEquals($cashUahBalanceBefore + (10 * 40), (float) $this->accountCashUAH->getBalance());
+        self::assertEquals($this->accountCashEUR->getId(), $fromExpense->getAccount()->getId());
 
-        $this->em->remove($transfer);
-        $this->em->flush();
-        $this->em->refresh($this->accountCashEUR);
-        $this->em->refresh($this->accountCashUAH);
+        $this->entityManager()->remove($transfer);
+        $this->entityManager()->flush();
+        $this->entityManager()->refresh($this->accountCashEUR);
+        $this->entityManager()->refresh($this->accountCashUAH);
 
-        $transfer = $this->em->getRepository(Transfer::class)->find($transferId);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($transferId);
         self::assertNull($transfer);
 
-        $fromExpense = $this->em->getRepository(Expense::class)->find($expenseId);
+        $fromExpense = $this->entityManager()->getRepository(Expense::class)->find($expenseId);
         self::assertNull($fromExpense);
 
-        $toIncome = $this->em->getRepository(Income::class)->find($incomeId);
+        $toIncome = $this->entityManager()->getRepository(Income::class)->find($incomeId);
         self::assertNull($toIncome);
 
-        $feeExpense = $this->em->getRepository(Expense::class)->find($feeId);
+        $feeExpense = $this->entityManager()->getRepository(Expense::class)->find($feeId);
         self::assertNull($feeExpense);
     }
 
@@ -310,7 +344,7 @@ class TransferFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $createdTransfer = $this->em->getRepository(Transfer::class)->find($createResponse->toArray()['id']);
+        $createdTransfer = $this->entityManager()->getRepository(Transfer::class)->find($createResponse->toArray()['id']);
         self::assertNotNull($createdTransfer);
 
         $fromExpenseId = $createdTransfer->getFromExpense()?->getId();
@@ -321,12 +355,12 @@ class TransferFeatureTest extends BaseApiTestCase
         self::assertNotNull($toIncomeId);
         self::assertNotNull($feeExpenseId);
 
-        $eurAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashEUR->getId());
-        $uahAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashUAH->getId());
+        $eurAccount = $this->entityManager()->getRepository(\App\Entity\Account::class)->find($this->accountCashEUR->getId());
+        $uahAccount = $this->entityManager()->getRepository(\App\Entity\Account::class)->find($this->accountCashUAH->getId());
         self::assertNotNull($eurAccount);
         self::assertNotNull($uahAccount);
 
-        $this->client->request('PUT', '/api/transfers/'.$createdTransfer->getId(), [
+        $this->client->request('PUT', '/api/transfers/' . $createdTransfer->getId(), [
             'json' => [
                 'amount' => '50.0',
                 'executedAt' => '2024-03-13T10:00:00Z',
@@ -340,12 +374,12 @@ class TransferFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $reloadedEurAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashEUR->getId());
-        $reloadedUahAccount = $this->em->getRepository(\App\Entity\Account::class)->find($this->accountCashUAH->getId());
+        $reloadedEurAccount = $this->entityManager()->getRepository(\App\Entity\Account::class)->find($this->accountCashEUR->getId());
+        $reloadedUahAccount = $this->entityManager()->getRepository(\App\Entity\Account::class)->find($this->accountCashUAH->getId());
         self::assertNotNull($reloadedEurAccount);
         self::assertNotNull($reloadedUahAccount);
 
-        $updatedTransfer = $this->em->getRepository(Transfer::class)->find($createdTransfer->getId());
+        $updatedTransfer = $this->entityManager()->getRepository(Transfer::class)->find($createdTransfer->getId());
         self::assertNotNull($updatedTransfer);
         self::assertEquals('Updated transfer', $updatedTransfer->getNote());
         self::assertEquals(50.0, $updatedTransfer->getAmount());

@@ -39,16 +39,17 @@ class BudgetController extends AbstractFOSRestController
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'data', type: 'array', items: new OA\Items(
                         description: 'Per-category aggregate',
-                        type: 'object'
+                        type: 'object',
                     )),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
             new OA\Response(response: 404, description: 'Budget not found'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\BudgetControllerTest
+     *
      * @tested testAnalyticsReturnsCorrectShape
      * @tested testAnalyticsRequiresAuth
      * @tested testAnalyticsOnEmptyBudgetReturnsEmptyData
@@ -80,14 +81,15 @@ class BudgetController extends AbstractFOSRestController
                 description: 'Daily category stats',
                 content: new OA\JsonContent(properties: [
                     new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
             new OA\Response(response: 404, description: 'Budget not found'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\BudgetControllerTest
+     *
      * @tested testDailyAnalyticsReturnsCorrectShape
      */
     public function analyticsDailyStats(Budget $budget, TransactionRepository $transactionRepository): View
@@ -122,14 +124,15 @@ class BudgetController extends AbstractFOSRestController
                     new OA\Property(property: 'months', type: 'integer', example: 6),
                     new OA\Property(property: 'after', type: 'string', format: 'date', example: '2024-01-01'),
                     new OA\Property(property: 'before', type: 'string', format: 'date', example: '2024-06-30'),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
             new OA\Response(response: 404, description: 'Budget not found'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\BudgetControllerTest
+     *
      * @tested testHistoryAveragesRequiresAuth
      * @tested testHistoryAveragesReturnsExpectedStructure
      * @tested testHistoryAveragesWindowAlignedToCalendarMonthBoundaries
@@ -175,7 +178,7 @@ class BudgetController extends AbstractFOSRestController
     private function buildMonthSlots(int $months): array
     {
         $monthSlots = [];
-        for ($index = $months - 1; $index >= 0; $index--) {
+        for ($index = $months - 1; $index >= 0; --$index) {
             $monthSlots[] = CarbonImmutable::now()->subMonths($index)->format('Y-m');
         }
 
@@ -189,6 +192,7 @@ class BudgetController extends AbstractFOSRestController
      *
      * @param array<int, array<string, array<string, array{income: float, expense: float}>>> $byMonth
      * @param list<string> $monthSlots
+     *
      * @return array<int, array<string, array{income: float, expense: float}>>
      */
     private function computePredictions(array $byMonth, array $monthSlots, int $months): array
@@ -208,14 +212,14 @@ class BudgetController extends AbstractFOSRestController
 
                 foreach ($monthSlots as $index => $month) {
                     $currencyValues = $monthData[$month][$currency] ?? null;
-                    if ($currencyValues === null) {
+                    if (null === $currencyValues) {
                         continue;
                     }
                     $weight = $index + 1;
                     $activeWeightSum += $weight;
                     $weightedIncome += $currencyValues['income'] * $weight;
                     $weightedExpense += $currencyValues['expense'] * $weight;
-                    $activeCount++;
+                    ++$activeCount;
                 }
 
                 if ($activeCount < $minimumActiveMonths) {
@@ -237,6 +241,7 @@ class BudgetController extends AbstractFOSRestController
 
     /**
      * @param array<string, array<string, array{income: float, expense: float}>> $monthData
+     *
      * @return array<string, true>
      */
     private function collectCurrencies(array $monthData): array

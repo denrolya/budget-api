@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DataPersister;
 
 use ApiPlatform\Metadata\Operation;
@@ -27,7 +29,9 @@ final class TransferDataPersister implements ProcessorInterface
         $isCreate = !isset($context['previous_data']);
 
         if ($isCreate) {
-            $data->setOwner($this->security->getUser());
+            $owner = $this->security->getUser();
+            \assert(null !== $owner);
+            $data->setOwner($owner);
             $this->transferService->createTransactions($data);
         } else {
             $this->transferService->updateTransactions($data);

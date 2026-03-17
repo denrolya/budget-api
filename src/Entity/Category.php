@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use ApiPlatform\Doctrine\Orm\Filter\BooleanFilter;
@@ -26,10 +28,10 @@ use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: CategoryRepository::class)]
-#[ORM\UniqueConstraint(name: "unique_category", columns: ["name", "type"])]
-#[ORM\Index(columns: ["name"], name: "category_name_idx")]
-#[ORM\InheritanceType("SINGLE_TABLE")]
-#[ORM\DiscriminatorColumn(name: "type", type: "string")]
+#[ORM\UniqueConstraint(name: 'unique_category', columns: ['name', 'type'])]
+#[ORM\Index(columns: ['name'], name: 'category_name_idx')]
+#[ORM\InheritanceType('SINGLE_TABLE')]
+#[ORM\DiscriminatorColumn(name: 'type', type: 'string')]
 #[ORM\DiscriminatorMap([
     'expense' => ExpenseCategory::class,
     'income' => IncomeCategory::class,
@@ -96,28 +98,29 @@ abstract class Category
         'category:collection:read',
         'category:tree:read',
         'transaction:collection:read',
-        'transfer:collection:read'
+        'transfer:collection:read',
     ])]
     #[Serializer\Groups([
         'category:collection:read',
         'category:tree:read',
         'transaction:collection:read',
         'debt:collection:read',
-        'transfer:collection:read'
+        'transfer:collection:read',
     ])]
     private ?int $id;
 
-    #[Gedmo\Timestampable(on: "create")]
-    #[ORM\Column(type: "datetime", nullable: true)]
+    #[Gedmo\Timestampable(on: 'create')]
+    #[ORM\Column(type: 'datetime', nullable: true)]
     #[Groups(['category:collection:read', 'category:tree:read'])]
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     protected ?DateTimeInterface $createdAt;
 
-    #[Gedmo\Timestampable(on: "update")]
-    #[ORM\Column(type: "datetime", nullable: true)]
+    #[Gedmo\Timestampable(on: 'update')]
+    #[ORM\Column(type: 'datetime', nullable: true)]
     protected ?DateTimeInterface $updatedAt;
 
-    #[ORM\Column(type: "string", length: 255)]
+    #[Assert\NotBlank]
+    #[ORM\Column(type: 'string', length: 255)]
     #[Groups([
         'transaction:collection:read',
         'debt:collection:read',
@@ -134,25 +137,27 @@ abstract class Category
     ])]
     private ?string $name;
 
-    #[ORM\OneToMany(mappedBy: "parent", targetEntity: Category::class, cascade: ["remove"], fetch: "EXTRA_LAZY")]
+    /** @var Collection<int, Category> */
+    #[ORM\OneToMany(mappedBy: 'parent', targetEntity: self::class, cascade: ['remove'], fetch: 'EXTRA_LAZY', orphanRemoval: true)]
     #[Groups(['category:tree:read'])]
     #[Serializer\Groups(['category:tree:read'])]
     private Collection $children;
 
-    #[ORM\ManyToOne(targetEntity: Category::class, fetch: "EXTRA_LAZY", inversedBy: "children")]
-    #[ORM\JoinColumn(name: "parent_id", referencedColumnName: "id")]
+    #[ORM\ManyToOne(targetEntity: self::class, fetch: 'EXTRA_LAZY', inversedBy: 'children')]
+    #[ORM\JoinColumn(name: 'parent_id', referencedColumnName: 'id')]
     #[Groups(['category:collection:read', 'category:write'])]
     #[Serializer\Groups(['category:collection:read'])]
     private ?Category $parent;
 
-    #[ORM\ManyToOne(targetEntity: Category::class, fetch: "EXTRA_LAZY")]
-    #[ORM\JoinColumn(name: "root_id", referencedColumnName: "id")]
+    #[ORM\ManyToOne(targetEntity: self::class, fetch: 'EXTRA_LAZY')]
+    #[ORM\JoinColumn(name: 'root_id', referencedColumnName: 'id')]
     #[Groups(['category:collection:read'])]
     #[Serializer\Groups(['category:collection:read'])]
     private ?Category $root = null;
 
-    #[ORM\OneToMany(mappedBy: "category", targetEntity: Transaction::class, cascade: ["remove"], fetch: "EXTRA_LAZY", orphanRemoval: true)]
-    #[ORM\OrderBy(["executedAt" => "ASC"])]
+    /** @var Collection<int, Transaction> */
+    #[ORM\OneToMany(mappedBy: 'category', targetEntity: Transaction::class, cascade: ['remove'], fetch: 'EXTRA_LAZY', orphanRemoval: true)]
+    #[ORM\OrderBy(['executedAt' => 'ASC'])]
     private Collection $transactions;
 
     #[ApiProperty(description: 'When true, transactions in this category count toward profit/loss calculations. Set to false for transfers, debt repayments, etc.')]
@@ -175,7 +180,7 @@ abstract class Category
     #[Serializer\Groups(['category:collection:read', 'category:tree:read'])]
     abstract public function getType(): string;
 
-    public function __construct(string $name = null)
+    public function __construct(?string $name = null)
     {
         $this->name = $name;
         $this->transactions = new ArrayCollection();
@@ -201,15 +206,15 @@ abstract class Category
 
     public function isRoot(): bool
     {
-        return $this->root === null;
+        return null === $this->root;
     }
 
-    public function getRoot(): ?Category
+    public function getRoot(): ?self
     {
         return $this->root;
     }
 
-    public function setRoot(?Category $category): self
+    public function setRoot(?self $category): self
     {
         $this->root = $category;
 
@@ -224,15 +229,15 @@ abstract class Category
 
     public function hasParent(): bool
     {
-        return $this->parent !== null;
+        return null !== $this->parent;
     }
 
-    public function getParent(): ?Category
+    public function getParent(): ?self
     {
         return $this->parent;
     }
 
-    public function setParent(?Category $parent): self
+    public function setParent(?self $parent): self
     {
         $this->parent = $parent;
 
@@ -253,6 +258,7 @@ abstract class Category
             return $result;
         }
 
+        /** @var Category $child */
         foreach ($this->children as $child) {
             $result += $child->getTransactionsCount();
         }
@@ -293,7 +299,7 @@ abstract class Category
         return new ArrayCollection($transactions);
     }
 
-    public function addChildren(Category $category): self
+    public function addChildren(self $category): self
     {
         if (!$this->children->contains($category)) {
             $this->children->add($category);
@@ -302,7 +308,7 @@ abstract class Category
         return $this;
     }
 
-    public function removeChildren(Category $category): self
+    public function removeChildren(self $category): self
     {
         if ($this->children->contains($category)) {
             $this->children->removeElement($category);
@@ -323,13 +329,9 @@ abstract class Category
         return $this;
     }
 
-    public function getFirstDescendantsNames(): array
-    {
-        return array_map(static function (Category $category) {
-            return $category->getName();
-        }, $this->getChildren()->toArray());
-    }
-
+    /**
+     * @return Collection<int, Category>
+     */
     public function getChildren(): Collection
     {
         return $this->children;
@@ -337,7 +339,7 @@ abstract class Category
 
     public function isExpense(): bool
     {
-        return $this->getType() === self::EXPENSE_CATEGORY_TYPE;
+        return self::EXPENSE_CATEGORY_TYPE === $this->getType();
     }
 
     public function getId(): ?int
@@ -345,23 +347,28 @@ abstract class Category
         return $this->id;
     }
 
-    public function isChildOf(Category $possibleParent): bool
+    public function isChildOf(self $possibleParent): bool
     {
         return $possibleParent->getDescendantsFlat()->contains($this);
     }
 
     public function getDescendantsFlat(bool $onlyNames = false): Collection
     {
+        /** @var Category[] $result */
         $result = [$this];
 
-        $this->children->map(static function (Category $child) use (&$result) {
+        foreach ($this->children as $child) {
             $result = array_merge($result, $child->getDescendantsFlat()->toArray());
-        });
+        }
 
         if ($onlyNames) {
-            $result = array_map(static function (Category $category) {
-                return $category->getName();
-            }, $result);
+            $names = [];
+            foreach ($result as $category) {
+                \assert($category instanceof Category);
+                $names[] = $category->getName();
+            }
+
+            return new ArrayCollection($names);
         }
 
         return new ArrayCollection($result);

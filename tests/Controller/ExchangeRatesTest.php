@@ -8,6 +8,7 @@ use App\Bank\Provider\MonobankProvider;
 use App\Bank\Provider\WiseProvider;
 use App\Tests\BaseApiTestCase;
 use Psr\Cache\InvalidArgumentException;
+use RuntimeException;
 
 /**
  * API contract tests for ExchangeRates endpoints.
@@ -36,7 +37,7 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::snapshots
      */
-    public function testSnapshots_returnsCorrectShape(): void
+    public function testSnapshotsReturnsCorrectShape(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::SNAPSHOTS_URL, [
             'after' => '2021-01-01',
@@ -56,7 +57,7 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::snapshots
      */
-    public function testSnapshots_swappedDates_autoCorrects(): void
+    public function testSnapshotsSwappedDatesAutoCorrects(): void
     {
         // When before < after, the controller swaps them
         $response = $this->client->request('GET', $this->buildURL(self::SNAPSHOTS_URL, [
@@ -73,7 +74,7 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::snapshots
      */
-    public function testSnapshots_singleDate_beforeDefaultsToAfter(): void
+    public function testSnapshotsSingleDateBeforeDefaultsToAfter(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::SNAPSHOTS_URL, [
             'after' => '2021-06-15',
@@ -92,7 +93,7 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::fixerRates
      */
-    public function testFixer_returnsRatesShape(): void
+    public function testFixerReturnsRatesShape(): void
     {
         $response = $this->client->request('GET', $this->buildURL(self::FIXER_URL, [
             'date' => '2021-01-15',
@@ -107,7 +108,7 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::fixerRates
      */
-    public function testFixerBaseUrl_alsoWorks(): void
+    public function testFixerBaseUrlAlsoWorks(): void
     {
         // GET /api/v2/exchange-rates is an alias for /fixer
         $response = $this->client->request('GET', $this->buildURL(self::BASE_URL, [
@@ -126,7 +127,7 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::snapshots
      */
-    public function testSnapshots_withoutAuth_returns401(): void
+    public function testSnapshotsWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', $this->buildURL(self::SNAPSHOTS_URL, [
@@ -138,7 +139,7 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::fixerRates
      */
-    public function testFixer_withoutAuth_returns401(): void
+    public function testFixerWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::FIXER_URL);
@@ -152,11 +153,11 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::monobankRates
      */
-    public function testMonobankRates_returnsCorrectShape(): void
+    public function testMonobankRatesReturnsCorrectShape(): void
     {
         $mockProvider = $this->createMock(MonobankProvider::class);
         $mockProvider->method('getLatest')->willReturn(['USD' => 1.0, 'EUR' => 0.85, 'UAH' => 37.5]);
-        $this->client->getContainer()->set(MonobankProvider::class, $mockProvider);
+        $this->container()->set(MonobankProvider::class, $mockProvider);
 
         $response = $this->client->request('GET', self::MONOBANK_URL);
         self::assertResponseIsSuccessful();
@@ -171,13 +172,13 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::monobankRates
      */
-    public function testMonobankRates_providerError_returns500(): void
+    public function testMonobankRatesProviderErrorReturns500(): void
     {
         $mockProvider = $this->createMock(MonobankProvider::class);
         $mockProvider->method('getLatest')->willThrowException(
-            new class ('Cache error') extends \RuntimeException implements InvalidArgumentException {}
+            new class('Cache error') extends RuntimeException implements InvalidArgumentException {},
         );
-        $this->client->getContainer()->set(MonobankProvider::class, $mockProvider);
+        $this->container()->set(MonobankProvider::class, $mockProvider);
 
         $this->client->request('GET', self::MONOBANK_URL);
         self::assertResponseStatusCodeSame(500);
@@ -186,7 +187,7 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::monobankRates
      */
-    public function testMonobankRates_withoutAuth_returns401(): void
+    public function testMonobankRatesWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::MONOBANK_URL);
@@ -200,11 +201,11 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::wiseRates
      */
-    public function testWiseRates_returnsCorrectShape(): void
+    public function testWiseRatesReturnsCorrectShape(): void
     {
         $mockProvider = $this->createMock(WiseProvider::class);
         $mockProvider->method('getRates')->willReturn(['USD' => 1.0, 'EUR' => 0.85, 'GBP' => 0.73]);
-        $this->client->getContainer()->set(WiseProvider::class, $mockProvider);
+        $this->container()->set(WiseProvider::class, $mockProvider);
 
         $response = $this->client->request('GET', self::WISE_URL);
         self::assertResponseIsSuccessful();
@@ -218,11 +219,11 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::wiseRates
      */
-    public function testWiseRates_withDateParam_returnsRates(): void
+    public function testWiseRatesWithDateParamReturnsRates(): void
     {
         $mockProvider = $this->createMock(WiseProvider::class);
         $mockProvider->method('getRates')->willReturn(['USD' => 1.0, 'EUR' => 0.88]);
-        $this->client->getContainer()->set(WiseProvider::class, $mockProvider);
+        $this->container()->set(WiseProvider::class, $mockProvider);
 
         $response = $this->client->request('GET', $this->buildURL(self::WISE_URL, [
             'date' => '2021-06-15',
@@ -236,13 +237,13 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::wiseRates
      */
-    public function testWiseRates_providerError_returns500(): void
+    public function testWiseRatesProviderErrorReturns500(): void
     {
         $mockProvider = $this->createMock(WiseProvider::class);
         $mockProvider->method('getRates')->willThrowException(
-            new class ('Cache error') extends \RuntimeException implements InvalidArgumentException {}
+            new class('Cache error') extends RuntimeException implements InvalidArgumentException {},
         );
-        $this->client->getContainer()->set(WiseProvider::class, $mockProvider);
+        $this->container()->set(WiseProvider::class, $mockProvider);
 
         $this->client->request('GET', self::WISE_URL);
         self::assertResponseStatusCodeSame(500);
@@ -251,7 +252,7 @@ class ExchangeRatesTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\ExchangeRatesController::wiseRates
      */
-    public function testWiseRates_withoutAuth_returns401(): void
+    public function testWiseRatesWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::WISE_URL);

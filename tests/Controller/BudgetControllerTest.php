@@ -39,9 +39,8 @@ class BudgetControllerTest extends BaseApiTestCase
 
     private function findBudget(string $name): Budget
     {
-        $budget = $this->em->getRepository(Budget::class)->findOneBy(['name' => $name]);
+        $budget = $this->entityManager()->getRepository(Budget::class)->findOneBy(['name' => $name]);
         self::assertNotNull($budget, "Budget '$name' not found in fixtures");
-        assert($budget instanceof Budget);
 
         return $budget;
     }
@@ -164,7 +163,7 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(201);
 
         $content = $response->toArray();
-        self::assertFalse(isset($content['name']) && $content['name'] !== null, 'Name should be null or absent');
+        self::assertFalse(isset($content['name']), 'Name should be null or absent');
         self::assertEquals('yearly', $content['periodType']);
     }
 
@@ -271,8 +270,8 @@ class BudgetControllerTest extends BaseApiTestCase
         $this->client->request('DELETE', self::BUDGET_API_URL . '/' . $budgetId);
         self::assertResponseStatusCodeSame(204);
 
-        $this->em->clear();
-        $remaining = $this->em->getRepository(Budget::class)->find($budgetId);
+        $this->entityManager()->clear();
+        $remaining = $this->entityManager()->getRepository(Budget::class)->find($budgetId);
         self::assertNull($remaining);
     }
 
@@ -287,7 +286,7 @@ class BudgetControllerTest extends BaseApiTestCase
     {
         $budget = $this->findBudget('January 2021');
 
-        $category = $this->em->getRepository(ExpenseCategory::class)
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)
             ->findOneBy(['name' => 'Debt']);
         self::assertNotNull($category);
 
@@ -489,14 +488,14 @@ class BudgetControllerTest extends BaseApiTestCase
             self::assertMatchesRegularExpression(
                 '/^\d{4}-\d{2}-01$/',
                 $content['after'],
-                "months=$months: `after` must be the 1st of a month, got {$content['after']}"
+                "months=$months: `after` must be the 1st of a month, got {$content['after']}",
             );
 
             // `before` must be the last day of a month
             $beforeDate = \Carbon\CarbonImmutable::parse($content['before']);
             self::assertTrue(
                 $beforeDate->isSameDay($beforeDate->endOfMonth()),
-                "months=$months: `before` must be the last day of a month, got {$content['before']}"
+                "months=$months: `before` must be the last day of a month, got {$content['before']}",
             );
         }
     }
@@ -532,9 +531,9 @@ class BudgetControllerTest extends BaseApiTestCase
     public function testHistoryAveragesIncludesFirstDayOfWindowAndExcludesDayBefore(): void
     {
         $budget = $this->findBudget('January 2021');
-        $groceriesCategory = $this->em->getRepository(\App\Entity\ExpenseCategory::class)
+        $groceriesCategory = $this->entityManager()->getRepository(ExpenseCategory::class)
             ->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
-        assert($groceriesCategory instanceof \App\Entity\ExpenseCategory);
+        \assert($groceriesCategory instanceof ExpenseCategory);
 
         $thisMonthStart = \Carbon\CarbonImmutable::now()->startOfMonth();
         $previousMonthEnd = $thisMonthStart->subDay()->endOfDay();
@@ -543,7 +542,7 @@ class BudgetControllerTest extends BaseApiTestCase
         $this->createExpense(50.0, $this->accountCashEUR, $groceriesCategory, $thisMonthStart, 'hist-inside');
         // Transaction outside window (last day of previous month)
         $this->createExpense(99.0, $this->accountCashEUR, $groceriesCategory, $previousMonthEnd, 'hist-outside');
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         $response = $this->client->request(
             'GET',
@@ -626,7 +625,7 @@ class BudgetControllerTest extends BaseApiTestCase
     {
         $budget = $this->findBudget('Empty June 2020');
 
-        $category = $this->em->getRepository(ExpenseCategory::class)
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)
             ->findOneBy(['name' => 'Rent']);
         self::assertNotNull($category);
 
@@ -656,7 +655,7 @@ class BudgetControllerTest extends BaseApiTestCase
         $budget = $this->findBudget('Full Year 2021');
         $lineWithNote = null;
         foreach ($budget->getLines() as $line) {
-            if ($line->getNote() !== null) {
+            if (null !== $line->getNote()) {
                 $lineWithNote = $line;
                 break;
             }
@@ -686,7 +685,7 @@ class BudgetControllerTest extends BaseApiTestCase
         $budget = $this->findBudget('Full Year 2021');
         $lineWithNote = null;
         foreach ($budget->getLines() as $line) {
-            if ($line->getNote() !== null) {
+            if (null !== $line->getNote()) {
                 $lineWithNote = $line;
                 break;
             }
@@ -707,7 +706,7 @@ class BudgetControllerTest extends BaseApiTestCase
         $content = $response->toArray();
         // API Platform omits null values by default (skip_null_values: true)
         self::assertTrue(
-            !isset($content['note']) || $content['note'] === null,
+            !isset($content['note']),
             'Note must be null or absent from response',
         );
     }

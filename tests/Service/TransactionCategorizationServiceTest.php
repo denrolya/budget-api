@@ -1,17 +1,18 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Service;
 
 use App\DTO\CategorizationResult;
 use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
-use App\Entity\Income;
-use App\Entity\IncomeCategory;
 use App\Service\TransactionCategorizationService;
 use App\Tests\BaseApiTestCase;
 use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use ReflectionClass;
 
 /**
  * Tests for TransactionCategorizationService.
@@ -92,12 +93,12 @@ class TransactionCategorizationServiceTest extends BaseApiTestCase
     public static function realMonobankStringsProvider(): array
     {
         return [
-            'ATB with date'         => ['АТБ Маркетплейс 01.03', 'атб маркетплейс'],
-            'McDonalds with hash'   => ["McDonald's #1234", "mcdonald's"],
-            'Netflix domain'        => ['Netflix.com', 'netflix'],
-            'Silpo pipe'            => ['SILPO | KYIV ARENA', 'silpo kyiv arena'],
-            'Wise long ref'         => ['Wise transfer 9876543210', 'wise transfer'],
-            'Nova Poshta date'      => ['Нова пошта 15.02', 'нова пошта'],
+            'ATB with date' => ['АТБ Маркетплейс 01.03', 'атб маркетплейс'],
+            'McDonalds with hash' => ["McDonald's #1234", "mcdonald's"],
+            'Netflix domain' => ['Netflix.com', 'netflix'],
+            'Silpo pipe' => ['SILPO | KYIV ARENA', 'silpo kyiv arena'],
+            'Wise long ref' => ['Wise transfer 9876543210', 'wise transfer'],
+            'Nova Poshta date' => ['Нова пошта 15.02', 'нова пошта'],
         ];
     }
 
@@ -214,7 +215,7 @@ class TransactionCategorizationServiceTest extends BaseApiTestCase
         $svc = $this->makeServiceWithIndexStub([], isIncome: false);
 
         $rawNote = 'MONOBANK_RAW_12345';
-        $result  = $svc->suggest($rawNote, false);
+        $result = $svc->suggest($rawNote, false);
 
         self::assertSame($rawNote, $result->note);
     }
@@ -226,7 +227,7 @@ class TransactionCategorizationServiceTest extends BaseApiTestCase
     public function testBuildIndexRunsWithoutError(): void
     {
         $connection = self::getContainer()->get(Connection::class);
-        $svc        = new TransactionCategorizationService($connection);
+        $svc = new TransactionCategorizationService($connection);
 
         // Must not throw; index is built from real fixture data.
         $svc->buildIndex($this->testUser->getId(), false);
@@ -241,7 +242,7 @@ class TransactionCategorizationServiceTest extends BaseApiTestCase
     public function testBuildIndexThenExactMatchFromFixtureData(): void
     {
         // Seed a confirmed (non-draft) expense transaction so the index picks it up.
-        $category = $this->em->getRepository(ExpenseCategory::class)
+        $category = $this->entityManager()->getRepository(ExpenseCategory::class)
             ->findOneBy(['name' => 'Groceries']);
         self::assertNotNull($category, 'Groceries category must exist in fixtures');
 
@@ -252,11 +253,11 @@ class TransactionCategorizationServiceTest extends BaseApiTestCase
            ->setAccount($this->accountCashEUR)
            ->setOwner($this->testUser)
            ->setExecutedAt(new DateTimeImmutable('-1 month'));
-        $this->em->persist($tx);
-        $this->em->flush();
+        $this->entityManager()->persist($tx);
+        $this->entityManager()->flush();
 
         $connection = self::getContainer()->get(Connection::class);
-        $svc        = new TransactionCategorizationService($connection);
+        $svc = new TransactionCategorizationService($connection);
         $svc->buildIndex($this->testUser->getId(), false);
 
         $result = $svc->suggest('Silpo Supermarket', false);
@@ -268,7 +269,7 @@ class TransactionCategorizationServiceTest extends BaseApiTestCase
     public function testResetIndexForcesRebuildOnNextSuggest(): void
     {
         $connection = self::getContainer()->get(Connection::class);
-        $svc        = new TransactionCategorizationService($connection);
+        $svc = new TransactionCategorizationService($connection);
 
         $svc->buildIndex($this->testUser->getId(), false);
         $svc->resetIndex();
@@ -304,10 +305,10 @@ class TransactionCategorizationServiceTest extends BaseApiTestCase
             $enriched[$key] = array_merge($entry, ['sortedTokens' => $svc->tokenize($key)]);
         }
 
-        $indexProp = (new \ReflectionClass($svc))->getProperty($isIncome ? 'incomeIndex' : 'expenseIndex');
+        $indexProp = (new ReflectionClass($svc))->getProperty($isIncome ? 'incomeIndex' : 'expenseIndex');
         $indexProp->setValue($svc, $enriched);
 
-        $builtProp = (new \ReflectionClass($svc))->getProperty($isIncome ? 'incomeIndexBuilt' : 'expenseIndexBuilt');
+        $builtProp = (new ReflectionClass($svc))->getProperty($isIncome ? 'incomeIndexBuilt' : 'expenseIndexBuilt');
         $builtProp->setValue($svc, true);
 
         return $svc;

@@ -30,7 +30,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Entity\User
      */
-    public function testLogin_validCredentials_returnsToken(): void
+    public function testLoginValidCredentialsReturnsToken(): void
     {
         $unauthClient = static::createClient();
 
@@ -52,7 +52,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Entity\User
      */
-    public function testLogin_invalidPassword_returns401(): void
+    public function testLoginInvalidPasswordReturns401(): void
     {
         $unauthClient = static::createClient();
 
@@ -70,7 +70,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Entity\User
      */
-    public function testLogin_nonExistentUser_returns401(): void
+    public function testLoginNonExistentUserReturns401(): void
     {
         $unauthClient = static::createClient();
 
@@ -88,7 +88,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Entity\User
      */
-    public function testLogin_emptyBody_returns400(): void
+    public function testLoginEmptyBodyReturns400(): void
     {
         $unauthClient = static::createClient();
 
@@ -108,7 +108,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Entity\User
      */
-    public function testLogin_tokenGrantsAccess(): void
+    public function testLoginTokenGrantsAccess(): void
     {
         $unauthClient = static::createClient();
 
@@ -131,7 +131,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Entity\User
      */
-    public function testProtectedEndpoint_withoutToken_returns401(): void
+    public function testProtectedEndpointWithoutTokenReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', '/api/v2/transactions');
@@ -141,7 +141,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Entity\User
      */
-    public function testProtectedEndpoint_withInvalidToken_returns401(): void
+    public function testProtectedEndpointWithInvalidTokenReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', '/api/v2/transactions', [
@@ -157,7 +157,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\AuthController::refreshToken
      */
-    public function testRefreshToken_returnsNewToken(): void
+    public function testRefreshTokenReturnsNewToken(): void
     {
         $response = $this->client->request('GET', self::REFRESH_URL);
         self::assertResponseIsSuccessful();
@@ -170,7 +170,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Controller\AuthController::refreshToken
      */
-    public function testRefreshToken_withoutAuth_returns401(): void
+    public function testRefreshTokenWithoutAuthReturns401(): void
     {
         $unauthClient = static::createClient();
         $unauthClient->request('GET', self::REFRESH_URL);
@@ -184,7 +184,7 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Entity\User
      */
-    public function testGetUser_returnsProfileShape(): void
+    public function testGetUserReturnsProfileShape(): void
     {
         $response = $this->client->request('GET', '/api/users/' . self::TEST_USERNAME);
         self::assertResponseIsSuccessful();
@@ -202,13 +202,13 @@ class AuthenticationTest extends BaseApiTestCase
     /**
      * @covers \App\Entity\User
      */
-    public function testUpdateUser_baseCurrency(): void
+    public function testUpdateUserBaseCurrency(): void
     {
-        $user = $this->em->getRepository(User::class)->findOneBy(['username' => self::TEST_USERNAME]);
+        $user = $this->entityManager()->getRepository(User::class)->findOneBy(['username' => self::TEST_USERNAME]);
         self::assertNotNull($user);
         $originalCurrency = $user->getBaseCurrency();
 
-        $newCurrency = $originalCurrency === 'EUR' ? 'USD' : 'EUR';
+        $newCurrency = 'EUR' === $originalCurrency ? 'USD' : 'EUR';
 
         $this->client->request('PUT', '/api/users/' . self::TEST_USERNAME, [
             'json' => [
@@ -217,7 +217,7 @@ class AuthenticationTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($user);
+        $this->entityManager()->refresh($user);
         self::assertEquals($newCurrency, $user->getBaseCurrency());
     }
 }

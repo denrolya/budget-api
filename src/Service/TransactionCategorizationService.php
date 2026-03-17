@@ -1,10 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\DTO\CategorizationResult;
 use App\Entity\Category;
+use DateTimeImmutable;
 use Doctrine\DBAL\Connection;
+use LogicException;
 
 /**
  * Classifies a raw bank note string into a category using a historical transaction index.
@@ -24,14 +28,14 @@ use Doctrine\DBAL\Connection;
  */
 class TransactionCategorizationService
 {
-    private const FUZZY_THRESHOLD      = 0.82;
+    private const FUZZY_THRESHOLD = 0.82;
     private const INDEX_LOOKBACK_YEARS = 2;
 
     // Regex patterns declared as constants so the PHP engine caches the compiled form.
-    private const RE_TRAILING_DATE   = '/\s+(\d{2}[\.\-\/]\d{2}([\.\-\/]\d{2,4})?|\d{4}[\.\-\/]\d{2}[\.\-\/]\d{2})\s*$/u';
-    private const RE_LONG_NUMERIC    = '/\b\d{4,}\b/u';
+    private const RE_TRAILING_DATE = '/\s+(\d{2}[\.\-\/]\d{2}([\.\-\/]\d{2,4})?|\d{4}[\.\-\/]\d{2}[\.\-\/]\d{2})\s*$/u';
+    private const RE_LONG_NUMERIC = '/\b\d{4,}\b/u';
     private const RE_DOMAIN_SUFFIXES = '/\.(com|io|net|org|ua|co|eu|de|uk|at|hu)\b/iu';
-    private const RE_COLLAPSE_WS     = '/\s+/u';
+    private const RE_COLLAPSE_WS = '/\s+/u';
 
     /**
      * System-managed category names excluded from the index.
@@ -61,8 +65,8 @@ class TransactionCategorizationService
     private array $incomeIndex = [];
 
     private bool $expenseIndexBuilt = false;
-    private bool $incomeIndexBuilt  = false;
-    private ?int $ownerId           = null;
+    private bool $incomeIndexBuilt = false;
+    private ?int $ownerId = null;
 
     public function __construct(
         private readonly Connection $connection,
@@ -76,9 +80,9 @@ class TransactionCategorizationService
     public function buildAllIndexes(int $ownerId): void
     {
         $this->ownerId = $ownerId;
-        $since      = (new \DateTimeImmutable(sprintf('-%d years', self::INDEX_LOOKBACK_YEARS)))->format('Y-m-d');
-        $nameList   = $this->inPlaceholders(self::SYSTEM_CATEGORY_NAMES);
-        $idList     = $this->inPlaceholders(self::FALLBACK_CATEGORY_IDS);
+        $since = (new DateTimeImmutable(\sprintf('-%d years', self::INDEX_LOOKBACK_YEARS)))->format('Y-m-d');
+        $nameList = $this->inPlaceholders(self::SYSTEM_CATEGORY_NAMES);
+        $idList = $this->inPlaceholders(self::FALLBACK_CATEGORY_IDS);
 
         $rows = $this->connection->fetchAllAssociative(
             "SELECT t.note, t.category_id, t.type, COUNT(*) AS cnt
@@ -98,24 +102,25 @@ class TransactionCategorizationService
         );
 
         $expenseAcc = [];
-        $incomeAcc  = [];
+        $incomeAcc = [];
 
+        /** @var array{note: string, category_id: int|string, type: string, cnt: int|string} $row */
         foreach ($rows as $row) {
-            $key = $this->normalize((string) $row['note']);
-            if ($key === '') {
+            $key = $this->normalize($row['note']);
+            if ('' === $key) {
                 continue;
             }
-            if ($row['type'] === 'income') {
-                $this->accumulateRow($incomeAcc, $key, (int) $row['category_id'], (int) $row['cnt'], (string) $row['note']);
+            if ('income' === $row['type']) {
+                $this->accumulateRow($incomeAcc, $key, (int) $row['category_id'], (int) $row['cnt'], $row['note']);
             } else {
-                $this->accumulateRow($expenseAcc, $key, (int) $row['category_id'], (int) $row['cnt'], (string) $row['note']);
+                $this->accumulateRow($expenseAcc, $key, (int) $row['category_id'], (int) $row['cnt'], $row['note']);
             }
         }
 
-        $this->expenseIndex      = $this->resolveIndex($expenseAcc);
-        $this->incomeIndex       = $this->resolveIndex($incomeAcc);
+        $this->expenseIndex = $this->resolveIndex($expenseAcc);
+        $this->incomeIndex = $this->resolveIndex($incomeAcc);
         $this->expenseIndexBuilt = true;
-        $this->incomeIndexBuilt  = true;
+        $this->incomeIndexBuilt = true;
     }
 
     /**
@@ -125,10 +130,10 @@ class TransactionCategorizationService
     public function buildIndex(int $ownerId, bool $isIncome): void
     {
         $this->ownerId = $ownerId;
-        $type     = $isIncome ? 'income' : 'expense';
-        $since    = (new \DateTimeImmutable(sprintf('-%d years', self::INDEX_LOOKBACK_YEARS)))->format('Y-m-d');
+        $type = $isIncome ? 'income' : 'expense';
+        $since = (new DateTimeImmutable(\sprintf('-%d years', self::INDEX_LOOKBACK_YEARS)))->format('Y-m-d');
         $nameList = $this->inPlaceholders(self::SYSTEM_CATEGORY_NAMES);
-        $idList   = $this->inPlaceholders(self::FALLBACK_CATEGORY_IDS);
+        $idList = $this->inPlaceholders(self::FALLBACK_CATEGORY_IDS);
 
         $rows = $this->connection->fetchAllAssociative(
             "SELECT t.note, t.category_id, COUNT(*) AS cnt
@@ -148,21 +153,22 @@ class TransactionCategorizationService
         );
 
         $acc = [];
+        /** @var array{note: string, category_id: int|string, cnt: int|string} $row */
         foreach ($rows as $row) {
-            $key = $this->normalize((string) $row['note']);
-            if ($key === '') {
+            $key = $this->normalize($row['note']);
+            if ('' === $key) {
                 continue;
             }
-            $this->accumulateRow($acc, $key, (int) $row['category_id'], (int) $row['cnt'], (string) $row['note']);
+            $this->accumulateRow($acc, $key, (int) $row['category_id'], (int) $row['cnt'], $row['note']);
         }
 
         $index = $this->resolveIndex($acc);
 
         if ($isIncome) {
-            $this->incomeIndex      = $index;
+            $this->incomeIndex = $index;
             $this->incomeIndexBuilt = true;
         } else {
-            $this->expenseIndex      = $index;
+            $this->expenseIndex = $index;
             $this->expenseIndexBuilt = true;
         }
     }
@@ -173,11 +179,11 @@ class TransactionCategorizationService
      */
     public function resetIndex(): void
     {
-        $this->expenseIndex      = [];
-        $this->incomeIndex       = [];
+        $this->expenseIndex = [];
+        $this->incomeIndex = [];
         $this->expenseIndexBuilt = false;
-        $this->incomeIndexBuilt  = false;
-        $this->ownerId           = null;
+        $this->incomeIndexBuilt = false;
+        $this->ownerId = null;
     }
 
     /**
@@ -185,18 +191,18 @@ class TransactionCategorizationService
      *
      * The relevant index must be built via buildIndex() or buildAllIndexes() before calling this.
      *
-     * @return CategorizationResult  confidence=1.0 → exact/subset-token, 0.82..1.0 → fuzzy, 0.0 → fallback
+     * @return CategorizationResult confidence=1.0 → exact/subset-token, 0.82..1.0 → fuzzy, 0.0 → fallback
      */
     public function suggest(string $rawNote, bool $isIncome): CategorizationResult
     {
         if ($isIncome && !$this->incomeIndexBuilt) {
-            throw new \LogicException('Income index not built. Call buildIndex() or buildAllIndexes() before suggest().');
+            throw new LogicException('Income index not built. Call buildIndex() or buildAllIndexes() before suggest().');
         }
         if (!$isIncome && !$this->expenseIndexBuilt) {
-            throw new \LogicException('Expense index not built. Call buildIndex() or buildAllIndexes() before suggest().');
+            throw new LogicException('Expense index not built. Call buildIndex() or buildAllIndexes() before suggest().');
         }
 
-        $index      = $isIncome ? $this->incomeIndex : $this->expenseIndex;
+        $index = $isIncome ? $this->incomeIndex : $this->expenseIndex;
         $normalized = $this->normalize($rawNote);
 
         // 1. Exact match — O(1).
@@ -211,13 +217,13 @@ class TransactionCategorizationService
         // 2. Fuzzy token-set match.
         //    Pre-compute sorted query tokens once — avoids repeating this work per index entry.
         $queryTokens = $this->tokenize($normalized);
-        $bestScore   = 0.0;
-        $bestEntry   = null;
+        $bestScore = 0.0;
+        $bestEntry = null;
 
         foreach ($index as $entry) {
             $score = $this->tokenSetRatioFromTokenized($queryTokens, $entry['sortedTokens']);
 
-            if ($score === 1.0) {
+            if (1.0 === $score) {
                 // Can't improve further — return immediately.
                 return new CategorizationResult(
                     categoryId: $entry['categoryId'],
@@ -232,7 +238,7 @@ class TransactionCategorizationService
             }
         }
 
-        if ($bestScore >= self::FUZZY_THRESHOLD && $bestEntry !== null) {
+        if ($bestScore >= self::FUZZY_THRESHOLD && null !== $bestEntry) {
             return new CategorizationResult(
                 categoryId: $bestEntry['categoryId'],
                 note: $bestEntry['displayNote'],
@@ -288,7 +294,7 @@ class TransactionCategorizationService
      */
     public function tokenSetRatio(string $a, string $b): float
     {
-        if ($a === '' || $b === '') {
+        if ('' === $a || '' === $b) {
             return 0.0;
         }
 
@@ -301,7 +307,7 @@ class TransactionCategorizationService
      */
     public function tokenize(string $s): string
     {
-        if ($s === '') {
+        if ('' === $s) {
             return '';
         }
 
@@ -333,6 +339,7 @@ class TransactionCategorizationService
      * Resolve the accumulator into a flat index with pre-tokenized sorted-token strings.
      *
      * @param array<string, array<int, array{count: int, displayNote: string}>> $accumulator
+     *
      * @return array<string, array{categoryId: int, displayNote: string, sortedTokens: string}>
      */
     private function resolveIndex(array $accumulator): array
@@ -346,8 +353,8 @@ class TransactionCategorizationService
                 }
             }
             $index[$key] = [
-                'categoryId'   => $dominantId,
-                'displayNote'  => $categories[$dominantId]['displayNote'],
+                'categoryId' => $dominantId,
+                'displayNote' => $categories[$dominantId]['displayNote'],
                 'sortedTokens' => $this->tokenize($key),
             ];
         }
@@ -365,7 +372,7 @@ class TransactionCategorizationService
      */
     private function tokenSetRatioFromTokenized(string $sortedA, string $sortedB): float
     {
-        if ($sortedA === '' || $sortedB === '') {
+        if ('' === $sortedA || '' === $sortedB) {
             return 0.0;
         }
 
@@ -386,9 +393,12 @@ class TransactionCategorizationService
         $t3 = trim($t1 . ' ' . implode(' ', $remainB));
 
         $score = 0.0;
-        similar_text($t1, $t2, $pct); $score = max($score, $pct / 100.0);
-        similar_text($t1, $t3, $pct); $score = max($score, $pct / 100.0);
-        similar_text($t2, $t3, $pct); $score = max($score, $pct / 100.0);
+        similar_text($t1, $t2, $pct);
+        $score = max($score, $pct / 100.0);
+        similar_text($t1, $t3, $pct);
+        $score = max($score, $pct / 100.0);
+        similar_text($t2, $t3, $pct);
+        $score = max($score, $pct / 100.0);
 
         return $score;
     }
@@ -396,7 +406,6 @@ class TransactionCategorizationService
     /** Returns '?,?,?' positional placeholders for N items. */
     private function inPlaceholders(array $items): string
     {
-        return implode(',', array_fill(0, count($items), '?'));
+        return implode(',', array_fill(0, \count($items), '?'));
     }
 }
-

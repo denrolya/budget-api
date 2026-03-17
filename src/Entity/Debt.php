@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiProperty;
@@ -46,11 +48,12 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     denormalizationContext: ['groups' => 'debt:write'],
     order: ['updatedAt' => 'DESC'],
-    paginationEnabled: false
+    paginationEnabled: false,
 )]
 class Debt implements OwnableInterface, ValuableInterface
 {
-    use TimestampableEntity, OwnableValuableEntity;
+    use OwnableValuableEntity;
+    use TimestampableEntity;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -82,7 +85,7 @@ class Debt implements OwnableInterface, ValuableInterface
     #[Serializer\Type(Types::FLOAT)]
     private string $balance = '0.0';
 
-    #[ORM\OneToMany(mappedBy: 'debt', targetEntity: Transaction::class, cascade: ['persist'], fetch: 'EXTRA_LAZY')]
+    #[ORM\OneToMany(mappedBy: 'debt', targetEntity: Transaction::class, cascade: ['persist'], fetch: 'EXTRA_LAZY', orphanRemoval: false)]
     #[ORM\OrderBy(['executedAt' => 'DESC'])]
     #[Groups(['debt:item:read'])]
     #[Serializer\Groups(['debt:item:read'])]
@@ -142,24 +145,24 @@ class Debt implements OwnableInterface, ValuableInterface
 
     public function getBalance(): float
     {
-        return (float)$this->balance;
+        return (float) $this->balance;
     }
 
     public function setBalance(string|float|int $balance): self
     {
-        $this->balance = (string)$balance;
+        $this->balance = (string) $balance;
 
         return $this;
     }
 
     public function increaseBalance(float $amount): self
     {
-        return $this->setBalance((float)$this->balance + $amount);
+        return $this->setBalance((float) $this->balance + $amount);
     }
 
     public function decreaseBalance(float $amount): self
     {
-        return $this->setBalance((float)$this->balance - $amount);
+        return $this->setBalance((float) $this->balance - $amount);
     }
 
     public function addTransaction(Transaction $transaction): self
@@ -192,15 +195,15 @@ class Debt implements OwnableInterface, ValuableInterface
 
     public function getIncomes(): Collection
     {
-        return $this->transactions->filter(function (Transaction $transaction) {
-            return $transaction->getType() === Transaction::INCOME;
+        return $this->transactions->filter(static function (Transaction $transaction) {
+            return Transaction::INCOME === $transaction->getType();
         });
     }
 
     public function getExpenses(): Collection
     {
-        return $this->transactions->filter(function (Transaction $transaction) {
-            return $transaction->getType() === Transaction::EXPENSE;
+        return $this->transactions->filter(static function (Transaction $transaction) {
+            return Transaction::EXPENSE === $transaction->getType();
         });
     }
 

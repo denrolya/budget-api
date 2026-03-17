@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Bank;
 
 use App\Bank\DTO\DraftTransactionData;
@@ -14,10 +16,9 @@ interface PollingCapableInterface
     /**
      * Fetch transactions for a given account and date range.
      *
-     * @param array           $credentials       Bank credentials (apiKey, profileId, etc.)
-     * @param string          $externalAccountId The bank-side account/balance identifier
-     * @param DateTimeImmutable $from
-     * @param DateTimeImmutable $to
+     * @param array $credentials Bank credentials (apiKey, profileId, etc.)
+     * @param string $externalAccountId The bank-side account/balance identifier
+     *
      * @return DraftTransactionData[]
      */
     public function fetchTransactions(

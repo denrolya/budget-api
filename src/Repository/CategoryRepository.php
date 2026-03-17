@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Entity\Category;
@@ -12,8 +14,8 @@ use Doctrine\Persistence\ManagerRegistry;
 /**
  * @method Category|null find($id, $lockMode = null, $lockVersion = null)
  * @method Category|null findOneBy(array $criteria, array $orderBy = null)
- * @method Category[]    findAll()
- * @method Category[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @method Category[] findAll()
+ * @method Category[] findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
  */
 class CategoryRepository extends ServiceEntityRepository
 {
@@ -32,20 +34,20 @@ class CategoryRepository extends ServiceEntityRepository
         ], $orderBy, $limit, $offset);
     }
 
-    public function getCategoriesWithDescendantsByType(?array $categories = [], string $type = null): array
+    public function getCategoriesWithDescendantsByType(?array $categories = [], ?string $type = null): array
     {
         $types = $type ? [$type] : [Transaction::EXPENSE, Transaction::INCOME];
         $result = [];
         $map = $this->buildDescendantMap();
 
-        foreach ($types as $t) {
+        foreach ($types as $categoryType) {
             $repo = $this
                 ->getEntityManager()
                 ->getRepository(
-                    $t === Transaction::EXPENSE ? ExpenseCategory::class : IncomeCategory::class
+                    Transaction::EXPENSE === $categoryType ? ExpenseCategory::class : IncomeCategory::class,
                 );
 
-            if ($categories === null || $categories === []) {
+            if (null === $categories || [] === $categories) {
                 $result[] = $repo->findBy(['root' => null, 'isAffectingProfit' => true]);
             } else {
                 $foundCategories = $repo->findBy(['id' => $categories]);
@@ -79,10 +81,11 @@ class CategoryRepository extends ServiceEntityRepository
 
         $childrenOf = [];
         $allIds = [];
+        /** @var array{id: int|string, parent_id: int|string|null} $row */
         foreach ($rows as $row) {
             $id = (int) $row['id'];
             $allIds[] = $id;
-            if ($row['parent_id'] !== null) {
+            if (null !== $row['parent_id']) {
                 $childrenOf[(int) $row['parent_id']][] = $id;
             }
         }
@@ -105,4 +108,3 @@ class CategoryRepository extends ServiceEntityRepository
         return $ids;
     }
 }
-

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Serializer;
 
 use ApiPlatform\Metadata\ApiProperty;
@@ -56,7 +58,7 @@ class PlainIdItemNormalizer extends ItemNormalizer
 
     protected function denormalizeRelation(string $attributeName, ApiProperty $propertyMetadata, string $className, mixed $value, ?string $format, array $context): ?object
     {
-        if (is_int($value)) {
+        if (\is_int($value)) {
             return $this->em->getReference($className, $value);
         }
 

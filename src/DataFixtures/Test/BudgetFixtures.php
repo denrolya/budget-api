@@ -9,6 +9,7 @@ use App\Entity\BudgetLine;
 use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Entity\User;
+use DateTimeImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
@@ -83,8 +84,8 @@ class BudgetFixtures extends Fixture implements DependentFixtureInterface
         $budget = new Budget();
         $budget->setOwner($owner);
         $budget->setPeriodType(Budget::PERIOD_MONTHLY)
-            ->setStartDate(new \DateTimeImmutable('2021-01-01'))
-            ->setEndDate(new \DateTimeImmutable('2021-01-31'))
+            ->setStartDate(new DateTimeImmutable('2021-01-01'))
+            ->setEndDate(new DateTimeImmutable('2021-01-31'))
             ->setName('January 2021');
 
         $this->addLine($budget, $foodCategory, '500.00', 'EUR');
@@ -111,8 +112,8 @@ class BudgetFixtures extends Fixture implements DependentFixtureInterface
         $budget = new Budget();
         $budget->setOwner($owner);
         $budget->setPeriodType(Budget::PERIOD_YEARLY)
-            ->setStartDate(new \DateTimeImmutable('2021-01-01'))
-            ->setEndDate(new \DateTimeImmutable('2021-12-31'))
+            ->setStartDate(new DateTimeImmutable('2021-01-01'))
+            ->setEndDate(new DateTimeImmutable('2021-12-31'))
             ->setName('Full Year 2021');
 
         $this->addLine($budget, $foodCategory, '6000.00', 'EUR', 'Includes eating out and groceries');
@@ -139,8 +140,8 @@ class BudgetFixtures extends Fixture implements DependentFixtureInterface
         $budget = new Budget();
         $budget->setOwner($owner);
         $budget->setPeriodType(Budget::PERIOD_CUSTOM)
-            ->setStartDate(new \DateTimeImmutable('2021-01-01'))
-            ->setEndDate(new \DateTimeImmutable('2021-03-31'))
+            ->setStartDate(new DateTimeImmutable('2021-01-01'))
+            ->setEndDate(new DateTimeImmutable('2021-03-31'))
             ->setName('Q1 2021');
 
         $this->addLine($budget, $groceriesCategory, '900.00', 'EUR');
@@ -160,8 +161,8 @@ class BudgetFixtures extends Fixture implements DependentFixtureInterface
         $budget = new Budget();
         $budget->setOwner($owner);
         $budget->setPeriodType(Budget::PERIOD_MONTHLY)
-            ->setStartDate(new \DateTimeImmutable('2020-06-01'))
-            ->setEndDate(new \DateTimeImmutable('2020-06-30'))
+            ->setStartDate(new DateTimeImmutable('2020-06-01'))
+            ->setEndDate(new DateTimeImmutable('2020-06-30'))
             ->setName('Empty June 2020');
 
         $manager->persist($budget);

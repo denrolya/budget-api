@@ -1,12 +1,15 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\DataFixtures\Test;
 
 use App\Entity\BankCardAccount;
 use App\Entity\CashAccount;
 use App\Entity\Transfer;
 use App\Entity\User;
-use App\EventListener\TransactionListener;
 use App\EventListener\DebtConvertedValueListener;
+use App\EventListener\TransactionListener;
 use Carbon\CarbonImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
@@ -17,7 +20,8 @@ class TransferFixtures extends Fixture implements DependentFixtureInterface
     public function __construct(
         private TransactionListener $transactionListener,
         private DebtConvertedValueListener $valuableEntityListener,
-    ) {}
+    ) {
+    }
 
     public function load(ObjectManager $manager): void
     {

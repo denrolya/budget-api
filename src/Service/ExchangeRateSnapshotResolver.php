@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Service;
 
 use App\Entity\ExchangeRateSnapshot;
@@ -9,6 +11,8 @@ use DateTimeInterface;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\NonUniqueResultException;
+use RuntimeException;
+use Throwable;
 
 readonly class ExchangeRateSnapshotResolver
 {
@@ -35,9 +39,7 @@ readonly class ExchangeRateSnapshotResolver
         }
 
         if ($carbon->isFuture()) {
-            throw new \RuntimeException(
-                sprintf('No snapshot available for future date %s.', $carbon->toDateString())
-            );
+            throw new RuntimeException(\sprintf('No snapshot available for future date %s.', $carbon->toDateString()));
         }
 
         return $this->fetchAndPersistSnapshot($carbon);
@@ -48,7 +50,9 @@ readonly class ExchangeRateSnapshotResolver
      * Fixer is called at most once per missing date.
      *
      * @param DateTimeInterface[] $dates
+     *
      * @return array<string, ExchangeRateSnapshot>
+     *
      * @throws NonUniqueResultException
      */
     public function resolveSnapshotsForDates(array $dates): array
@@ -74,9 +78,7 @@ readonly class ExchangeRateSnapshotResolver
             }
 
             if ($day->isFuture()) {
-                throw new \RuntimeException(
-                    sprintf('No snapshot available for future date %s.', $day->toDateString())
-                );
+                throw new RuntimeException(\sprintf('No snapshot available for future date %s.', $day->toDateString()));
             }
 
             $result[$key] = $this->fetchAndPersistSnapshot($day);
@@ -90,8 +92,9 @@ readonly class ExchangeRateSnapshotResolver
      * Uses DB snapshot when available; calls Fixer only when no snapshot exists.
      *
      * @return array<string, float>
+     *
      * @throws NonUniqueResultException
-     * @throws \RuntimeException
+     * @throws RuntimeException
      */
     public function getRatesForDate(DateTimeInterface $date): array
     {
@@ -108,9 +111,7 @@ readonly class ExchangeRateSnapshotResolver
                 return $this->snapshotToRatesArray($closestSnapshot);
             }
 
-            throw new \RuntimeException(
-                sprintf('No snapshot available for future date %s.', $carbon->toDateString())
-            );
+            throw new RuntimeException(\sprintf('No snapshot available for future date %s.', $carbon->toDateString()));
         }
 
         $snapshot = $this->fetchAndPersistSnapshot($carbon);
@@ -135,18 +136,12 @@ readonly class ExchangeRateSnapshotResolver
             $rates = $isToday
                 ? $this->fixerService->getLatest()
                 : $this->fixerService->getHistorical($day);
-        } catch (\Throwable $exception) {
-            throw new \RuntimeException(
-                sprintf('Failed to fetch rates for %s: %s', $day->toDateString(), $exception->getMessage()),
-                0,
-                $exception,
-            );
+        } catch (Throwable $exception) {
+            throw new RuntimeException(\sprintf('Failed to fetch rates for %s: %s', $day->toDateString(), $exception->getMessage()), 0, $exception);
         }
 
-        if ($rates === [] || $rates === null) {
-            throw new \RuntimeException(
-                sprintf('No rates returned from Fixer for %s.', $day->toDateString())
-            );
+        if ([] === $rates || null === $rates) {
+            throw new RuntimeException(\sprintf('No rates returned from Fixer for %s.', $day->toDateString()));
         }
 
         $snapshot = new ExchangeRateSnapshot();
@@ -163,9 +158,7 @@ readonly class ExchangeRateSnapshotResolver
                 return $existing;
             }
 
-            throw new \RuntimeException(
-                sprintf('Race condition while creating snapshot for %s.', $day->toDateString())
-            );
+            throw new RuntimeException(\sprintf('Race condition while creating snapshot for %s.', $day->toDateString()));
         }
 
         return $snapshot;
@@ -199,27 +192,27 @@ readonly class ExchangeRateSnapshotResolver
         $rates = ['EUR' => 1.0];
 
         $usd = $snapshot->getUsdPerEurFloat();
-        if ($usd !== null) {
+        if (null !== $usd) {
             $rates['USD'] = $usd;
         }
 
         $huf = $snapshot->getHufPerEurFloat();
-        if ($huf !== null) {
+        if (null !== $huf) {
             $rates['HUF'] = $huf;
         }
 
         $uah = $snapshot->getUahPerEurFloat();
-        if ($uah !== null) {
+        if (null !== $uah) {
             $rates['UAH'] = $uah;
         }
 
         $btcPerEur = $snapshot->getBtcPerEurFloat();
-        if ($btcPerEur !== null) {
+        if (null !== $btcPerEur) {
             $rates['BTC'] = $btcPerEur;
         }
 
         $ethPerEur = $snapshot->getEthPerEurFloat();
-        if ($ethPerEur !== null) {
+        if (null !== $ethPerEur) {
             $rates['ETH'] = $ethPerEur;
         }
 

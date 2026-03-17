@@ -1,15 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Bank;
 
 use App\Bank\DTO\BankAccountData;
 use App\Bank\DTO\DraftTransactionData;
 use App\Bank\Provider\WiseProvider;
 use Carbon\CarbonImmutable;
+use DateTimeImmutable;
+use DateTimeInterface;
+use LogicException;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
-use Symfony\Contracts\Cache\ItemInterface as CacheItemInterface;
 use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface as CacheItemInterface;
 use Symfony\Contracts\HttpClient\Exception\HttpExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\Contracts\HttpClient\ResponseInterface;
@@ -28,7 +33,7 @@ class WiseProviderTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->http  = $this->createMock(HttpClientInterface::class);
+        $this->http = $this->createMock(HttpClientInterface::class);
         $this->cache = $this->createMock(CacheInterface::class);
 
         $this->provider = new WiseProvider(
@@ -50,11 +55,11 @@ class WiseProviderTest extends TestCase
         ]);
         $balancesBody = json_encode([
             [
-                'id'         => 555,
+                'id' => 555,
                 'totalWorth' => ['currency' => 'EUR', 'value' => 1234.56],
             ],
             [
-                'id'     => 556,
+                'id' => 556,
                 'amount' => ['currency' => 'USD', 'value' => 99.00],  // no totalWorth fallback
             ],
         ]);
@@ -116,7 +121,7 @@ class WiseProviderTest extends TestCase
             ->method('request')
             ->willReturnOnConsecutiveCalls(
                 $this->mockResponse($profilesBody),
-                $this->throwException($this->createHttpException()),
+                self::throwException($this->createHttpException()),
             );
 
         $this->expectException(RuntimeException::class);
@@ -150,7 +155,7 @@ class WiseProviderTest extends TestCase
             ->method('request')
             ->with(
                 self::anything(),
-                self::callback(fn(string $url) => !str_contains($url, '/v4/') || str_contains($url, '/20/')),
+                self::callback(static fn (string $url) => !str_contains($url, '/v4/') || str_contains($url, '/20/')),
                 self::anything(),
             );
 
@@ -238,7 +243,7 @@ class WiseProviderTest extends TestCase
 
     public function testGetHistoricalPassesTimeParamToRatesEndpoint(): void
     {
-        $date    = CarbonImmutable::parse('2025-01-15');
+        $date = CarbonImmutable::parse('2025-01-15');
         $apiBody = json_encode([
             ['source' => 'EUR', 'target' => 'USD', 'rate' => 1.05],
         ]);
@@ -249,7 +254,7 @@ class WiseProviderTest extends TestCase
             ->with(
                 'GET',
                 '/v1/rates',
-                self::callback(fn(array $opts) => isset($opts['query']['time'])
+                self::callback(static fn (array $opts) => isset($opts['query']['time'])
                     && str_starts_with($opts['query']['time'], '2025-01-15')
                     && ($opts['query']['source'] ?? '') === 'EUR'),
             )
@@ -265,7 +270,7 @@ class WiseProviderTest extends TestCase
 
     public function testGetHistoricalCacheKeyContainsDate(): void
     {
-        $date    = CarbonImmutable::parse('2024-06-01');
+        $date = CarbonImmutable::parse('2024-06-01');
         $apiBody = json_encode([]);
 
         $this->http->method('request')->willReturn($this->mockResponse($apiBody));
@@ -278,7 +283,7 @@ class WiseProviderTest extends TestCase
                 self::stringContains('2024-06-01'),
                 self::anything(),
             )
-            ->willReturnCallback(fn(string $key, callable $cb) => $cb($cacheItem));
+            ->willReturnCallback(static fn (string $key, callable $cb) => $cb($cacheItem));
 
         $this->provider->getHistorical($date);
     }
@@ -303,7 +308,7 @@ class WiseProviderTest extends TestCase
                 self::stringContains('wise.latest.'),
                 self::anything(),
             )
-            ->willReturnCallback(fn(string $key, callable $cb) => $cb($cacheItem));
+            ->willReturnCallback(static fn (string $key, callable $cb) => $cb($cacheItem));
 
         $rates = $this->provider->getRates(null);
 
@@ -320,7 +325,7 @@ class WiseProviderTest extends TestCase
             ->expects(self::once())
             ->method('get')
             ->with(self::stringContains('wise.latest.'), self::anything())
-            ->willReturnCallback(fn(string $key, callable $cb) => $cb($cacheItem));
+            ->willReturnCallback(static fn (string $key, callable $cb) => $cb($cacheItem));
 
         $this->provider->getRates(CarbonImmutable::today());
     }
@@ -328,7 +333,7 @@ class WiseProviderTest extends TestCase
     public function testGetRatesWithPastDateDelegatesToGetHistorical(): void
     {
         $pastDate = CarbonImmutable::parse('2020-01-01');
-        $apiBody  = json_encode([]);
+        $apiBody = json_encode([]);
         $this->http->method('request')->willReturn($this->mockResponse($apiBody));
 
         $cacheItem = $this->createMock(CacheItemInterface::class);
@@ -336,7 +341,7 @@ class WiseProviderTest extends TestCase
             ->expects(self::once())
             ->method('get')
             ->with(self::stringContains('wise.historical.'), self::anything())
-            ->willReturnCallback(fn(string $key, callable $cb) => $cb($cacheItem));
+            ->willReturnCallback(static fn (string $key, callable $cb) => $cb($cacheItem));
 
         $this->provider->getRates($pastDate);
     }
@@ -421,14 +426,14 @@ class WiseProviderTest extends TestCase
         $result = $this->provider->parseWebhookPayload([
             'event_type' => 'balances#update',
             'data' => [
-                'balance_id'       => 89046937,
-                'amount'           => 11482,
-                'currency'         => 'HUF',
+                'balance_id' => 89046937,
+                'amount' => 11482,
+                'currency' => 'HUF',
                 'transaction_type' => 'debit',
-                'channel_name'     => 'CARD',
-                'occurred_at'      => '2026-03-12T18:37:10Z',
+                'channel_name' => 'CARD',
+                'occurred_at' => '2026-03-12T18:37:10Z',
                 'transfer_reference' => '738d5a70-f4a1-4942-f4c9-e4e9a06a13c7',
-                'step_id'          => 9107113376,
+                'step_id' => 9107113376,
             ],
         ]);
 
@@ -442,25 +447,25 @@ class WiseProviderTest extends TestCase
     public function testParseCardTransactionWebhookCreatesDraftWithMerchantName(): void
     {
         $result = $this->provider->parseWebhookPayload([
-            'event_type'     => 'cards#transaction-state-change',
+            'event_type' => 'cards#transaction-state-change',
             'schema_version' => '2.1.0',
-            'sent_at'        => '2026-03-12T18:37:10Z',
-            'data'           => [
-                'transaction_state'  => 'COMPLETED',
-                'transaction_type'   => 'POS_PURCHASE',
+            'sent_at' => '2026-03-12T18:37:10Z',
+            'data' => [
+                'transaction_state' => 'COMPLETED',
+                'transaction_type' => 'POS_PURCHASE',
                 'transaction_amount' => ['value' => 11482.0, 'currency' => 'HUF'],
-                'merchant'           => [
-                    'name'     => 'TESCO BUDAPEST',
+                'merchant' => [
+                    'name' => 'TESCO BUDAPEST',
                     'location' => ['country' => 'Hungary', 'city' => 'Budapest'],
                 ],
                 'debits' => [
                     [
-                        'balance_id'     => 89046937,
+                        'balance_id' => 89046937,
                         'debited_amount' => 11482.0,
-                        'for_amount'     => 11482.0,
-                        'rate'           => 1.0,
-                        'fee'            => 0.0,
-                        'creation_time'  => '2026-03-12T18:37:10Z',
+                        'for_amount' => 11482.0,
+                        'rate' => 1.0,
+                        'fee' => 0.0,
+                        'creation_time' => '2026-03-12T18:37:10Z',
                     ],
                 ],
                 'credits' => [],
@@ -472,19 +477,19 @@ class WiseProviderTest extends TestCase
         self::assertEqualsWithDelta(-11482.0, $result->amount, 0.001);
         self::assertSame('HUF', $result->currency);
         self::assertSame('TESCO BUDAPEST', $result->note);
-        self::assertSame('2026-03-12T18:37:10+00:00', $result->executedAt->format(\DateTimeInterface::ATOM));
+        self::assertSame('2026-03-12T18:37:10+00:00', $result->executedAt->format(DateTimeInterface::ATOM));
     }
 
     public function testParseCardTransactionWebhookReturnsEmptyNoteWhenNoMerchant(): void
     {
         $result = $this->provider->parseWebhookPayload([
             'event_type' => 'cards#transaction-state-change',
-            'sent_at'    => '2026-03-12T10:00:00Z',
-            'data'       => [
-                'transaction_state'  => 'COMPLETED',
-                'transaction_type'   => 'CASH_WITHDRAWAL',
+            'sent_at' => '2026-03-12T10:00:00Z',
+            'data' => [
+                'transaction_state' => 'COMPLETED',
+                'transaction_type' => 'CASH_WITHDRAWAL',
                 'transaction_amount' => ['value' => 100.0, 'currency' => 'EUR'],
-                'merchant'           => [],
+                'merchant' => [],
                 'debits' => [
                     ['balance_id' => 555, 'debited_amount' => 100.0, 'rate' => 1.0, 'creation_time' => '2026-03-12T10:00:00Z'],
                 ],
@@ -500,23 +505,23 @@ class WiseProviderTest extends TestCase
     public function testParseCardTransactionWebhookIncludesExchangeRateForCrossCurrency(): void
     {
         $result = $this->provider->parseWebhookPayload([
-            'event_type'     => 'cards#transaction-state-change',
+            'event_type' => 'cards#transaction-state-change',
             'schema_version' => '2.1.0',
-            'sent_at'        => '2026-03-13T08:09:43Z',
-            'data'           => [
-                'transaction_state'  => 'COMPLETED',
-                'transaction_type'   => 'POS_PURCHASE',
+            'sent_at' => '2026-03-13T08:09:43Z',
+            'data' => [
+                'transaction_state' => 'COMPLETED',
+                'transaction_type' => 'POS_PURCHASE',
                 'transaction_amount' => ['value' => 15.20, 'currency' => 'EUR'],
-                'merchant'           => [
-                    'name'     => 'Lidl',
+                'merchant' => [
+                    'name' => 'Lidl',
                     'location' => ['country' => 'Hungary', 'city' => 'Budapest'],
                 ],
                 'debits' => [
                     [
-                        'balance_id'     => 89046937,
+                        'balance_id' => 89046937,
                         'debited_amount' => 5692.0,
-                        'rate'           => 374.4737,
-                        'creation_time'  => '2026-03-13T08:09:43Z',
+                        'rate' => 374.4737,
+                        'creation_time' => '2026-03-13T08:09:43Z',
                     ],
                 ],
                 'credits' => [],
@@ -539,9 +544,9 @@ class WiseProviderTest extends TestCase
         foreach (['IN_PROGRESS', 'DECLINED', 'CANCELLED'] as $state) {
             $result = $this->provider->parseWebhookPayload([
                 'event_type' => 'cards#transaction-state-change',
-                'data'       => [
-                    'transaction_state'  => $state,
-                    'transaction_type'   => 'POS_PURCHASE',
+                'data' => [
+                    'transaction_state' => $state,
+                    'transaction_type' => 'POS_PURCHASE',
                     'transaction_amount' => ['value' => 50.0, 'currency' => 'EUR'],
                     'debits' => [
                         ['balance_id' => 1, 'debited_amount' => 50.0, 'creation_time' => '2026-03-12T10:00:00Z'],
@@ -557,13 +562,13 @@ class WiseProviderTest extends TestCase
     {
         $result = $this->provider->parseWebhookPayload([
             'event_type' => 'cards#transaction-state-change',
-            'sent_at'    => '2026-03-12T12:00:00Z',
-            'data'       => [
-                'transaction_state'  => 'COMPLETED',
-                'transaction_type'   => 'REFUND',
+            'sent_at' => '2026-03-12T12:00:00Z',
+            'data' => [
+                'transaction_state' => 'COMPLETED',
+                'transaction_type' => 'REFUND',
                 'transaction_amount' => ['value' => 25.0, 'currency' => 'EUR'],
-                'merchant'           => ['name' => 'AMAZON'],
-                'debits'             => [],
+                'merchant' => ['name' => 'AMAZON'],
+                'debits' => [],
                 'credits' => [
                     ['balance_id' => 777, 'credited_amount' => 25.0, 'creation_time' => '2026-03-12T12:00:00Z'],
                 ],
@@ -581,9 +586,9 @@ class WiseProviderTest extends TestCase
         // v2.0.0 payload without debits/credits array → cannot match account.
         $result = $this->provider->parseWebhookPayload([
             'event_type' => 'cards#transaction-state-change',
-            'data'       => [
-                'transaction_state'  => 'COMPLETED',
-                'transaction_type'   => 'POS_PURCHASE',
+            'data' => [
+                'transaction_state' => 'COMPLETED',
+                'transaction_type' => 'POS_PURCHASE',
                 'transaction_amount' => ['value' => 50.0, 'currency' => 'EUR'],
             ],
         ]);
@@ -597,9 +602,9 @@ class WiseProviderTest extends TestCase
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([
             [
-                'id'         => 'abc-123',
+                'id' => 'abc-123',
                 'trigger_on' => 'balances#update',
-                'delivery'   => ['version' => '3.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
+                'delivery' => ['version' => '3.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
             ],
         ]);
 
@@ -620,9 +625,9 @@ class WiseProviderTest extends TestCase
         $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([
             [
-                'id'         => 'stale-sub-id',
+                'id' => 'stale-sub-id',
                 'trigger_on' => 'balances#update',
-                'delivery'   => ['version' => '2.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
+                'delivery' => ['version' => '2.0.0', 'url' => 'https://example.com/api/webhooks/wise'],
             ],
         ]);
 
@@ -667,15 +672,16 @@ class WiseProviderTest extends TestCase
             ->expects(self::exactly(3))
             ->method('request')
             ->willReturnCallback(function (string $method, string $url, array $options = []) use (&$capturedJson, $profilesBody, $subscriptionsBody) {
-                if ($method === 'POST') {
+                if ('POST' === $method) {
                     $capturedJson = $options['json'] ?? null;
                 }
                 if (str_contains($url, '/v2/profiles')) {
                     return $this->mockResponse($profilesBody);
                 }
-                if ($method === 'GET') {
+                if ('GET' === $method) {
                     return $this->mockResponse($subscriptionsBody);
                 }
+
                 return $this->mockResponse('{}');
             });
 
@@ -688,23 +694,31 @@ class WiseProviderTest extends TestCase
     public function testRegisterWebhookSkips403AndContinues(): void
     {
         // 403 on a subscription POST should log a warning and continue, not throw.
-        $profilesBody      = json_encode([['id' => 1, 'type' => 'personal']]);
+        $profilesBody = json_encode([['id' => 1, 'type' => 'personal']]);
         $subscriptionsBody = json_encode([]);
 
         $forbiddenResponse = $this->createMock(ResponseInterface::class);
         $forbiddenResponse->method('getStatusCode')->willReturn(403);
         $forbiddenResponse->method('getContent')->willReturnCallback(
-            function (bool $throw = true) use (&$httpException) {
+            static function (bool $throw = true) use (&$httpException) {
                 if ($throw) {
                     throw $httpException;
                 }
+
                 return '{"code":"EVENT_TYPE_NOT_PERMITTED"}';
-            }
+            },
         );
 
-        $httpException = new class($forbiddenResponse) extends \RuntimeException implements HttpExceptionInterface {
-            public function __construct(private ResponseInterface $r) { parent::__construct('HTTP/2 403'); }
-            public function getResponse(): ResponseInterface { return $this->r; }
+        $httpException = new class($forbiddenResponse) extends RuntimeException implements HttpExceptionInterface {
+            public function __construct(private ResponseInterface $r)
+            {
+                parent::__construct('HTTP/2 403');
+            }
+
+            public function getResponse(): ResponseInterface
+            {
+                return $this->r;
+            }
         };
 
         // GET profiles + GET subscriptions (empty) + POST balances#update → 403 (skipped with warning).
@@ -731,33 +745,33 @@ class WiseProviderTest extends TestCase
         // This test guards against the regression where object-based parsing silently dropped all activities.
         $this->makeCacheCallThrough();
 
-        $profilesBody  = json_encode([['id' => 47346835, 'type' => 'personal']]);
-        $balancesBody  = json_encode([
+        $profilesBody = json_encode([['id' => 47346835, 'type' => 'personal']]);
+        $balancesBody = json_encode([
             ['id' => 89046937, 'totalWorth' => ['currency' => 'HUF', 'value' => 1000.00]],
         ]);
         $activitiesBody = json_encode([
-            'cursor'     => null,
+            'cursor' => null,
             'activities' => [
                 [
-                    'type'            => 'CARD_PAYMENT',
-                    'resource'        => ['type' => 'CARD_TRANSACTION', 'id' => '123'],
-                    'title'           => '<strong>Lidl Budapest</strong>',
-                    'description'     => 'Card payment',
-                    'primaryAmount'   => '840 HUF',
+                    'type' => 'CARD_PAYMENT',
+                    'resource' => ['type' => 'CARD_TRANSACTION', 'id' => '123'],
+                    'title' => '<strong>Lidl Budapest</strong>',
+                    'description' => 'Card payment',
+                    'primaryAmount' => '840 HUF',
                     'secondaryAmount' => '2.10 EUR',
-                    'status'          => 'COMPLETED',
-                    'createdOn'       => '2026-03-13T10:32:42Z',
-                    'updatedOn'       => '2026-03-13T10:32:43Z',
+                    'status' => 'COMPLETED',
+                    'createdOn' => '2026-03-13T10:32:42Z',
+                    'updatedOn' => '2026-03-13T10:32:43Z',
                 ],
                 [
                     // Different currency — should be filtered out
-                    'type'          => 'CARD_PAYMENT',
-                    'resource'      => ['type' => 'CARD_TRANSACTION', 'id' => '456'],
-                    'title'         => '<strong>Amazon</strong>',
+                    'type' => 'CARD_PAYMENT',
+                    'resource' => ['type' => 'CARD_TRANSACTION', 'id' => '456'],
+                    'title' => '<strong>Amazon</strong>',
                     'primaryAmount' => '12.99 EUR',
-                    'status'        => 'COMPLETED',
-                    'createdOn'     => '2026-03-13T09:00:00Z',
-                    'updatedOn'     => '2026-03-13T09:00:01Z',
+                    'status' => 'COMPLETED',
+                    'createdOn' => '2026-03-13T09:00:00Z',
+                    'updatedOn' => '2026-03-13T09:00:01Z',
                 ],
             ],
         ]);
@@ -774,8 +788,8 @@ class WiseProviderTest extends TestCase
         $results = $this->provider->fetchTransactions(
             credentials: [],
             externalAccountId: '89046937',
-            from: new \DateTimeImmutable('2026-02-11T00:00:00Z'),
-            to: new \DateTimeImmutable('2026-03-13T23:59:59Z'),
+            from: new DateTimeImmutable('2026-02-11T00:00:00Z'),
+            to: new DateTimeImmutable('2026-03-13T23:59:59Z'),
         );
 
         self::assertCount(1, $results, 'Only the HUF activity should be returned');
@@ -802,15 +816,15 @@ class WiseProviderTest extends TestCase
         $cacheItem = $this->createMock(CacheItemInterface::class);
         $this->cache
             ->method('get')
-            ->willReturnCallback(fn(string $key, callable $cb) => $cb($cacheItem));
+            ->willReturnCallback(static fn (string $key, callable $cb) => $cb($cacheItem));
     }
 
     private function createHttpException(): HttpExceptionInterface
     {
-        return new class extends \RuntimeException implements HttpExceptionInterface {
+        return new class extends RuntimeException implements HttpExceptionInterface {
             public function getResponse(): ResponseInterface
             {
-                throw new \LogicException('not implemented');
+                throw new LogicException('not implemented');
             }
         };
     }

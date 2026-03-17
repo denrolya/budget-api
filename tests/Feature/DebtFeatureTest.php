@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Feature;
 
 use App\Entity\Category;
@@ -8,6 +10,7 @@ use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Tests\BaseApiTestCase;
 use Carbon\CarbonImmutable;
+use Exception;
 use Symfony\Contracts\HttpClient\Exception\ClientExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\DecodingExceptionInterface;
 use Symfony\Contracts\HttpClient\Exception\RedirectionExceptionInterface;
@@ -29,11 +32,11 @@ final class DebtFeatureTest extends BaseApiTestCase
     {
         parent::setUp();
 
-        $debtIncome = $this->em->getRepository(IncomeCategory::class)->findOneBy(['name' => Category::CATEGORY_DEBT]);
-        assert($debtIncome instanceof IncomeCategory);
+        $debtIncome = $this->entityManager()->getRepository(IncomeCategory::class)->findOneBy(['name' => Category::CATEGORY_DEBT]);
+        \assert($debtIncome instanceof IncomeCategory);
         $this->debtIncomeCategory = $debtIncome;
-        $debtExpense = $this->em->getRepository(ExpenseCategory::class)->findOneBy(['name' => Category::CATEGORY_DEBT]);
-        assert($debtExpense instanceof ExpenseCategory);
+        $debtExpense = $this->entityManager()->getRepository(ExpenseCategory::class)->findOneBy(['name' => Category::CATEGORY_DEBT]);
+        \assert($debtExpense instanceof ExpenseCategory);
         $this->debtExpenseCategory = $debtExpense;
     }
 
@@ -43,7 +46,7 @@ final class DebtFeatureTest extends BaseApiTestCase
      * @throws RedirectionExceptionInterface
      * @throws DecodingExceptionInterface
      * @throws ClientExceptionInterface
-     * @throws \Exception
+     * @throws Exception
      */
     public function testCreateDebt(): void
     {
@@ -72,7 +75,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         ], $content);
         self::assertArrayHasKey('id', $content);
 
-        $debt = $this->em->getRepository(Debt::class)->find($content['id']);
+        $debt = $this->entityManager()->getRepository(Debt::class)->find($content['id']);
 
         self::assertInstanceOf(Debt::class, $debt);
     }
@@ -89,7 +92,7 @@ final class DebtFeatureTest extends BaseApiTestCase
             debtor: 'Test Debtor',
             initialBalance: 0,
             currency: 'UAH',
-            note: 'Test debt'
+            note: 'Test debt',
         );
 
         self::assertNotNull($debt->getId());
@@ -106,7 +109,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore + 1, $this->debtExpenseCategory->getTransactionsCount());
         self::assertEquals(10, $debt->getBalance());
@@ -127,10 +130,11 @@ final class DebtFeatureTest extends BaseApiTestCase
             category: $this->debtExpenseCategory,
             executedAt: CarbonImmutable::now(),
             note: 'Test expense',
-            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser),
         );
 
         $debt = $expense->getDebt();
+        \assert($debt instanceof Debt);
 
         self::assertEquals($countBefore + 1, $this->debtExpenseCategory->getTransactionsCount());
         self::assertNotNull($debt->getId());
@@ -140,14 +144,14 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEquals(10, $debt->getBalance());
         self::assertEquals(10, $debt->getConvertedValue('UAH'));
 
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $expense->getId(), [
             'json' => [
                 'amount' => '20',
             ],
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore + 1, $this->debtExpenseCategory->getTransactionsCount());
         self::assertEquals(20, $debt->getBalance());
@@ -165,10 +169,11 @@ final class DebtFeatureTest extends BaseApiTestCase
             category: $this->debtExpenseCategory,
             executedAt: CarbonImmutable::now(),
             note: 'Test expense',
-            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser),
         );
 
         $debt = $expense->getDebt();
+        \assert($debt instanceof Debt);
 
         self::assertEquals($countBefore + 1, $this->debtExpenseCategory->getTransactionsCount());
         self::assertNotNull($debt->getId());
@@ -178,14 +183,14 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEquals(300, $debt->getBalance());
         self::assertEquals(300, $debt->getConvertedValue('UAH'));
 
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $expense->getId(), [
             'json' => [
                 'account' => $this->iri($this->accountCashUAH),
             ],
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore + 1, $this->debtExpenseCategory->getTransactionsCount());
         self::assertEquals(10, $debt->getBalance());
@@ -203,10 +208,11 @@ final class DebtFeatureTest extends BaseApiTestCase
             category: $this->debtExpenseCategory,
             executedAt: CarbonImmutable::now(),
             note: 'Test expense',
-            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser),
         );
 
         $debt = $expense->getDebt();
+        \assert($debt instanceof Debt);
 
         self::assertEquals($countBefore + 1, $this->debtExpenseCategory->getTransactionsCount());
         self::assertNotNull($debt->getId());
@@ -216,7 +222,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEquals(10, $debt->getBalance());
         self::assertEquals(10, $debt->getConvertedValue('UAH'));
 
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$expense->getId(), [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $expense->getId(), [
             'json' => [
                 'amount' => '20',
                 'account' => $this->iri($this->accountCashEUR),
@@ -224,7 +230,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore + 1, $this->debtExpenseCategory->getTransactionsCount());
         self::assertEquals(600, $debt->getBalance());
@@ -242,10 +248,11 @@ final class DebtFeatureTest extends BaseApiTestCase
             category: $this->debtExpenseCategory,
             executedAt: CarbonImmutable::now(),
             note: 'Test expense',
-            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser),
         );
 
         $debt = $expense->getDebt();
+        \assert($debt instanceof Debt);
 
         self::assertEquals($countBefore + 1, $this->debtExpenseCategory->getTransactionsCount());
         self::assertNotNull($debt->getId());
@@ -255,10 +262,10 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEquals(10, $debt->getBalance());
         self::assertEquals(10, $debt->getConvertedValue('UAH'));
 
-        $this->client->request('DELETE', self::TRANSACTION_URL.'/'.$expense->getId());
+        $this->client->request('DELETE', self::TRANSACTION_URL . '/' . $expense->getId());
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore, $this->debtExpenseCategory->getTransactionsCount());
         self::assertEquals(0, $debt->getBalance());
@@ -277,7 +284,7 @@ final class DebtFeatureTest extends BaseApiTestCase
             debtor: 'Test Debtor',
             initialBalance: 0,
             currency: 'UAH',
-            note: 'Test debt'
+            note: 'Test debt',
         );
 
         self::assertNotNull($debt->getId());
@@ -294,7 +301,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore + 1, $this->debtIncomeCategory->getTransactionsCount());
         self::assertEquals(-10, $debt->getBalance());
@@ -315,10 +322,11 @@ final class DebtFeatureTest extends BaseApiTestCase
             category: $this->debtIncomeCategory,
             executedAt: CarbonImmutable::now(),
             note: 'Test income',
-            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser),
         );
 
         $debt = $income->getDebt();
+        \assert($debt instanceof Debt);
 
         self::assertEquals($countBefore + 1, $this->debtIncomeCategory->getTransactionsCount());
         self::assertNotNull($debt->getId());
@@ -328,14 +336,14 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEquals(-10, $debt->getBalance());
         self::assertEquals(-10, $debt->getConvertedValue('UAH'));
 
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $income->getId(), [
             'json' => [
                 'amount' => '20',
             ],
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore + 1, $this->debtIncomeCategory->getTransactionsCount());
         self::assertEquals(-20, $debt->getBalance());
@@ -353,10 +361,11 @@ final class DebtFeatureTest extends BaseApiTestCase
             category: $this->debtIncomeCategory,
             executedAt: CarbonImmutable::now(),
             note: 'Test income',
-            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser),
         );
 
         $debt = $income->getDebt();
+        \assert($debt instanceof Debt);
 
         self::assertEquals($countBefore + 1, $this->debtIncomeCategory->getTransactionsCount());
         self::assertNotNull($debt->getId());
@@ -366,14 +375,14 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEquals(-300, $debt->getBalance());
         self::assertEquals(-300, $debt->getConvertedValue('UAH'));
 
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $income->getId(), [
             'json' => [
                 'account' => $this->iri($this->accountCashUAH),
             ],
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore + 1, $this->debtIncomeCategory->getTransactionsCount());
         self::assertEquals(-10, $debt->getBalance());
@@ -391,10 +400,11 @@ final class DebtFeatureTest extends BaseApiTestCase
             category: $this->debtIncomeCategory,
             executedAt: CarbonImmutable::now(),
             note: 'Test income',
-            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser),
         );
 
         $debt = $income->getDebt();
+        \assert($debt instanceof Debt);
 
         self::assertNotNull($debt->getId());
         self::assertNotNull($income->getId());
@@ -403,7 +413,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEquals(-10, $debt->getBalance());
         self::assertEquals(-10, $debt->getConvertedValue('UAH'));
 
-        $this->client->request('PUT', self::TRANSACTION_URL.'/'.$income->getId(), [
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $income->getId(), [
             'json' => [
                 'amount' => '20',
                 'account' => $this->iri($this->accountCashEUR),
@@ -411,7 +421,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         ]);
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore + 1, $this->debtIncomeCategory->getTransactionsCount());
         self::assertEquals(-600, $debt->getBalance());
@@ -429,10 +439,11 @@ final class DebtFeatureTest extends BaseApiTestCase
             category: $this->debtIncomeCategory,
             executedAt: CarbonImmutable::now(),
             note: 'Test income',
-            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser)
+            debt: (new Debt())->setDebtor('Test Debtor')->setCurrency('UAH')->setOwner($this->testUser),
         );
 
         $debt = $income->getDebt();
+        \assert($debt instanceof Debt);
 
         self::assertEquals($countBefore + 1, $this->debtIncomeCategory->getTransactionsCount());
         self::assertNotNull($debt->getId());
@@ -442,10 +453,10 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertEquals(-10, $debt->getBalance());
         self::assertEquals(-10, $debt->getConvertedValue('UAH'));
 
-        $this->client->request('DELETE', self::TRANSACTION_URL.'/'.$income->getId());
+        $this->client->request('DELETE', self::TRANSACTION_URL . '/' . $income->getId());
         self::assertResponseIsSuccessful();
 
-        $this->em->refresh($debt);
+        $this->entityManager()->refresh($debt);
 
         self::assertEquals($countBefore, $this->debtIncomeCategory->getTransactionsCount());
         self::assertEquals(0, $debt->getBalance());
@@ -464,14 +475,14 @@ final class DebtFeatureTest extends BaseApiTestCase
             debtor: 'Borrower',
             initialBalance: 0,
             currency: 'EUR',
-            note: 'Debt to close'
+            note: 'Debt to close',
         );
 
         $debtId = $debt->getId();
 
         // Clear the identity map so the GET request loads entities fresh from DB
         // (avoids JMS serialization issues with CarbonImmutable vs DateTime)
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // Debt appears in the open list before closing
         $openBefore = $this->client->request('GET', '/api/v2/debts');
@@ -480,15 +491,15 @@ final class DebtFeatureTest extends BaseApiTestCase
         self::assertContains($debtId, $openIds);
 
         // Close the debt
-        $this->client->request('DELETE', self::DEBT_URL.'/'.$debtId);
+        $this->client->request('DELETE', self::DEBT_URL . '/' . $debtId);
         self::assertResponseIsSuccessful();
 
         // The entity still exists in the database but has closedAt set.
         // We must disable the softdeleteable filter to find soft-deleted records.
-        $this->em->clear();
-        $this->em->getFilters()->disable('softdeleteable');
-        $closedDebt = $this->em->getRepository(Debt::class)->find($debtId);
-        $this->em->getFilters()->enable('softdeleteable');
+        $this->entityManager()->clear();
+        $this->entityManager()->getFilters()->disable('softdeleteable');
+        $closedDebt = $this->entityManager()->getRepository(Debt::class)->find($debtId);
+        $this->entityManager()->getFilters()->enable('softdeleteable');
         self::assertNotNull($closedDebt, 'Debt record must not be hard-deleted');
         self::assertNotNull($closedDebt->getClosedAt(), 'closedAt must be set after closing');
 
@@ -530,18 +541,18 @@ final class DebtFeatureTest extends BaseApiTestCase
             debtor: 'Closed Borrower',
             initialBalance: 0,
             currency: 'EUR',
-            note: 'Debt that will be closed'
+            note: 'Debt that will be closed',
         );
 
         $debtId = $debt->getId();
 
         // Close the debt
-        $this->client->request('DELETE', self::DEBT_URL.'/'.$debtId);
+        $this->client->request('DELETE', self::DEBT_URL . '/' . $debtId);
         self::assertResponseIsSuccessful();
 
         // Clear the identity map so GET requests load entities fresh from DB
         // (avoids JMS serialization issues with CarbonImmutable vs DateTime)
-        $this->em->clear();
+        $this->entityManager()->clear();
 
         // Default list (open only) must NOT contain the closed debt
         $openList = $this->client->request('GET', '/api/v2/debts');
@@ -579,7 +590,7 @@ final class DebtFeatureTest extends BaseApiTestCase
         float $initialBalance,
         string $currency,
         string $note,
-        ?CarbonImmutable $createdAt = null
+        ?CarbonImmutable $createdAt = null,
     ): Debt {
         $debt = (new Debt())
             ->setDebtor($debtor)
@@ -589,8 +600,8 @@ final class DebtFeatureTest extends BaseApiTestCase
             ->setCreatedAt($createdAt ?? CarbonImmutable::now())
             ->setOwner($this->testUser);
 
-        $this->em->persist($debt);
-        $this->em->flush();
+        $this->entityManager()->persist($debt);
+        $this->entityManager()->flush();
 
         return $debt;
     }

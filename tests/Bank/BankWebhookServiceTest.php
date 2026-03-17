@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Bank;
 
 use App\Bank\BankProvider;
@@ -17,6 +19,7 @@ use App\Entity\Income;
 use App\Service\TransactionCategorizationService;
 use App\Tests\BaseApiTestCase;
 use DateTimeImmutable;
+use LogicException;
 use Psr\Log\NullLogger;
 
 /**
@@ -29,7 +32,6 @@ class BankWebhookServiceTest extends BaseApiTestCase
 {
     private const EXTERNAL_ID = 'mono_acc_test_001';
 
-    /** @var BankCardAccount */
     private BankCardAccount $uahCard;
 
     /** @var \PHPUnit\Framework\MockObject\MockObject&MonobankProvider */
@@ -43,14 +45,14 @@ class BankWebhookServiceTest extends BaseApiTestCase
 
         // Link the existing UAH Card to a known externalAccountId.
         /** @var BankCardAccount $card */
-        $card = $this->em->getRepository(BankCardAccount::class)->findOneBy([
-            'name'  => 'UAH Card',
+        $card = $this->entityManager()->getRepository(BankCardAccount::class)->findOneBy([
+            'name' => 'UAH Card',
             'owner' => $this->testUser,
         ]);
         self::assertNotNull($card);
         $this->uahCard = $card;
         $this->uahCard->setExternalAccountId(self::EXTERNAL_ID);
-        $this->em->flush();
+        $this->entityManager()->flush();
 
         // Build a mock of MonobankProvider (implements BankProviderInterface + WebhookCapableInterface).
         $this->mockWebhookProvider = $this->createMock(MonobankProvider::class);
@@ -59,7 +61,7 @@ class BankWebhookServiceTest extends BaseApiTestCase
         $registry = new BankProviderRegistry([$this->mockWebhookProvider]);
 
         $mockSyncService = $this->createMock(BankSyncService::class);
-        $this->service = new BankWebhookService($registry, $this->em, new NullLogger(), $this->makeCategorizationServiceMock(), $mockSyncService);
+        $this->service = new BankWebhookService($registry, $this->entityManager(), new NullLogger(), $this->makeCategorizationServiceMock(), $mockSyncService);
     }
 
     private function makeCategorizationServiceMock(): TransactionCategorizationService
@@ -72,7 +74,7 @@ class BankWebhookServiceTest extends BaseApiTestCase
                     : Category::EXPENSE_CATEGORY_ID_UNKNOWN;
 
                 return new CategorizationResult($fallbackId, $rawNote, 0.0);
-            }
+            },
         );
 
         return $mock;
@@ -89,9 +91,9 @@ class BankWebhookServiceTest extends BaseApiTestCase
         $nonWebhookProvider->method('getProvider')->willReturn(BankProvider::Wise);
 
         $registry = new BankProviderRegistry([$nonWebhookProvider]);
-        $service  = new BankWebhookService($registry, $this->em, new NullLogger(), $this->makeCategorizationServiceMock(), $this->createMock(BankSyncService::class));
+        $service = new BankWebhookService($registry, $this->entityManager(), new NullLogger(), $this->makeCategorizationServiceMock(), $this->createMock(BankSyncService::class));
 
-        $this->expectException(\LogicException::class);
+        $this->expectException(LogicException::class);
         $this->expectExceptionMessageMatches('/wise/i');
 
         $service->handle(BankProvider::Wise, []);
@@ -135,8 +137,9 @@ class BankWebhookServiceTest extends BaseApiTestCase
         $executedAt = new DateTimeImmutable('2025-06-01 12:00:00');
 
         // Pre-persist an identical transaction.
-        $category = $this->em->getRepository(\App\Entity\ExpenseCategory::class)
-            ->find(\App\Entity\Category::EXPENSE_CATEGORY_ID_UNKNOWN);
+        $category = $this->entityManager()->getRepository(\App\Entity\ExpenseCategory::class)
+            ->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
+        \assert(null !== $category);
         $existing = new Expense();
         $existing
             ->setAmount(75.0)
@@ -145,8 +148,8 @@ class BankWebhookServiceTest extends BaseApiTestCase
             ->setCategory($category)
             ->setNote('Already has a note')
             ->setOwner($this->testUser);
-        $this->em->persist($existing);
-        $this->em->flush();
+        $this->entityManager()->persist($existing);
+        $this->entityManager()->flush();
 
         $this->mockWebhookProvider->method('parseWebhookPayload')->willReturn(
             new DraftTransactionData(
@@ -216,6 +219,7 @@ class BankWebhookServiceTest extends BaseApiTestCase
         );
 
         $result = $this->service->handle(BankProvider::Monobank, []);
+        \assert(null !== $result);
 
         self::assertTrue($result->getIsDraft());
     }

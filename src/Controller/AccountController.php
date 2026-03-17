@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Attribute\MapCarbonDate;
@@ -46,14 +48,15 @@ class AccountController extends AbstractFOSRestController
                         new OA\Property(property: 'timestamp', type: 'integer', example: 1700000000),
                         new OA\Property(property: 'balance', type: 'number', format: 'float', example: 1234.56),
                     ])),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
             new OA\Response(response: 404, description: 'Account not found'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\AccountStatsTest
+     *
      * @tested testBalanceHistory_returnsCorrectShape
      * @tested testBalanceHistory_weeklyInterval
      * @tested testBalanceHistory_emptyRange_returnsEmptyData
@@ -66,7 +69,7 @@ class AccountController extends AbstractFOSRestController
         #[MapCarbonDate(format: 'Y-m-d', default: 'now')] CarbonImmutable $before,
         #[MapCarbonInterval(default: 'P1W')] CarbonInterval $interval,
     ): View {
-        $after  = $after->startOfDay();
+        $after = $after->startOfDay();
         $before = $before->endOfDay();
 
         // Generate chart date points using the requested interval.
@@ -87,11 +90,11 @@ class AccountController extends AbstractFOSRestController
         // that happened after the current date point.
         $runningBalance = $account->getBalance();
         $txIndex = 0;
-        $txCount = count($transactions);
+        $txCount = \count($transactions);
         $points = [];
 
         foreach (array_reverse($dates) as $date) {
-            while ($txIndex < $txCount && $transactions[$txIndex]->getExecutedAt()->greaterThan($date)) {
+            while ($txIndex < $txCount && ($executedAt = $transactions[$txIndex]->getExecutedAt()) !== null && $executedAt->greaterThan($date)) {
                 $tx = $transactions[$txIndex++];
                 $runningBalance += $tx->isExpense() ? $tx->getAmount() : -$tx->getAmount();
             }
@@ -100,7 +103,7 @@ class AccountController extends AbstractFOSRestController
 
         return $this->view([
             'currency' => $account->getCurrency(),
-            'data'     => array_reverse($points),
+            'data' => array_reverse($points),
         ]);
     }
 
@@ -129,14 +132,15 @@ class AccountController extends AbstractFOSRestController
                         new OA\Property(property: 'expense', type: 'integer', example: 3),
                         new OA\Property(property: 'income', type: 'integer', example: 1),
                     ])),
-                ])
+                ]),
             ),
             new OA\Response(response: 401, description: 'Unauthorized'),
             new OA\Response(response: 404, description: 'Account not found'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\AccountStatsTest
+     *
      * @tested testDailyStats_returnsCorrectShape
      * @tested testDailyStats_emptyRange_returnsEmptyData
      * @tested testDailyStats_uahAccount_returnsData

@@ -1,11 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Bank;
 
 use App\Bank\DTO\DraftTransactionData;
 use App\Bank\Provider\MonobankProvider;
 use PHPUnit\Framework\TestCase;
-use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
@@ -57,7 +58,7 @@ class MonobankProviderParseWebhookPayloadTest extends TestCase
         $payload = [
             'type' => 'StatementItem',
             'data' => [
-                'account'       => 'acc_1',
+                'account' => 'acc_1',
                 'statementItem' => ['amount' => 0, 'time' => 1700000000],
             ],
         ];
@@ -70,19 +71,19 @@ class MonobankProviderParseWebhookPayloadTest extends TestCase
         $payload = [
             'type' => 'StatementItem',
             'data' => [
-                'account'       => 'acc_1',
+                'account' => 'acc_1',
                 'statementItem' => [
-                    'time'         => 1700000000,
-                    'amount'       => -5000,    // -50.00 UAH
+                    'time' => 1700000000,
+                    'amount' => -5000,    // -50.00 UAH
                     'currencyCode' => 980,       // UAH
-                    'description'  => 'Coffee',
+                    'description' => 'Coffee',
                 ],
             ],
         ];
 
         $result = $this->provider->parseWebhookPayload($payload);
+        \assert($result instanceof DraftTransactionData);
 
-        self::assertInstanceOf(DraftTransactionData::class, $result);
         self::assertSame('acc_1', $result->externalAccountId);
         self::assertEqualsWithDelta(-50.0, $result->amount, 0.001);
         self::assertSame('UAH', $result->currency);
@@ -94,19 +95,19 @@ class MonobankProviderParseWebhookPayloadTest extends TestCase
         $payload = [
             'type' => 'StatementItem',
             'data' => [
-                'account'       => 'acc_2',
+                'account' => 'acc_2',
                 'statementItem' => [
-                    'time'         => 1700000000,
-                    'amount'       => 10000,    // +100.00 UAH
+                    'time' => 1700000000,
+                    'amount' => 10000,    // +100.00 UAH
                     'currencyCode' => 980,
-                    'description'  => 'Salary',
+                    'description' => 'Salary',
                 ],
             ],
         ];
 
         $result = $this->provider->parseWebhookPayload($payload);
+        \assert($result instanceof DraftTransactionData);
 
-        self::assertInstanceOf(DraftTransactionData::class, $result);
         self::assertEqualsWithDelta(100.0, $result->amount, 0.001);
     }
 
@@ -115,16 +116,17 @@ class MonobankProviderParseWebhookPayloadTest extends TestCase
         $payload = [
             'type' => 'StatementItem',
             'data' => [
-                'account'       => 'acc_3',
+                'account' => 'acc_3',
                 'statementItem' => [
-                    'time'         => 1700000000,
-                    'amount'       => -2000,
+                    'time' => 1700000000,
+                    'amount' => -2000,
                     'currencyCode' => 840,       // USD
                 ],
             ],
         ];
 
         $result = $this->provider->parseWebhookPayload($payload);
+        \assert($result instanceof DraftTransactionData);
 
         self::assertSame('USD', $result->currency);
     }
@@ -135,16 +137,17 @@ class MonobankProviderParseWebhookPayloadTest extends TestCase
         $payload = [
             'type' => 'StatementItem',
             'data' => [
-                'account'       => 'acc_4',
+                'account' => 'acc_4',
                 'statementItem' => [
-                    'time'         => 1700000000,
-                    'amount'       => -100,
+                    'time' => 1700000000,
+                    'amount' => -100,
                     'currencyCode' => 999,
                 ],
             ],
         ];
 
         $result = $this->provider->parseWebhookPayload($payload);
+        \assert($result instanceof DraftTransactionData);
 
         self::assertSame('UAH', $result->currency);
     }
@@ -154,17 +157,18 @@ class MonobankProviderParseWebhookPayloadTest extends TestCase
         $payload = [
             'type' => 'StatementItem',
             'data' => [
-                'account'       => 'acc_5',
+                'account' => 'acc_5',
                 'statementItem' => [
-                    'time'        => 1700000000,
-                    'amount'      => -500,
+                    'time' => 1700000000,
+                    'amount' => -500,
                     'description' => 'ATM withdrawal',
-                    'comment'     => 'near office',
+                    'comment' => 'near office',
                 ],
             ],
         ];
 
         $result = $this->provider->parseWebhookPayload($payload);
+        \assert($result instanceof DraftTransactionData);
 
         self::assertStringContainsString('ATM withdrawal', $result->note);
         self::assertStringContainsString('near office', $result->note);
@@ -175,15 +179,16 @@ class MonobankProviderParseWebhookPayloadTest extends TestCase
         $payload = [
             'type' => 'StatementItem',
             'data' => [
-                'account'       => 'acc_6',
+                'account' => 'acc_6',
                 'statementItem' => [
-                    'time'   => 1700000000,
+                    'time' => 1700000000,
                     'amount' => -100,
                 ],
             ],
         ];
 
         $result = $this->provider->parseWebhookPayload($payload);
+        \assert($result instanceof DraftTransactionData);
 
         self::assertSame('Monobank transaction', $result->note);
     }
@@ -195,15 +200,16 @@ class MonobankProviderParseWebhookPayloadTest extends TestCase
         $payload = [
             'type' => 'StatementItem',
             'data' => [
-                'account'       => 'acc_7',
+                'account' => 'acc_7',
                 'statementItem' => [
-                    'time'   => $ts,
+                    'time' => $ts,
                     'amount' => -100,
                 ],
             ],
         ];
 
         $result = $this->provider->parseWebhookPayload($payload);
+        \assert($result instanceof DraftTransactionData);
 
         self::assertSame($ts, $result->executedAt->getTimestamp());
     }
@@ -215,16 +221,17 @@ class MonobankProviderParseWebhookPayloadTest extends TestCase
         $payload = [
             'type' => 'StatementItem',
             'data' => [
-                'account'       => 'acc_8',
+                'account' => 'acc_8',
                 'statementItem' => ['amount' => -100],
             ],
         ];
 
         $result = $this->provider->parseWebhookPayload($payload);
+        \assert($result instanceof DraftTransactionData);
 
         $after = time();
 
         self::assertGreaterThanOrEqual($before, $result->executedAt->getTimestamp());
-        self::assertLessThanOrEqual($after,  $result->executedAt->getTimestamp());
+        self::assertLessThanOrEqual($after, $result->executedAt->getTimestamp());
     }
 }

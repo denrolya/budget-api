@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Bank;
 
 use App\Bank\BankProvider;
 use App\Bank\BankProviderInterface;
 use App\Bank\BankProviderRegistry;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 
 /**
  * @group bank
@@ -23,19 +26,19 @@ class BankProviderRegistryTest extends TestCase
     public function testGetReturnsCorrectProvider(): void
     {
         $monobank = $this->makeProvider(BankProvider::Monobank);
-        $wise     = $this->makeProvider(BankProvider::Wise);
+        $wise = $this->makeProvider(BankProvider::Wise);
 
         $registry = new BankProviderRegistry([$monobank, $wise]);
 
         self::assertSame($monobank, $registry->get(BankProvider::Monobank));
-        self::assertSame($wise,     $registry->get(BankProvider::Wise));
+        self::assertSame($wise, $registry->get(BankProvider::Wise));
     }
 
     public function testGetThrowsForUnregisteredProvider(): void
     {
         $registry = new BankProviderRegistry([]);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/monobank/i');
 
         $registry->get(BankProvider::Monobank);
@@ -44,7 +47,7 @@ class BankProviderRegistryTest extends TestCase
     public function testAllReturnsAllProviders(): void
     {
         $monobank = $this->makeProvider(BankProvider::Monobank);
-        $wise     = $this->makeProvider(BankProvider::Wise);
+        $wise = $this->makeProvider(BankProvider::Wise);
 
         $registry = new BankProviderRegistry([$monobank, $wise]);
 
@@ -64,7 +67,7 @@ class BankProviderRegistryTest extends TestCase
 
     public function testLastRegisteredWinsOnDuplicateProvider(): void
     {
-        $first  = $this->makeProvider(BankProvider::Monobank);
+        $first = $this->makeProvider(BankProvider::Monobank);
         $second = $this->makeProvider(BankProvider::Monobank);
 
         $registry = new BankProviderRegistry([$first, $second]);

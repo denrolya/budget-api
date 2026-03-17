@@ -10,6 +10,7 @@ use App\Bank\SyncMethod;
 use App\Entity\BankIntegration;
 use App\Entity\User;
 use App\Tests\BaseApiTestCase;
+use RuntimeException;
 
 /**
  * API contract tests for BankIntegration webhook registration endpoint.
@@ -29,7 +30,7 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
         parent::setUp();
 
         $this->monobankIntegrationId = $this->createIntegration(BankProvider::Monobank, SyncMethod::Webhook, $this->testUser);
-        $this->wiseIntegrationId    = $this->createIntegration(BankProvider::Wise, SyncMethod::Polling, $this->testUser);
+        $this->wiseIntegrationId = $this->createIntegration(BankProvider::Wise, SyncMethod::Polling, $this->testUser);
     }
 
     // -------------------------------------------------------------------------
@@ -45,8 +46,8 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
             ->setOwner($owner)
             ->setIsActive(true);
 
-        $this->em->persist($integration);
-        $this->em->flush();
+        $this->entityManager()->persist($integration);
+        $this->entityManager()->flush();
 
         return (int) $integration->getId();
     }
@@ -60,7 +61,7 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
     private function mockRegistrationService(): \PHPUnit\Framework\MockObject\MockObject
     {
         $mock = $this->createMock(BankWebhookRegistrationService::class);
-        $this->client->getContainer()->set(BankWebhookRegistrationService::class, $mock);
+        $this->container()->set(BankWebhookRegistrationService::class, $mock);
 
         return $mock;
     }
@@ -76,7 +77,7 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
     {
         $this->client->request('POST', $this->url($this->monobankIntegrationId), [
             'headers' => ['authorization' => null],
-            'json'    => [],
+            'json' => [],
         ]);
 
         self::assertResponseStatusCodeSame(401);
@@ -100,7 +101,7 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
         // Create a second user and an integration belonging to them.
         $user2 = new User();
         $user2->setUsername('webhook_other_user')->setPassword('pw')->setRoles(['ROLE_USER']);
-        $this->em->persist($user2);
+        $this->entityManager()->persist($user2);
 
         $otherId = $this->createIntegration(BankProvider::Monobank, SyncMethod::Webhook, $user2);
 
@@ -191,7 +192,7 @@ class BankIntegrationRegisterWebhookActionTest extends BaseApiTestCase
         $mock = $this->mockRegistrationService();
         $mock
             ->method('register')
-            ->willThrowException(new \RuntimeException('Monobank: connection refused'));
+            ->willThrowException(new RuntimeException('Monobank: connection refused'));
 
         $response = $this->client->request('POST', $this->url($this->monobankIntegrationId), ['json' => []]);
 

@@ -1,7 +1,11 @@
 <?php
+
+declare(strict_types=1);
+
 namespace App\DataFixtures\Dev;
 
 use App\Entity\ExchangeRateSnapshot;
+use DateTimeImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 
@@ -272,7 +276,7 @@ final class ExchangeRateFixtures extends Fixture
         $repo = $manager->getRepository(ExchangeRateSnapshot::class);
 
         foreach (self::SNAPSHOTS as $date => $rates) {
-            $effectiveAt = new \DateTimeImmutable($date.' 00:00:00');
+            $effectiveAt = new DateTimeImmutable($date . ' 00:00:00');
 
             $existing = $repo->findOneBy(['effectiveAt' => $effectiveAt]);
             if ($existing instanceof ExchangeRateSnapshot) {
@@ -282,19 +286,14 @@ final class ExchangeRateFixtures extends Fixture
             $snapshot = new ExchangeRateSnapshot();
             $snapshot->setEffectiveAt($effectiveAt);
 
-            if ($rates['usd_per_eur'] !== null) {
-                $snapshot->setUsdPerEur($rates['usd_per_eur']);
-            }
-            if ($rates['huf_per_eur'] !== null) {
-                $snapshot->setHufPerEur($rates['huf_per_eur']);
-            }
-            if ($rates['uah_per_eur'] !== null) {
-                $snapshot->setUahPerEur($rates['uah_per_eur']);
-            }
-            if ($rates['eur_per_btc'] !== null) {
+            $snapshot->setUsdPerEur($rates['usd_per_eur']);
+            $snapshot->setHufPerEur($rates['huf_per_eur']);
+            $snapshot->setUahPerEur($rates['uah_per_eur']);
+
+            if (null !== $rates['eur_per_btc']) {
                 $snapshot->setEurPerBtc($rates['eur_per_btc']);
             }
-            if ($rates['eur_per_eth'] !== null) {
+            if (null !== $rates['eur_per_eth']) {
                 $snapshot->setEurPerEth($rates['eur_per_eth']);
             }
 

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Entity\Debt;
@@ -19,7 +21,7 @@ class DebtController extends AbstractFOSRestController
 
     #[Rest\View(serializerGroups: ['debt:collection:read'])]
     #[Rest\QueryParam(name: 'withClosed', default: false, description: 'Should fetch debts that were closed too', nullable: true, allowBlank: false)]
-    #[Route('', name: 'collection_read', methods:['get'] )]
+    #[Route('', name: 'collection_read', methods: ['get'])]
     #[OA\Get(
         path: '/api/v2/debts',
         summary: 'List debts',
@@ -32,16 +34,17 @@ class DebtController extends AbstractFOSRestController
                 in: 'query',
                 required: false,
                 description: 'Include closed debts in the response',
-                schema: new OA\Schema(type: 'boolean', default: false)
+                schema: new OA\Schema(type: 'boolean', default: false),
             ),
         ],
         responses: [
             new OA\Response(response: 200, description: 'List of debts'),
             new OA\Response(response: 401, description: 'Unauthorized'),
-        ]
+        ],
     )]
     /**
      * @see \App\Tests\Controller\DebtCrudTest
+     *
      * @tested testListDebts_returnsCorrectShape
      * @tested testListDebts_fixtureValues
      * @tested testListDebts_withClosedFalse_excludesClosedDebts
@@ -57,8 +60,7 @@ class DebtController extends AbstractFOSRestController
         }
 
         return $this->view(
-            $doctrine->getRepository(Debt::class)->findAll()
+            $doctrine->getRepository(Debt::class)->findAll(),
         );
     }
-
 }
