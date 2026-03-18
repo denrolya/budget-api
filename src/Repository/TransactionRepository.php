@@ -721,6 +721,60 @@ class TransactionRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns income/expense amounts per category grouped by calendar month (YYYY-MM),
+     * using each transaction's stored convertedValues snapshot for accurate multi-currency totals.
+     *
+     * Unlike getActualsByCategoryByMonth (which uses native account currency amounts),
+     * this method reads the JSON convertedValues field so amounts are already converted
+     * to all supported currencies at the time of transaction creation.
+     *
+     * @return array<int, array<string, array<string, array{income: float, expense: float}>>>
+     *                                                                                        [catId][YYYY-MM][currency] → {income, expense}
+     */
+    public function getConvertedMonthlyTotalsByCategory(DateTimeInterface $start, DateTimeInterface $end): array
+    {
+        $rows = $this->createQueryBuilder('t')
+            ->innerJoin('t.category', 'c')
+            ->select(
+                'IDENTITY(t.category) AS category_id',
+                'DATE(t.executedAt) AS day',
+                't.convertedValues AS converted_values',
+                'CASE WHEN t INSTANCE OF ' . Income::class . " THEN 'income' ELSE 'expense' END AS transaction_type",
+            )
+            ->andWhere('t.executedAt >= :start')
+            ->andWhere('t.executedAt <= :end')
+            ->andWhere('c.isAffectingProfit = :isAffectingProfit')
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->setParameter('isAffectingProfit', true)
+            ->getQuery()
+            ->getArrayResult();
+
+        /** @var array<int, array<string, array<string, array{income: float, expense: float}>>> $result */
+        $result = [];
+        /** @var array{category_id: int|string, day: string, transaction_type: string, converted_values: array<string, float|int|string>|null} $row */
+        foreach ($rows as $row) {
+            $categoryId = (int) $row['category_id'];
+            $month = substr($row['day'], 0, 7);
+            $type = $row['transaction_type'];
+            $convertedValues = $row['converted_values'] ?? [];
+
+            foreach ($convertedValues as $currency => $value) {
+                if (!isset($result[$categoryId][$month][$currency])) {
+                    $result[$categoryId][$month][$currency] = ['income' => 0.0, 'expense' => 0.0];
+                }
+                if ('income' === $type) {
+                    $result[$categoryId][$month][$currency]['income'] += (float) $value;
+                } else {
+                    $result[$categoryId][$month][$currency]['expense'] += (float) $value;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Returns per-day income/expense amounts per category for a given date range.
      * Same pivot pattern as getActualsByCategoryForPeriod but also groups by day.
      *

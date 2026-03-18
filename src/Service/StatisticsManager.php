@@ -620,6 +620,81 @@ final class StatisticsManager
     // ──────────────────────────────────────────────────────────────────────────
 
     /**
+     * Lightweight summary for sidebar display: actual and planned totals.
+     * Actuals use convertedValues from transactions; planned uses raw line amounts.
+     *
+     * @return array{budgetId: int, actualExpense: array<string, float>, actualIncome: array<string, float>, plannedExpense: array<string, float>, plannedIncome: array<string, float>}
+     */
+    public function computeBudgetSummary(Budget $budget, TransactionRepository $transactionRepository): array
+    {
+        $start = CarbonImmutable::instance($budget->getStartDate())->startOfDay();
+        $end = CarbonImmutable::instance($budget->getEndDate())->endOfDay();
+
+        $actuals = $transactionRepository->getActualsByCategoryForPeriod($start, $end);
+
+        // Aggregate actuals by currency
+        $actualExpense = [];
+        $actualIncome = [];
+        foreach ($actuals as $item) {
+            foreach ($item['convertedValues'] as $currency => $values) {
+                $actualExpense[$currency] = ($actualExpense[$currency] ?? 0.0) + $values['expense'];
+                $actualIncome[$currency] = ($actualIncome[$currency] ?? 0.0) + $values['income'];
+            }
+        }
+
+        // Aggregate planned by currency using envelope model:
+        // If a root category has a line, it represents the total — skip children's lines.
+        // If a root has no line, sum its children's lines instead.
+        $linesByCategoryId = [];
+        foreach ($budget->getLines() as $line) {
+            $linesByCategoryId[$line->getCategory()->getId()] = $line;
+        }
+
+        $plannedExpense = [];
+        $plannedIncome = [];
+        foreach ($budget->getLines() as $line) {
+            $category = $line->getCategory();
+            $parentCategory = $category->getParent();
+
+            // Skip categories that don't affect P&L (matches frontend useBudgetTotals filter)
+            if (!$category->getIsAffectingProfit()) {
+                continue;
+            }
+
+            // Envelope model: skip if ANY ancestor has its own line
+            $ancestor = $parentCategory;
+            $hasAncestorLine = false;
+            while (null !== $ancestor) {
+                if (isset($linesByCategoryId[$ancestor->getId()])) {
+                    $hasAncestorLine = true;
+                    break;
+                }
+                $ancestor = $ancestor->getParent();
+            }
+            if ($hasAncestorLine) {
+                continue;
+            }
+
+            $currency = $line->getPlannedCurrency();
+            $amount = $line->getPlannedAmount();
+
+            if ($category->isExpense()) {
+                $plannedExpense[$currency] = ($plannedExpense[$currency] ?? 0.0) + $amount;
+            } else {
+                $plannedIncome[$currency] = ($plannedIncome[$currency] ?? 0.0) + $amount;
+            }
+        }
+
+        return [
+            'budgetId' => (int) $budget->getId(),
+            'actualExpense' => $actualExpense,
+            'actualIncome' => $actualIncome,
+            'plannedExpense' => $plannedExpense,
+            'plannedIncome' => $plannedIncome,
+        ];
+    }
+
+    /**
      * @return array{outliers: list<array<string, mixed>>, trends: list<array<string, mixed>>, seasonal: list<array<string, mixed>>}
      */
     public function computeBudgetInsights(Budget $budget, string $baseCurrency): array
@@ -718,61 +793,30 @@ final class StatisticsManager
         $windowEnd = $budgetStart->subDay()->endOfDay();
         $windowStart = $budgetStart->subMonths(self::TREND_LOOKBACK_MONTHS)->startOfMonth()->startOfDay();
 
-        $byMonth = $this->transactionRepository->getActualsByCategoryByMonth($windowStart, $windowEnd);
+        $byMonth = $this->transactionRepository->getConvertedMonthlyTotalsByCategory($windowStart, $windowEnd);
         $monthSlots = $this->buildTrendMonthSlots($budgetStart);
         $halfPoint = (int) floor(\count($monthSlots) / 2);
 
+        $rolledUp = $this->rollUpMonthlyTotalsByCategory($byMonth, $baseCurrency);
         $trends = [];
 
-        foreach ($byMonth as $categoryId => $monthData) {
-            $monthlyTotals = $this->aggregateMonthlyTotalsInBaseCurrency($monthData, $baseCurrency);
-            $activeMonths = \count($monthlyTotals);
+        foreach ($rolledUp as $rootCategoryId => $rootData) {
+            $rootTrend = $this->computeTrendForCategory($rootCategoryId, $rootData['totals'], $monthSlots, $halfPoint);
 
-            if ($activeMonths < self::TREND_MINIMUM_ACTIVE_MONTHS) {
+            if (null === $rootTrend) {
                 continue;
             }
 
-            $olderSum = 0.0;
-            $olderCount = 0;
-            $recentSum = 0.0;
-            $recentCount = 0;
-
-            foreach ($monthSlots as $index => $month) {
-                $total = $monthlyTotals[$month] ?? null;
-                if (null === $total) {
-                    continue;
-                }
-
-                if ($index < $halfPoint) {
-                    $olderSum += $total;
-                    ++$olderCount;
-                } else {
-                    $recentSum += $total;
-                    ++$recentCount;
+            $children = [];
+            foreach ($rootData['children'] as $childCategoryId => $childTotals) {
+                $childTrend = $this->computeTrendForCategory($childCategoryId, $childTotals, $monthSlots, $halfPoint);
+                if (null !== $childTrend) {
+                    $children[] = $childTrend;
                 }
             }
 
-            if (0 === $olderCount || $olderSum <= 0.0) {
-                continue;
-            }
-
-            $olderAverage = $olderSum / $olderCount;
-            $recentAverage = $recentCount > 0 ? $recentSum / $recentCount : 0.0;
-            $changePercent = (($recentAverage - $olderAverage) / $olderAverage) * 100;
-
-            if (abs($changePercent) < self::TREND_CHANGE_THRESHOLD_PERCENT) {
-                continue;
-            }
-
-            $direction = $changePercent > 0 ? 'up' : 'down';
-
-            $trends[] = [
-                'categoryId' => $categoryId,
-                'direction' => $direction,
-                'changePercent' => round($changePercent, 1),
-                'recentAverage' => round($recentAverage, 2),
-                'olderAverage' => round($olderAverage, 2),
-            ];
+            $rootTrend['children'] = $children;
+            $trends[] = $rootTrend;
         }
 
         usort($trends, static fn (array $first, array $second): int => abs($second['changePercent']) <=> abs($first['changePercent']));
@@ -793,48 +837,27 @@ final class StatisticsManager
         $windowEnd = $budgetStart->subDay()->endOfDay();
         $windowStart = $budgetStart->subMonths(self::SEASONAL_LOOKBACK_MONTHS)->startOfMonth()->startOfDay();
 
-        $byMonth = $this->transactionRepository->getActualsByCategoryByMonth($windowStart, $windowEnd);
+        $byMonth = $this->transactionRepository->getConvertedMonthlyTotalsByCategory($windowStart, $windowEnd);
+        $rolledUp = $this->rollUpMonthlyTotalsByCategory($byMonth, $baseCurrency);
         $seasonal = [];
 
-        foreach ($byMonth as $categoryId => $monthData) {
-            $monthlyTotals = $this->aggregateMonthlyTotalsInBaseCurrency($monthData, $baseCurrency);
+        foreach ($rolledUp as $rootCategoryId => $rootData) {
+            $rootSeasonal = $this->computeSeasonalForCategory($rootCategoryId, $rootData['totals'], $targetMonth);
 
-            if (\count($monthlyTotals) < 2) {
+            if (null === $rootSeasonal) {
                 continue;
             }
 
-            $overallSum = array_sum($monthlyTotals);
-            $overallAverage = $overallSum / \count($monthlyTotals);
-
-            if ($overallAverage <= 0.0) {
-                continue;
-            }
-
-            $sameMonthValues = [];
-            foreach ($monthlyTotals as $monthKey => $total) {
-                if (substr($monthKey, 5, 2) === $targetMonth) {
-                    $sameMonthValues[] = $total;
+            $children = [];
+            foreach ($rootData['children'] as $childCategoryId => $childTotals) {
+                $childSeasonal = $this->computeSeasonalForCategory($childCategoryId, $childTotals, $targetMonth);
+                if (null !== $childSeasonal) {
+                    $children[] = $childSeasonal;
                 }
             }
 
-            if ([] === $sameMonthValues) {
-                continue;
-            }
-
-            $sameMonthAverage = array_sum($sameMonthValues) / \count($sameMonthValues);
-            $seasonalFactor = $sameMonthAverage / $overallAverage;
-
-            if (abs($seasonalFactor - 1.0) < self::SEASONAL_DEVIATION_THRESHOLD) {
-                continue;
-            }
-
-            $seasonal[] = [
-                'categoryId' => $categoryId,
-                'seasonalFactor' => round($seasonalFactor, 2),
-                'currentMonthHistoricalAverage' => round($sameMonthAverage, 2),
-                'overallMonthlyAverage' => round($overallAverage, 2),
-                'sampleYears' => \count($sameMonthValues),
-            ];
+            $rootSeasonal['children'] = $children;
+            $seasonal[] = $rootSeasonal;
         }
 
         usort(
@@ -935,23 +958,194 @@ final class StatisticsManager
      *
      * @return array<string, float> YYYY-MM → expense total in base currency
      */
+    /**
+     * Rolls up per-leaf-category monthly data into root categories using the descendant map.
+     * Returns root-level aggregated totals plus per-child breakdowns.
+     *
+     * @param array<int, array<string, array<string, array{income: float, expense: float}>>> $byMonth
+     *
+     * @return array<int, array{totals: array<string, float>, children: array<int, array<string, float>>}>
+     */
+    private function rollUpMonthlyTotalsByCategory(array $byMonth, string $baseCurrency): array
+    {
+        $descendantMap = $this->getDescendantMap();
+
+        // Build reverse map: childId → rootId
+        $childToRoot = [];
+        foreach ($descendantMap as $categoryId => $descendants) {
+            // A category is a root if it appears as a descendant only of itself
+            $isRoot = true;
+            foreach ($descendantMap as $otherId => $otherDescendants) {
+                if ($otherId !== $categoryId && \in_array($categoryId, $otherDescendants, true)) {
+                    $isRoot = false;
+                    break;
+                }
+            }
+
+            if ($isRoot) {
+                foreach ($descendants as $descendantId) {
+                    $childToRoot[$descendantId] = $categoryId;
+                }
+            }
+        }
+
+        $result = [];
+
+        foreach ($byMonth as $leafCategoryId => $monthData) {
+            $rootId = $childToRoot[$leafCategoryId] ?? $leafCategoryId;
+            $leafTotals = $this->aggregateMonthlyTotalsInBaseCurrency($monthData, $baseCurrency);
+
+            if ([] === $leafTotals) {
+                continue;
+            }
+
+            if (!isset($result[$rootId])) {
+                $result[$rootId] = ['totals' => [], 'children' => []];
+            }
+
+            // Add leaf totals to root totals
+            foreach ($leafTotals as $month => $total) {
+                $result[$rootId]['totals'][$month] = ($result[$rootId]['totals'][$month] ?? 0.0) + $total;
+            }
+
+            // Store child breakdown (only if leaf differs from root)
+            if ($leafCategoryId !== $rootId) {
+                $result[$rootId]['children'][$leafCategoryId] = $leafTotals;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Computes trend for a single category given its monthly totals.
+     *
+     * @param array<string, float> $monthlyTotals
+     * @param list<string> $monthSlots
+     *
+     * @return array{categoryId: int, direction: string, changePercent: float, recentAverage: float, olderAverage: float}|null
+     */
+    private function computeTrendForCategory(
+        int $categoryId,
+        array $monthlyTotals,
+        array $monthSlots,
+        int $halfPoint,
+    ): ?array {
+        if (\count($monthlyTotals) < self::TREND_MINIMUM_ACTIVE_MONTHS) {
+            return null;
+        }
+
+        $olderSum = 0.0;
+        $olderCount = 0;
+        $recentSum = 0.0;
+        $recentCount = 0;
+
+        foreach ($monthSlots as $index => $month) {
+            $total = $monthlyTotals[$month] ?? null;
+            if (null === $total) {
+                continue;
+            }
+
+            if ($index < $halfPoint) {
+                $olderSum += $total;
+                ++$olderCount;
+            } else {
+                $recentSum += $total;
+                ++$recentCount;
+            }
+        }
+
+        if (0 === $olderCount || $olderSum <= 0.0) {
+            return null;
+        }
+
+        $olderAverage = $olderSum / $olderCount;
+        $recentAverage = $recentCount > 0 ? $recentSum / $recentCount : 0.0;
+        $changePercent = (($recentAverage - $olderAverage) / $olderAverage) * 100;
+
+        if (abs($changePercent) < self::TREND_CHANGE_THRESHOLD_PERCENT) {
+            return null;
+        }
+
+        return [
+            'categoryId' => $categoryId,
+            'direction' => $changePercent > 0 ? 'up' : 'down',
+            'changePercent' => round($changePercent, 1),
+            'recentAverage' => round($recentAverage, 2),
+            'olderAverage' => round($olderAverage, 2),
+        ];
+    }
+
+    /**
+     * Computes seasonal pattern for a single category given its monthly totals.
+     *
+     * @param array<string, float> $monthlyTotals
+     *
+     * @return array{categoryId: int, seasonalFactor: float, currentMonthHistoricalAverage: float, overallMonthlyAverage: float, sampleYears: int}|null
+     */
+    private function computeSeasonalForCategory(
+        int $categoryId,
+        array $monthlyTotals,
+        string $targetMonth,
+    ): ?array {
+        if (\count($monthlyTotals) < 2) {
+            return null;
+        }
+
+        $overallSum = array_sum($monthlyTotals);
+        $overallAverage = $overallSum / \count($monthlyTotals);
+
+        if ($overallAverage <= 0.0) {
+            return null;
+        }
+
+        $sameMonthValues = [];
+        foreach ($monthlyTotals as $monthKey => $total) {
+            if (substr($monthKey, 5, 2) === $targetMonth) {
+                $sameMonthValues[] = $total;
+            }
+        }
+
+        if ([] === $sameMonthValues) {
+            return null;
+        }
+
+        $sameMonthAverage = array_sum($sameMonthValues) / \count($sameMonthValues);
+        $seasonalFactor = $sameMonthAverage / $overallAverage;
+
+        if (abs($seasonalFactor - 1.0) < self::SEASONAL_DEVIATION_THRESHOLD) {
+            return null;
+        }
+
+        return [
+            'categoryId' => $categoryId,
+            'seasonalFactor' => round($seasonalFactor, 2),
+            'currentMonthHistoricalAverage' => round($sameMonthAverage, 2),
+            'overallMonthlyAverage' => round($overallAverage, 2),
+            'sampleYears' => \count($sameMonthValues),
+        ];
+    }
+
+    /**
+     * Extracts the baseCurrency expense total per month from convertedValues data.
+     * Since the data source (getConvertedMonthlyTotalsByCategory) provides amounts in all
+     * currencies from the transaction snapshot, we only need the baseCurrency key.
+     *
+     * @param array<string, array<string, array{income: float, expense: float}>> $monthData
+     *
+     * @return array<string, float> YYYY-MM → expense total in base currency
+     */
     private function aggregateMonthlyTotalsInBaseCurrency(array $monthData, string $baseCurrency): array
     {
         $totals = [];
 
         foreach ($monthData as $month => $currencyData) {
-            $monthTotal = 0.0;
-            foreach ($currencyData as $currency => $values) {
-                if ($currency === $baseCurrency) {
-                    $monthTotal += $values['expense'];
-                } else {
-                    // Native currency — we only have native amounts from getActualsByCategoryByMonth,
-                    // so we include them as-is. For multi-currency accuracy, consider using
-                    // getActualsByCategoryForPeriod which uses convertedValues snapshots.
-                    $monthTotal += $values['expense'];
-                }
+            $baseCurrencyValues = $currencyData[$baseCurrency] ?? null;
+            if (null === $baseCurrencyValues) {
+                continue;
             }
 
+            $monthTotal = $baseCurrencyValues['expense'];
             if ($monthTotal > 0.0) {
                 $totals[$month] = $monthTotal;
             }

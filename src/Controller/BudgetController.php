@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Budget;
+use App\Repository\BudgetRepository;
 use App\Repository\TransactionRepository;
 use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
@@ -171,6 +172,7 @@ class BudgetController extends AbstractFOSRestController
         ]);
     }
 
+    #[Rest\QueryParam(name: 'currency', requirements: '^[A-Z]{3}$', default: 'EUR', description: 'Base currency for converted amounts')]
     #[Rest\View]
     #[Route('/{id<\d+>}/insights', name: 'insights', methods: ['GET'])]
     #[OA\Get(
@@ -181,6 +183,7 @@ class BudgetController extends AbstractFOSRestController
         tags: ['Budget'],
         parameters: [
             new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Budget ID', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'currency', in: 'query', required: false, description: 'Base currency for converted amounts (default: EUR)', schema: new OA\Schema(type: 'string', pattern: '^[A-Z]{3}$', default: 'EUR')),
         ],
         responses: [
             new OA\Response(
@@ -196,9 +199,49 @@ class BudgetController extends AbstractFOSRestController
             new OA\Response(response: 404, description: 'Budget not found'),
         ],
     )]
-    public function insights(Budget $budget, StatisticsManager $statisticsManager): View
+    public function insights(Budget $budget, StatisticsManager $statisticsManager, string $currency = 'EUR'): View
     {
-        return $this->view($statisticsManager->computeBudgetInsights($budget, 'EUR'));
+        return $this->view($statisticsManager->computeBudgetInsights($budget, $currency));
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Summaries (for sidebar)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    #[Rest\View]
+    #[Route('/summaries', name: 'summaries', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/v2/budgets/summaries',
+        summary: 'Lightweight summaries for all budgets',
+        description: 'Returns per-budget totals (actual + planned expense/income) for sidebar display. Single query per budget.',
+        security: [['bearerAuth' => []]],
+        tags: ['Budget'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Budget summaries',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'data', type: 'array', items: new OA\Items(type: 'object')),
+                ]),
+            ),
+        ],
+    )]
+    public function summaries(
+        BudgetRepository $budgetRepository,
+        TransactionRepository $transactionRepository,
+        StatisticsManager $statisticsManager,
+    ): View {
+        $budgets = $budgetRepository->findBy(
+            ['owner' => $this->getUser()],
+            ['startDate' => 'DESC'],
+        );
+
+        $summaries = [];
+        foreach ($budgets as $budget) {
+            $summaries[] = $statisticsManager->computeBudgetSummary($budget, $transactionRepository);
+        }
+
+        return $this->view(['data' => $summaries]);
     }
 
     // ──────────────────────────────────────────────────────────────────────────

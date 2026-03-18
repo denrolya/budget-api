@@ -768,6 +768,166 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertIsArray($content['data']);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // Insights (BudgetController v2)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * @covers \App\Controller\BudgetController::insights
+     */
+    public function testInsightsRequiresAuth(): void
+    {
+        $budget = $this->findBudget('January 2021');
+
+        $this->client->request(
+            'GET',
+            self::BUDGET_V2_URL . '/' . $budget->getId() . '/insights',
+            ['headers' => ['authorization' => null]],
+        );
+        self::assertResponseStatusCodeSame(401);
+    }
+
+    /**
+     * @covers \App\Controller\BudgetController::insights
+     */
+    public function testInsightsReturnsCorrectShape(): void
+    {
+        $budget = $this->findBudget('January 2021');
+
+        $response = $this->client->request(
+            'GET',
+            self::BUDGET_V2_URL . '/' . $budget->getId() . '/insights',
+        );
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+        self::assertArrayHasKey('outliers', $content);
+        self::assertArrayHasKey('trends', $content);
+        self::assertArrayHasKey('seasonal', $content);
+        self::assertIsArray($content['outliers']);
+        self::assertIsArray($content['trends']);
+        self::assertIsArray($content['seasonal']);
+    }
+
+    /**
+     * @covers \App\Controller\BudgetController::insights
+     */
+    public function testInsightsOnEmptyBudgetReturnsEmptyArrays(): void
+    {
+        $budget = $this->findBudget('Empty June 2020');
+
+        $response = $this->client->request(
+            'GET',
+            self::BUDGET_V2_URL . '/' . $budget->getId() . '/insights',
+        );
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+        self::assertEmpty($content['outliers']);
+        self::assertIsArray($content['trends']);
+        self::assertIsArray($content['seasonal']);
+    }
+
+    /**
+     * @covers \App\Controller\BudgetController::insights
+     */
+    public function testInsightsOutlierItemHasExpectedFields(): void
+    {
+        // Use Rent category — fixtures have no Rent transactions in Jan 2021,
+        // so our test data is the only input for this category group.
+        $rentCategory = $this->entityManager()->getRepository(ExpenseCategory::class)
+            ->findOneBy(['name' => 'Rent']);
+        \assert($rentCategory instanceof ExpenseCategory);
+
+        $budget = $this->findBudget('January 2021');
+
+        // 3 normal + 1 extreme outlier in a clean category
+        $this->createExpense(800.0, $this->accountCashEUR, $rentCategory, \Carbon\CarbonImmutable::parse('2021-01-02'), 'rent-normal-1');
+        $this->createExpense(810.0, $this->accountCashEUR, $rentCategory, \Carbon\CarbonImmutable::parse('2021-01-05'), 'rent-normal-2');
+        $this->createExpense(790.0, $this->accountCashEUR, $rentCategory, \Carbon\CarbonImmutable::parse('2021-01-10'), 'rent-normal-3');
+        $this->createExpense(15000.0, $this->accountCashEUR, $rentCategory, \Carbon\CarbonImmutable::parse('2021-01-15'), 'rent-extreme-outlier');
+        $this->entityManager()->clear();
+
+        $response = $this->client->request(
+            'GET',
+            self::BUDGET_V2_URL . '/' . $budget->getId() . '/insights',
+        );
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+
+        // Find our extreme outlier in results
+        $extremeOutliers = array_filter(
+            $content['outliers'],
+            static fn (array $outlier) => $outlier['note'] === 'rent-extreme-outlier',
+        );
+
+        self::assertNotEmpty($extremeOutliers, 'Extreme outlier (15000 EUR vs ~800 EUR normal) must be detected');
+
+        $outlier = reset($extremeOutliers);
+        self::assertArrayHasKey('transactionId', $outlier);
+        self::assertArrayHasKey('categoryId', $outlier);
+        self::assertArrayHasKey('note', $outlier);
+        self::assertArrayHasKey('executedAt', $outlier);
+        self::assertArrayHasKey('amount', $outlier);
+        self::assertArrayHasKey('convertedAmount', $outlier);
+        self::assertArrayHasKey('median', $outlier);
+        self::assertArrayHasKey('deviation', $outlier);
+        self::assertGreaterThan(5.0, $outlier['deviation']);
+    }
+
+    /**
+     * Verify the currency query parameter is accepted and changes the base currency used.
+     *
+     * @covers \App\Controller\BudgetController::insights
+     */
+    public function testInsightsAcceptsCurrencyParameter(): void
+    {
+        $budget = $this->findBudget('January 2021');
+
+        $response = $this->client->request(
+            'GET',
+            self::BUDGET_V2_URL . '/' . $budget->getId() . '/insights?currency=USD',
+        );
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+        self::assertArrayHasKey('outliers', $content);
+        self::assertArrayHasKey('trends', $content);
+        self::assertArrayHasKey('seasonal', $content);
+    }
+
+    /**
+     * Without the currency param, insights should default to EUR (no error).
+     *
+     * @covers \App\Controller\BudgetController::insights
+     */
+    public function testInsightsDefaultsToEurWhenNoCurrencyProvided(): void
+    {
+        $budget = $this->findBudget('January 2021');
+
+        $response = $this->client->request(
+            'GET',
+            self::BUDGET_V2_URL . '/' . $budget->getId() . '/insights',
+        );
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+        self::assertArrayHasKey('outliers', $content);
+    }
+
+    /**
+     * @covers \App\Controller\BudgetController::insights
+     */
+    public function testInsightsOnNonExistentBudgetReturns404(): void
+    {
+        $this->client->request(
+            'GET',
+            self::BUDGET_V2_URL . '/999999/insights',
+        );
+        self::assertResponseStatusCodeSame(404);
+    }
+
     /**
      * @covers \App\DataPersister\BudgetLineDataPersister
      */
