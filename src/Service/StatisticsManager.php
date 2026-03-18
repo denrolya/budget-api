@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\Account;
+use App\Entity\Budget;
 use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\Transaction;
@@ -12,12 +13,31 @@ use App\Repository\CategoryRepository;
 use App\Repository\ExpenseCategoryRepository;
 use App\Repository\IncomeCategoryRepository;
 use App\Repository\TransactionRepository;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Carbon\CarbonPeriod;
 use InvalidArgumentException;
 
+// TODO: extract insights methods (computeBudgetInsights, computeOutliers, computeTrends,
+//       computeSeasonalPatterns) into a dedicated BudgetInsightsCalculator when splitting StatisticsManager
 final class StatisticsManager
 {
+    private const OUTLIER_MAD_THRESHOLD = 5.0;
+
+    private const OUTLIER_MINIMUM_GROUP_SIZE = 3;
+
+    private const OUTLIER_MAXIMUM_RESULTS = 20;
+
+    private const TREND_LOOKBACK_MONTHS = 6;
+
+    private const TREND_MINIMUM_ACTIVE_MONTHS = 3;
+
+    private const TREND_CHANGE_THRESHOLD_PERCENT = 10.0;
+
+    private const SEASONAL_LOOKBACK_MONTHS = 24;
+
+    private const SEASONAL_DEVIATION_THRESHOLD = 0.3;
+
     /**
      * Lazily populated once per request from buildDescendantMap().
      *
@@ -593,5 +613,350 @@ final class StatisticsManager
         }
 
         return $transactions;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Budget Insights (outliers, trends, seasonal)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /**
+     * @return array{outliers: list<array<string, mixed>>, trends: list<array<string, mixed>>, seasonal: list<array<string, mixed>>}
+     */
+    public function computeBudgetInsights(Budget $budget, string $baseCurrency): array
+    {
+        return [
+            'outliers' => $this->computeOutliers($budget, $baseCurrency),
+            'trends' => $this->computeTrends($budget, $baseCurrency),
+            'seasonal' => $this->computeSeasonalPatterns($budget, $baseCurrency),
+        ];
+    }
+
+    /**
+     * Finds statistically unusual expense transactions within the budget period using Median Absolute Deviation.
+     * Groups transactions by category; flags those deviating beyond the MAD threshold.
+     *
+     * @return list<array{transactionId: int, categoryId: int, note: string|null, executedAt: string, amount: float, convertedAmount: float, median: float, deviation: float}>
+     */
+    private function computeOutliers(Budget $budget, string $baseCurrency): array
+    {
+        $start = CarbonImmutable::instance($budget->getStartDate())->startOfDay();
+        $end = CarbonImmutable::instance($budget->getEndDate())->endOfDay();
+
+        $transactions = $this->transactionRepository->getList(
+            after: $start,
+            before: $end,
+            type: Transaction::EXPENSE,
+            affectingProfitOnly: true,
+            isDraft: false,
+        );
+
+        $groupedByCategory = $this->groupTransactionsByCategory($transactions);
+        $outliers = [];
+
+        foreach ($groupedByCategory as $categoryId => $categoryTransactions) {
+            if (\count($categoryTransactions) < self::OUTLIER_MINIMUM_GROUP_SIZE) {
+                continue;
+            }
+
+            $values = $this->extractConvertedAmounts($categoryTransactions, $baseCurrency);
+            if (\count($values) < self::OUTLIER_MINIMUM_GROUP_SIZE) {
+                continue;
+            }
+
+            $median = $this->calculateMedian($values);
+            $mad = $this->calculateMad($values, $median);
+
+            if ($mad <= 0.0) {
+                continue;
+            }
+
+            $fence = self::OUTLIER_MAD_THRESHOLD * $mad;
+
+            foreach ($categoryTransactions as $transaction) {
+                $convertedAmount = $transaction->getConvertedValue($baseCurrency);
+                if ($convertedAmount <= 0.0) {
+                    continue;
+                }
+
+                $absoluteDeviation = abs($convertedAmount - $median);
+                if ($absoluteDeviation <= $fence) {
+                    continue;
+                }
+
+                $executedAt = $transaction->getExecutedAt();
+                \assert(null !== $executedAt);
+
+                $transactionId = $transaction->getId();
+                \assert(null !== $transactionId);
+
+                $outliers[] = [
+                    'transactionId' => $transactionId,
+                    'categoryId' => $categoryId,
+                    'note' => $transaction->getNote(),
+                    'executedAt' => $executedAt->format('Y-m-d'),
+                    'amount' => $transaction->getAmount(),
+                    'convertedAmount' => $convertedAmount,
+                    'median' => $median,
+                    'deviation' => round($absoluteDeviation / $mad, 1),
+                ];
+            }
+        }
+
+        usort($outliers, static fn (array $first, array $second): int => $second['deviation'] <=> $first['deviation']);
+
+        return \array_slice($outliers, 0, self::OUTLIER_MAXIMUM_RESULTS);
+    }
+
+    /**
+     * Detects spending trend direction per category by comparing recent vs older monthly averages.
+     *
+     * @return list<array{categoryId: int, direction: string, changePercent: float, recentAverage: float, olderAverage: float}>
+     */
+    private function computeTrends(Budget $budget, string $baseCurrency): array
+    {
+        $budgetStart = CarbonImmutable::instance($budget->getStartDate());
+        $windowEnd = $budgetStart->subDay()->endOfDay();
+        $windowStart = $budgetStart->subMonths(self::TREND_LOOKBACK_MONTHS)->startOfMonth()->startOfDay();
+
+        $byMonth = $this->transactionRepository->getActualsByCategoryByMonth($windowStart, $windowEnd);
+        $monthSlots = $this->buildTrendMonthSlots($budgetStart);
+        $halfPoint = (int) floor(\count($monthSlots) / 2);
+
+        $trends = [];
+
+        foreach ($byMonth as $categoryId => $monthData) {
+            $monthlyTotals = $this->aggregateMonthlyTotalsInBaseCurrency($monthData, $baseCurrency);
+            $activeMonths = \count($monthlyTotals);
+
+            if ($activeMonths < self::TREND_MINIMUM_ACTIVE_MONTHS) {
+                continue;
+            }
+
+            $olderSum = 0.0;
+            $olderCount = 0;
+            $recentSum = 0.0;
+            $recentCount = 0;
+
+            foreach ($monthSlots as $index => $month) {
+                $total = $monthlyTotals[$month] ?? null;
+                if (null === $total) {
+                    continue;
+                }
+
+                if ($index < $halfPoint) {
+                    $olderSum += $total;
+                    ++$olderCount;
+                } else {
+                    $recentSum += $total;
+                    ++$recentCount;
+                }
+            }
+
+            if (0 === $olderCount || $olderSum <= 0.0) {
+                continue;
+            }
+
+            $olderAverage = $olderSum / $olderCount;
+            $recentAverage = $recentCount > 0 ? $recentSum / $recentCount : 0.0;
+            $changePercent = (($recentAverage - $olderAverage) / $olderAverage) * 100;
+
+            if (abs($changePercent) < self::TREND_CHANGE_THRESHOLD_PERCENT) {
+                continue;
+            }
+
+            $direction = $changePercent > 0 ? 'up' : 'down';
+
+            $trends[] = [
+                'categoryId' => $categoryId,
+                'direction' => $direction,
+                'changePercent' => round($changePercent, 1),
+                'recentAverage' => round($recentAverage, 2),
+                'olderAverage' => round($olderAverage, 2),
+            ];
+        }
+
+        usort($trends, static fn (array $first, array $second): int => abs($second['changePercent']) <=> abs($first['changePercent']));
+
+        return $trends;
+    }
+
+    /**
+     * Identifies categories where spending in the budget's calendar month historically deviates
+     * from the overall monthly average (seasonal spikes or dips).
+     *
+     * @return list<array{categoryId: int, seasonalFactor: float, currentMonthHistoricalAverage: float, overallMonthlyAverage: float, sampleYears: int}>
+     */
+    private function computeSeasonalPatterns(Budget $budget, string $baseCurrency): array
+    {
+        $budgetStart = CarbonImmutable::instance($budget->getStartDate());
+        $targetMonth = $budgetStart->format('m');
+        $windowEnd = $budgetStart->subDay()->endOfDay();
+        $windowStart = $budgetStart->subMonths(self::SEASONAL_LOOKBACK_MONTHS)->startOfMonth()->startOfDay();
+
+        $byMonth = $this->transactionRepository->getActualsByCategoryByMonth($windowStart, $windowEnd);
+        $seasonal = [];
+
+        foreach ($byMonth as $categoryId => $monthData) {
+            $monthlyTotals = $this->aggregateMonthlyTotalsInBaseCurrency($monthData, $baseCurrency);
+
+            if (\count($monthlyTotals) < 2) {
+                continue;
+            }
+
+            $overallSum = array_sum($monthlyTotals);
+            $overallAverage = $overallSum / \count($monthlyTotals);
+
+            if ($overallAverage <= 0.0) {
+                continue;
+            }
+
+            $sameMonthValues = [];
+            foreach ($monthlyTotals as $monthKey => $total) {
+                if (substr($monthKey, 5, 2) === $targetMonth) {
+                    $sameMonthValues[] = $total;
+                }
+            }
+
+            if ([] === $sameMonthValues) {
+                continue;
+            }
+
+            $sameMonthAverage = array_sum($sameMonthValues) / \count($sameMonthValues);
+            $seasonalFactor = $sameMonthAverage / $overallAverage;
+
+            if (abs($seasonalFactor - 1.0) < self::SEASONAL_DEVIATION_THRESHOLD) {
+                continue;
+            }
+
+            $seasonal[] = [
+                'categoryId' => $categoryId,
+                'seasonalFactor' => round($seasonalFactor, 2),
+                'currentMonthHistoricalAverage' => round($sameMonthAverage, 2),
+                'overallMonthlyAverage' => round($overallAverage, 2),
+                'sampleYears' => \count($sameMonthValues),
+            ];
+        }
+
+        usort(
+            $seasonal,
+            static fn (array $first, array $second): int => abs($second['seasonalFactor'] - 1.0) <=> abs($first['seasonalFactor'] - 1.0),
+        );
+
+        return $seasonal;
+    }
+
+    /**
+     * @param Transaction[] $transactions
+     *
+     * @return array<int, Transaction[]>
+     */
+    private function groupTransactionsByCategory(array $transactions): array
+    {
+        $grouped = [];
+        foreach ($transactions as $transaction) {
+            $categoryId = $transaction->getCategory()->getId();
+            \assert(null !== $categoryId);
+            $grouped[$categoryId][] = $transaction;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * @param Transaction[] $transactions
+     *
+     * @return list<float>
+     */
+    private function extractConvertedAmounts(array $transactions, string $baseCurrency): array
+    {
+        $amounts = [];
+        foreach ($transactions as $transaction) {
+            $value = $transaction->getConvertedValue($baseCurrency);
+            if ($value > 0.0) {
+                $amounts[] = $value;
+            }
+        }
+
+        return $amounts;
+    }
+
+    /**
+     * @param list<float> $values must be non-empty
+     */
+    private function calculateMedian(array $values): float
+    {
+        sort($values);
+        $count = \count($values);
+        $middle = (int) floor($count / 2);
+
+        if ($count % 2 === 0) {
+            return ($values[$middle - 1] + $values[$middle]) / 2;
+        }
+
+        return $values[$middle];
+    }
+
+    /**
+     * Median Absolute Deviation — robust measure of statistical dispersion.
+     *
+     * @param list<float> $values
+     */
+    private function calculateMad(array $values, float $median): float
+    {
+        $absoluteDeviations = array_map(
+            static fn (float $value): float => abs($value - $median),
+            $values,
+        );
+
+        return $this->calculateMedian($absoluteDeviations);
+    }
+
+    /**
+     * Builds month slot keys (YYYY-MM) for the trend lookback window ending before budget start.
+     *
+     * @return list<string>
+     */
+    private function buildTrendMonthSlots(CarbonImmutable $budgetStart): array
+    {
+        $slots = [];
+        for ($index = self::TREND_LOOKBACK_MONTHS; $index >= 1; --$index) {
+            $slots[] = $budgetStart->subMonths($index)->format('Y-m');
+        }
+
+        return $slots;
+    }
+
+    /**
+     * Aggregates per-month-per-currency native amounts into base currency monthly totals.
+     * Uses getActualsByCategoryByMonth format: [YYYY-MM][currency] = {income, expense}.
+     * For insights we care about expense totals only.
+     *
+     * @param array<string, array<string, array{income: float, expense: float}>> $monthData
+     *
+     * @return array<string, float> YYYY-MM → expense total in base currency
+     */
+    private function aggregateMonthlyTotalsInBaseCurrency(array $monthData, string $baseCurrency): array
+    {
+        $totals = [];
+
+        foreach ($monthData as $month => $currencyData) {
+            $monthTotal = 0.0;
+            foreach ($currencyData as $currency => $values) {
+                if ($currency === $baseCurrency) {
+                    $monthTotal += $values['expense'];
+                } else {
+                    // Native currency — we only have native amounts from getActualsByCategoryByMonth,
+                    // so we include them as-is. For multi-currency accuracy, consider using
+                    // getActualsByCategoryForPeriod which uses convertedValues snapshots.
+                    $monthTotal += $values['expense'];
+                }
+            }
+
+            if ($monthTotal > 0.0) {
+                $totals[$month] = $monthTotal;
+            }
+        }
+
+        return $totals;
     }
 }

@@ -6,6 +6,7 @@ namespace App\Controller;
 
 use App\Entity\Budget;
 use App\Repository\TransactionRepository;
+use App\Service\StatisticsManager;
 use Carbon\CarbonImmutable;
 use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
@@ -168,6 +169,36 @@ class BudgetController extends AbstractFOSRestController
             'after' => $start->format('Y-m-d'),
             'before' => $end->format('Y-m-d'),
         ]);
+    }
+
+    #[Rest\View]
+    #[Route('/{id<\d+>}/insights', name: 'insights', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/v2/budgets/{id}/insights',
+        summary: 'Budget insights: outliers, trends, and seasonal patterns',
+        description: 'Returns statistical insights for the budget period — unusual transactions (MAD-based), category spending trends, and seasonal spending patterns.',
+        security: [['bearerAuth' => []]],
+        tags: ['Budget'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Budget ID', schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Budget insights',
+                content: new OA\JsonContent(properties: [
+                    new OA\Property(property: 'outliers', type: 'array', items: new OA\Items(type: 'object')),
+                    new OA\Property(property: 'trends', type: 'array', items: new OA\Items(type: 'object')),
+                    new OA\Property(property: 'seasonal', type: 'array', items: new OA\Items(type: 'object')),
+                ]),
+            ),
+            new OA\Response(response: 401, description: 'Unauthorized'),
+            new OA\Response(response: 404, description: 'Budget not found'),
+        ],
+    )]
+    public function insights(Budget $budget, StatisticsManager $statisticsManager): View
+    {
+        return $this->view($statisticsManager->computeBudgetInsights($budget, 'EUR'));
     }
 
     // ──────────────────────────────────────────────────────────────────────────
