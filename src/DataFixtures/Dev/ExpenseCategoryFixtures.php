@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\DataFixtures\Dev;
 
 use App\Entity\ExpenseCategory;
+use App\Entity\User;
 use Carbon\CarbonImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
@@ -87,15 +88,17 @@ class ExpenseCategoryFixtures extends Fixture implements DependentFixtureInterfa
             ['name' => 'Debt', 'isAffectingProfit' => false],
         ];
 
-        $this->createCategories($manager, $categories);
+        $user = $this->getReference('dev_user', User::class);
+        $this->createCategories($manager, $categories, $user);
         $manager->flush();
     }
 
-    private function createCategories(ObjectManager $manager, array $categories, ?ExpenseCategory $parent = null): void
+    private function createCategories(ObjectManager $manager, array $categories, User $user, ?ExpenseCategory $parent = null): void
     {
         foreach ($categories as $data) {
             $category = new ExpenseCategory();
             $category->setName($data['name'])
+                ->setOwner($user)
                 ->setCreatedAt(CarbonImmutable::now()->subYears(2))
                 ->setUpdatedAt(CarbonImmutable::now())
                 ->setIsAffectingProfit($data['isAffectingProfit'])
@@ -103,7 +106,7 @@ class ExpenseCategoryFixtures extends Fixture implements DependentFixtureInterfa
                 ->setRoot($parent ? $parent->getRoot() ?? $parent : null);
             $manager->persist($category);
             if (isset($data['children']) && [] !== $data['children']) {
-                $this->createCategories($manager, $data['children'], $category);
+                $this->createCategories($manager, $data['children'], $user, $category);
             }
         }
     }

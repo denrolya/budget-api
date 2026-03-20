@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\DataFixtures\Dev;
 
 use App\Entity\IncomeCategory;
+use App\Entity\User;
 use Carbon\CarbonImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
@@ -80,10 +81,13 @@ class IncomeCategoryFixtures extends Fixture implements DependentFixtureInterfac
             ],
         ];
 
+        $user = $this->getReference('dev_user', User::class);
+
         foreach ($categories as $categoryData) {
             // Create root category
             $rootCategory = new IncomeCategory();
             $rootCategory->setName($categoryData['name'])
+                ->setOwner($user)
                 ->setCreatedAt(CarbonImmutable::now()->subYears(2))
                 ->setUpdatedAt(CarbonImmutable::now())
                 ->setIsAffectingProfit($categoryData['isAffectingProfit'])
@@ -95,6 +99,7 @@ class IncomeCategoryFixtures extends Fixture implements DependentFixtureInterfac
             foreach ($categoryData['children'] as $childData) {
                 $childCategory = new IncomeCategory();
                 $childCategory->setName($childData['name'])
+                    ->setOwner($user)
                     ->setCreatedAt(CarbonImmutable::now()->subYear())
                     ->setUpdatedAt(CarbonImmutable::now())
                     ->setIsAffectingProfit($childData['isAffectingProfit'])
