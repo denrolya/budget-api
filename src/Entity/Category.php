@@ -15,6 +15,7 @@ use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\Put;
 use App\ApiPlatform\DiscriminatorFilter;
 use App\Repository\CategoryRepository;
+use App\Traits\OwnableEntity;
 use App\Traits\TimestampableEntity;
 use DateTimeInterface;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -23,12 +24,13 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Gedmo\Mapping\Annotation as Gedmo;
 use JMS\Serializer\Annotation as Serializer;
+use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: CategoryRepository::class)]
-#[ORM\UniqueConstraint(name: 'unique_category', columns: ['name', 'type'])]
+#[ORM\UniqueConstraint(name: 'unique_category', columns: ['name', 'type', 'owner_id'])]
 #[ORM\Index(columns: ['name'], name: 'category_name_idx')]
 #[ORM\InheritanceType('SINGLE_TABLE')]
 #[ORM\DiscriminatorColumn(name: 'type', type: 'string')]
@@ -75,8 +77,9 @@ use Symfony\Component\Validator\Constraints as Assert;
     ],
     'disabled' => false,
 ])]
-abstract class Category
+abstract class Category implements OwnableInterface
 {
+    use OwnableEntity;
     use TimestampableEntity;
 
     public const EXPENSE_CATEGORY_TYPE = 'expense';
