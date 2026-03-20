@@ -890,4 +890,51 @@ class TransactionControllerTest extends BaseApiTestCase
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('text/csv', $response->getHeaders()['content-type'][0]);
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  ISOLATION — cross-user data must not be visible
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * @covers \App\Controller\TransactionController::list
+     */
+    public function testListTransactions_withOtherUserData_returnsOnlyOwnData(): void
+    {
+        $otherUser = $this->createOtherUser('tx_list');
+
+        $otherAccount = new \App\Entity\CashAccount();
+        $otherAccount
+            ->setName('Other User Account')
+            ->setCurrency('EUR')
+            ->setBalance(0.0)
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherAccount);
+
+        $groceries = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof \App\Entity\ExpenseCategory);
+
+        $otherExpense = new \App\Entity\Expense();
+        $otherExpense
+            ->setAmount(9876.54)
+            ->setExecutedAt(\Carbon\Carbon::parse('2024-07-15T10:00:00Z'))
+            ->setCategory($groceries)
+            ->setAccount($otherAccount)
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherExpense);
+        $this->entityManager()->flush();
+
+        $response = $this->client->request('GET', $this->buildURL(self::TRANSACTION_LIST_URL, [
+            'after' => '2024-07-01',
+            'before' => '2024-07-31',
+        ]));
+        self::assertResponseIsSuccessful();
+
+        $content = $response->toArray();
+        $amounts = array_column($content['list'], 'amount');
+        self::assertNotContains(
+            9876.54,
+            array_map('floatval', $amounts),
+            'Other user\'s transaction (9876.54 EUR) must not appear in the authenticated user\'s list.',
+        );
+    }
 }

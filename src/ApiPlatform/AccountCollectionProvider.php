@@ -8,7 +8,9 @@ use ApiPlatform\Doctrine\Orm\State\CollectionProvider;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\Entity\Account;
+use App\Entity\BankCardAccount;
 use App\Repository\TransactionRepository;
+use Doctrine\ORM\EntityNotFoundException;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
 /**
@@ -46,6 +48,20 @@ final readonly class AccountCollectionProvider implements ProviderInterface
             $accountId = $account->getId();
             if (null !== $accountId) {
                 $accountIdentifiers[] = $accountId;
+            }
+
+            // Force proxy initialization here so that a BankIntegration filtered out by
+            // OwnableFilter (e.g. stale FK pointing to another user's integration) surfaces
+            // as null rather than an EntityNotFoundException thrown during serialization.
+            if ($account instanceof BankCardAccount) {
+                // Doctrine proxy initialization throws EntityNotFoundException at runtime
+                // when OwnableFilter blocks the underlying SELECT (stale FK to another
+                // user's BankIntegration). PHPStan cannot model this, but it is real.
+                try {
+                    $account->getBankIntegration()?->getIsActive();
+                } catch (EntityNotFoundException) {
+                    $account->setBankIntegration(null);
+                }
             }
         }
 

@@ -308,4 +308,53 @@ class DebtCrudTest extends BaseApiTestCase
         self::assertIsArray($items);
         self::assertNotEmpty($items);
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  ISOLATION — cross-user data must not be visible
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function testListDebts_withOtherUserData_returnsOnlyOwnData(): void
+    {
+        $otherUser = $this->createOtherUser('debt_list');
+
+        $otherDebt = new Debt();
+        $otherDebt
+            ->setDebtor('Other User Debtor')
+            ->setCurrency('EUR')
+            ->setBalance('300')
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherDebt);
+        $this->entityManager()->flush();
+
+        $response = $this->client->request('GET', self::DEBT_V2_LIST_URL);
+        self::assertResponseIsSuccessful();
+
+        $debtors = array_column($response->toArray(), 'debtor');
+        self::assertNotContains(
+            'Other User Debtor',
+            $debtors,
+            'Other user\'s debt must not appear in the authenticated user\'s list.',
+        );
+    }
+
+    public function testPutDebt_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('debt_item');
+
+        $otherDebt = new Debt();
+        $otherDebt
+            ->setDebtor('Other User Debtor Item')
+            ->setCurrency('EUR')
+            ->setBalance('100')
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherDebt);
+        $this->entityManager()->flush();
+        $otherDebtId = $otherDebt->getId();
+
+        $this->client->request('PUT', self::DEBT_API_URL . '/' . $otherDebtId, [
+            'json' => ['debtor' => 'Hacked', 'currency' => 'EUR', 'balance' => '100'],
+        ]);
+        // security: 'object.getOwner() == user' on the Put operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
 }

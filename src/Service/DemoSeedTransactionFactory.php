@@ -22,7 +22,7 @@ class DemoSeedTransactionFactory
 {
     private const FLUSH_BATCH_SIZE = 300;
 
-    private const SEED_MONTHS = 18;
+    private const SEED_MONTHS = 24;
 
     /** EUR amount ranges [min, max] per expense category leaf */
     private const CATEGORY_BUDGETS_EUR = [
@@ -175,12 +175,14 @@ class DemoSeedTransactionFactory
 
         // Variable expenses per account
         $accountProfiles = [
-            //  [key,        minTx, maxTx]
-            ['main_eur',  20, 30],
-            ['cash_eur',  10, 16],
-            ['cash_usd',   5, 10],
-            ['wise_usd',   6, 12],
-            ['mono_uah',   8, 14],
+            //  [key,            minTx, maxTx]
+            ['main_eur',      20, 30],
+            ['cash_eur',      10, 16],
+            ['cash_usd',       5, 10],
+            ['wise_usd',       6, 12],
+            ['mono_uah',       8, 14],
+            ['revolut_eur',    4,  9],
+            ['savings_eur',    0,  2],
         ];
 
         foreach ($accountProfiles as [$accountKey, $minTransactions, $maxTransactions]) {
@@ -289,8 +291,9 @@ class DemoSeedTransactionFactory
         CarbonImmutable $now,
     ): int {
         $count = 0;
-        $mainEur = $accounts['main_eur'] ?? null;
-        $wiseUsd = $accounts['wise_usd'] ?? null;
+        $mainEur     = $accounts['main_eur'] ?? null;
+        $wiseUsd     = $accounts['wise_usd'] ?? null;
+        $revolutEur  = $accounts['revolut_eur'] ?? null;
 
         $catSalary    = $incomeCategories['Main Salary'] ?? $incomeCategories['Salary'] ?? null;
         $catAdvance   = $incomeCategories['Advance'] ?? null;
@@ -350,7 +353,7 @@ class DemoSeedTransactionFactory
             }
         }
 
-        // Monthly cashback
+        // Monthly cashback to main account
         if (null !== $mainEur && null !== $catCashback) {
             $cashbackDate = $monthStart->setDay(1)->setTime(8, 0);
 
@@ -358,6 +361,19 @@ class DemoSeedTransactionFactory
                 $amount = round(12.0 + lcg_value() * 35.0, 2);
                 $rate = $this->findRateForDate($ratesByDate, $cashbackDate->format('Y-m-d'));
                 $income = $this->buildIncome($user, $mainEur, $catCashback, $amount, 'EUR', $rate, $cashbackDate, 'Cashback');
+                $this->entityManager->persist($income);
+                ++$count;
+            }
+        }
+
+        // Revolut cashback (every other month)
+        if (0 === $monthOffset % 2 && null !== $revolutEur && null !== $catCashback) {
+            $revolutCashbackDate = $monthStart->setDay(3)->setTime(9, 15);
+
+            if ($revolutCashbackDate->lte($now)) {
+                $amount = round(5.0 + lcg_value() * 20.0, 2);
+                $rate = $this->findRateForDate($ratesByDate, $revolutCashbackDate->format('Y-m-d'));
+                $income = $this->buildIncome($user, $revolutEur, $catCashback, $amount, 'EUR', $rate, $revolutCashbackDate, 'Revolut cashback');
                 $this->entityManager->persist($income);
                 ++$count;
             }
@@ -376,15 +392,17 @@ class DemoSeedTransactionFactory
         CarbonImmutable $date,
         bool $isDraft,
     ): Expense {
+        $executedAt = $date->setTime(random_int(7, 22), random_int(0, 59), random_int(0, 59));
+
         $expense = new Expense();
         $expense->setOwner($user);
         $expense->setAccount($account);
         $expense->setCategory($category);
         $expense->setAmount((string) $amount);
         $expense->setConvertedValues($this->computeConvertedValues($amount, $currency, $rate));
-        $expense->setExecutedAt($date);
-        $expense->setCreatedAt($date);
-        $expense->setUpdatedAt($date);
+        $expense->setExecutedAt($executedAt);
+        $expense->setCreatedAt($executedAt);
+        $expense->setUpdatedAt($executedAt);
         $expense->setIsDraft($isDraft);
 
         return $expense;
@@ -427,8 +445,13 @@ class DemoSeedTransactionFactory
         $keys = array_keys($ratesByDate);
         $closest = $keys[0];
 
+        $targetTimestamp = (int) strtotime($dateKey);
+
         foreach ($keys as $key) {
-            if (abs(strtotime($key) - strtotime($dateKey)) < abs(strtotime($closest) - strtotime($dateKey))) {
+            $keyTimestamp = (int) strtotime($key);
+            $closestTimestamp = (int) strtotime($closest);
+
+            if (abs($keyTimestamp - $targetTimestamp) < abs($closestTimestamp - $targetTimestamp)) {
                 $closest = $key;
             }
         }

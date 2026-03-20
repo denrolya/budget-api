@@ -13,6 +13,7 @@ use FOS\RestBundle\Controller\AbstractFOSRestController;
 use FOS\RestBundle\Controller\Annotations as Rest;
 use FOS\RestBundle\View\View;
 use OpenApi\Attributes as OA;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route('/api/v2/budgets', name: 'api_v2_budgets_')]
@@ -58,6 +59,8 @@ class BudgetController extends AbstractFOSRestController
      */
     public function analytics(Budget $budget, TransactionRepository $transactionRepository): View
     {
+        $this->requireBudgetOwnership($budget);
+
         $start = CarbonImmutable::instance($budget->getStartDate())->startOfDay();
         $end = CarbonImmutable::instance($budget->getEndDate())->endOfDay();
 
@@ -96,6 +99,8 @@ class BudgetController extends AbstractFOSRestController
      */
     public function analyticsDailyStats(Budget $budget, TransactionRepository $transactionRepository): View
     {
+        $this->requireBudgetOwnership($budget);
+
         $start = CarbonImmutable::instance($budget->getStartDate())->startOfDay();
         $end = CarbonImmutable::instance($budget->getEndDate())->endOfDay();
 
@@ -146,6 +151,8 @@ class BudgetController extends AbstractFOSRestController
         TransactionRepository $transactionRepository,
         int $months = 6,
     ): View {
+        $this->requireBudgetOwnership($budget);
+
         $months = max(1, $months);
         $end = CarbonImmutable::now()->endOfMonth()->endOfDay();
         $start = CarbonImmutable::now()->startOfMonth()->subMonths($months - 1)->startOfDay();
@@ -201,6 +208,8 @@ class BudgetController extends AbstractFOSRestController
     )]
     public function insights(Budget $budget, StatisticsManager $statisticsManager, string $currency = 'EUR'): View
     {
+        $this->requireBudgetOwnership($budget);
+
         return $this->view($statisticsManager->computeBudgetInsights($budget, $currency));
     }
 
@@ -328,5 +337,13 @@ class BudgetController extends AbstractFOSRestController
         }
 
         return $currencies;
+    }
+
+    private function requireBudgetOwnership(Budget $budget): void
+    {
+        $currentUser = $this->getUser();
+        if (null === $currentUser || $budget->getOwner() !== $currentUser) {
+            throw new NotFoundHttpException();
+        }
     }
 }

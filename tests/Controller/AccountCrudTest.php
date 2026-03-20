@@ -6,6 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Entity\Account;
 use App\Entity\BankIntegration;
+use App\Entity\CashAccount;
 use App\Tests\BaseApiTestCase;
 
 /**
@@ -566,6 +567,55 @@ class AccountCrudTest extends BaseApiTestCase
     {
         $this->client->request('GET', '/api/v2/accounts/' . $this->accountCashEUR->getId());
         self::assertResponseStatusCodeSame(404);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  ISOLATION — cross-user data must not be visible
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function testListAccounts_withOtherUserData_returnsOnlyOwnData(): void
+    {
+        $otherUser = $this->createOtherUser('account_list');
+
+        $otherAccount = new CashAccount();
+        $otherAccount
+            ->setName('Other User Cash')
+            ->setCurrency('EUR')
+            ->setBalance(500.0)
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherAccount);
+        $this->entityManager()->flush();
+
+        $response = $this->client->request('GET', self::ACCOUNT_URL);
+        self::assertResponseIsSuccessful();
+
+        $identifiers = array_column($response->toArray(), 'id');
+        self::assertNotContains(
+            $otherAccount->getId(),
+            $identifiers,
+            'Other user\'s account must not appear in the authenticated user\'s list.',
+        );
+    }
+
+    public function testUpdateAccount_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('account_item');
+
+        $otherAccount = new CashAccount();
+        $otherAccount
+            ->setName('Other User Cash Item')
+            ->setCurrency('EUR')
+            ->setBalance(100.0)
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherAccount);
+        $this->entityManager()->flush();
+        $otherAccountId = $otherAccount->getId();
+
+        $this->client->request('PUT', self::ACCOUNT_URL . '/' . $otherAccountId, [
+            'json' => ['name' => 'Hacked'],
+        ]);
+        // security: 'object.getOwner() == user' on the Put operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
     }
 
     public function testCreateBankAccountWithBankIntegrationIriLinksCorrectly(): void

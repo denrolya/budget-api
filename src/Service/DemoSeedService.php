@@ -9,6 +9,7 @@ use App\Entity\BankCardAccount;
 use App\Entity\Budget;
 use App\Entity\BudgetLine;
 use App\Entity\CashAccount;
+use App\Entity\Category;
 use App\Entity\Debt;
 use App\Entity\ExchangeRateSnapshot;
 use App\Entity\ExpenseCategory;
@@ -26,7 +27,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class DemoSeedService
 {
     private const FLUSH_BATCH_SIZE = 200;
-    private const SEED_MONTHS = 18;
+    private const SEED_MONTHS = 24;
+    private const BUDGET_HISTORY_MONTHS = 12;
 
     /** Base exchange rates (approximate, early 2026) */
     private const BASE_RATE_USD_PER_EUR = 1.08;
@@ -82,6 +84,11 @@ class DemoSeedService
         $this->removeTransfers($user);
         $this->entityManager->flush();
 
+        // Budgets must go before Categories: BudgetLine has a non-cascading FK on category_id.
+        // Removing Budget cascades → BudgetLine, clearing the FK before categories are deleted.
+        $this->removeBudgets($user);
+        $this->entityManager->flush();
+
         $this->removeCategories($user);  // cascades → Transactions
         $this->entityManager->flush();
 
@@ -89,9 +96,6 @@ class DemoSeedService
         $this->entityManager->flush();
 
         $this->removeDebts($user);
-        $this->entityManager->flush();
-
-        $this->removeBudgets($user);
         $this->entityManager->flush();
     }
 
@@ -251,8 +255,8 @@ class DemoSeedService
         $expenseTree = $this->buildExpenseCategoryTree();
         $incomeCategoryTree = $this->buildIncomeCategoryTree();
 
-        $expenseMap = $this->persistCategoryTree($expenseTree, $user, 'expense');
-        $incomeMap = $this->persistCategoryTree($incomeCategoryTree, $user, 'income');
+        $expenseMap = $this->persistExpenseCategoryTree($expenseTree, $user);
+        $incomeMap = $this->persistIncomeCategoryTree($incomeCategoryTree, $user);
 
         $this->entityManager->flush();
 
@@ -261,17 +265,17 @@ class DemoSeedService
 
     /**
      * @param array<string, mixed> $tree
-     * @return array<string, ExpenseCategory|IncomeCategory>
+     * @return array<string, ExpenseCategory>
      */
-    private function persistCategoryTree(array $tree, User $user, string $type, ?object $parent = null, ?object $root = null): array
+    private function persistExpenseCategoryTree(array $tree, User $user, ?ExpenseCategory $parent = null): array
     {
         $map = [];
 
         foreach ($tree as $name => $children) {
-            $category = 'expense' === $type ? new ExpenseCategory($name) : new IncomeCategory($name);
+            $category = new ExpenseCategory($name);
             $category->setOwner($user);
 
-            if (isset($children['_profit']) && false === $children['_profit']) {
+            if (is_array($children) && isset($children['_profit']) && false === $children['_profit']) {
                 $category->setIsAffectingProfit(false);
             }
 
@@ -282,11 +286,49 @@ class DemoSeedService
             $this->entityManager->persist($category);
             $map[$name] = $category;
 
+            /** @var array<string, mixed> $childTree */
             $childTree = is_array($children) ? array_filter($children, static fn($key) => '_profit' !== $key, ARRAY_FILTER_USE_KEY) : [];
 
             if ([] !== $childTree) {
-                $childMap = $this->persistCategoryTree($childTree, $user, $type, $category, $root ?? $category);
-                $map = array_merge($map, $childMap);
+                foreach ($this->persistExpenseCategoryTree($childTree, $user, $category) as $childName => $child) {
+                    $map[$childName] = $child;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param array<string, mixed> $tree
+     * @return array<string, IncomeCategory>
+     */
+    private function persistIncomeCategoryTree(array $tree, User $user, ?IncomeCategory $parent = null): array
+    {
+        $map = [];
+
+        foreach ($tree as $name => $children) {
+            $category = new IncomeCategory($name);
+            $category->setOwner($user);
+
+            if (is_array($children) && isset($children['_profit']) && false === $children['_profit']) {
+                $category->setIsAffectingProfit(false);
+            }
+
+            if (null !== $parent) {
+                $category->setParent($parent);
+            }
+
+            $this->entityManager->persist($category);
+            $map[$name] = $category;
+
+            /** @var array<string, mixed> $childTree */
+            $childTree = is_array($children) ? array_filter($children, static fn($key) => '_profit' !== $key, ARRAY_FILTER_USE_KEY) : [];
+
+            if ([] !== $childTree) {
+                foreach ($this->persistIncomeCategoryTree($childTree, $user, $category) as $childName => $child) {
+                    $map[$childName] = $child;
+                }
             }
         }
 
@@ -457,6 +499,20 @@ class DemoSeedService
                 ->setBalance('0.03120000')
                 ->setIsDisplayedOnSidebar(false)
                 ->setOwner($user),
+
+            'revolut_eur' => (new InternetAccount())
+                ->setName('Revolut')
+                ->setCurrency('EUR')
+                ->setBalance('1850.00')
+                ->setIsDisplayedOnSidebar(true)
+                ->setOwner($user),
+
+            'savings_eur' => (new BankCardAccount())
+                ->setName('Savings')
+                ->setCurrency('EUR')
+                ->setBalance('12400.00')
+                ->setIsDisplayedOnSidebar(false)
+                ->setOwner($user),
         ];
 
         foreach ($accounts as $account) {
@@ -469,52 +525,80 @@ class DemoSeedService
     }
 
     /**
+     * Base planned amounts (EUR) for budget lines. Historical budgets apply a small
+     * monthly drift so older budgets show slightly different allocations.
+     *
+     * @return array<string, float>
+     */
+    private function buildBaseBudgetLines(): array
+    {
+        return [
+            'Groceries'              => 250.00,
+            'Restaurant'             => 150.00,
+            'Delivery'               => 80.00,
+            'Coffee & Tea'           => 60.00,
+            'Bar & Nightlife'        => 80.00,
+            'Rent'                   => 900.00,
+            'Internet'               => 25.00,
+            'Electricity'            => 50.00,
+            'Public Transport'       => 50.00,
+            'Taxi & Rideshare'       => 40.00,
+            'Subscriptions'          => 35.00,
+            'Pharmacy'               => 30.00,
+            'Gym'                    => 40.00,
+            'Clothes & Accessories'  => 100.00,
+            'Personal Care'          => 40.00,
+            'Entertainment'          => 80.00,
+            'Other'                  => 50.00,
+        ];
+    }
+
+    /**
+     * Creates the current month budget plus BUDGET_HISTORY_MONTHS past monthly budgets.
+     *
      * @param array<string, Account> $accounts
      * @param array{expense: array<string, ExpenseCategory>, income: array<string, IncomeCategory>} $categories
      */
     private function seedBudget(User $user, array $accounts, array $categories, ExchangeRateSnapshot $latestRate): void
     {
-        $budget = new Budget();
-        $budget->setName('Monthly Budget');
-        $budget->setOwner($user);
-        $budget->setPeriodType('month');
-        $budget->setStartDate(CarbonImmutable::now()->startOfMonth());
-        $budget->setEndDate(CarbonImmutable::now()->endOfMonth());
-        $this->entityManager->persist($budget);
+        $baseLines = $this->buildBaseBudgetLines();
 
-        $budgetLines = [
-            'Groceries' => 250.00,
-            'Restaurant' => 150.00,
-            'Delivery' => 80.00,
-            'Coffee & Tea' => 60.00,
-            'Bar & Nightlife' => 80.00,
-            'Rent' => 900.00,
-            'Internet' => 25.00,
-            'Electricity' => 50.00,
-            'Public Transport' => 50.00,
-            'Taxi & Rideshare' => 40.00,
-            'Subscriptions' => 35.00,
-            'Pharmacy' => 30.00,
-            'Gym' => 40.00,
-            'Clothes & Accessories' => 100.00,
-            'Personal Care' => 40.00,
-            'Entertainment' => 80.00,
-            'Other' => 50.00,
-        ];
+        // Current month first (monthOffset = 0), then 12 historical months
+        for ($monthOffset = 0; $monthOffset <= self::BUDGET_HISTORY_MONTHS; ++$monthOffset) {
+            $monthDate = CarbonImmutable::now()->subMonths($monthOffset);
+            $name = $monthOffset === 0
+                ? 'Monthly Budget'
+                : $monthDate->format('F Y');
 
-        foreach ($budgetLines as $categoryName => $plannedAmount) {
-            $category = $categories['expense'][$categoryName] ?? null;
+            $budget = new Budget();
+            $budget->setName($name);
+            $budget->setOwner($user);
+            $budget->setPeriodType('monthly');
+            $budget->setStartDate($monthDate->startOfMonth());
+            $budget->setEndDate($monthDate->endOfMonth());
+            $this->entityManager->persist($budget);
 
-            if (null === $category) {
-                continue;
+            // Older budgets have slightly lower planned amounts (simulates gradual lifestyle inflation)
+            $ageFactor = 1.0 - ($monthOffset * 0.008);
+
+            foreach ($baseLines as $categoryName => $plannedAmount) {
+                $category = $categories['expense'][$categoryName] ?? null;
+
+                if (null === $category) {
+                    continue;
+                }
+
+                // Add small noise so budgets don't look identical
+                $noise = 1.0 + (lcg_value() * 0.06 - 0.03);
+                $adjustedAmount = round($plannedAmount * $ageFactor * $noise, 2);
+
+                $line = new BudgetLine();
+                $line->setBudget($budget);
+                $line->setCategory($category);
+                $line->setPlannedAmount((string) $adjustedAmount);
+                $line->setPlannedCurrency('EUR');
+                $this->entityManager->persist($line);
             }
-
-            $line = new BudgetLine();
-            $line->setBudget($budget);
-            $line->setCategory($category);
-            $line->setPlannedAmount((string) $plannedAmount);
-            $line->setPlannedCurrency('EUR');
-            $this->entityManager->persist($line);
         }
     }
 
@@ -553,8 +637,13 @@ class DemoSeedService
         $keys = array_keys($ratesByDate);
         $closest = $keys[0];
 
+        $targetTimestamp = (int) strtotime($dateKey);
+
         foreach ($keys as $key) {
-            if (abs(strtotime($key) - strtotime($dateKey)) < abs(strtotime($closest) - strtotime($dateKey))) {
+            $keyTimestamp = (int) strtotime($key);
+            $closestTimestamp = (int) strtotime($closest);
+
+            if (abs($keyTimestamp - $targetTimestamp) < abs($closestTimestamp - $targetTimestamp)) {
                 $closest = $key;
             }
         }

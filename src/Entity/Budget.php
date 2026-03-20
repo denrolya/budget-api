@@ -41,9 +41,16 @@ use Symfony\Component\Validator\Constraints as Assert;
             description: 'Get a budget with all its budget lines.',
             requirements: ['id' => '\d+'],
             normalizationContext: ['groups' => ['budget:item:read']],
+            security: 'object.getOwner() == user',
         ),
-        new Put(requirements: ['id' => '\d+']),
-        new Delete(requirements: ['id' => '\d+']),
+        new Put(
+            requirements: ['id' => '\d+'],
+            security: 'object.getOwner() == user',
+        ),
+        new Delete(
+            requirements: ['id' => '\d+'],
+            security: 'object.getOwner() == user',
+        ),
     ],
     denormalizationContext: ['groups' => ['budget:write']],
     order: ['startDate' => 'DESC'],

@@ -928,6 +928,93 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    // ──────────────────────────────────────────────────────────────────────────
+    // ISOLATION — cross-user data must not be visible
+    // ──────────────────────────────────────────────────────────────────────────
+
+    public function testListBudgets_withOtherUserData_returnsOnlyOwnData(): void
+    {
+        $otherUser = $this->createOtherUser('budget_list');
+
+        $otherBudget = new Budget();
+        $otherBudget
+            ->setName('Other User Budget')
+            ->setPeriodType(Budget::PERIOD_MONTHLY)
+            ->setStartDate(new \DateTimeImmutable('2021-01-01'))
+            ->setEndDate(new \DateTimeImmutable('2021-01-31'))
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherBudget);
+        $this->entityManager()->flush();
+
+        $response = $this->client->request('GET', self::BUDGET_API_URL);
+        self::assertResponseIsSuccessful();
+
+        $identifiers = array_column($response->toArray(), 'id');
+        self::assertNotContains(
+            $otherBudget->getId(),
+            $identifiers,
+            'Other user\'s budget must not appear in the authenticated user\'s list.',
+        );
+    }
+
+    public function testGetBudget_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('budget_item');
+
+        $otherBudget = new Budget();
+        $otherBudget
+            ->setName('Other User Budget Item')
+            ->setPeriodType(Budget::PERIOD_MONTHLY)
+            ->setStartDate(new \DateTimeImmutable('2021-01-01'))
+            ->setEndDate(new \DateTimeImmutable('2021-01-31'))
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherBudget);
+        $this->entityManager()->flush();
+        $otherBudgetId = $otherBudget->getId();
+
+        $this->client->request('GET', self::BUDGET_API_URL . '/' . $otherBudgetId);
+        // security: 'object.getOwner() == user' on the Get operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testAnalytics_onBudgetOwnedByOtherUser_returns404(): void
+    {
+        $otherUser = $this->createOtherUser('budget_analytics');
+
+        $otherBudget = new Budget();
+        $otherBudget
+            ->setName('Other User Analytics Budget')
+            ->setPeriodType(Budget::PERIOD_MONTHLY)
+            ->setStartDate(new \DateTimeImmutable('2021-01-01'))
+            ->setEndDate(new \DateTimeImmutable('2021-01-31'))
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherBudget);
+        $this->entityManager()->flush();
+        $otherBudgetId = $otherBudget->getId();
+
+        $this->client->request('GET', self::BUDGET_V2_URL . '/' . $otherBudgetId . '/analytics');
+        self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testInsights_onBudgetOwnedByOtherUser_returns404(): void
+    {
+        $otherUser = $this->createOtherUser('budget_insights');
+
+        $otherBudget = new Budget();
+        $otherBudget
+            ->setName('Other User Insights Budget')
+            ->setPeriodType(Budget::PERIOD_MONTHLY)
+            ->setStartDate(new \DateTimeImmutable('2021-01-01'))
+            ->setEndDate(new \DateTimeImmutable('2021-01-31'))
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherBudget);
+        $this->entityManager()->flush();
+        $otherBudgetId = $otherBudget->getId();
+
+        $this->client->request('GET', self::BUDGET_V2_URL . '/' . $otherBudgetId . '/insights');
+        self::assertResponseStatusCodeSame(404);
+    }
+
     /**
      * @covers \App\DataPersister\BudgetLineDataPersister
      */

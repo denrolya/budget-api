@@ -308,4 +308,28 @@ class CategoryCrudTest extends BaseApiTestCase
         self::assertNotNull($category);
         self::assertTrue($category->getIsAffectingProfit(), 'Default isAffectingProfit must be true.');
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  ISOLATION — cross-user data must not be visible
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function testListCategories_withOtherUserData_returnsOnlyOwnData(): void
+    {
+        $otherUser = $this->createOtherUser('category_list');
+
+        $otherCategory = new ExpenseCategory('Other User Category');
+        $otherCategory->setIsAffectingProfit(true)->setOwner($otherUser);
+        $this->entityManager()->persist($otherCategory);
+        $this->entityManager()->flush();
+
+        $response = $this->client->request('GET', self::CATEGORY_URL);
+        self::assertResponseIsSuccessful();
+
+        $identifiers = array_column($response->toArray(), 'id');
+        self::assertNotContains(
+            $otherCategory->getId(),
+            $identifiers,
+            'Other user\'s category must not appear in the authenticated user\'s list.',
+        );
+    }
 }

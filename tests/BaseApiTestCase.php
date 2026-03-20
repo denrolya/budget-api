@@ -48,7 +48,8 @@ class BaseApiTestCase extends ApiTestCase
 
     protected User $testUser;
 
-    private ?string $authToken = null;
+    /** @var array<string, string> */
+    private array $authTokens = [];
 
     protected function setUp(): void
     {
@@ -96,10 +97,10 @@ class BaseApiTestCase extends ApiTestCase
         ]);
     }
 
-    protected function getToken($username = self::TEST_USERNAME): string
+    protected function getToken(string $username = self::TEST_USERNAME): string
     {
-        if ($this->authToken) {
-            return $this->authToken;
+        if (isset($this->authTokens[$username])) {
+            return $this->authTokens[$username];
         }
 
         $container = self::getContainer();
@@ -108,9 +109,35 @@ class BaseApiTestCase extends ApiTestCase
             ->getRepository(User::class)
             ->findOneBy(['username' => $username]);
 
-        $this->authToken = $container->get(JWTTokenManagerInterface::class)->create($user);
+        \assert($user instanceof User);
+        $this->authTokens[$username] = $container->get(JWTTokenManagerInterface::class)->create($user);
 
-        return $this->authToken;
+        return $this->authTokens[$username];
+    }
+
+    protected function createOtherUser(string $usernameSuffix): User
+    {
+        $user = new User();
+        $user->setUsername('other_' . $usernameSuffix)->setPassword('pw')->setRoles(['ROLE_USER']);
+        $this->entityManager()->persist($user);
+        $this->entityManager()->flush();
+
+        return $user;
+    }
+
+    protected function getClientForUser(User $user): Client
+    {
+        $container = self::getContainer();
+        \assert($container !== null);
+        $token = $container->get(JWTTokenManagerInterface::class)->create($user);
+
+        return static::createClient([], [
+            'headers' => [
+                'authorization' => 'Bearer ' . $token,
+                'accept' => 'application/json',
+                'content-type' => 'application/json',
+            ],
+        ]);
     }
 
     /**

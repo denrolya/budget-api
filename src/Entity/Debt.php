@@ -43,8 +43,12 @@ use Symfony\Component\Validator\Constraints as Assert;
             description: 'Update debt details (debtor name, note, balance, closedAt).',
             requirements: ['id' => '\d+'],
             normalizationContext: ['groups' => 'debt:collection:read'],
+            security: 'object.getOwner() == user',
         ),
-        new Delete(requirements: ['id' => '\d+']),
+        new Delete(
+            requirements: ['id' => '\d+'],
+            security: 'object.getOwner() == user',
+        ),
     ],
     denormalizationContext: ['groups' => 'debt:write'],
     order: ['updatedAt' => 'DESC'],

@@ -7,20 +7,12 @@ namespace App\Filter;
 use App\Entity\OwnableInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Query\Filter\SQLFilter;
-use Symfony\Component\Security\Core\Security;
 
 class OwnableFilter extends SQLFilter
 {
-    protected Security $security;
-
-    public function setSecurity(Security $security): void
-    {
-        $this->security = $security;
-    }
-
     public function addFilterConstraint(ClassMetadata $targetEntity, $targetTableAlias): string
     {
-        if (null === $targetEntity->reflClass || !$targetEntity->reflClass->implementsInterface(OwnableInterface::class)) {
+        if (!is_a($targetEntity->name, OwnableInterface::class, true)) {
             return '';
         }
 

@@ -55,6 +55,7 @@ use Symfony\Component\Validator\Constraints as Assert;
             description: 'Update an existing account (name, balance, currency, archive status, sidebar visibility).',
             requirements: ['id' => '\d+'],
             normalizationContext: ['groups' => ['account:write', 'bank_integration:read']],
+            security: 'object.getOwner() == user',
         ),
     ],
     denormalizationContext: ['groups' => 'account:write'],
