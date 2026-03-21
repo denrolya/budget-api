@@ -10,12 +10,12 @@ use App\Entity\ExpenseCategory;
 use App\Entity\IncomeCategory;
 use App\Entity\Transfer;
 use App\Entity\User;
-use App\Repository\ExpenseCategoryRepository;
-use App\Repository\IncomeCategoryRepository;
 use App\Service\AssetsManager;
 use App\Service\TransferService;
 use Carbon\CarbonImmutable;
 use DateTimeImmutable;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
 
 class TransferServiceTest extends TestCase
@@ -24,11 +24,7 @@ class TransferServiceTest extends TestCase
     {
         $service = $this->createServiceWithCategories();
 
-        $transfer = $this->createTransfer(
-            amount: 100,
-            rate: 1.5,
-            fee: 0,
-        );
+        $transfer = $this->createTransfer(amount: 100, rate: 1.5);
 
         $service->createTransactions($transfer);
 
@@ -45,31 +41,51 @@ class TransferServiceTest extends TestCase
         self::assertSame(150.0, $toIncome->getAmount());
         self::assertSame(['EUR' => 1.0], $fromExpense->getConvertedValues());
         self::assertSame(['EUR' => 1.0], $toIncome->getConvertedValues());
-        self::assertNull($transfer->getFeeExpense());
+        self::assertEmpty($transfer->getFeeExpenses());
     }
 
-    public function testCreateTransactionsWithFeeUsesFromAccountWhenFeeAccountMissing(): void
+    public function testCreateTransactionsWithFee(): void
     {
         $service = $this->createServiceWithCategories();
 
-        $transfer = $this->createTransfer(
-            amount: 100,
-            rate: 2,
-            fee: 10,
-            feeAccount: null,
-        );
+        $feeAccount = $this->createAccount('Fee Account', 'EUR');
+        $transfer = $this->createTransfer(amount: 100, rate: 2);
 
-        $service->createTransactions($transfer);
+        $service->createTransactions($transfer, [
+            ['amount' => '10', 'account' => $feeAccount],
+        ]);
 
         self::assertCount(3, $transfer->getTransactions());
 
-        $feeExpense = $transfer->getFeeExpense();
+        $feeExpenses = $transfer->getFeeExpenses();
+        self::assertCount(1, $feeExpenses);
+        self::assertSame($feeAccount, $feeExpenses[0]->getAccount());
+        self::assertSame(10.0, $feeExpenses[0]->getAmount());
+        self::assertSame(Category::CATEGORY_TRANSFER_FEE, $feeExpenses[0]->getCategory()->getName());
+        self::assertSame(['EUR' => 1.0], $feeExpenses[0]->getConvertedValues());
+    }
 
-        self::assertNotNull($feeExpense);
-        self::assertSame($transfer->getFrom(), $feeExpense->getAccount());
-        self::assertSame(10.0, $feeExpense->getAmount());
-        self::assertSame(Category::CATEGORY_TRANSFER_FEE, $feeExpense->getCategory()->getName());
-        self::assertSame(['EUR' => 1.0], $feeExpense->getConvertedValues());
+    public function testCreateTransactionsWithMultipleFees(): void
+    {
+        $service = $this->createServiceWithCategories();
+
+        $feeAccount1 = $this->createAccount('Fee Account 1', 'EUR');
+        $feeAccount2 = $this->createAccount('Fee Account 2', 'USD');
+        $transfer = $this->createTransfer(amount: 100, rate: 2);
+
+        $service->createTransactions($transfer, [
+            ['amount' => '10', 'account' => $feeAccount1],
+            ['amount' => '3.50', 'account' => $feeAccount2],
+        ]);
+
+        self::assertCount(4, $transfer->getTransactions());
+
+        $feeExpenses = $transfer->getFeeExpenses();
+        self::assertCount(2, $feeExpenses);
+        self::assertSame(10.0, $feeExpenses[0]->getAmount());
+        self::assertSame($feeAccount1, $feeExpenses[0]->getAccount());
+        self::assertSame(3.5, $feeExpenses[1]->getAmount());
+        self::assertSame($feeAccount2, $feeExpenses[1]->getAccount());
     }
 
     public function testUpdateTransactionsUpdatesExistingTransferTransactions(): void
@@ -88,13 +104,13 @@ class TransferServiceTest extends TestCase
         $transfer = $this->createTransfer(
             amount: 100,
             rate: 2,
-            fee: 10,
             from: $sourceAccount,
             to: $targetAccount,
-            feeAccount: $sourceAccount,
         );
 
-        $service->createTransactions($transfer);
+        $service->createTransactions($transfer, [
+            ['amount' => '10', 'account' => $sourceAccount],
+        ]);
 
         $newFrom = $this->createAccount('New From', 'USD');
         $newTo = $this->createAccount('New To', 'EUR');
@@ -104,19 +120,19 @@ class TransferServiceTest extends TestCase
             ->setTo($newTo)
             ->setAmount(250)
             ->setRate(1.2)
-            ->setFee(5)
-            ->setFeeAccount($feeAccount)
             ->setExecutedAt(new DateTimeImmutable('2024-03-13T10:00:00+00:00'));
 
-        $service->updateTransactions($transfer);
+        $service->updateTransactions($transfer, [
+            ['amount' => '5', 'account' => $feeAccount],
+        ]);
 
         $fromExpense = $transfer->getFromExpense();
         $toIncome = $transfer->getToIncome();
-        $feeExpense = $transfer->getFeeExpense();
+        $feeExpenses = $transfer->getFeeExpenses();
 
         self::assertNotNull($fromExpense);
         self::assertNotNull($toIncome);
-        self::assertNotNull($feeExpense);
+        self::assertCount(1, $feeExpenses);
 
         self::assertSame($newFrom, $fromExpense->getAccount());
         self::assertSame(250.0, $fromExpense->getAmount());
@@ -126,88 +142,122 @@ class TransferServiceTest extends TestCase
         self::assertSame(300.0, $toIncome->getAmount());
         self::assertSame(['EUR' => 300.0], $toIncome->getConvertedValues());
 
-        self::assertSame($feeAccount, $feeExpense->getAccount());
-        self::assertSame(5.0, $feeExpense->getAmount());
-        self::assertSame(['EUR' => 5.0], $feeExpense->getConvertedValues());
+        self::assertSame($feeAccount, $feeExpenses[0]->getAccount());
+        self::assertSame(5.0, $feeExpenses[0]->getAmount());
+        self::assertSame(['EUR' => 5.0], $feeExpenses[0]->getConvertedValues());
     }
 
-    public function testUpdateTransactionsRemovesFeeTransactionWhenFeeBecomesZero(): void
+    public function testUpdateTransactionsRemovesFeeTransactionsWhenNoFeesProvided(): void
     {
         $service = $this->createServiceWithCategories();
 
-        $transfer = $this->createTransfer(
-            amount: 100,
-            rate: 1,
-            fee: 10,
-        );
+        $transfer = $this->createTransfer(amount: 100, rate: 1);
 
-        $service->createTransactions($transfer);
+        $service->createTransactions($transfer, [
+            ['amount' => '10', 'account' => $transfer->getFrom()],
+        ]);
 
-        self::assertNotNull($transfer->getFeeExpense());
+        self::assertCount(1, $transfer->getFeeExpenses());
         self::assertCount(3, $transfer->getTransactions());
 
-        $transfer->setFee(0);
-        $service->updateTransactions($transfer);
+        $service->updateTransactions($transfer, []);
 
-        self::assertNull($transfer->getFeeExpense());
+        self::assertEmpty($transfer->getFeeExpenses());
         self::assertCount(2, $transfer->getTransactions());
     }
 
-    public function testUpdateTransactionsAddsFeeTransactionWhenFeeAddedLater(): void
+    public function testUpdateTransactionsAddsFeeTransactionsWhenFeeAddedLater(): void
     {
         $service = $this->createServiceWithCategories();
 
         $feeAccount = $this->createAccount('Fee Account', 'EUR');
-
-        $transfer = $this->createTransfer(
-            amount: 100,
-            rate: 1,
-            fee: 0,
-        );
+        $transfer = $this->createTransfer(amount: 100, rate: 1);
 
         $service->createTransactions($transfer);
 
-        self::assertNull($transfer->getFeeExpense());
+        self::assertEmpty($transfer->getFeeExpenses());
         self::assertCount(2, $transfer->getTransactions());
 
-        $transfer->setFee(3.5)->setFeeAccount($feeAccount);
-        $service->updateTransactions($transfer);
+        $service->updateTransactions($transfer, [
+            ['amount' => '3.5', 'account' => $feeAccount],
+        ]);
 
-        $feeExpense = $transfer->getFeeExpense();
+        $feeExpenses = $transfer->getFeeExpenses();
 
-        self::assertNotNull($feeExpense);
+        self::assertCount(1, $feeExpenses);
         self::assertCount(3, $transfer->getTransactions());
-        self::assertSame($feeAccount, $feeExpense->getAccount());
-        self::assertSame(3.5, $feeExpense->getAmount());
+        self::assertSame($feeAccount, $feeExpenses[0]->getAccount());
+        self::assertSame(3.5, $feeExpenses[0]->getAmount());
+    }
+
+    public function testUpdateTransactionsCanChangeFromOneToMultipleFees(): void
+    {
+        $service = $this->createServiceWithCategories();
+
+        $feeAccount1 = $this->createAccount('Fee 1', 'EUR');
+        $feeAccount2 = $this->createAccount('Fee 2', 'USD');
+        $transfer = $this->createTransfer(amount: 100, rate: 1);
+
+        $service->createTransactions($transfer, [
+            ['amount' => '10', 'account' => $feeAccount1],
+        ]);
+
+        self::assertCount(1, $transfer->getFeeExpenses());
+
+        $service->updateTransactions($transfer, [
+            ['amount' => '5', 'account' => $feeAccount1],
+            ['amount' => '2', 'account' => $feeAccount2],
+        ]);
+
+        $feeExpenses = $transfer->getFeeExpenses();
+        self::assertCount(2, $feeExpenses);
+        self::assertCount(4, $transfer->getTransactions());
+        self::assertSame(5.0, $feeExpenses[0]->getAmount());
+        self::assertSame(2.0, $feeExpenses[1]->getAmount());
     }
 
     public function testCreateTransactionsCachesCategoryLookupsAcrossCalls(): void
     {
-        $expenseCategoryRepository = $this->createMock(ExpenseCategoryRepository::class);
+        $expenseTransferCategory = $this->createExpenseCategory(Category::CATEGORY_TRANSFER);
+        $feeExpenseCategory = $this->createExpenseCategory(Category::CATEGORY_TRANSFER_FEE);
+        $incomeTransferCategory = $this->createIncomeCategory(Category::CATEGORY_TRANSFER);
+
+        $expenseCategoryRepository = $this->createMock(EntityRepository::class);
         $expenseCategoryRepository
             ->expects(self::exactly(2))
             ->method('findOneBy')
-            ->willReturnCallback(function (array $criteria) {
+            ->willReturnCallback(static function (array $criteria) use ($expenseTransferCategory, $feeExpenseCategory) {
                 return match ($criteria['name'] ?? null) {
-                    Category::CATEGORY_TRANSFER => $this->createExpenseCategory(Category::CATEGORY_TRANSFER),
-                    Category::CATEGORY_TRANSFER_FEE => $this->createExpenseCategory(Category::CATEGORY_TRANSFER_FEE),
+                    Category::CATEGORY_TRANSFER => $expenseTransferCategory,
+                    Category::CATEGORY_TRANSFER_FEE => $feeExpenseCategory,
                     default => null,
                 };
             });
 
-        $incomeCategoryRepository = $this->createMock(IncomeCategoryRepository::class);
+        $incomeCategoryRepository = $this->createMock(EntityRepository::class);
         $incomeCategoryRepository
             ->expects(self::once())
             ->method('findOneBy')
-            ->willReturn($this->createIncomeCategory(Category::CATEGORY_TRANSFER));
+            ->willReturn($incomeTransferCategory);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturnCallback(
+            static function (string $className) use ($expenseCategoryRepository, $incomeCategoryRepository) {
+                return match ($className) {
+                    ExpenseCategory::class => $expenseCategoryRepository,
+                    IncomeCategory::class => $incomeCategoryRepository,
+                    default => null,
+                };
+            },
+        );
 
         $assetsManager = $this->createMock(AssetsManager::class);
         $assetsManager->expects(self::exactly(4))->method('convert')->willReturn(['EUR' => 1.0]);
 
-        $service = new TransferService($expenseCategoryRepository, $incomeCategoryRepository, $assetsManager);
+        $service = new TransferService($entityManager, $assetsManager);
 
-        $service->createTransactions($this->createTransfer(amount: 10, rate: 1, fee: 0));
-        $service->createTransactions($this->createTransfer(amount: 20, rate: 1, fee: 0));
+        $service->createTransactions($this->createTransfer(amount: 10, rate: 1));
+        $service->createTransactions($this->createTransfer(amount: 20, rate: 1));
     }
 
     private function createServiceWithCategories(
@@ -217,7 +267,7 @@ class TransferServiceTest extends TestCase
         $feeExpenseCategory = $this->createExpenseCategory(Category::CATEGORY_TRANSFER_FEE);
         $incomeTransferCategory = $this->createIncomeCategory(Category::CATEGORY_TRANSFER);
 
-        $expenseCategoryRepository = $this->createMock(ExpenseCategoryRepository::class);
+        $expenseCategoryRepository = $this->createMock(EntityRepository::class);
         $expenseCategoryRepository
             ->method('findOneBy')
             ->willReturnCallback(static function (array $criteria) use ($expenseTransferCategory, $feeExpenseCategory) {
@@ -228,24 +278,33 @@ class TransferServiceTest extends TestCase
                 };
             });
 
-        $incomeCategoryRepository = $this->createMock(IncomeCategoryRepository::class);
+        $incomeCategoryRepository = $this->createMock(EntityRepository::class);
         $incomeCategoryRepository->method('findOneBy')->willReturn($incomeTransferCategory);
+
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->method('getRepository')->willReturnCallback(
+            static function (string $className) use ($expenseCategoryRepository, $incomeCategoryRepository) {
+                return match ($className) {
+                    ExpenseCategory::class => $expenseCategoryRepository,
+                    IncomeCategory::class => $incomeCategoryRepository,
+                    default => null,
+                };
+            },
+        );
 
         if (null === $assetsManager) {
             $assetsManager = $this->createMock(AssetsManager::class);
             $assetsManager->method('convert')->willReturn(['EUR' => 1.0]);
         }
 
-        return new TransferService($expenseCategoryRepository, $incomeCategoryRepository, $assetsManager);
+        return new TransferService($entityManager, $assetsManager);
     }
 
     private function createTransfer(
         float $amount,
         float $rate,
-        float $fee,
         ?Account $from = null,
         ?Account $to = null,
-        ?Account $feeAccount = null,
     ): Transfer {
         $from ??= $this->createAccount('From account', 'EUR');
         $to ??= $this->createAccount('To account', 'UAH');
@@ -257,8 +316,6 @@ class TransferServiceTest extends TestCase
             ->setTo($to)
             ->setAmount($amount)
             ->setRate($rate)
-            ->setFee($fee)
-            ->setFeeAccount($feeAccount)
             ->setExecutedAt(new DateTimeImmutable('2024-03-12T09:35:00+00:00'));
     }
 

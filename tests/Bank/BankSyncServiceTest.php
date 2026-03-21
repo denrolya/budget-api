@@ -1,30 +1,26 @@
 <?php
 
-declare(strict_types=1);
-
 namespace App\Tests\Bank;
 
 use App\Bank\BankProvider;
-use App\Bank\BankProviderInterface;
 use App\Bank\BankProviderRegistry;
 use App\Bank\BankSyncService;
 use App\Bank\DTO\DraftTransactionData;
+use App\Bank\BankProviderInterface;
 use App\Bank\PollingCapableInterface;
 use App\Bank\Provider\MonobankProvider;
-use App\Bank\SyncMethod;
 use App\DTO\CategorizationResult;
 use App\Entity\BankCardAccount;
 use App\Entity\BankIntegration;
 use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\Income;
+use App\Bank\SyncMethod;
+use App\Repository\BankIntegrationRepository;
 use App\Service\TransactionCategorizationService;
 use App\Tests\BaseApiTestCase;
 use DateTimeImmutable;
-use InvalidArgumentException;
-use LogicException;
 use Psr\Log\NullLogger;
-use RuntimeException;
 
 /**
  * Integration tests for BankSyncService.
@@ -32,9 +28,7 @@ use RuntimeException;
  *
  * @group bank
  */
-interface TestPollingBankProvider extends BankProviderInterface, PollingCapableInterface
-{
-}
+interface TestPollingBankProvider extends BankProviderInterface, PollingCapableInterface {}
 
 class BankSyncServiceTest extends BaseApiTestCase
 {
@@ -64,7 +58,7 @@ class BankSyncServiceTest extends BaseApiTestCase
         // Link the UAH Card to the integration + set externalAccountId.
         /** @var BankCardAccount $card */
         $card = $this->entityManager()->getRepository(BankCardAccount::class)->findOneBy([
-            'name' => 'UAH Card',
+            'name'  => 'UAH Card',
             'owner' => $this->testUser,
         ]);
         self::assertNotNull($card);
@@ -105,7 +99,7 @@ class BankSyncServiceTest extends BaseApiTestCase
                     : Category::EXPENSE_CATEGORY_ID_UNKNOWN;
 
                 return new CategorizationResult($fallbackId, $rawNote, 0.0);
-            },
+            }
         );
 
         return $mock;
@@ -117,7 +111,7 @@ class BankSyncServiceTest extends BaseApiTestCase
 
     public function testSyncByIdThrowsWhenIntegrationNotFound(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(\InvalidArgumentException::class);
 
         $this->service->syncById(999999);
     }
@@ -129,11 +123,11 @@ class BankSyncServiceTest extends BaseApiTestCase
     public function testSyncThrowsLogicExceptionForNonPollingProvider(): void
     {
         // Build a registry with a non-polling provider only.
-        $nonPollingProvider = $this->createMock(BankProviderInterface::class);
+        $nonPollingProvider = $this->createMock(\App\Bank\BankProviderInterface::class);
         $nonPollingProvider->method('getProvider')->willReturn(BankProvider::Monobank);
 
         $registry = new BankProviderRegistry([$nonPollingProvider]);
-        $service = new BankSyncService(
+        $service  = new BankSyncService(
             $registry,
             $this->entityManager()->getRepository(BankIntegration::class),
             $this->entityManager(),
@@ -150,7 +144,7 @@ class BankSyncServiceTest extends BaseApiTestCase
         $this->entityManager()->persist($mono);
         $this->entityManager()->flush();
 
-        $this->expectException(LogicException::class);
+        $this->expectException(\LogicException::class);
         $this->expectExceptionMessageMatches('/monobank/i');
 
         $service->sync($mono);
@@ -213,8 +207,8 @@ class BankSyncServiceTest extends BaseApiTestCase
         // Verify the draft was actually persisted.
         $this->entityManager()->clear();
         $found = $this->entityManager()->getRepository(Expense::class)->findBy([
-            'account' => $this->uahCard,
-            'isDraft' => true,
+            'account'  => $this->uahCard,
+            'isDraft'  => true,
         ]);
         self::assertCount(1, $found);
         self::assertEqualsWithDelta(200.0, $found[0]->getAmount(), 0.001);
@@ -239,7 +233,10 @@ class BankSyncServiceTest extends BaseApiTestCase
         self::assertSame(1, $created);
 
         $this->entityManager()->clear();
-        $found = $this->entityManager()->getRepository(Income::class)->findBy(['account' => $this->uahCard]);
+        $found = $this->entityManager()->getRepository(Income::class)->findBy([
+            'account' => $this->uahCard,
+            'isDraft'  => true,
+        ]);
         self::assertCount(1, $found);
         self::assertEqualsWithDelta(3500.0, $found[0]->getAmount(), 0.001);
     }
@@ -255,7 +252,6 @@ class BankSyncServiceTest extends BaseApiTestCase
 
         $this->entityManager()->clear();
         $refreshed = $this->entityManager()->getRepository(BankIntegration::class)->find($this->integration->getId());
-        \assert($refreshed instanceof BankIntegration);
         self::assertNotNull($refreshed->getLastSyncedAt());
         self::assertGreaterThan($before, $refreshed->getLastSyncedAt());
     }
@@ -270,8 +266,7 @@ class BankSyncServiceTest extends BaseApiTestCase
 
         // Pre-persist the same transaction.
         $category = $this->entityManager()->getRepository(\App\Entity\ExpenseCategory::class)
-            ->find(Category::EXPENSE_CATEGORY_ID_UNKNOWN);
-        \assert(null !== $category);
+            ->find(\App\Entity\Category::EXPENSE_CATEGORY_ID_UNKNOWN);
         $existing = new Expense();
         $existing
             ->setAmount(50.0)
@@ -333,7 +328,7 @@ class BankSyncServiceTest extends BaseApiTestCase
     {
         $this->mockPollingProvider
             ->method('fetchTransactions')
-            ->willThrowException(new RuntimeException('Wise API timeout'));
+            ->willThrowException(new \RuntimeException('Wise API timeout'));
 
         $results = $this->service->syncAll();
 

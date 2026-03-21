@@ -8,7 +8,6 @@ use ApiPlatform\Doctrine\Orm\Filter\DateFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Metadata\ApiFilter;
-use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Metadata\Delete;
 use ApiPlatform\Metadata\Get;
@@ -28,32 +27,20 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use JMS\Serializer\Annotation as Serializer;
+use Symfony\Component\Serializer\Annotation\Context;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Symfony\Component\Serializer\Normalizer\AbstractObjectNormalizer;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\HasLifecycleCallbacks]
 #[ORM\Entity(repositoryClass: TransferRepository::class)]
 #[ApiResource(
-    description: 'A money transfer between two accounts. Automatically creates paired expense/income transactions and an optional fee expense.',
     operations: [
-        new GetCollection(
-            description: 'List all transfers with their linked transactions, ordered by execution date.',
-            normalizationContext: ['groups' => 'transfer:collection:read'],
-        ),
-        new Post(
-            description: 'Create a transfer between two accounts. Specify amount, rate (for cross-currency), and optional fee.',
-            processor: TransferDataPersister::class,
-        ),
+        new GetCollection(normalizationContext: ['groups' => 'transfer:collection:read']),
+        new Post(processor: TransferDataPersister::class),
         new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transfer:item:read']),
-        new Put(
-            description: 'Update a transfer. Recalculates linked transactions and account balances.',
-            requirements: ['id' => '\d+'],
-            processor: TransferDataPersister::class,
-        ),
-        new Delete(
-            description: 'Delete a transfer and its linked transactions, reversing balance changes.',
-            requirements: ['id' => '\d+'],
-        ),
+        new Put(requirements: ['id' => '\d+'], processor: TransferDataPersister::class),
+        new Delete(requirements: ['id' => '\d+']),
     ],
     denormalizationContext: ['groups' => 'transfer:write'],
     order: ['executedAt' => 'DESC'],
@@ -78,38 +65,33 @@ class Transfer implements OwnableInterface
     #[Serializer\Groups(['transaction:collection:read', 'transfer:collection:read'])]
     private ?int $id;
 
-    #[ORM\ManyToOne(targetEntity: Account::class, fetch: 'LAZY')]
+    #[ORM\ManyToOne(targetEntity: Account::class)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
     #[Serializer\Groups(['transfer:collection:read'])]
     private ?Account $from;
 
-    #[ORM\ManyToOne(targetEntity: Account::class, fetch: 'LAZY')]
+    #[ORM\ManyToOne(targetEntity: Account::class)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
     #[Serializer\Groups(['transfer:collection:read'])]
     private ?Account $to;
 
-    #[Assert\Type('numeric')]
+    #[Assert\Type("numeric")]
+    #[Assert\GreaterThan(value: 0)]
     #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
-    #[Groups(['debt:collection:read', 'transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
+    #[Groups(['account:item:read', 'debt:collection:read', 'transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
     #[Serializer\Groups(['transfer:collection:read'])]
+    #[Context(denormalizationContext: [AbstractObjectNormalizer::DISABLE_TYPE_ENFORCEMENT => true])]
+    #[Serializer\Type(Types::FLOAT)]
     private string $amount = '0';
 
-    #[ApiProperty(description: 'Exchange rate applied when transferring between accounts with different currencies. Set to 1 for same-currency transfers.')]
-    #[Assert\Type('numeric')]
+    #[Assert\Type("numeric")]
+    #[Assert\GreaterThan(value: 0)]
     #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
     #[Serializer\Groups(['transfer:collection:read'])]
+    #[Context(denormalizationContext: [AbstractObjectNormalizer::DISABLE_TYPE_ENFORCEMENT => true])]
+    #[Serializer\Type(Types::FLOAT)]
     private string $rate = '0';
-
-    #[ApiProperty(description: 'Transfer fee amount in the source account currency. Creates a separate fee expense transaction if non-zero.')]
-    #[ORM\Column(type: Types::DECIMAL, precision: 50, scale: 30, nullable: false)]
-    #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
-    #[Serializer\Groups(['transfer:collection:read'])]
-    private string $fee = '0';
-
-    #[ApiProperty(description: 'Optional account to charge the fee to. If null, the fee is charged to the source (from) account.')]
-    #[Groups(['transfer:write'])]
-    private ?Account $feeAccount = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     #[Groups(['transfer:collection:read', 'transfer:item:read', 'transfer:write'])]
@@ -123,7 +105,10 @@ class Transfer implements OwnableInterface
 
     #[Groups(['transfer:collection:read', 'transfer:item:read'])]
     #[Serializer\Groups(['transfer:collection:read'])]
-    #[ORM\OneToMany(mappedBy: 'transfer', targetEntity: Transaction::class, cascade: ['persist', 'remove'], fetch: 'LAZY', orphanRemoval: true)]
+    #[ORM\OneToMany(mappedBy: 'transfer', targetEntity: Transaction::class, cascade: [
+        "persist",
+        "remove",
+    ], orphanRemoval: true)]
     private Collection $transactions;
 
     public function __construct()
@@ -162,48 +147,24 @@ class Transfer implements OwnableInterface
 
     public function getAmount(): float
     {
-        return (float) $this->amount;
+        return (float)$this->amount;
     }
 
     public function setAmount(string|float|int $amount): self
     {
-        $this->amount = (string) $amount;
+        $this->amount = (string)$amount;
 
         return $this;
     }
 
     public function getRate(): float
     {
-        return (float) $this->rate;
+        return (float)$this->rate;
     }
 
     public function setRate(string|float|int $rate): self
     {
-        $this->rate = (string) $rate;
-
-        return $this;
-    }
-
-    public function getFee(): float
-    {
-        return (float) $this->fee;
-    }
-
-    public function setFee(string|float|int $fee): self
-    {
-        $this->fee = (string) $fee;
-
-        return $this;
-    }
-
-    public function getFeeAccount(): ?Account
-    {
-        return $this->feeAccount;
-    }
-
-    public function setFeeAccount(?Account $account): self
-    {
-        $this->feeAccount = $account;
+        $this->rate = (string)$rate;
 
         return $this;
     }
@@ -243,39 +204,39 @@ class Transfer implements OwnableInterface
         return $this;
     }
 
-    /** @return Collection<int, Transaction> */
     public function getTransactions(): Collection
     {
         return $this->transactions;
     }
 
-    public function getFeeExpense(): ?Expense
+    /**
+     * @return Expense[]
+     */
+    public function getFeeExpenses(): array
     {
-        $transaction = $this->transactions->filter(
-            static fn (Transaction $transaction) => $transaction->isExpense() && Category::CATEGORY_TRANSFER_FEE === $transaction->getCategory()->getName(
-            ),
-        )->first();
-
-        return false !== $transaction ? $transaction : null;
+        return $this->transactions->filter(
+            fn(Transaction $transaction) => $transaction->isExpense() && $transaction->getCategory()->getName(
+                ) === Category::CATEGORY_TRANSFER_FEE
+        )->getValues();
     }
 
     public function getFromExpense(): ?Expense
     {
         $transaction = $this->transactions->filter(
-            static fn (Transaction $transaction) => $transaction->isExpense() && Category::CATEGORY_TRANSFER === $transaction->getCategory()->getName(
-            ),
+            fn(Transaction $transaction) => $transaction->isExpense() && $transaction->getCategory()->getName(
+                ) === Category::CATEGORY_TRANSFER
         )->first();
 
-        return false !== $transaction ? $transaction : null;
+        return $transaction !== false ? $transaction : null;
     }
 
     public function getToIncome(): ?Income
     {
         $transaction = $this->transactions->filter(
-            static fn (Transaction $transaction) => $transaction->isIncome() && Category::CATEGORY_TRANSFER === $transaction->getCategory()->getName(
-            ),
+            fn(Transaction $transaction) => $transaction->isIncome() && $transaction->getCategory()->getName(
+                ) === Category::CATEGORY_TRANSFER
         )->first();
 
-        return false !== $transaction ? $transaction : null;
+        return $transaction !== false ? $transaction : null;
     }
 }

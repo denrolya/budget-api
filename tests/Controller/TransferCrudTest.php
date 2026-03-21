@@ -16,7 +16,7 @@ use App\Tests\BaseApiTestCase;
  *   PUT    /api/transfers/{id}     (API Platform Put)
  *   DELETE /api/transfers/{id}     (API Platform Delete)
  *
- * Fixtures: TransferFixtures (1 transfer: EUR Cash → UAH Card, amount=100, rate=26, fee=0)
+ * Fixtures: TransferFixtures (2 transfers: EUR Cash → UAH Card without fees, EUR Cash → UAH Card with single fee)
  */
 class TransferCrudTest extends BaseApiTestCase
 {
@@ -43,7 +43,6 @@ class TransferCrudTest extends BaseApiTestCase
         self::assertArrayHasKey('to', $transfer);
         self::assertArrayHasKey('amount', $transfer);
         self::assertArrayHasKey('rate', $transfer);
-        self::assertArrayHasKey('fee', $transfer);
         self::assertArrayHasKey('executedAt', $transfer);
         self::assertArrayHasKey('transactions', $transfer);
 
@@ -74,7 +73,6 @@ class TransferCrudTest extends BaseApiTestCase
             }
         }
         self::assertNotNull($fixtureTransfer, 'Fixture transfer (amount=100, rate=26) must exist.');
-        self::assertEquals(0.0, (float) $fixtureTransfer['fee']);
         self::assertEquals('EUR Cash', $fixtureTransfer['from']['name']);
         self::assertEquals('EUR', $fixtureTransfer['from']['currency']);
         self::assertEquals('UAH Card', $fixtureTransfer['to']['name']);
@@ -137,7 +135,7 @@ class TransferCrudTest extends BaseApiTestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────
-    //  CREATE — with fee and feeAccount
+    //  CREATE — with fees
     // ──────────────────────────────────────────────────────────────────────
 
     public function testCreateTransferWithFeeCreatesFeeTransaction(): void
@@ -150,20 +148,51 @@ class TransferCrudTest extends BaseApiTestCase
                 'to' => $this->iri($this->accountCashUAH),
                 'note' => 'With fee',
                 'rate' => '1',
-                'fee' => '5.0',
-                'feeAccount' => $this->iri($this->accountCashEUR),
+                'fees' => [
+                    ['amount' => 5.0, 'account' => $this->accountCashEUR->getId()],
+                ],
             ],
         ]);
         self::assertResponseIsSuccessful();
 
-        $content = $response->toArray();
-        self::assertEquals(5.0, (float) $content['fee']);
-
-        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($content['id']);
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($response->toArray()['id']);
         self::assertNotNull($transfer);
-        self::assertNotNull($transfer->getFeeExpense(), 'Fee expense transaction must be created.');
-        self::assertEquals(5.0, $transfer->getFeeExpense()->getAmount());
-        self::assertEquals('Transfer Fee', $transfer->getFeeExpense()->getCategory()->getName());
+
+        $feeExpenses = $transfer->getFeeExpenses();
+        self::assertCount(1, $feeExpenses, 'Fee expense transaction must be created.');
+        self::assertEquals(5.0, $feeExpenses[0]->getAmount());
+        self::assertEquals('Transfer Fee', $feeExpenses[0]->getCategory()->getName());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  CREATE — with multiple fees on different accounts
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function testCreateTransferWithMultipleFees(): void
+    {
+        $response = $this->client->request('POST', self::TRANSFER_URL, [
+            'json' => [
+                'amount' => '100.0',
+                'executedAt' => '2024-06-01T10:00:00Z',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => 'Multi fee',
+                'rate' => '1',
+                'fees' => [
+                    ['amount' => 3.0, 'account' => $this->accountCashEUR->getId()],
+                    ['amount' => 50.0, 'account' => $this->accountCashUAH->getId()],
+                ],
+            ],
+        ]);
+        self::assertResponseIsSuccessful();
+
+        $transfer = $this->entityManager()->getRepository(Transfer::class)->find($response->toArray()['id']);
+        self::assertNotNull($transfer);
+
+        $feeExpenses = $transfer->getFeeExpenses();
+        self::assertCount(2, $feeExpenses, 'Two fee expense transactions must be created.');
+        // 2 base + 2 fees = 4 transactions total
+        self::assertCount(4, $transfer->getTransactions());
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -273,16 +302,16 @@ class TransferCrudTest extends BaseApiTestCase
 
     public function testListTransfersExecutedAtFilter(): void
     {
-        // Fixture transfer is on 2021-06-15
+        // Fixture transfers are on 2021-06-15 and 2021-07-10
         $response = $this->client->request('GET', $this->buildURL(self::TRANSFER_URL, [
             'executedAt' => [
                 'after' => '2021-06-01',
-                'before' => '2021-06-30',
+                'before' => '2021-07-31',
             ],
         ]));
         self::assertResponseIsSuccessful();
         $items = $response->toArray();
-        self::assertNotEmpty($items, 'Date filter must include fixture transfer.');
+        self::assertNotEmpty($items, 'Date filter must include fixture transfers.');
 
         // Outside range
         $response = $this->client->request('GET', $this->buildURL(self::TRANSFER_URL, [
@@ -302,7 +331,7 @@ class TransferCrudTest extends BaseApiTestCase
 
     public function testListTransfersAmountRangeFilter(): void
     {
-        // Fixture transfer amount = 100
+        // Fixture transfers: amount=100 and amount=200
         $response = $this->client->request('GET', $this->buildURL(self::TRANSFER_URL, [
             'amount' => ['gte' => 99, 'lte' => 101],
         ]));
@@ -355,13 +384,20 @@ class TransferCrudTest extends BaseApiTestCase
 
     public function testListTransfersPagination(): void
     {
+        // Fixtures already provide 2 transfers; fetch all to confirm > 1 exist
+        $allResponse = $this->client->request('GET', self::TRANSFER_URL);
+        self::assertResponseIsSuccessful();
+        $allItems = $allResponse->toArray();
+        self::assertGreaterThan(1, \count($allItems), 'Must have more than 1 transfer to test pagination.');
+
+        // Request page size = 1
         $response = $this->client->request('GET', $this->buildURL(self::TRANSFER_URL, [
-            'itemsPerPage' => 1,
+            'perPage' => 1,
             'page' => 1,
         ]));
         self::assertResponseIsSuccessful();
         $items = $response->toArray();
-        self::assertLessThanOrEqual(1, \count($items), 'Pagination must limit results.');
+        self::assertCount(1, $items, 'Pagination must limit results to 1.');
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -389,8 +425,9 @@ class TransferCrudTest extends BaseApiTestCase
                 'to' => $this->iri($this->accountCashUAH),
                 'note' => 'Nested transactions check',
                 'rate' => '26',
-                'fee' => '2.0',
-                'feeAccount' => $this->iri($this->accountCashEUR),
+                'fees' => [
+                    ['amount' => 2.0, 'account' => $this->accountCashEUR->getId()],
+                ],
             ],
         ]);
         self::assertResponseIsSuccessful();
@@ -419,6 +456,40 @@ class TransferCrudTest extends BaseApiTestCase
     }
 
     // ──────────────────────────────────────────────────────────────────────
+    //  VALIDATION — amount and rate must be positive
+    // ──────────────────────────────────────────────────────────────────────
+
+    public function testCreateTransferWithZeroAmountReturns422(): void
+    {
+        $this->client->request('POST', self::TRANSFER_URL, [
+            'json' => [
+                'amount' => '0',
+                'executedAt' => '2024-06-01T10:00:00Z',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => '',
+                'rate' => '1',
+            ],
+        ]);
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    public function testCreateTransferWithNegativeRateReturns422(): void
+    {
+        $this->client->request('POST', self::TRANSFER_URL, [
+            'json' => [
+                'amount' => '100',
+                'executedAt' => '2024-06-01T10:00:00Z',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+                'note' => '',
+                'rate' => '-1',
+            ],
+        ]);
+        self::assertResponseStatusCodeSame(422);
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
     //  EDGE CASE — fee creates additional expense entry
     // ──────────────────────────────────────────────────────────────────────
 
@@ -434,8 +505,9 @@ class TransferCrudTest extends BaseApiTestCase
                 'to' => $this->iri($this->accountCashUAH),
                 'note' => 'Fee balance check',
                 'rate' => '1',
-                'fee' => '10.0',
-                'feeAccount' => $this->iri($this->accountCashEUR),
+                'fees' => [
+                    ['amount' => 10.0, 'account' => $this->accountCashEUR->getId()],
+                ],
             ],
         ]);
         self::assertResponseIsSuccessful();

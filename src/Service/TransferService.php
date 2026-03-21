@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace App\Service;
 
+use App\Entity\Account;
 use App\Entity\Category;
 use App\Entity\Expense;
 use App\Entity\ExpenseCategory;
 use App\Entity\Income;
 use App\Entity\IncomeCategory;
 use App\Entity\Transfer;
-use App\Repository\ExpenseCategoryRepository;
-use App\Repository\IncomeCategoryRepository;
-use RuntimeException;
+use Doctrine\ORM\EntityManagerInterface;
 
 final class TransferService
 {
@@ -21,8 +20,7 @@ final class TransferService
     private ?ExpenseCategory $feeExpenseCategory = null;
 
     public function __construct(
-        private readonly ExpenseCategoryRepository $expenseCategoryRepository,
-        private readonly IncomeCategoryRepository $incomeCategoryRepository,
+        private readonly EntityManagerInterface $entityManager,
         private readonly AssetsManager $assetsManager,
     ) {
     }
@@ -31,25 +29,16 @@ final class TransferService
      * Creates and attaches the bookkeeping transactions for a new transfer,
      * and immediately computes their convertedValues.
      *
-     * Must be called after owner, from/to accounts, amount, rate, fee and
-     * executedAt are all set on the Transfer.
+     * @param array<array{amount: string|float|int, account: Account}> $fees
      */
-    public function createTransactions(Transfer $transfer): void
+    public function createTransactions(Transfer $transfer, array $fees = []): void
     {
         $this->initCategories();
 
-        $owner = $transfer->getOwner();
-        $from = $transfer->getFrom();
-        $to = $transfer->getTo();
+        $owner      = $transfer->getOwner();
+        $from       = $transfer->getFrom();
+        $to         = $transfer->getTo();
         $executedAt = $transfer->getExecutedAt();
-
-        \assert(null !== $owner);
-        \assert(null !== $from);
-        \assert(null !== $to);
-        \assert(null !== $executedAt);
-        \assert(null !== $this->expenseTransferCategory);
-        \assert(null !== $this->incomeTransferCategory);
-        \assert(null !== $this->feeExpenseCategory);
 
         $expense = (new Expense())
             ->setAccount($from)
@@ -68,12 +57,12 @@ final class TransferService
         $transfer->addTransaction($expense);
         $transfer->addTransaction($income);
 
-        if ($transfer->getFee() > 0) {
+        foreach ($fees as $feeData) {
             $fee = (new Expense())
-                ->setAccount($transfer->getFeeAccount() ?? $from)
+                ->setAccount($feeData['account'])
                 ->setCategory($this->feeExpenseCategory)
                 ->setOwner($owner)
-                ->setAmount((string) $transfer->getFee())
+                ->setAmount((string) $feeData['amount'])
                 ->setExecutedAt($executedAt);
 
             $transfer->addTransaction($fee);
@@ -87,59 +76,46 @@ final class TransferService
 
     /**
      * Re-syncs transaction amounts/convertedValues when a transfer is updated.
-     * Preserves existing transaction entities to keep IDs stable.
+     * Preserves existing core transaction entities to keep IDs stable.
+     * Fee transactions are removed and recreated from the provided fees array.
+     *
+     * @param array<array{amount: string|float|int, account: Account}> $fees
      */
-    public function updateTransactions(Transfer $transfer): void
+    public function updateTransactions(Transfer $transfer, array $fees = []): void
     {
-        $from = $transfer->getFrom();
-        $to = $transfer->getTo();
-        $executedAt = $transfer->getExecutedAt();
-        $owner = $transfer->getOwner();
-
-        \assert(null !== $from);
-        \assert(null !== $to);
-        \assert(null !== $executedAt);
-        \assert(null !== $owner);
-
         $fromExpense = $transfer->getFromExpense();
-        $toIncome = $transfer->getToIncome();
-        $feeExpense = $transfer->getFeeExpense();
+        $toIncome    = $transfer->getToIncome();
 
-        if (null !== $fromExpense) {
+        if ($fromExpense !== null) {
             $fromExpense
-                ->setAccount($from)
+                ->setAccount($transfer->getFrom())
                 ->setAmount((string) $transfer->getAmount())
-                ->setExecutedAt($executedAt);
+                ->setExecutedAt($transfer->getExecutedAt());
             $fromExpense->setConvertedValues($this->assetsManager->convert($fromExpense));
         }
 
-        if (null !== $toIncome) {
+        if ($toIncome !== null) {
             $toIncome
-                ->setAccount($to)
+                ->setAccount($transfer->getTo())
                 ->setAmount((string) ($transfer->getAmount() * $transfer->getRate()))
-                ->setExecutedAt($executedAt);
+                ->setExecutedAt($transfer->getExecutedAt());
             $toIncome->setConvertedValues($this->assetsManager->convert($toIncome));
         }
 
-        if (null !== $feeExpense) {
-            if ($transfer->getFee() > 0) {
-                $feeExpense
-                    ->setAccount($transfer->getFeeAccount() ?? $from)
-                    ->setAmount((string) $transfer->getFee())
-                    ->setExecutedAt($executedAt);
-                $feeExpense->setConvertedValues($this->assetsManager->convert($feeExpense));
-            } else {
-                $transfer->removeTransaction($feeExpense);
-            }
-        } elseif ($transfer->getFee() > 0) {
-            $this->initCategories();
-            \assert(null !== $this->feeExpenseCategory);
+        // Remove all existing fee transactions
+        foreach ($transfer->getFeeExpenses() as $existingFee) {
+            $transfer->removeTransaction($existingFee);
+        }
+
+        // Recreate from provided fees
+        $this->initCategories();
+        foreach ($fees as $feeData) {
             $fee = (new Expense())
-                ->setAccount($transfer->getFeeAccount() ?? $from)
+                ->setAccount($feeData['account'])
                 ->setCategory($this->feeExpenseCategory)
-                ->setOwner($owner)
-                ->setAmount((string) $transfer->getFee())
-                ->setExecutedAt($executedAt);
+                ->setOwner($transfer->getOwner())
+                ->setAmount((string) $feeData['amount'])
+                ->setExecutedAt($transfer->getExecutedAt());
             $transfer->addTransaction($fee);
             $fee->setConvertedValues($this->assetsManager->convert($fee));
         }
@@ -147,20 +123,20 @@ final class TransferService
 
     private function initCategories(): void
     {
-        if (null !== $this->expenseTransferCategory) {
+        if ($this->expenseTransferCategory !== null) {
             return;
         }
 
-        $this->expenseTransferCategory = $this->expenseCategoryRepository->findOneBy([
+        $this->expenseTransferCategory = $this->entityManager->getRepository(ExpenseCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
-        ]) ?? throw new RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER . '" not found.');
+        ]) ?? throw new \RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER . '" not found.');
 
-        $this->incomeTransferCategory = $this->incomeCategoryRepository->findOneBy([
+        $this->incomeTransferCategory = $this->entityManager->getRepository(IncomeCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER,
-        ]) ?? throw new RuntimeException('Required income category "' . Category::CATEGORY_TRANSFER . '" not found.');
+        ]) ?? throw new \RuntimeException('Required income category "' . Category::CATEGORY_TRANSFER . '" not found.');
 
-        $this->feeExpenseCategory = $this->expenseCategoryRepository->findOneBy([
+        $this->feeExpenseCategory = $this->entityManager->getRepository(ExpenseCategory::class)->findOneBy([
             'name' => Category::CATEGORY_TRANSFER_FEE,
-        ]) ?? throw new RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER_FEE . '" not found.');
+        ]) ?? throw new \RuntimeException('Required expense category "' . Category::CATEGORY_TRANSFER_FEE . '" not found.');
     }
 }
