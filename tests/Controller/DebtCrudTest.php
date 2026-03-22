@@ -357,4 +357,23 @@ class DebtCrudTest extends BaseApiTestCase
         // security: 'object.getOwner() == user' on the Put operation → 403 Access Denied
         self::assertResponseStatusCodeSame(403);
     }
+
+    public function testDeleteDebt_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('debt_delete');
+
+        $otherDebt = new Debt();
+        $otherDebt
+            ->setDebtor('Other User Debtor Delete')
+            ->setCurrency('EUR')
+            ->setBalance('50')
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherDebt);
+        $this->entityManager()->flush();
+        $otherDebtId = $otherDebt->getId();
+
+        $this->client->request('DELETE', self::DEBT_API_URL . '/' . $otherDebtId);
+        // security: 'object.getOwner() == user' on the Delete operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
 }

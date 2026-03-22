@@ -937,4 +937,60 @@ class TransactionControllerTest extends BaseApiTestCase
             'Other user\'s transaction (9876.54 EUR) must not appear in the authenticated user\'s list.',
         );
     }
+
+    public function testUpdateTransaction_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('tx_put');
+
+        $otherAccount = new \App\Entity\CashAccount();
+        $otherAccount->setName('Other User Account Put')->setCurrency('EUR')->setBalance(0.0)->setOwner($otherUser);
+        $this->entityManager()->persist($otherAccount);
+
+        $groceries = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof \App\Entity\ExpenseCategory);
+
+        $otherExpense = new \App\Entity\Expense();
+        $otherExpense
+            ->setAmount(111.11)
+            ->setExecutedAt(\Carbon\Carbon::parse('2024-06-15T10:00:00Z'))
+            ->setCategory($groceries)
+            ->setAccount($otherAccount)
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherExpense);
+        $this->entityManager()->flush();
+        $otherExpenseId = $otherExpense->getId();
+
+        $this->client->request('PUT', self::TRANSACTION_URL . '/' . $otherExpenseId, [
+            'json' => ['amount' => '1.00', 'executedAt' => '2024-06-15T10:00:00+00:00'],
+        ]);
+        // security: 'object.getOwner() == user' on the Put operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testDeleteTransaction_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('tx_delete');
+
+        $otherAccount = new \App\Entity\CashAccount();
+        $otherAccount->setName('Other User Account Delete')->setCurrency('EUR')->setBalance(0.0)->setOwner($otherUser);
+        $this->entityManager()->persist($otherAccount);
+
+        $groceries = $this->entityManager()->getRepository(Category::class)->findOneBy(['name' => self::CATEGORY_EXPENSE_GROCERIES]);
+        \assert($groceries instanceof \App\Entity\ExpenseCategory);
+
+        $otherExpense = new \App\Entity\Expense();
+        $otherExpense
+            ->setAmount(222.22)
+            ->setExecutedAt(\Carbon\Carbon::parse('2024-06-20T10:00:00Z'))
+            ->setCategory($groceries)
+            ->setAccount($otherAccount)
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherExpense);
+        $this->entityManager()->flush();
+        $otherExpenseId = $otherExpense->getId();
+
+        $this->client->request('DELETE', self::TRANSACTION_URL . '/' . $otherExpenseId);
+        // security: 'object.getOwner() == user' on the Delete operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
 }

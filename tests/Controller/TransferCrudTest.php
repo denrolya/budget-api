@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
+use App\Entity\CashAccount;
 use App\Entity\Transfer;
 use App\Tests\BaseApiTestCase;
 
@@ -516,5 +517,86 @@ class TransferCrudTest extends BaseApiTestCase
         $this->entityManager()->refresh($this->accountCashEUR);
         $eurBalanceAfter = (float) $this->accountCashEUR->getBalance();
         self::assertEquals($eurBalanceBefore - 110.0, $eurBalanceAfter, 'EUR balance must decrease by amount + fee.');
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    //  ISOLATION — cross-user data must not be visible or modifiable
+    // ──────────────────────────────────────────────────────────────────────
+
+    private function createOtherUserTransfer(): array
+    {
+        $otherUser = $this->createOtherUser('transfer_iso');
+
+        $fromAccount = new CashAccount();
+        $fromAccount->setName('Other From EUR')->setCurrency('EUR')->setBalance(500.0)->setOwner($otherUser);
+        $this->entityManager()->persist($fromAccount);
+
+        $toAccount = new CashAccount();
+        $toAccount->setName('Other To EUR')->setCurrency('EUR')->setBalance(0.0)->setOwner($otherUser);
+        $this->entityManager()->persist($toAccount);
+
+        $transfer = new Transfer();
+        $transfer
+            ->setFrom($fromAccount)
+            ->setTo($toAccount)
+            ->setAmount('200')
+            ->setRate('1')
+            ->setExecutedAt(new \DateTimeImmutable('2024-06-01T10:00:00Z'))
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($transfer);
+        $this->entityManager()->flush();
+
+        return [$otherUser, $transfer];
+    }
+
+    public function testListTransfers_withOtherUserData_returnsOnlyOwnData(): void
+    {
+        [, $otherTransfer] = $this->createOtherUserTransfer();
+
+        $response = $this->client->request('GET', self::TRANSFER_URL);
+        self::assertResponseIsSuccessful();
+
+        $identifiers = array_column($response->toArray(), 'id');
+        self::assertNotContains(
+            $otherTransfer->getId(),
+            $identifiers,
+            'Other user\'s transfer must not appear in the authenticated user\'s list.',
+        );
+    }
+
+    public function testGetTransfer_ownedByOtherUser_returns403(): void
+    {
+        [, $otherTransfer] = $this->createOtherUserTransfer();
+
+        $this->client->request('GET', self::TRANSFER_URL . '/' . $otherTransfer->getId());
+        // security: 'object.getOwner() == user' on the Get operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testUpdateTransfer_ownedByOtherUser_returns403(): void
+    {
+        [, $otherTransfer] = $this->createOtherUserTransfer();
+        $otherTransferId = $otherTransfer->getId();
+
+        $this->client->request('PUT', self::TRANSFER_URL . '/' . $otherTransferId, [
+            'json' => [
+                'amount' => '1.00',
+                'rate' => '1',
+                'executedAt' => '2024-06-01T10:00:00+00:00',
+                'from' => $this->iri($this->accountCashEUR),
+                'to' => $this->iri($this->accountCashUAH),
+            ],
+        ]);
+        // security: 'object.getOwner() == user' on the Put operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testDeleteTransfer_ownedByOtherUser_returns403(): void
+    {
+        [, $otherTransfer] = $this->createOtherUserTransfer();
+
+        $this->client->request('DELETE', self::TRANSFER_URL . '/' . $otherTransfer->getId());
+        // security: 'object.getOwner() == user' on the Delete operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
     }
 }

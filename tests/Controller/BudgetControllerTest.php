@@ -1015,6 +1015,53 @@ class BudgetControllerTest extends BaseApiTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    public function testPutBudget_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('budget_put');
+
+        $otherBudget = new Budget();
+        $otherBudget
+            ->setName('Other User Budget Put')
+            ->setPeriodType(Budget::PERIOD_MONTHLY)
+            ->setStartDate(new \DateTimeImmutable('2021-02-01'))
+            ->setEndDate(new \DateTimeImmutable('2021-02-28'))
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherBudget);
+        $this->entityManager()->flush();
+        $otherBudgetId = $otherBudget->getId();
+
+        $this->client->request('PUT', self::BUDGET_API_URL . '/' . $otherBudgetId, [
+            'json' => [
+                'name' => 'Hacked Budget',
+                'startDate' => '2021-02-01',
+                'endDate' => '2021-02-28',
+                'periodType' => Budget::PERIOD_MONTHLY,
+            ],
+        ]);
+        // security: 'object.getOwner() == user' on the Put operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testDeleteBudget_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('budget_delete');
+
+        $otherBudget = new Budget();
+        $otherBudget
+            ->setName('Other User Budget Delete')
+            ->setPeriodType(Budget::PERIOD_MONTHLY)
+            ->setStartDate(new \DateTimeImmutable('2021-03-01'))
+            ->setEndDate(new \DateTimeImmutable('2021-03-31'))
+            ->setOwner($otherUser);
+        $this->entityManager()->persist($otherBudget);
+        $this->entityManager()->flush();
+        $otherBudgetId = $otherBudget->getId();
+
+        $this->client->request('DELETE', self::BUDGET_API_URL . '/' . $otherBudgetId);
+        // security: 'object.getOwner() == user' on the Delete operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
+
     /**
      * @covers \App\DataPersister\BudgetLineDataPersister
      */

@@ -332,4 +332,36 @@ class CategoryCrudTest extends BaseApiTestCase
             'Other user\'s category must not appear in the authenticated user\'s list.',
         );
     }
+
+    public function testUpdateCategory_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('category_put');
+
+        $otherCategory = new ExpenseCategory('Other User Category Put');
+        $otherCategory->setIsAffectingProfit(true)->setOwner($otherUser);
+        $this->entityManager()->persist($otherCategory);
+        $this->entityManager()->flush();
+        $otherCategoryId = $otherCategory->getId();
+
+        $this->client->request('PUT', self::CATEGORY_URL . '/' . $otherCategoryId, [
+            'json' => ['name' => 'Hacked', 'isAffectingProfit' => true],
+        ]);
+        // security: 'object.getOwner() == user' on the Put operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
+
+    public function testDeleteCategory_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('category_delete');
+
+        $otherCategory = new ExpenseCategory('Other User Category Delete');
+        $otherCategory->setIsAffectingProfit(false)->setOwner($otherUser);
+        $this->entityManager()->persist($otherCategory);
+        $this->entityManager()->flush();
+        $otherCategoryId = $otherCategory->getId();
+
+        $this->client->request('DELETE', self::CATEGORY_URL . '/' . $otherCategoryId);
+        // security: 'object.getOwner() == user' on the Delete operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
 }

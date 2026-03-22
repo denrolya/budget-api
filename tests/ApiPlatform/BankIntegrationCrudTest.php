@@ -228,4 +228,27 @@ class BankIntegrationCrudTest extends BaseApiTestCase
         $this->client->request('DELETE', self::BASE . '/' . $integration->getId());
         self::assertResponseStatusCodeSame(403);
     }
+
+    /**
+     * @covers \App\Entity\BankIntegration
+     */
+    public function testUpdateIntegration_ownedByOtherUser_returns403(): void
+    {
+        $otherUser = $this->createOtherUser('bank_put');
+
+        $integration = new BankIntegration();
+        $integration
+            ->setProvider(BankProvider::Monobank)
+            ->setSyncMethod(SyncMethod::Webhook)
+            ->setOwner($otherUser)
+            ->setIsActive(true);
+        $this->entityManager()->persist($integration);
+        $this->entityManager()->flush();
+
+        $this->client->request('PUT', self::BASE . '/' . $integration->getId(), [
+            'json' => ['provider' => 'monobank', 'syncMethod' => 'webhook'],
+        ]);
+        // security: 'object.getOwner() == user' on the Put operation → 403 Access Denied
+        self::assertResponseStatusCodeSame(403);
+    }
 }

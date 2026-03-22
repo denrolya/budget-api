@@ -49,10 +49,12 @@ use Symfony\Component\Validator\Constraints as Assert;
             description: 'Update category name, parent, or isAffectingProfit flag.',
             requirements: ['id' => '\d+'],
             normalizationContext: ['groups' => 'category:write'],
+            security: 'object.getOwner() == user',
         ),
         new Delete(
             description: 'Delete a category and all its transactions (cascade).',
             requirements: ['id' => '\d+'],
+            security: 'object.getOwner() == user',
         ),
     ],
     denormalizationContext: ['groups' => 'category:write'],

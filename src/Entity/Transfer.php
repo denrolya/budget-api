@@ -36,11 +36,26 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: TransferRepository::class)]
 #[ApiResource(
     operations: [
-        new GetCollection(normalizationContext: ['groups' => 'transfer:collection:read']),
-        new Post(processor: TransferDataPersister::class),
-        new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transfer:item:read']),
-        new Put(requirements: ['id' => '\d+'], processor: TransferDataPersister::class),
-        new Delete(requirements: ['id' => '\d+']),
+        new GetCollection(
+            description: 'List all transfers with their linked transactions, ordered by execution date.',
+            normalizationContext: ['groups' => 'transfer:collection:read'],
+        ),
+        new Post(
+            description: 'Create a transfer between two accounts. Specify amount, rate (for cross-currency), and optional fee.',
+            processor: TransferDataPersister::class,
+        ),
+        new Get(requirements: ['id' => '\d+'], normalizationContext: ['groups' => 'transfer:item:read'], security: 'object.getOwner() == user'),
+        new Put(
+            description: 'Update a transfer. Recalculates linked transactions and account balances.',
+            requirements: ['id' => '\d+'],
+            processor: TransferDataPersister::class,
+            security: 'object.getOwner() == user',
+        ),
+        new Delete(
+            description: 'Delete a transfer and its linked transactions, reversing balance changes.',
+            requirements: ['id' => '\d+'],
+            security: 'object.getOwner() == user',
+        ),
     ],
     denormalizationContext: ['groups' => 'transfer:write'],
     order: ['executedAt' => 'DESC'],
