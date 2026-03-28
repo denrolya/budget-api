@@ -50,7 +50,7 @@ final class LedgerController extends AbstractFOSRestController
     #[OA\Get(
         path: '/api/v2/ledgers',
         summary: 'Unified ledger',
-        description: 'Returns a merged, paginated list of transactions and transfers sorted by executedAt DESC. Supports filtering by type, account, category, debt, note, draft status, currency, and amount range. Transfers are excluded when isDraft, currency, amount, or debt filters are active.',
+        description: 'Returns a merged, paginated list of transactions and transfers sorted by executedAt DESC. Supports filtering by type, account, category, debt, note, draft status, currency, and amount range. Transfers are excluded when isDraft, currency, category, or debt filters are active (transfers have no such fields).',
         tags: ['Ledger'],
         security: [['bearerAuth' => []]],
         parameters: [
@@ -160,19 +160,20 @@ final class LedgerController extends AbstractFOSRestController
 
         $hadCategoryFilter = [] !== $categoryIds;
 
+        $includeTransactions = (null === $type || Transaction::EXPENSE === $type || Transaction::INCOME === $type);
+
         // ── Expand categories to include descendants when requested ─────────
-        if ('1' === $withNestedCategories && [] !== $categoryIds) {
-            $txType = ('transfer' === $type) ? null : $type;
-            $expanded = $this->categoryRepository->getCategoriesWithDescendantsByType($categoryIds, $txType);
+        // Only needed for the transaction query — skip when transactions are excluded entirely.
+        if ($includeTransactions && '1' === $withNestedCategories && [] !== $categoryIds) {
+            $expanded = $this->categoryRepository->getCategoriesWithDescendantsByType($categoryIds, $type);
             $categoryIds = array_map(static fn ($c) => $c->getId(), $expanded);
         }
-
-        $includeTransactions = (null === $type || Transaction::EXPENSE === $type || Transaction::INCOME === $type);
-        // Transfers have no isDraft/currency fields — exclude them when those filters are active
+        // Transfers have no isDraft/currency/category/debt fields — exclude them when those filters are active
         $includeTransfers = (null === $type || 'transfer' === $type)
             && null === $isDraftBool
             && (null === $currencies || [] === $currencies)
-            && [] === $debtIds;
+            && [] === $debtIds
+            && !$hadCategoryFilter;
 
         // ── Fetch data ──────────────────────────────────────────────────────
         $transactions = $includeTransactions ? $this->transactionRepository->getListForLedger(
@@ -222,10 +223,34 @@ final class LedgerController extends AbstractFOSRestController
             return $b->getId() - $a->getId(); // desc by id
         });
 
+        // ── Count (authoritative totals from DB, independent of the fetch limit) ─
+        $transactionCount = $includeTransactions ? $this->transactionRepository->countForLedger(
+            after: $after,
+            before: $before,
+            type: 'transfer' === $type ? null : $type,
+            accounts: [] !== $accountIds ? $accountIds : null,
+            categories: [] !== $categoryIds ? $categoryIds : ($hadCategoryFilter ? [0] : null),
+            debts: [] !== $debtIds ? $debtIds : null,
+            note: $note,
+            isDraft: $isDraftBool,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+            currencies: [] !== $currencies ? $currencies : null,
+        ) : 0;
+
+        $transferCount = $includeTransfers ? $this->transferRepository->countForLedger(
+            after: $after,
+            before: $before,
+            accounts: [] !== $accountIds ? $accountIds : null,
+            note: $note,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+        ) : 0;
+
         // ── Paginate ────────────────────────────────────────────────────────
-        $total = \count($merged);
+        $total = $transactionCount + $transferCount;
         $offset = ($page - 1) * $perPage;
-        $page_items = \array_slice($merged, $offset, $perPage);
+        $pageItems = \array_slice($merged, $offset, $perPage);
 
         // ── Total value (transactions only, net) ────────────────────────────
         /** @var User|null $user */
@@ -248,7 +273,7 @@ final class LedgerController extends AbstractFOSRestController
         ) : 0.0;
 
         return $this->view([
-            'list' => $page_items,
+            'list' => $pageItems,
             'count' => $total,
             'totalValue' => round($totalValue, 2),
         ]);

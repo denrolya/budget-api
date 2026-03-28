@@ -34,6 +34,7 @@ class TransferRepository extends ServiceEntityRepository
 
     /**
      * Returns all transfers matching the given filters, for use in the unified ledger endpoint.
+     * Use countForLedger() to get the true total without this limit.
      *
      * @return array<Transfer>
      */
@@ -44,7 +45,7 @@ class TransferRepository extends ServiceEntityRepository
         ?string $note = null,
         ?float $amountGte = null,
         ?float $amountLte = null,
-        int $limit = 1000,
+        int $limit = 10000,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER,
     ): array {
@@ -61,6 +62,30 @@ class TransferRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Returns the exact count of transfers matching the ledger filters.
+     */
+    public function countForLedger(
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+        ?array $accounts = null,
+        ?string $note = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+    ): int {
+        return (int) $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            accounts: $accounts,
+            note: $note,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+        )
+            ->select('COUNT(t.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /**

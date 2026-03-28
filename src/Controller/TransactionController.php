@@ -164,7 +164,7 @@ final class TransactionController extends AbstractFOSRestController
     #[OA\Get(
         path: '/api/v2/transactions/export.csv',
         summary: 'Export transactions as CSV',
-        description: 'Streams a CSV file of profit-affecting transactions matching the given filters. The filename is transactions_{after}_{before}.csv.',
+        description: 'Streams a CSV file of all transactions matching the given filters. The filename is transactions_{after}_{before}.csv.',
         security: [['bearerAuth' => []]],
         tags: ['Transaction'],
         parameters: [
@@ -235,7 +235,7 @@ final class TransactionController extends AbstractFOSRestController
             excludedCategories: $excludedCategories,
             withNestedCategories: $withNestedCategories,
             isDraft: $isDraft,
-            affectingProfitOnly: empty($debts),
+            affectingProfitOnly: false,
             currencies: $currencies ?? [],
             note: $note,
             amountGte: $amountGte,

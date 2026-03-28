@@ -142,6 +142,7 @@ class TransactionRepository extends ServiceEntityRepository
     /**
      * Returns all transactions matching the given filters, excluding transfer-linked transactions.
      * Designed for the unified ledger endpoint — fetches up to $limit items for PHP-level merge.
+     * Use countForLedger() to get the true total without this limit.
      *
      * @return array<Transaction>
      */
@@ -157,7 +158,7 @@ class TransactionRepository extends ServiceEntityRepository
         ?float $amountGte = null,
         ?float $amountLte = null,
         ?array $currencies = null,
-        int $limit = 1000,
+        int $limit = 10000,
         string $orderField = self::ORDER_FIELD,
         string $order = self::ORDER,
     ): array {
@@ -181,6 +182,43 @@ class TransactionRepository extends ServiceEntityRepository
             ->setMaxResults($limit)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * Returns the exact count of transactions matching the ledger filters.
+     * Separate from getListForLedger to keep the list fetch independent of the total count.
+     */
+    public function countForLedger(
+        ?CarbonInterface $after,
+        ?CarbonInterface $before,
+        ?string $type = null,
+        ?array $accounts = null,
+        ?array $categories = null,
+        ?array $debts = null,
+        ?string $note = null,
+        ?bool $isDraft = null,
+        ?float $amountGte = null,
+        ?float $amountLte = null,
+        ?array $currencies = null,
+    ): int {
+        return (int) $this->getBaseQueryBuilder(
+            after: $after,
+            before: $before,
+            affectingProfitOnly: false,
+            type: $type,
+            categories: $categories,
+            accounts: $accounts,
+            debts: $debts,
+            isDraft: $isDraft,
+            note: $note,
+            amountGte: $amountGte,
+            amountLte: $amountLte,
+            currencies: $currencies,
+            excludeTransferTransactions: true,
+        )
+            ->select('COUNT(t.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
     /**
