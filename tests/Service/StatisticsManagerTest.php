@@ -948,17 +948,11 @@ class StatisticsManagerTest extends TestCase
 
         $result = $statisticsManager->computeBudgetInsights($budget, 'EUR');
 
-        // Root category "Food" (id=1) should appear with rolled-up trend
+        // When a child has a significant trend, it is emitted directly instead of the root.
+        // Groceries (id=2) is trending up; Eating Out (id=3) is stable and filtered out.
         self::assertCount(1, $result['trends']);
-        self::assertSame(1, $result['trends'][0]['categoryId']);
+        self::assertSame(2, $result['trends'][0]['categoryId']);
         self::assertSame('up', $result['trends'][0]['direction']);
-
-        // Children array should include Groceries (trending up) but not Eating Out (stable)
-        self::assertArrayHasKey('children', $result['trends'][0]);
-        /** @var list<array{categoryId: int}> $children */
-        $children = $result['trends'][0]['children'];
-        $childIds = array_column($children, 'categoryId');
-        self::assertContains(2, $childIds, 'Groceries child trend should be included');
     }
 
     public function testComputeSeasonalRollsUpChildrenIntoRootCategory(): void
@@ -1049,9 +1043,10 @@ class StatisticsManagerTest extends TestCase
 
         $result = $statisticsManager->computeBudgetInsights($budget, 'EUR');
 
+        // No children have significant trends → the root itself is emitted (no 'children' key).
         self::assertCount(1, $result['trends']);
         self::assertSame(1, $result['trends'][0]['categoryId']);
-        self::assertSame([], $result['trends'][0]['children']);
+        self::assertArrayNotHasKey('children', $result['trends'][0]);
     }
 
     public function testComputeTrendsAggregatesGrandchildrenIntoIntermediateCategory(): void
@@ -1116,33 +1111,21 @@ class StatisticsManagerTest extends TestCase
 
         $result = $statisticsManager->computeBudgetInsights($budget, 'EUR');
 
-        // Root "Food" (id=1) should appear with trend based on all descendants
+        // Groceries (id=2) is the only direct child of root with a significant aggregated trend
+        // (Organic trending up drives it). It is emitted directly instead of root.
         self::assertCount(1, $result['trends']);
-        self::assertSame(1, $result['trends'][0]['categoryId']);
+        self::assertSame(2, $result['trends'][0]['categoryId']);
 
-        // Direct children of root should be Groceries(2) and EatingOut(3), not leaf categories
-        /** @var list<array{categoryId: int, olderAverage: float, recentAverage: float}> $children */
-        $children = $result['trends'][0]['children'];
-        $childIds = array_column($children, 'categoryId');
-        self::assertContains(2, $childIds, 'Groceries (intermediate) should be a direct child');
-        self::assertNotContains(4, $childIds, 'Organic (grandchild) should not be a direct child of root');
-        self::assertNotContains(5, $childIds, 'Regular (grandchild) should not be a direct child of root');
-
-        // Groceries child trend should include aggregated data from Organic + Regular
-        $groceriesTrend = null;
-        foreach ($children as $child) {
-            if (2 === $child['categoryId']) {
-                $groceriesTrend = $child;
-                break;
-            }
-        }
-        self::assertNotNull($groceriesTrend);
+        // Leaf categories should not appear as top-level trends — they are aggregated into Groceries
+        $trendIds = array_column($result['trends'], 'categoryId');
+        self::assertNotContains(4, $trendIds, 'Organic (grandchild) should not be a direct trend');
+        self::assertNotContains(5, $trendIds, 'Regular (grandchild) should not be a direct trend');
 
         // Groceries aggregated: Organic + Regular per month
         // Older avg: (70 + 75 + 80) / 3 = 75
         // Recent avg: (110 + 120 + 130) / 3 = 120
-        self::assertEqualsWithDelta(75.0, $groceriesTrend['olderAverage'], 0.01);
-        self::assertEqualsWithDelta(120.0, $groceriesTrend['recentAverage'], 0.01);
+        self::assertEqualsWithDelta(75.0, $result['trends'][0]['olderAverage'], 0.01);
+        self::assertEqualsWithDelta(120.0, $result['trends'][0]['recentAverage'], 0.01);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
