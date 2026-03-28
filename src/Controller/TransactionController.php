@@ -235,7 +235,7 @@ final class TransactionController extends AbstractFOSRestController
             excludedCategories: $excludedCategories,
             withNestedCategories: $withNestedCategories,
             isDraft: $isDraft,
-            affectingProfitOnly: true,
+            affectingProfitOnly: empty($debts),
             currencies: $currencies ?? [],
             note: $note,
             amountGte: $amountGte,
