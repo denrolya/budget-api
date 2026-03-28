@@ -69,6 +69,28 @@ class CategoryRepository extends ServiceEntityRepository
     }
 
     /**
+     * Returns a flat map of categoryId → parentId (null for root categories).
+     * Single DB query; used by StatisticsManager to resolve direct parent-child relationships.
+     *
+     * @return array<int, int|null>
+     */
+    public function buildParentMap(): array
+    {
+        $rows = $this->createQueryBuilder('category')
+            ->select('category.id', 'IDENTITY(category.parent) AS parent_id')
+            ->getQuery()
+            ->getScalarResult();
+
+        $parentMap = [];
+        /** @var array{id: int|string, parent_id: int|string|null} $row */
+        foreach ($rows as $row) {
+            $parentMap[(int) $row['id']] = null !== $row['parent_id'] ? (int) $row['parent_id'] : null;
+        }
+
+        return $parentMap;
+    }
+
+    /**
      * Builds a map of categoryId → [self + all descendant ids] using a single DB query.
      * Replaces recursive PHP getDescendantsFlat() calls throughout the codebase.
      */

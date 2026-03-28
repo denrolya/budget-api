@@ -13,6 +13,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final readonly class CSVExporter
 {
+    /** Fiat currencies exported as converted value columns, in display order. */
+    private const CONVERTED_CURRENCIES = ['EUR', 'USD', 'UAH', 'HUF'];
+
     public function __construct(
         private TransactionRepository $transactions,
         private CategoryRepository $categories,
@@ -67,6 +70,11 @@ final readonly class CSVExporter
             $csv->setDelimiter(',');
             $csv->setNewline("\r\n");
 
+            $convertedHeaders = array_map(
+                static fn (string $code): string => 'value_' . strtolower($code),
+                self::CONVERTED_CURRENCIES,
+            );
+
             // Header row — keep stable for consumers
             $csv->insertOne([
                 'id',
@@ -74,6 +82,7 @@ final readonly class CSVExporter
                 'type',
                 'amount',
                 'currency',
+                ...$convertedHeaders,
                 'account_id',
                 'account_name',
                 'category_id',
@@ -105,6 +114,14 @@ final readonly class CSVExporter
             foreach ($items as $transaction) {
                 $account = $transaction->getAccount();
                 $category = $transaction->getCategory();
+                $convertedValues = $transaction->getConvertedValues();
+
+                $convertedCells = array_map(
+                    static fn (string $code): string => isset($convertedValues[$code])
+                        ? (string) $convertedValues[$code]
+                        : '',
+                    self::CONVERTED_CURRENCIES,
+                );
 
                 $csv->insertOne([
                     $transaction->getId(),
@@ -112,6 +129,7 @@ final readonly class CSVExporter
                     $transaction->getType(),
                     (string) $transaction->getAmount(),
                     $transaction->getCurrency(),
+                    ...$convertedCells,
                     $account->getId(),
                     $account->getName(),
                     $category->getId(),

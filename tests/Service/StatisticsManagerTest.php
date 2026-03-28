@@ -577,7 +577,7 @@ class StatisticsManagerTest extends TestCase
         ];
 
         $transactionRepository = $this->createMock(TransactionRepository::class);
-        $transactionRepository->method('getList')->willReturn([]);
+        $transactionRepository->method('getList')->willReturn($this->createBudgetPeriodActivityStubs([1]));
         $transactionRepository->method('getConvertedMonthlyTotalsByCategory')->willReturn($byMonth);
 
         $statisticsManager = $this->createStatisticsManager(
@@ -609,7 +609,7 @@ class StatisticsManagerTest extends TestCase
         ];
 
         $transactionRepository = $this->createMock(TransactionRepository::class);
-        $transactionRepository->method('getList')->willReturn([]);
+        $transactionRepository->method('getList')->willReturn($this->createBudgetPeriodActivityStubs([1]));
         $transactionRepository->method('getConvertedMonthlyTotalsByCategory')->willReturn($byMonth);
 
         $statisticsManager = $this->createStatisticsManager(
@@ -704,7 +704,7 @@ class StatisticsManagerTest extends TestCase
         ];
 
         $transactionRepository = $this->createMock(TransactionRepository::class);
-        $transactionRepository->method('getList')->willReturn([]);
+        $transactionRepository->method('getList')->willReturn($this->createBudgetPeriodActivityStubs([1, 2]));
         $transactionRepository->method('getConvertedMonthlyTotalsByCategory')->willReturn($byMonth);
 
         $statisticsManager = $this->createStatisticsManager(
@@ -909,6 +909,11 @@ class StatisticsManagerTest extends TestCase
             2 => [2],
             3 => [3],
         ]);
+        $categoryRepo->method('buildParentMap')->willReturn([
+            1 => null,
+            2 => 1,
+            3 => 1,
+        ]);
 
         // Leaf-level monthly data (no data on root category 1 directly)
         $byMonth = [
@@ -930,8 +935,9 @@ class StatisticsManagerTest extends TestCase
             ],
         ];
 
+        // Budget-period activity stubs — children assigned under root 1 via parentMap
         $transactionRepository = $this->createMock(TransactionRepository::class);
-        $transactionRepository->method('getList')->willReturn([]);
+        $transactionRepository->method('getList')->willReturn($this->createBudgetPeriodActivityStubs([2]));
         $transactionRepository->method('getConvertedMonthlyTotalsByCategory')->willReturn($byMonth);
 
         $statisticsManager = $this->createStatisticsManager(
@@ -964,6 +970,11 @@ class StatisticsManagerTest extends TestCase
             1 => [1, 2, 3],
             2 => [2],
             3 => [3],
+        ]);
+        $categoryRepo->method('buildParentMap')->willReturn([
+            1 => null,
+            2 => 1,
+            3 => 1,
         ]);
 
         // Child categories: December spending is higher than average
@@ -1011,6 +1022,9 @@ class StatisticsManagerTest extends TestCase
         $categoryRepo->method('buildDescendantMap')->willReturn([
             1 => [1],
         ]);
+        $categoryRepo->method('buildParentMap')->willReturn([
+            1 => null,
+        ]);
 
         $byMonth = [
             1 => [
@@ -1024,7 +1038,7 @@ class StatisticsManagerTest extends TestCase
         ];
 
         $transactionRepository = $this->createMock(TransactionRepository::class);
-        $transactionRepository->method('getList')->willReturn([]);
+        $transactionRepository->method('getList')->willReturn($this->createBudgetPeriodActivityStubs([1]));
         $transactionRepository->method('getConvertedMonthlyTotalsByCategory')->willReturn($byMonth);
 
         $statisticsManager = $this->createStatisticsManager(
@@ -1040,6 +1054,97 @@ class StatisticsManagerTest extends TestCase
         self::assertSame([], $result['trends'][0]['children']);
     }
 
+    public function testComputeTrendsAggregatesGrandchildrenIntoIntermediateCategory(): void
+    {
+        $budget = $this->createBudgetMock('2024-07-01', '2024-07-31');
+
+        // 3-level tree: Food(1) → Groceries(2) → Organic(4) + Regular(5), plus EatingOut(3)
+        $categoryRepo = $this->createMock(CategoryRepository::class);
+        $categoryRepo->method('buildDescendantMap')->willReturn([
+            1 => [1, 2, 3, 4, 5],
+            2 => [2, 4, 5],
+            3 => [3],
+            4 => [4],
+            5 => [5],
+        ]);
+        $categoryRepo->method('buildParentMap')->willReturn([
+            1 => null,
+            2 => 1,
+            3 => 1,
+            4 => 2,
+            5 => 2,
+        ]);
+
+        // Only leaf categories have direct transactions
+        $byMonth = [
+            4 => [ // Organic — trending up
+                '2024-01' => ['EUR' => ['income' => 0.0, 'expense' => 20.0]],
+                '2024-02' => ['EUR' => ['income' => 0.0, 'expense' => 25.0]],
+                '2024-03' => ['EUR' => ['income' => 0.0, 'expense' => 30.0]],
+                '2024-04' => ['EUR' => ['income' => 0.0, 'expense' => 60.0]],
+                '2024-05' => ['EUR' => ['income' => 0.0, 'expense' => 70.0]],
+                '2024-06' => ['EUR' => ['income' => 0.0, 'expense' => 80.0]],
+            ],
+            5 => [ // Regular — stable
+                '2024-01' => ['EUR' => ['income' => 0.0, 'expense' => 50.0]],
+                '2024-02' => ['EUR' => ['income' => 0.0, 'expense' => 50.0]],
+                '2024-03' => ['EUR' => ['income' => 0.0, 'expense' => 50.0]],
+                '2024-04' => ['EUR' => ['income' => 0.0, 'expense' => 50.0]],
+                '2024-05' => ['EUR' => ['income' => 0.0, 'expense' => 50.0]],
+                '2024-06' => ['EUR' => ['income' => 0.0, 'expense' => 50.0]],
+            ],
+            3 => [ // Eating Out — stable
+                '2024-01' => ['EUR' => ['income' => 0.0, 'expense' => 40.0]],
+                '2024-02' => ['EUR' => ['income' => 0.0, 'expense' => 40.0]],
+                '2024-03' => ['EUR' => ['income' => 0.0, 'expense' => 40.0]],
+                '2024-04' => ['EUR' => ['income' => 0.0, 'expense' => 40.0]],
+                '2024-05' => ['EUR' => ['income' => 0.0, 'expense' => 40.0]],
+                '2024-06' => ['EUR' => ['income' => 0.0, 'expense' => 40.0]],
+            ],
+        ];
+
+        // Budget-period activity stubs — leaf categories grouped to root 1 via parentMap
+        $transactionRepository = $this->createMock(TransactionRepository::class);
+        $transactionRepository->method('getList')->willReturn($this->createBudgetPeriodActivityStubs([4]));
+        $transactionRepository->method('getConvertedMonthlyTotalsByCategory')->willReturn($byMonth);
+
+        $statisticsManager = $this->createStatisticsManager(
+            $this->createAssetsManagerMock(),
+            $transactionRepository,
+            $categoryRepo,
+        );
+
+        $result = $statisticsManager->computeBudgetInsights($budget, 'EUR');
+
+        // Root "Food" (id=1) should appear with trend based on all descendants
+        self::assertCount(1, $result['trends']);
+        self::assertSame(1, $result['trends'][0]['categoryId']);
+
+        // Direct children of root should be Groceries(2) and EatingOut(3), not leaf categories
+        /** @var list<array{categoryId: int, olderAverage: float, recentAverage: float}> $children */
+        $children = $result['trends'][0]['children'];
+        $childIds = array_column($children, 'categoryId');
+        self::assertContains(2, $childIds, 'Groceries (intermediate) should be a direct child');
+        self::assertNotContains(4, $childIds, 'Organic (grandchild) should not be a direct child of root');
+        self::assertNotContains(5, $childIds, 'Regular (grandchild) should not be a direct child of root');
+
+        // Groceries child trend should include aggregated data from Organic + Regular
+        $groceriesTrend = null;
+        foreach ($children as $child) {
+            if (2 === $child['categoryId']) {
+                $groceriesTrend = $child;
+                break;
+            }
+        }
+        self::assertNotNull($groceriesTrend);
+
+        // Groceries aggregated: Organic + Regular per month
+        // Older avg: (70 + 75 + 80) / 3 = 75
+        // Recent avg: (110 + 120 + 130) / 3 = 120
+        self::assertEqualsWithDelta(75.0, $groceriesTrend['olderAverage'], 0.01);
+        self::assertEqualsWithDelta(120.0, $groceriesTrend['recentAverage'], 0.01);
+    }
+
     // ──────────────────────────────────────────────────────────────────────────
     // Helpers
     // ──────────────────────────────────────────────────────────────────────────
@@ -1051,6 +1156,27 @@ class StatisticsManagerTest extends TestCase
         $budget->method('getEndDate')->willReturn(CarbonImmutable::parse($endDate));
 
         return $budget;
+    }
+
+    /**
+     * Creates minimal Transaction stubs for budget-period activity detection.
+     * Each stub only needs getCategory() to resolve the root category via parentMap.
+     *
+     * @param int[] $categoryIds
+     *
+     * @return Transaction[]
+     */
+    private function createBudgetPeriodActivityStubs(array $categoryIds): array
+    {
+        $stubs = [];
+        foreach ($categoryIds as $categoryId) {
+            $category = $this->createCategory($categoryId, "Cat{$categoryId}");
+            $stub = $this->createMock(Transaction::class);
+            $stub->method('getCategory')->willReturn($category);
+            $stubs[] = $stub;
+        }
+
+        return $stubs;
     }
 
     /**

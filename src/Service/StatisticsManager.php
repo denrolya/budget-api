@@ -45,6 +45,13 @@ final class StatisticsManager
      */
     private ?array $descendantMap = null;
 
+    /**
+     * Lazily populated once per request from buildParentMap().
+     *
+     * @var array<int, int|null>|null
+     */
+    private ?array $parentMap = null;
+
     public function __construct(
         private readonly AssetsManager $assetsManager,
         private readonly TransactionRepository $transactionRepository,
@@ -442,6 +449,20 @@ final class StatisticsManager
     }
 
     /**
+     * Lazily builds and caches a map of categoryId → parentId (null for roots) for the current request.
+     *
+     * @return array<int, int|null>
+     */
+    private function getParentMap(): array
+    {
+        if (null === $this->parentMap) {
+            $this->parentMap = $this->categoryRepository->buildParentMap();
+        }
+
+        return $this->parentMap;
+    }
+
+    /**
      * Recursively hydrates setValue/setTotal on each category using a pre-built descendant ID map.
      * Eliminates isChildOf() — no per-transaction recursive DB queries.
      *
@@ -725,10 +746,10 @@ final class StatisticsManager
             isDraft: false,
         );
 
-        $groupedByCategory = $this->groupTransactionsByCategory($transactions);
+        $groupedByRootCategory = $this->groupTransactionsByRootCategory($transactions);
         $outliers = [];
 
-        foreach ($groupedByCategory as $categoryId => $categoryTransactions) {
+        foreach ($groupedByRootCategory as $categoryId => $categoryTransactions) {
             if (\count($categoryTransactions) < self::OUTLIER_MINIMUM_GROUP_SIZE) {
                 continue;
             }
@@ -790,6 +811,7 @@ final class StatisticsManager
     private function computeTrends(Budget $budget, string $baseCurrency): array
     {
         $budgetStart = CarbonImmutable::instance($budget->getStartDate());
+        $budgetEnd = CarbonImmutable::instance($budget->getEndDate());
         $windowEnd = $budgetStart->subDay()->endOfDay();
         $windowStart = $budgetStart->subMonths(self::TREND_LOOKBACK_MONTHS)->startOfMonth()->startOfDay();
 
@@ -797,10 +819,26 @@ final class StatisticsManager
         $monthSlots = $this->buildTrendMonthSlots($budgetStart);
         $halfPoint = (int) floor(\count($monthSlots) / 2);
 
+        // Only show trends for categories with confirmed expense activity in the budget period.
+        // Uses getList() with the same filters the budget itself applies (non-draft, expense, affecting profit)
+        // to avoid false positives from drafts or income transactions that the budget view ignores.
+        $budgetExpenses = $this->transactionRepository->getList(
+            after: $budgetStart->startOfDay(),
+            before: $budgetEnd->endOfDay(),
+            type: Transaction::EXPENSE,
+            affectingProfitOnly: true,
+            isDraft: false,
+        );
+        $activeCategoryIds = array_keys($this->groupTransactionsByRootCategory($budgetExpenses));
+
         $rolledUp = $this->rollUpMonthlyTotalsByCategory($byMonth, $baseCurrency);
         $trends = [];
 
         foreach ($rolledUp as $rootCategoryId => $rootData) {
+            if (!\in_array($rootCategoryId, $activeCategoryIds, true)) {
+                continue;
+            }
+
             $rootTrend = $this->computeTrendForCategory($rootCategoryId, $rootData['totals'], $monthSlots, $halfPoint);
 
             if (null === $rootTrend) {
@@ -815,8 +853,13 @@ final class StatisticsManager
                 }
             }
 
-            $rootTrend['children'] = $children;
-            $trends[] = $rootTrend;
+            // When children have significant trends, emit them instead of the parent aggregate.
+            // The root trend is redundant — it's just the sum of its children.
+            if ([] !== $children) {
+                array_push($trends, ...$children);
+            } else {
+                $trends[] = $rootTrend;
+            }
         }
 
         usort($trends, static fn (array $first, array $second): int => abs($second['changePercent']) <=> abs($first['changePercent']));
@@ -869,17 +912,29 @@ final class StatisticsManager
     }
 
     /**
+     * Groups transactions by their root (top-level) category using the parent map.
+     * Transactions in child categories are aggregated into their root ancestor's group,
+     * so outlier detection operates on the full category tree rather than individual leaves.
+     *
      * @param Transaction[] $transactions
      *
      * @return array<int, Transaction[]>
      */
-    private function groupTransactionsByCategory(array $transactions): array
+    private function groupTransactionsByRootCategory(array $transactions): array
     {
+        $parentMap = $this->getParentMap();
+
         $grouped = [];
         foreach ($transactions as $transaction) {
             $categoryId = $transaction->getCategory()->getId();
             \assert(null !== $categoryId);
-            $grouped[$categoryId][] = $transaction;
+
+            $rootId = $categoryId;
+            while (isset($parentMap[$rootId])) {
+                $rootId = $parentMap[$rootId];
+            }
+
+            $grouped[$rootId][] = $transaction;
         }
 
         return $grouped;
@@ -959,8 +1014,8 @@ final class StatisticsManager
      * @return array<string, float> YYYY-MM → expense total in base currency
      */
     /**
-     * Rolls up per-leaf-category monthly data into root categories using the descendant map.
-     * Returns root-level aggregated totals plus per-child breakdowns.
+     * Rolls up per-category monthly data into a tree where each node's totals include all descendants.
+     * Returns root-level entries (parent=null) with direct children, each having aggregated totals.
      *
      * @param array<int, array<string, array<string, array{income: float, expense: float}>>> $byMonth
      *
@@ -969,52 +1024,91 @@ final class StatisticsManager
     private function rollUpMonthlyTotalsByCategory(array $byMonth, string $baseCurrency): array
     {
         $descendantMap = $this->getDescendantMap();
+        $parentMap = $this->getParentMap();
 
-        // Build reverse map: childId → rootId
-        $childToRoot = [];
-        foreach ($descendantMap as $categoryId => $descendants) {
-            // A category is a root if it appears as a descendant only of itself
-            $isRoot = true;
-            foreach ($descendantMap as $otherId => $otherDescendants) {
-                if ($otherId !== $categoryId && \in_array($categoryId, $otherDescendants, true)) {
-                    $isRoot = false;
-                    break;
-                }
-            }
+        $directTotalsByCategory = $this->computeDirectTotalsByCategory($byMonth, $baseCurrency);
+        $aggregatedTotalsByCategory = $this->aggregateDescendantTotals($directTotalsByCategory, $descendantMap);
 
-            if ($isRoot) {
-                foreach ($descendants as $descendantId) {
-                    $childToRoot[$descendantId] = $categoryId;
-                }
+        $directChildrenByParent = [];
+        foreach ($parentMap as $categoryId => $parentId) {
+            if (null !== $parentId) {
+                $directChildrenByParent[$parentId][] = $categoryId;
             }
         }
 
         $result = [];
-
-        foreach ($byMonth as $leafCategoryId => $monthData) {
-            $rootId = $childToRoot[$leafCategoryId] ?? $leafCategoryId;
-            $leafTotals = $this->aggregateMonthlyTotalsInBaseCurrency($monthData, $baseCurrency);
-
-            if ([] === $leafTotals) {
+        foreach ($aggregatedTotalsByCategory as $categoryId => $totals) {
+            $parentId = $parentMap[$categoryId] ?? null;
+            if (null !== $parentId) {
                 continue;
             }
 
-            if (!isset($result[$rootId])) {
-                $result[$rootId] = ['totals' => [], 'children' => []];
+            $children = [];
+            foreach ($directChildrenByParent[$categoryId] ?? [] as $childId) {
+                if (isset($aggregatedTotalsByCategory[$childId])) {
+                    $children[$childId] = $aggregatedTotalsByCategory[$childId];
+                }
             }
 
-            // Add leaf totals to root totals
-            foreach ($leafTotals as $month => $total) {
-                $result[$rootId]['totals'][$month] = ($result[$rootId]['totals'][$month] ?? 0.0) + $total;
-            }
-
-            // Store child breakdown (only if leaf differs from root)
-            if ($leafCategoryId !== $rootId) {
-                $result[$rootId]['children'][$leafCategoryId] = $leafTotals;
-            }
+            $result[$categoryId] = ['totals' => $totals, 'children' => $children];
         }
 
         return $result;
+    }
+
+    /**
+     * Converts raw per-category per-month multi-currency data to base-currency expense totals.
+     *
+     * @param array<int, array<string, array<string, array{income: float, expense: float}>>> $byMonth
+     *
+     * @return array<int, array<string, float>> categoryId → [YYYY-MM → expense total in base currency]
+     */
+    private function computeDirectTotalsByCategory(array $byMonth, string $baseCurrency): array
+    {
+        $directTotals = [];
+        foreach ($byMonth as $categoryId => $monthData) {
+            $totals = $this->aggregateMonthlyTotalsInBaseCurrency($monthData, $baseCurrency);
+            if ([] !== $totals) {
+                $directTotals[$categoryId] = $totals;
+            }
+        }
+
+        return $directTotals;
+    }
+
+    /**
+     * For each category, sums direct totals from self and all descendants into one aggregated total.
+     *
+     * @param array<int, array<string, float>> $directTotalsByCategory categoryId → [YYYY-MM → expense total]
+     * @param array<int, list<int>> $descendantMap categoryId → [self + all descendant IDs]
+     *
+     * @return array<int, array<string, float>> categoryId → [YYYY-MM → aggregated expense total]
+     */
+    private function aggregateDescendantTotals(array $directTotalsByCategory, array $descendantMap): array
+    {
+        $aggregated = [];
+
+        foreach ($descendantMap as $categoryId => $descendantIds) {
+            $monthlyTotals = [];
+            foreach ($descendantIds as $descendantId) {
+                foreach ($directTotalsByCategory[$descendantId] ?? [] as $month => $amount) {
+                    $monthlyTotals[$month] = ($monthlyTotals[$month] ?? 0.0) + $amount;
+                }
+            }
+
+            if ([] !== $monthlyTotals) {
+                $aggregated[$categoryId] = $monthlyTotals;
+            }
+        }
+
+        // Categories with direct totals not covered by the descendant map: use direct totals as-is
+        foreach ($directTotalsByCategory as $categoryId => $totals) {
+            if (!isset($aggregated[$categoryId])) {
+                $aggregated[$categoryId] = $totals;
+            }
+        }
+
+        return $aggregated;
     }
 
     /**
